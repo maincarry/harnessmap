@@ -1,0 +1,13 @@
+{
+  "name": "harnessmap",
+  "owner": {
+    "name": "harnessmap"
+  },
+  "plugins": [
+    {
+      "name": "map",
+      "source": ".",
+      "description": "A live, local-only map of your work beside Claude Code \u2014 automatic filing, user-governed memory. Server auto-starts on localhost; /map:status for details."
+    }
+  ]
+}

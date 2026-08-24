@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+harnessmap.sqlite*
+.browserlibs/
+# generated artifacts (regenerable):
+docs/ontology/ontology-combined.md
+docs/ui-screens.html
+backups/

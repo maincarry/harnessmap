@@ -1,0 +1,54 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'if command -v bun >/dev/null 2>&1; then bun run \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.ts\"; else echo \"{\\\"hookSpecificOutput\\\": {\\\"hookEventName\\\": \\\"SessionStart\\\", \\\"additionalContext\\\": \\\"[harnessmap] The map plugin needs the bun runtime, which is not installed. Tell the user, and OFFER to install it for them by running: curl -fsSL https://bun.sh/install | bash \\\\u2014 then restart the session. Do not install without their consent.\\\"}}\"; fi'"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'if command -v bun >/dev/null 2>&1; then bun run \"${CLAUDE_PLUGIN_ROOT}/hooks/on-prompt.ts\"; else true; fi'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'if command -v bun >/dev/null 2>&1; then bun run \"${CLAUDE_PLUGIN_ROOT}/hooks/on-stop.ts\"; else true; fi'"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'if command -v bun >/dev/null 2>&1; then bun run \"${CLAUDE_PLUGIN_ROOT}/hooks/post-compact.ts\"; else true; fi'"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'if command -v bun >/dev/null 2>&1; then bun run \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-compact.ts\"; else true; fi'"
+          }
+        ]
+      }
+    ]
+  }
+}

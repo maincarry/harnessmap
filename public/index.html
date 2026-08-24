@@ -1,0 +1,2805 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>harnessmap</title>
+<style>
+  :root {
+    --bg: #f5f6f2; --panel: #fdfdfb; --ink: #202b36; --muted: #5c6c7a;
+    --hair: #dce1d9; --accent: #2560b8; --warn: #b57e22; --user: #eef2fa;
+    --danger: #c43c3c;
+    --new0: #2560b826; --new1: #2560b817; --new2: #2560b80c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f161f; --panel: #151e29; --ink: #e3e9ef; --muted: #8fa0b0;
+            --hair: #243140; --accent: #7cacf2; --warn: #d9a24c; --user: #1a2532;
+            --danger: #e06c6c;
+            --new0: #7cacf22e; --new1: #7cacf21c; --new2: #7cacf20e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink);
+         display: grid; grid-template-columns: var(--split, 40%) 6px 1fr; height: 100vh; }
+  #splitter { cursor: col-resize; background: var(--hair); position: relative; }
+  /* M133 (Jacob): mobile — one pane at a time, bottom switcher. body.mobile
+     is set by JS from viewport width so tests can drive it deterministically. */
+  body.mobile { grid-template-columns: 1fr; grid-template-rows: 1fr 52px; }
+  body.mobile #map-pane, body.mobile #chat-pane { grid-row: 1; grid-column: 1; min-height: 0; }
+  body.mobile #mob-bar { grid-row: 2; grid-column: 1; }
+  body.mobile #tip { display: none; }
+  body.mobile #splitter { display: none; }
+  /* M135 (Jacob): ChatGPT-mobile philosophy — radical subtraction. One slim
+     top bar (☰ + map name), content full-bleed, one composer at the bottom;
+     everything else lives in the drawer or the per-row sheets. */
+  body.mobile #map-pane > header, body.mobile #zoom-tools { display: none; }
+  body.mobile .tguide { width: 10px; margin-left: 0; border: none; }
+  body.mobile .caret, body.mobile .rowmore, body.mobile .badge, body.mobile .glyph,
+  body.mobile .ntype, body.mobile .prov, body.mobile #round-line, body.mobile #add-root { display: none; }
+  body.mobile .nrow { min-height: 46px; align-items: center; padding: 4px 16px 4px 8px; }
+  body.mobile .nrow .ncontent { font-size: 16px; line-height: 1.35; }
+  body.mobile .nrow.heading .ncontent { font-weight: 600; }
+  body.mobile .nrow.focused { border: none; border-left: 3px solid var(--accent); border-radius: 0; background: none; }
+  body.mobile .nrow.focused .ncontent { color: var(--accent); }
+  body.mobile .fold-count { border: none; background: none; padding: 0; font-size: 13px; color: var(--muted); }
+  body.mobile .chip-new { border: none; padding: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); overflow: hidden; color: transparent; }
+  body.mobile .chip-new.changed { background: var(--muted); }
+  body.mobile .sdot { font-size: 15px; padding: 0 4px; }
+  body.mobile .nrow.tosort { border: none; background: none; opacity: .75; }
+  body.mobile #mob-top { display: flex; }
+  .msg pre.code, .msg pre { background: rgba(0,0,0,.25); border-radius: 6px; padding: 8px 10px; margin: 6px 0; overflow-x: auto; font-size: 12px; line-height: 1.5; white-space: pre; }
+  .msg pre code { background: none; padding: 0; font-size: 12px; }
+  .msg p { margin: 6px 0; }
+  .msg p:first-child { margin-top: 0; }
+  .msg p:last-child { margin-bottom: 0; }
+  .msg ul, .msg ol { margin: 6px 0; padding-left: 22px; }
+  .msg li { margin: 2px 0; }
+  .msg h1, .msg h2, .msg h3, .msg h4 { font-size: 14px; margin: 10px 0 4px; }
+  .msg blockquote { border-left: 3px solid var(--hair); margin: 6px 0; padding: 2px 10px; color: var(--muted); }
+  .msg a { color: var(--accent); }
+  .msg table { border-collapse: collapse; margin: 6px 0; font-size: 12px; }
+  .msg th, .msg td { border: 1px solid var(--hair); padding: 3px 8px; }
+  .msg code { background: rgba(0,0,0,.2); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+  .msg .li { display: block; padding-left: 6px; }
+  .msg.assistant { position: relative; }
+  .mcopy { position: absolute; top: 4px; right: 4px; border: 1px solid var(--hair); background: var(--panel); color: var(--muted);
+           border-radius: 5px; cursor: pointer; font-size: 11px; padding: 2px 7px; opacity: 0; transition: opacity .12s; }
+  .msg.assistant:hover .mcopy { opacity: 1; }
+  body.mobile .mcopy { display: none; }
+  #mob-top { display: none; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--hair); }
+  #mob-top #mob-menu { border: none; background: none; color: var(--ink); font-size: 22px; padding: 4px 10px; cursor: pointer; }
+  #mob-top #mob-title { flex: 1; text-align: center; font-weight: 600; font-size: 16px; }
+  #mob-top #mob-health { font-size: 11px; color: var(--muted); }
+  body.mobile #crumbs { padding: 6px 12px; font-size: 13px; }
+  #mob-bar { display: none; grid-row: 2; grid-column: 1; border-top: 1px solid var(--hair); background: var(--panel);
+             align-items: center; gap: 8px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); }
+  body.mobile #mob-bar { display: flex; }
+  #mob-flip { border: none; background: none; font-size: 22px; padding: 6px 8px; cursor: pointer; }
+  #mob-ask { flex: 1; min-height: 44px; border: 1px solid var(--hair); border-radius: 22px; padding: 10px 18px;
+             background: var(--bg); color: var(--ink); font: inherit; font-size: 15px; }
+  body.mobile.mob-chat #mob-ask { display: none; }
+  body.mobile.mob-chat #mob-bar { padding: 4px 10px calc(4px + env(safe-area-inset-bottom)); }
+  #mob-drawer-ov { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 450; }
+  #mob-drawer { position: absolute; top: 0; bottom: 0; left: 0; width: min(84vw, 340px); background: var(--panel);
+                overflow-y: auto; padding: 8px 0 30px; box-shadow: 6px 0 30px rgba(0,0,0,.35); border-radius: 0 16px 16px 0; }
+  #mob-drawer .dr-h { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding: 14px 18px 4px; }
+  #mob-drawer .dr-row { display: flex; gap: 12px; align-items: baseline; width: 100%; text-align: left; background: none; border: none;
+                        color: var(--ink); font: inherit; font-size: 15px; padding: 12px 18px; cursor: pointer; }
+  #mob-drawer .dr-row:active { background: var(--hair); }
+  #mob-drawer .dr-row .g { min-width: 26px; color: var(--accent); }
+  #mob-drawer .dr-row.on { color: var(--accent); font-weight: 600; }
+  body.mobile.mob-chat #map-pane { display: none; }
+  body.mobile:not(.mob-chat) #chat-pane { display: none; }
+  body.mobile .nrow { min-height: 40px; align-items: center; }
+  body.mobile .caret { min-width: 40px; min-height: 36px; font-size: 21px; }
+  body.mobile .rowops { display: none; }
+  .rowmore { display: none; margin-left: auto; border: 1px solid var(--hair); background: var(--panel); color: var(--muted);
+             border-radius: 4px; cursor: pointer; font-size: 14px; padding: 2px 10px; flex: none; }
+  body.mobile .modal { width: 100vw !important; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; overflow-y: auto; }
+  #phone-ov { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 500; display: flex; align-items: center; justify-content: center; }
+  #phone-frame { background: #000; border-radius: 44px; padding: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.6); position: relative; }
+  #phone-frame iframe { width: 402px; height: 874px; border: none; border-radius: 32px; background: var(--bg); display: block; }
+  #phone-close { position: absolute; top: -14px; right: -14px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--hair);
+                 background: var(--panel); color: var(--ink); cursor: pointer; font-size: 15px; }
+  #phone-note { position: absolute; bottom: -28px; left: 0; right: 0; text-align: center; color: #ccc; font-size: 12px; }
+  #sheet-ov { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 400; display: flex; align-items: flex-end; }
+  #sheet { width: 100%; background: var(--panel); border-radius: 16px 16px 0 0; padding: 8px 0 calc(14px + env(safe-area-inset-bottom)); max-height: 70dvh; overflow-y: auto; }
+  #sheet h4 { margin: 0; font-size: 16px; font-weight: 600; padding: 12px 18px 8px; }
+  #sheet .sh-row { display: flex; gap: 12px; align-items: baseline; width: 100%; text-align: left; background: none; border: none; color: var(--ink);
+                   font: inherit; font-size: 15px; padding: 12px 18px; cursor: pointer; }
+  #sheet .sh-row:active { background: var(--hair); }
+  #sheet .sh-row .g { min-width: 26px; color: var(--accent); }
+  #sheet .sh-row .d { color: var(--muted); font-size: 12px; }
+  #splitter:hover, #splitter.dragging { background: var(--accent); }
+  body.splitting { user-select: none; cursor: col-resize; }
+  #map-pane, #chat-pane { display: flex; flex-direction: column; overflow: hidden; }
+  #map-pane { border-right: 1px solid var(--hair); position: relative; }
+  header { padding: 8px 12px; border-bottom: 1px solid var(--hair); display: flex; gap: 8px; align-items: center;
+           font-weight: 600; background: var(--panel); }
+  header .lag { font-weight: 400; font-size: 12px; color: var(--muted); }
+  #beat .step { opacity: .3; }
+  #beat .step.on { opacity: 1; color: var(--accent); }
+  #beat .step.done { opacity: 1; color: var(--ink); }
+  #beat.stale { color: var(--danger); }
+  @keyframes beatpulse { 50% { opacity: .35; } }
+  #beat .step.on { animation: beatpulse 1.2s infinite; }
+  header .lag.behind { color: var(--warn); }
+  .hbtn { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px;
+          font-size: 12px; cursor: pointer; padding: 2px 8px; }
+
+  #crumbs { display: flex; gap: 4px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--hair);
+            font-size: 12px; color: var(--muted); flex-wrap: wrap; background: var(--panel); }
+  #crumbs .crumb { cursor: pointer; color: var(--accent); }
+  #crumbs .sep { opacity: .5; }
+  #crumbs .focus-away { margin-left: auto; color: var(--warn); cursor: pointer; }
+  #zoom-tools { display: flex; gap: 6px; padding: 5px 12px; border-bottom: 1px solid var(--hair); background: var(--panel); flex-wrap: wrap; }
+  #zoom-tools button { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px;
+                       font-size: 11px; cursor: pointer; padding: 1px 8px; }
+
+  #tree { flex: 1; overflow-y: auto; padding: 10px 12px; }
+  .nrow { display: flex; align-items: stretch; gap: 5px; padding: 1px 4px; border-radius: 5px; }
+  .nrow > *, .folded-line > * { align-self: baseline; }
+  .tguide { width: 13px; flex: none; align-self: stretch; border-left: 1px solid var(--muted); opacity: .3; margin-left: 5px; }
+  .folded-line { display: flex; }
+  .nrow:hover { background: var(--user); }
+  /* the focus: one bright frame — nothing else changes */
+  .nrow.focused { border: 2px solid var(--accent); border-radius: 6px; padding-top: 0; padding-bottom: 0; }
+  /* M112: "to sort" is a TRAY, not a topic — separated, dashed, always last */
+  .nrow.tosort { margin-top: 14px; border: 1px dashed var(--hair); border-radius: 8px;
+                 background: color-mix(in srgb, var(--panel) 60%, var(--bg)); padding-top: 3px; padding-bottom: 3px; }
+  .nrow.tosort > .ncontent::before { content: '📥 '; }
+  .nrow.tosort > .ncontent { color: var(--muted); font-weight: 600; }
+  #round-line { cursor: pointer; }
+  #round-line:hover { color: var(--accent); }
+  #changes-panel { position: absolute; bottom: 34px; left: 12px; right: 12px; max-height: 45vh; overflow-y: auto;
+                   background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; padding: 10px 12px;
+                   box-shadow: 0 6px 24px rgba(0,0,0,.15); z-index: 60; font-size: 13px; }
+  #changes-panel h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  #dev-panel { position: absolute; top: 44px; bottom: 34px; left: 12px; right: 12px; overflow-y: auto; z-index: 45;
+    background: var(--panel, #16181d); border: 1px solid var(--line, #2a2e37); border-radius: 8px; padding: 10px 12px; box-shadow: 0 8px 30px rgba(0,0,0,.45); }
+  #dev-panel h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  .dev-row { border: 1px solid var(--line, #2a2e37); border-radius: 6px; margin-bottom: 6px; }
+  .dev-row > summary { list-style: none; cursor: pointer; display: flex; gap: 10px; align-items: baseline; padding: 6px 8px; font-size: 12px; }
+  .dev-row > summary::-webkit-details-marker { display: none; }
+  .dev-row .dv-task { font-weight: 600; }
+  .dev-row .dv-meta { color: var(--muted); font-size: 11px; }
+  .dev-row .dv-fail { color: #e66; }
+  .dev-row pre { margin: 0 8px 8px; padding: 8px; font-size: 11px; line-height: 1.45; max-height: 260px; overflow: auto;
+    background: rgba(0,0,0,.25); border-radius: 5px; white-space: pre-wrap; word-break: break-word; }
+  .dev-row .dv-sec { margin: 2px 8px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .chg-row { display: flex; gap: 8px; padding: 3px 6px; border-radius: 6px; cursor: pointer; align-items: baseline; }
+  .chg-row:hover { background: var(--user); }
+  .chg-k { flex: none; font-size: 11px; width: 58px; color: var(--muted); }
+  .chg-k.added { color: var(--accent); }
+  .chg-k.removed { color: var(--danger); }
+  .chg-k.flagged { color: var(--warn); }
+  @keyframes rowflash { 0%, 60% { background: var(--user); } }
+  .nrow.flash { animation: rowflash 1.6s ease-out; }
+  .caret { cursor: pointer; color: var(--muted); min-width: 34px; min-height: 28px; padding: 2px 8px;
+           font-size: 19px; line-height: 24px; user-select: none; flex: none; text-align: center; border-radius: 6px; }
+  .caret:hover { background: var(--hair); color: var(--ink); }
+  .badge { font-size: 12px; user-select: none; flex: none; }
+  .badge.focus { color: var(--accent); }
+  .badge.lit { color: var(--warn); }
+  .sdot { color: var(--danger); cursor: pointer; font-size: 11px; animation: sdot-in .3s; flex: none; }
+
+  @keyframes sdot-in { from { transform: scale(2); opacity: 0; } }
+  .glyph { width: 1em; text-align: center; flex: none; }
+  .ntype { color: var(--muted); font-size: 11px; cursor: pointer; flex: none; }
+  .ntype:hover { text-decoration: underline dotted; }
+  .ncontent { cursor: pointer; }
+  .heading > .ncontent { font-weight: 600; }
+  .dead { opacity: .45; }
+  .dead > .ncontent { text-decoration: line-through; }
+  .exploratory { opacity: .62; }
+  .exploratory > .ncontent { font-style: italic; }
+  .prov { color: var(--warn); }
+  .rec-0 { background: var(--new0); border-radius: 4px; }
+  /* same chip vocabulary as the category chips (.ntype): hairline, quiet.
+     Persist until clicked/cleared, so they stay SMALL. */
+  .chip-new { flex: none; align-self: center; font-size: 9px; padding: 0 4px; border-radius: 3px;
+              border: 1px solid var(--accent); background: var(--panel); color: var(--accent); }
+  .chip-new.changed { border-color: var(--hair); color: var(--muted); }
+  .rowops { visibility: hidden; display: flex; gap: 4px; margin-left: 6px; flex: none; }
+  .nrow:hover .rowops { visibility: visible; }
+  .rowbtn { border: 1px solid var(--hair); background: var(--panel); color: var(--ink);
+            border-radius: 4px; cursor: pointer; font-size: 11px; padding: 0 6px; white-space: nowrap; }
+  .rowbtn:hover { border-color: var(--accent); color: var(--accent); }
+  .rowbtn.danger:hover { border-color: var(--danger); color: var(--danger); }
+  /* the focused node's ▶ lights up and stays visible without hover
+     (visibility:visible on a child overrides the cluster's hidden) */
+  .rowbtn.on { visibility: visible; color: var(--accent); border-color: var(--accent); font-weight: 600; }
+  .rowbtn[data-fav].on { color: var(--warn); border-color: var(--warn); }
+  .folded-line { color: var(--muted); font-size: 12px; font-style: italic; }
+  .fold-count { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--hair); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
+  .fold-count:hover { color: var(--ink); background: var(--hair); }
+  .home-ico { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; vertical-align: -1px; }
+  #add-root { margin: 8px 0 0 2px; border: 1px dashed var(--hair); background: none; color: var(--muted);
+              border-radius: 6px; cursor: pointer; font-size: 12px; padding: 2px 10px; display: block; }
+
+  #round-line { padding: 6px 12px; border-top: 1px solid var(--hair); font-size: 12px; color: var(--muted);
+                font-style: italic; min-height: 2.2em; background: var(--panel); }
+  #messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 82%; padding: 8px 12px; border-radius: 10px; white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: var(--user); border: 1px solid var(--hair); }
+  .msg.assistant { align-self: flex-start; background: var(--panel); border: 1px solid var(--hair); }
+  .msg.system { align-self: center; color: var(--muted); font-size: 12px; font-style: italic;
+                background: none; border: none; padding: 0; }
+  .msg.pending { opacity: .55; font-style: italic; }
+  #composer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--hair); background: var(--panel); }
+  #composer textarea { flex: 1; resize: none; border: 1px solid var(--hair); border-radius: 8px; padding: 8px 10px;
+                       background: var(--bg); color: var(--ink); font: inherit; height: 3.2em; }
+  #composer button { border: none; background: var(--accent); color: #fff; border-radius: 8px; padding: 0 18px;
+                     font-weight: 600; cursor: pointer; }
+  .empty { color: var(--muted); padding: 20px; text-align: center; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center;
+             justify-content: center; z-index: 40; }
+  .modal { background: var(--panel); color: var(--ink); border: 1px solid var(--hair); border-radius: 12px;
+           max-width: 760px; width: 92%; max-height: 84vh; overflow-y: auto; padding: 18px 20px; }
+  .modal h3 { margin: 0 0 6px; font-size: 15px; }
+  .modal pre { background: var(--bg); border: 1px solid var(--hair); border-radius: 8px; padding: 10px;
+               font-size: 12px; overflow-x: auto; white-space: pre-wrap; }
+  .modal .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal label { display: block; font-size: 13px; margin: 3px 0; }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
+  .modal .actions button { border: 1px solid var(--hair); border-radius: 8px; padding: 6px 16px; cursor: pointer;
+                           background: var(--panel); color: var(--ink); }
+  .modal .actions .primary { background: var(--accent); color: #fff; border: none; }
+  /* talk to map (M77-M79) — same visual language as the main chat pane */
+  #mc-log { flex: 1; min-height: 200px; overflow-y: auto; display: flex; flex-direction: column;
+            gap: 8px; padding: 8px 2px; font-size: 13px; }
+  #mc-log .msg { font-size: 13px; }
+  .mc-card { align-self: stretch; border: 1px dashed var(--accent); border-radius: 10px; padding: 9px 12px;
+             font-size: 13px; display: flex; flex-direction: column; gap: 7px; background: var(--new2); }
+  .mc-card.applied { border: 1px solid var(--hair); background: none; color: var(--muted); }
+  .mc-card button { align-self: flex-start; border: none; border-radius: 8px; padding: 6px 16px;
+                    cursor: pointer; background: var(--accent); color: #fff; font: inherit; font-size: 13px; }
+  .mc-card button:disabled { opacity: .6; cursor: default; }
+  #mc-composer { display: flex; gap: 8px; border-top: 1px solid var(--hair); padding-top: 10px; margin-top: 6px; }
+  #mc-composer input { flex: 1; min-width: 0; border: 1px solid var(--hair); border-radius: 8px; padding: 8px 10px;
+                       background: var(--bg); color: var(--ink); font: inherit; }
+  #mc-composer .primary { background: var(--accent); color: #fff; border: none; border-radius: 8px;
+                          padding: 6px 16px; cursor: pointer; font: inherit; }
+  .mc-hint { font-weight: 400; font-size: 11px; color: var(--muted); }
+  #tabbar { display: flex; gap: 4px; padding: 6px 12px 0; background: var(--panel); border-bottom: 1px solid var(--hair); flex-wrap: wrap; }
+  #tabbar .tab { border: 1px solid var(--hair); border-bottom: none; background: var(--bg); color: var(--muted);
+                 border-radius: 8px 8px 0 0; font-size: 12px; cursor: pointer; padding: 4px 12px; }
+  #tabbar .tab.on { background: var(--panel); color: var(--ink); font-weight: 600; }
+  #tabbar .tab .tx { margin-left: 8px; opacity: .5; }
+  #tabbar .tab .tx:hover { opacity: 1; color: var(--danger); }
+  #tabbar #tab-add { border: 1px dashed var(--hair); background: none; color: var(--muted); border-radius: 8px 8px 0 0;
+                     font-size: 12px; cursor: pointer; padding: 4px 10px; }
+  .termhost { flex: 1; min-height: 0; padding: 6px; background: #000; display: none; position: relative; }
+  .term-fit { position: absolute; top: 6px; right: 10px; z-index: 5; border: 1px solid #333; background: #111;
+              color: #888; border-radius: 6px; font-size: 12px; cursor: pointer; padding: 1px 7px; opacity: .55; }
+  .term-fit:hover { opacity: 1; color: #fff; }
+  .termhost.on { display: block; }
+  #proj-sel, #chat-sel { max-width: 140px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+  #other-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 40; display: flex;
+                flex-direction: column; gap: 4px; background: var(--panel); border: 1px solid var(--hair);
+                border-radius: 10px; padding: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.15); min-width: 170px; }
+  #other-menu button { text-align: left; }
+  #other-more { display: flex; flex-direction: column; gap: inherit; border-top: 1px solid var(--hair); margin-top: 2px; padding-top: 4px; }
+  #other-more[hidden] { display: none; }
+  #other-more-btn { color: var(--muted); }
+  #other-menu[hidden] { display: none; }
+  /* M96c: instant styled tooltips replacing the slow native title bubble */
+  #tip { position: fixed; z-index: 200; max-width: 280px; background: var(--panel); color: var(--ink);
+         border: 1px solid var(--hair); border-radius: 10px; padding: 6px 10px; font-size: 12px;
+         line-height: 1.45; pointer-events: none; box-shadow: 0 6px 24px rgba(0,0,0,.15);
+         opacity: 0; transition: opacity .12s; }
+  #tip.show { opacity: 1; }
+
+  /* M84: node search */
+  #sr-input { width: 100%; border: 1px solid var(--hair); border-radius: 8px; padding: 9px 12px;
+              background: var(--bg); color: var(--ink); font: inherit; font-size: 14px; }
+  #sr-list { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; max-height: 46vh; overflow-y: auto; }
+  .sr-row { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .sr-row:hover { background: var(--user); }
+  .sr-row .sr-star { cursor: pointer; opacity: .35; }
+  .sr-row .sr-star.on { opacity: 1; color: var(--warn); }
+  .sr-row .sr-path { color: var(--muted); font-size: 11px; margin-left: auto; text-align: right; }
+  .sr-section { font-size: 11px; color: var(--muted); margin: 8px 0 2px; }
+  .sr-hist { color: var(--accent); cursor: pointer; font-size: 13px; padding: 3px 8px; border-radius: 6px; }
+  .sr-hist:hover { background: var(--user); }
+  .sr-crumbs { font-size: 12px; color: var(--muted); }
+  .sr-crumbs b { color: var(--ink); }
+  .sr-node { border: 1px solid var(--hair); border-radius: 10px; padding: 10px 12px; margin: 8px 0; font-size: 13px; background: var(--bg); }
+  .sr-kids { font-size: 12px; color: var(--muted); }
+
+  /* M108: guided tour — a spotlight over the real UI */
+  /* one highlight only: the dark cutout + the dashed circle (no second frame) */
+  #tour-hole { position: fixed; z-index: 300; border-radius: 8px; pointer-events: none;
+               box-shadow: 0 0 0 9999px rgba(10, 14, 20, .82);
+               transition: all .25s ease; }
+  /* the CIRCLE: an animated dashed ring drawn around the element — no ambiguity */
+  #tour-ring { position: fixed; z-index: 302; pointer-events: none; border: 2px dashed #fff;
+               border-radius: 14px; animation: tourpulse 1.6s ease-in-out infinite; }
+  @keyframes tourpulse { 0%, 100% { transform: scale(1); opacity: .95; } 50% { transform: scale(1.05); opacity: .55; } }
+  @media (prefers-reduced-motion: reduce) { #tour-ring { animation: none; } }
+  #tour-card { position: fixed; z-index: 301; width: min(360px, 92vw); background: var(--panel);
+               border: 1px solid var(--hair); border-radius: 12px; padding: 14px 16px;
+               box-shadow: 0 10px 40px rgba(0,0,0,.3); font-size: 13px; line-height: 1.55; }
+  #tour-card h4 { margin: 0 0 6px; font-size: 14px; }
+  #tour-card .tour-step { color: var(--muted); font-size: 11px; }
+  #tour-card .actions { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+  #tour-card .actions button { border: 1px solid var(--hair); border-radius: 8px; padding: 5px 12px;
+                               cursor: pointer; background: var(--panel); color: var(--ink); font-size: 12px; }
+  #tour-card .actions .primary { background: var(--accent); color: #fff; border: none; }
+  .tour-target .rowops { visibility: visible !important; opacity: 1 !important; }
+  .legend-table { font-size: 13px; width: 100%; border-collapse: collapse; }
+  .legend-table td { padding: 3px 8px 3px 0; vertical-align: top; }
+  .legend-table td:first-child { white-space: nowrap; color: var(--muted); }
+  .lit-row { display: flex; gap: 6px; align-items: baseline; padding: 1px 0; font-size: 13px; }
+  .lit-row .lit-toggle { cursor: pointer; opacity: .4; }
+  .lit-row .lit-toggle.on { opacity: 1; color: var(--warn); }
+  .lit-row .focus-t.on { color: var(--accent); }
+.nudge-dot { color:#e0443a; margin-left:4px; font-size:9px; vertical-align:2px; animation: nudgepulse 1.6s ease-in-out infinite; }
+@keyframes nudgepulse { 50% { opacity:.35; } }
+</style>
+<link rel="stylesheet" href="/vendor/xterm.css">
+<script src="/vendor/marked.min.js"></script>
+<script src="/vendor/purify.min.js"></script>
+<script src="/vendor/xterm.js"></script>
+<script src="/vendor/addon-fit.js"></script>
+</head>
+<body>
+  <div id="map-pane">
+    <div id="mob-top">
+      <button id="mob-menu" title="menu: sessions, maps, and every map function">☰</button>
+      <span id="mob-title">map</span>
+      <span id="mob-health" title="is filing keeping up?">●</span>
+    </div>
+    <header><span class="htitle">the map</span>
+      <select id="proj-sel" class="hbtn" title="switch map — each map is completely separate"></select>
+      <button class="hbtn" id="legend-btn" title="tutorial: a guided walk through every part of the map (the reference card is at the end)">?</button>
+      <button class="hbtn" id="ctx-btn" title="see the exact map description the CHAT agent receives next turn (the assistant you talk to — as opposed to the map agent that does the filing)">chat agent's view</button>
+      <span id="beat" title="the turn lifecycle: message seen → agent replying → filed onto the map" style="margin-left:auto;font-weight:400;font-size:12px;color:var(--muted)">waiting for activity</span>
+      <span class="lag" id="lag" style="margin-left:10px">map current</span>
+    </header>
+    <div id="crumbs"></div>
+    <div id="zoom-tools">
+      <button id="home-btn" title="zoom to the home page (the whole map unless you set a node as home on its row)"><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</button>
+      <button id="zoom-out" title="zoom out one level, to the parent node">↑ zoom out</button>
+      <button id="map-chat" title="talk to the map guide — ask why something is filed where it is, how to clean up, what a control does">🗨 talk to map</button>
+      <button id="search-btn" title="find a node (Ctrl/Cmd+K) — confirm it with its parents and children, then light, zoom, or focus it">🔍 search</button>
+      <div id="other-wrap" style="position:relative;margin-left:auto">
+        <button id="other-btn" title="all other map functions">⋯ other<span class="nudge-dot" hidden>●</span></button>
+        <div id="other-menu" hidden>
+          <button id="auto-focus" title="the focus agent suggests where the conversation should aim — you confirm">▶ auto-focus<span class="nudge-dot" hidden>●</span></button>
+          <button id="auto-lit" title="the lighting agent picks which nodes belong in the background for the current focus">☀ auto-light<span class="nudge-dot" hidden>●</span></button>
+          <button id="auto-zoom" title="the zoom agent suggests which subtree to isolate — you confirm">◱ auto-zoom</button>
+          <button id="map-check" title="review the whole map now — red dots for anything that needs restructuring, or a clean bill">⟳ tidy map</button>
+          <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
+          <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
+          <button id="undo-btn" title="undo the last destructive action — delete, merge, tidy, or move (Ctrl/Cmd+Z works too)">↩ undo</button>
+          <button id="other-more-btn" title="show the rest of the map functions">＋ more…<span class="nudge-dot" hidden>●</span></button>
+          <div id="other-more" hidden>
+          <button id="lit-all" title="light every node in the current view — all of it enters the chat agent's background">☀ light all (this view)</button>
+          <button id="dim-all" title="dim every node in the current view — the chat agent stops seeing all of it (you still see everything)">◐ dim all (this view)</button>
+          <button id="tidy-top" title="group and clean the top level — only here may the tidy agent propose domain containers and move top-level threads under them; you approve">⟳ tidy top level</button>
+          <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
+          <button id="prefs-btn" title="standing preferences every map agent follows — how to group, name, and clean your maps; edit anytime">☰ map preferences</button>
+          <button id="lit-mgr-btn" title="manage focus and background for the whole map in one list">▶☀ manage</button>
+          </div></div>
+      </div>
+    </div>
+    <div id="tree"><div class="empty">no map yet — press “+ add node” to begin</div></div>
+    <div id="round-line">no map update running — click here after an update to see what changed</div>
+  </div>
+  <div id="splitter" data-tip="drag to resize the panes"></div>
+  <div id="mob-bar">
+    <button id="mob-flip" title="switch between the map and the conversation">💬</button>
+    <input id="mob-ask" placeholder="talk to your map…" autocomplete="off" title="ask the map guide anything, or ask for changes in plain words" />
+  </div>
+  <div id="chat-pane">
+    <div id="tabbar">
+      <span id="tab-list" style="display:contents"></span>
+      <button id="tab-add" title="new session in this map: fork this view or start fresh, aim it with the focus picker — opens a real Claude Code terminal bound to that view">+ session</button>
+    </div>
+    <header>conversation <span style="font-weight:400;font-size:12px;color:var(--muted)" id="focus-label"></span>
+      <button class="hbtn" id="clear-chat" style="margin-left:auto" title="clean the chat screen — the map keeps everything; the chat agent starts its window fresh">clean chat</button>
+    </header>
+    <div id="messages"><div class="empty">one continuous conversation — the map is its memory</div></div>
+    <form id="composer">
+      <textarea id="input" placeholder="talk to the chat agent… (Enter to send, Shift+Enter for newline)"></textarea>
+      <button type="submit" title="send this message to the chat agent — the filer adds the exchange to the map automatically">send</button>
+    </form>
+  </div>
+
+<script>
+const GLYPH = { accepted:'✓', decided:'✓', done:'✓', answered:'✓', chosen:'✓', cited:'✓',
+  open:'○', live:'○', proposed:'○', todo:'▢', doing:'▣', floated:'⚠', noted:'⚠', provisional:'⚠',
+  rejected:'✗', dropped:'✗', retracted:'✗', reversed:'✗', mooted:'✗', lifted:'✗',
+  parked:'‖', hard:'‼', active:'○', relaxed:'○', exploratory:'∿' };
+const DEAD = ['rejected','dropped','retracted','reversed','mooted'];
+
+let S = { nodes: [], chats: [], recency: {}, suggestions: [], mainChatId: null };
+let zoomId = localStorage.getItem('hm-zoom') || null;
+let folded = new Set(), userFolded = new Set(), userUnfolded = new Set();
+
+const $ = (id) => document.getElementById(id);
+const HOME_ICO = '<svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg>';
+const chat = () => S.chats.find(c => c.id === S.mainChatId);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function post(p, b) {
+  const r = await fetch(p, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(b) });
+  let d = null; try { d = await r.json(); } catch {}
+  if (!r.ok && !(r.status === 202)) throw new Error(d?.error ?? `HTTP ${r.status}`);
+  return d ?? {};
+}
+const node = (id) => S.nodes.find(n => n.id === id);
+const disp = (n) => n ? (n.title || n.content) : '';
+const sugFor = (id) => (S.suggestions ?? []).find(s => s.nodeId === id);
+const kidsOf = (id) => S.nodes.filter(n => n.parentId === id);
+
+function pathOf(id) {
+  const path = [];
+  let n = node(id);
+  while (n) { path.unshift(n); n = node(n.parentId); }
+  return path;
+}
+function subtreeIds(id) {
+  const out = [id];
+  for (const k of kidsOf(id)) out.push(...subtreeIds(k.id));
+  return out;
+}
+function setZoom(id) {
+  zoomId = id;
+  if (id) localStorage.setItem('hm-zoom', id); else localStorage.removeItem('hm-zoom');
+  renderAll();
+}
+
+// ---- breadcrumbs + focus-elsewhere indicator (Z2) ----
+function renderCrumbs() {
+  const el = $('crumbs');
+  const parts = [`<span class="crumb" data-crumb="">whole map</span>`];
+  if (zoomId && node(zoomId)) {
+    // M123b (Jacob): the genealogy trail broke with long names (untitled
+    // nodes carry whole sentences) — clip each segment, full name on hover.
+    for (const n of pathOf(zoomId)) {
+      const t = disp(n);
+      parts.push(`<span class="sep">›</span><span class="crumb" data-crumb="${n.id}" title="${esc(t)}">${esc(t.length > 26 ? t.slice(0, 25) + '…' : t)}</span>`);
+    }
+  }
+  // The focus chip is ALWAYS visible (it used to appear only when zoomed —
+  // effectively lost). Amber when the focus is outside the current view.
+  const f = chat()?.focusContainerId;
+  let focusChip = '';
+  if (f && node(f)) {
+    const away = zoomId ? !pathOf(f).some(n => n.id === zoomId) && f !== zoomId : false;
+    focusChip = `<span class="focus-away" style="${away ? '' : 'color:var(--muted)'}" data-jump-focus="${f}" title="${away ? 'the focus is outside this view — click to zoom to it' : 'click to jump to the focus (offers auto-zoom)'}">▶ focus: ${esc(disp(node(f)))}</span>`;
+  }
+  el.innerHTML = parts.join('') + focusChip;
+}
+$('crumbs').addEventListener('click', (e) => {
+  const j = e.target.closest('[data-jump-focus]');
+  if (j) {
+    const fid = j.dataset.jumpFocus;
+    const row = document.querySelector('.nrow.focused');
+    if (row) { // visible: scroll to it and flash; offer zoom as the choice
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      row.classList.add('flash');
+      setTimeout(() => row.classList.remove('flash'), 1600);
+      if (confirm('Zoom the view in to the focus?')) {
+        setZoom(fid);
+        post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: fid, focus: false }).catch(() => {});
+      }
+    } else if (confirm('The focus is outside this view. Zoom the view to it?')) {
+      setZoom(fid);
+      post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: fid, focus: false }).catch(() => {});
+    }
+    return;
+  }
+  const c = e.target.closest('[data-crumb]');
+  if (c) setZoom(c.dataset.crumb || null);
+});
+
+// ---- auto-fold within the current view ----
+// M120 (Jacob): expanding a node shows ONLY its immediate children — every
+// deeper parent starts collapsed until expanded itself. Exempt: the focus
+// path (the conversation's thread stays visible) and the zoom root (its
+// children ARE the zoomed view).
+function applyAutoFold() {
+  const f = chat()?.focusContainerId;
+  const focusPath = new Set(f ? pathOf(f).map(n => n.id) : []);
+  folded = new Set();
+  for (const n of S.nodes) {
+    if (n.status === 'removed' || n.id === zoomId) continue;
+    if (kidsOf(n.id).length > 0 && !focusPath.has(n.id) && !userUnfolded.has(n.id)) folded.add(n.id);
+  }
+  for (const id of userFolded) folded.add(id);
+}
+
+function renderTree() {
+  const tree = $('tree');
+  const lit = new Set(chat()?.lit ?? []);
+  const focus = chat()?.focusContainerId;
+  const rec = S.recency || {};
+  const recCls = (id) => rec[id] ? ' rec-0' : '';
+  const recChip = (id) => rec[id] === 'new'
+    ? '<span class="chip-new" data-tip="added by the map since you last touched this — click the node to clear">new</span>'
+    : rec[id] === 'changed'
+      ? '<span class="chip-new changed" data-tip="edited by the map since you last touched this — click the node to clear">changed</span>'
+      : '';
+
+  const row = (n, depth) => {
+    const kids = kidsOf(n.id);
+    const isTray = n.parentId === null && (n.title || n.content).startsWith('to sort');
+    const heading = !n.type;
+    const cls = [
+      'nrow',
+      heading ? 'heading' : '',
+      (n.parentId === null && (n.title || n.content).startsWith('to sort')) ? 'tosort' : '',
+      n.id === focus ? 'focused' : '',
+      DEAD.includes(n.status) ? 'dead' : '',
+      n.status === 'exploratory' ? 'exploratory' : '',
+    ].filter(Boolean).join(' ');
+    return `
+    <div class="${cls}${recCls(n.id)}" title="${esc(n.title && n.title !== n.content ? n.content + ' — ' : '')}status: ${esc(n.status)}">
+      ${'<span class="tguide"></span>'.repeat(depth)}
+      <span class="caret" data-fold="${n.id}" title="${kids.length ? (folded.has(n.id) ? 'expand: show its immediate children' : 'collapse this branch') : 'nothing nested under this node yet — + adds a sub-node'}">${kids.length ? (folded.has(n.id) ? '▸' : '▾') : '·'}</span>
+      ${lit.has(n.id) ? '<span class="badge lit" title="in the chat agent’s background">☀</span>' : ''}
+      ${S.home === n.id ? `<span class="badge" title="home page — the home button (top of the map) zooms here">${HOME_ICO}</span>` : ''}
+      ${n.type ? `<span class="glyph">${GLYPH[n.status] ?? '·'}</span><span class="ntype" data-retype="${n.id}" title="click to change category">${esc(n.type)}</span>` : ''}
+      <span class="ncontent" data-edit="${n.id}" title="${esc(n.title && n.title !== n.content ? n.content : 'click to edit')}">${esc(disp(n))}${n.status === 'provisional' ? ' <span class="prov">⚠</span>' : ''}</span>
+      ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
+      ${recChip(n.id)}
+      ${sugFor(n.id) ? `<span class="sdot ${sugFor(n.id).kind === 'relight' ? 'relight' : ''}" data-sug="${n.id}" title="${sugFor(n.id).kind === 'relight' ? 'placement suggestion: the map knows where this belongs — click to approve the move' : 'the map suggests a restructure here — click to see'}">●</span>` : ''}
+      <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
+      <span class="rowops">
+        ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="zoom in: isolate this subtree in the view (lighting unchanged); offers a focus shift">◱</button>`}
+        <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? 'the conversation is focused here' : 'focus: aim the conversation here (no zoom)'}">▶</button>
+        <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? 'dim: remove from the chat agent’s background' : 'light as background (incl. everything under it)'}">☀</button>
+        <button class="rowbtn ${(S.favorites || []).includes(n.id) ? 'on' : ''}" data-fav="${n.id}" title="${(S.favorites || []).includes(n.id) ? 'unpin from favorites' : 'favorite: pin this node to the top of search'}">★</button>
+        <button class="rowbtn ${S.home === n.id ? 'on' : ''}" data-sethome="${n.id}" title="${S.home === n.id ? 'this is the home page — click to unset (home falls back to the whole map)' : 'set as the home page — the home button (top of the map) zooms here'}">${HOME_ICO}</button>
+        <button class="rowbtn" data-add="${n.id}" title="add an unnamed sub-node here and focus it — the map names it from what you talk about next">+</button>
+        ${(() => { const p = node(n.parentId); return p && p.parentId === null && (p.title || p.content).startsWith('to sort')
+          ? `<button class="rowbtn" data-promote="${n.id}" title="make this a real top-level topic">⇧</button>` : ''; })()}
+        ${isTray ? '' : `<button class="rowbtn" data-move="${n.id}" data-name="${esc(disp(n))}" title="move this node somewhere else on the map — search for the new parent, or make it a top-level topic">↖</button>`}
+        ${kids.length && !isTray ? `<button class="rowbtn" data-reorg="${n.id}" data-name="${esc(disp(n))}" title="propose a cleanup of this subtree">⟳</button>` : ''}
+        ${isTray ? '' : `<button class="rowbtn" data-merge="${n.id}" data-name="${esc(disp(n))}" title="merge this node into another — children move to the survivor, this one disappears">⇢</button>
+        <button class="rowbtn danger" data-ndel="${n.id}" data-name="${esc(disp(n))}" data-count="${subtreeIds(n.id).length - 1}" title="delete this node${kids.length ? ' and everything under it' : ''}">✕</button>`}
+      </span>
+    </div>`;
+  };
+
+  const isToSortTop = (n) => n.parentId === null && (n.title || n.content).startsWith('to sort');
+  const walk = (pid, depth) => {
+    let ks = kidsOf(pid ?? null).filter(n => n.status !== 'removed');
+    if (pid === null || pid === undefined) ks = [...ks.filter(n => !isToSortTop(n)), ...ks.filter(isToSortTop)];
+    return ks.map(n => {
+    const head = row(n, depth);
+    if (kidsOf(n.id).length && folded.has(n.id)) return head;
+    return head + walk(n.id, depth + 1).join('');
+  });
+  };
+  const isToSort = (n) => (n.title || n.content).startsWith('to sort');
+  const walkRoot = (depth) => S.nodes.filter(n => n.parentId === null && n.status !== 'removed')
+    .sort((a, b) => (isToSort(a) ? 1 : 0) - (isToSort(b) ? 1 : 0))
+    .map(n => {
+    const head = row(n, depth);
+    if (kidsOf(n.id).length && folded.has(n.id)) return head;
+    return head + walk(n.id, depth + 1).join('');
+  });
+
+  let html;
+  if (zoomId && node(zoomId)) {
+    const z = node(zoomId);
+    // M130 (Jacob): the zoom root's caret must work like every other —
+    // rendering ignored its fold state, so collapsing it did nothing.
+    html = row(z, 0) + (folded.has(zoomId) ? '' : walk(zoomId, 1).join(''));
+    // M47: "to sort" stays visible even when zoomed — off-scope arrivals are
+    // never invisible.
+    const toSort = S.nodes.find(n => n.parentId === null && n.status !== 'removed' && (n.title || n.content).startsWith('to sort'));
+    if (toSort && toSort.id !== zoomId && !pathOf(zoomId).some(x => x.id === toSort.id)) {
+      html += `<div class="folded-line" style="margin-top:8px">— pinned —</div>` + row(toSort, 0) + (folded.has(toSort.id) ? '' : walk(toSort.id, 1).join(''));
+    }
+  } else {
+    html = walkRoot(0).join('');
+  }
+  html += `<button id="add-root" title="add an unnamed node and focus the conversation there — the map names it from what you talk about next">+ add node${zoomId ? ' here' : ''}</button>`;
+  tree.innerHTML = html || '<div class="empty">no map yet — press “+ add node” to begin</div>';
+  const f = node(focus);
+  $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
+}
+
+function renderAll() { applyAutoFold(); renderCrumbs(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); }
+// M88: one server, many projects (each its own map) and many chats (views).
+function renderSwitchers() {
+  const ps = $('proj-sel');
+  if (!ps) return;
+  const curProj = (S.projects || []).find(p => p.id === S.projectId);
+  ps.title = curProj ? `map: ${curProj.name}` : 'map';
+  ps.innerHTML = (S.projects || []).map(p => `<option value="${p.id}" ${p.id === S.projectId ? 'selected' : ''}>${esc(p.name)}</option>`).join('')
+    + '<option value="__new">+ new map…</option>'
+    + ((S.projects || []).length > 1 ? '<option value="__merge">⇥ merge this map into…</option>' : '');
+  renderTabs();
+}
+// M98: the tab bar IS the session switcher — one tab per session of the
+// CURRENT map (recent first, stale folded); switching maps swaps the set.
+function renderTabs() {
+  const list = $('tab-list');
+  if (!list) return;
+  const chats = [...(S.chats || [])].sort((a, b) => (b.lastActivity || '').localeCompare(a.lastActivity || ''));
+  const cutoff = Date.now() - 7 * 86400_000;
+  const fresh = [], older = [];
+  for (const c of chats) (new Date((c.lastActivity || '') + 'Z').getTime() >= cutoff || c.id === S.mainChatId ? fresh : older).push(c);
+  list.innerHTML = '';
+  const mk = (c) => {
+    const f = node(c.focusContainerId);
+    const name = f ? disp(f) : 'session';
+    const hasTerm = !!chatTerms.get(c.id);
+    const b = document.createElement('button');
+    b.className = 'tab' + (c.id === S.mainChatId && activeTab === 'session' ? ' on' : '');
+    b.dataset.tab = c.id;
+    b.dataset.tip = `session focused on “${name}”${hasTerm ? ' — live terminal attached' : ''} — click to switch; its own focus and lighting apply`;
+    b.innerHTML = `${hasTerm ? '⌨ ' : ''}${esc(name.slice(0, 22))}${c.id === S.mainChatId ? '<span class="tx" data-tip="close this session: ends its terminal if one is running and puts the tab away — everything it filed stays on the map">✕</span>' : ''}`;
+    b.onclick = async (e) => {
+      if (e.target.classList?.contains('tx')) { await closeSessionTab(c.id); return; }
+      if (c.id !== S.mainChatId) await post(`/api/chats/${c.id}/activate`, {});
+      showSession(c.id);
+    };
+    list.appendChild(b);
+  };
+  fresh.forEach(mk);
+  if (older.length) {
+    const b = document.createElement('button');
+    b.className = 'tab';
+    b.dataset.tip = `${older.length} older session(s) — inactive over a week`;
+    b.textContent = `▾ older (${older.length})`;
+    b.onclick = () => { const c = older[0]; post(`/api/chats/${c.id}/activate`, {}).then(() => showSession(c.id)); };
+    list.appendChild(b);
+  }
+}
+$('proj-sel').onchange = async (e) => {
+  const v = e.target.value;
+  if (v === '__merge') { mergeProjectFlow(); return; }
+  if (v === '__new') {
+    const name = prompt('New map — completely separate from this one. Name it:');
+    renderSwitchers();
+    if (!name?.trim()) return;
+    await post('/api/projects', { name: name.trim() });
+    S.turns = []; loadTurns();
+    $('round-line').textContent = `new map “${name.trim()}” — nothing shared with other maps`;
+    return;
+  }
+  if (v !== S.projectId) { await post(`/api/projects/${v}/activate`, {}); setZoom(null); loadTurns(); }
+};
+$('tab-add').onclick = () => {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(520px,94vw)">
+      <h3>new session</h3>
+      <label><input type="radio" name="nc-mode" value="focus" checked> ▶ focus on a topic — aim the new session at one node (keeps your lighting)</label>
+      <div id="nc-focus-block" style="margin:2px 0 4px 22px">
+        <input id="nc-topic" placeholder="type to search the map — or name a new topic" autocomplete="off" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" />
+        <div id="nc-results" style="display:flex;flex-direction:column;gap:2px;max-height:24vh;overflow-y:auto"></div>
+        <div id="nc-preview" hidden style="border:1px solid var(--hair);border-radius:10px;background:var(--bg);padding:8px 12px;margin-top:6px;font-size:12px;line-height:1.7"></div>
+        <p style="font-size:11px;color:var(--muted);margin-top:4px">pick a node (lit + focused) — or keep your text to create it as a new topic.</p>
+      </div>
+      <label><input type="radio" name="nc-mode" value="fork"> ⑂ fork this view — same focus and lighting as now</label>
+      <label><input type="radio" name="nc-mode" value="fresh"> ✳ start fresh — everything dimmed (cold start)</label>
+      <div style="margin-top:10px;border-top:1px solid var(--hair);padding-top:8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">talk via</div>
+      <label><input type="radio" name="nc-talk" value="term"> ⌨ Claude Code terminal — the real CLI in this tab, full fidelity</label>
+      <label><input type="radio" name="nc-talk" value="chat"> 💬 chat — our streamlined interface; the conversation stays with the map</label>
+      <p id="nc-term-note" style="font-size:11px;color:var(--muted);margin:2px 0 0"></p>
+      <div class="actions">
+        <button id="nc-cancel" title="close without creating a chat">cancel</button>
+        <button id="nc-create" class="primary" title="create the new chat with the chosen mode and focus">create</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.querySelector('#nc-cancel').onclick = () => ov.remove();
+  const input = ov.querySelector('#nc-topic'), results = ov.querySelector('#nc-results'), preview = ov.querySelector('#nc-preview');
+  const focusBlock = ov.querySelector('#nc-focus-block');
+  for (const r of ov.querySelectorAll('input[name="nc-mode"]')) r.onchange = () => { focusBlock.style.display = r.value === 'focus' ? '' : 'none'; };
+  let picked = null; // {id, name}
+  let t = null;
+  // M92 (Jacob): search-as-you-type + a tiny map (parent → node → children →
+  // grandchildren) so the user can SEE what they're aiming the chat at.
+  const mini = (id) => {
+    const n = node(id); if (!n) return '';
+    const parent = n.parentId ? node(n.parentId) : null;
+    const kids = kidsOf(id).filter(k => k.status !== 'removed');
+    const lines = [];
+    if (parent) lines.push(`<span style="color:var(--muted)">${esc(disp(parent))}</span>`);
+    lines.push(`<span style="color:var(--accent);font-weight:600">${parent ? '&nbsp;&nbsp;' : ''}▶ ${esc(disp(n))}</span>`);
+    const pad = parent ? '&nbsp;&nbsp;&nbsp;&nbsp;' : '&nbsp;&nbsp;';
+    for (const k of kids.slice(0, 5)) {
+      lines.push(`${pad}${esc(disp(k))}`);
+      const gks = kidsOf(k.id).filter(g => g.status !== 'removed');
+      for (const g of gks.slice(0, 2)) lines.push(`${pad}&nbsp;&nbsp;<span style="color:var(--muted)">${esc(disp(g))}</span>`);
+      if (gks.length > 2) lines.push(`${pad}&nbsp;&nbsp;<span style="color:var(--muted)">… ${gks.length - 2} more</span>`);
+    }
+    if (kids.length > 5) lines.push(`${pad}<span style="color:var(--muted)">… ${kids.length - 5} more</span>`);
+    if (!kids.length) lines.push(`${pad}<span style="color:var(--muted)">(no children yet)</span>`);
+    return lines.join('<br>');
+  };
+  const pick = (id, name) => {
+    picked = { id, name };
+    input.value = name;
+    results.innerHTML = '';
+    preview.hidden = false;
+    preview.innerHTML = mini(id);
+  };
+  const run = async (record) => {
+    const q = input.value.trim();
+    picked = null; preview.hidden = true;
+    if (!q) {
+      const r0 = await post2get('/api/search?q=');
+      renderSearchDefault(results, r0, (res) => pick(res.id, res.name), (h) => { input.value = h; run(false); });
+      return;
+    }
+    const r = await post2get(`/api/search?q=${encodeURIComponent(q)}${record ? '&record=1' : ''}`);
+    results.innerHTML = '';
+    for (const res of r.results.slice(0, 6)) {
+      const d = document.createElement('div');
+      d.className = 'sr-row';
+      d.innerHTML = `<span>${esc(res.name)}</span><span class="sr-path">${esc(res.path.join(' › '))}</span>`;
+      d.onclick = () => pick(res.id, res.name);
+      results.appendChild(d);
+    }
+    const mk = document.createElement('div');
+    mk.className = 'sr-row';
+    mk.innerHTML = `<span style="color:var(--accent)">＋ create new topic “${esc(q)}”</span>`;
+    mk.onclick = () => { picked = null; results.innerHTML = ''; preview.hidden = false; preview.innerHTML = `<span style="color:var(--accent)">＋ new topic “${esc(q)}” — will be created, lit, and focused</span>`; };
+    results.appendChild(mk);
+  };
+  input.oninput = () => { clearTimeout(t); t = setTimeout(() => run(false), 160); };
+  input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(t); run(true); } };
+  run(false);
+  (async () => {
+    try {
+      const d = await post2get('/api/dirs');
+      sessionRoot = (d.dirs || [])[0] || null;
+      ov.querySelector('#nc-term-note').textContent = sessionRoot
+        ? `terminal starts in this map's folder: ${sessionRoot}`
+        : 'this map has no bound folder yet — chat only (start claude in a folder to enable the terminal)';
+      const termRadio = ov.querySelector('input[name="nc-talk"][value="term"]');
+      const chatRadio = ov.querySelector('input[name="nc-talk"][value="chat"]');
+      const remembered = localStorage.getItem('hm-talk');
+      if (!sessionRoot) { termRadio.disabled = true; chatRadio.checked = true; }
+      else if (remembered === 'chat') chatRadio.checked = true;
+      else termRadio.checked = true;
+    } catch {}
+  })();
+  ov.querySelector('#nc-create').onclick = async () => {
+    const chosen = ov.querySelector('input[name="nc-mode"]:checked').value;
+    const focusTopic = chosen === 'focus' ? (input.value.trim() || undefined) : undefined;
+    if (chosen === 'focus' && !picked && !focusTopic) {
+      preview.hidden = false;
+      preview.innerHTML = '<span style="color:var(--danger)">pick a node or type a topic to focus on — or choose ⑂ fork / ✳ fresh below</span>';
+      return;
+    }
+    const mode = chosen === 'fresh' ? 'fresh' : 'fork';
+    const talk = ov.querySelector('input[name="nc-talk"]:checked')?.value ?? 'chat';
+    localStorage.setItem('hm-talk', talk);
+    const wantTerm = talk === 'term' && sessionRoot;
+    try {
+      const r = await post('/api/chats', { mode, focusTopic: picked ? undefined : focusTopic, focusNodeId: chosen === 'focus' ? picked?.id : undefined, fromChatId: S.mainChatId });
+      ov.remove(); loadTurns();
+      $('round-line').textContent = r.focusName
+        ? `new ${mode} session — ${r.createdTopic ? 'created and ' : ''}focused on “${r.focusName}”`
+        : `new ${mode} session${mode === 'fresh' ? ' — everything dimmed; the map will suggest contexts as you go' : ''}`;
+      if (wantTerm) await openTerminalFor(r.chatId, sessionRoot);
+      else showSession(r.chatId);
+    } catch (err) { $('round-line').textContent = `session creation failed: ${err.message}`; }
+  };
+  input.focus();
+};
+let sessionRoot = null;
+// M74: the conversation has drifted into "to sort" for 2+ rounds — the map
+// agent nudges auto-focus / auto-light with a red dot; any focus/light action clears it.
+// M96 (Jacob): progressive disclosure — only zoom-out / talk-to-map / search
+// stay visible; everything else folds under ⋯ other.
+// M128b (Jacob): "＋ more…" simply disappears once expanded — reopening ⋯
+// resets the fold; no toggle needed.
+// M132 (Jacob): two modes. WORKSPACE = map + embedded session tabs (the
+// destination experience). COMPANION = conversation pane collapsed, map-only
+// strip beside the user's own terminal; external sessions keep feeding the
+// map through the hooks. One persisted toggle — everything else identical.
+// M133 (Jacob): mobile view — one pane at a time with a bottom switcher
+// ("a button on the bottom where you can switch easily between map and chat").
+// Hover can't exist on touch, so each row carries ⋯ opening a bottom action
+// sheet: the SAME hidden row buttons, listed with their plain-words titles —
+// one source of truth for behavior AND explanation.
+function checkMobile() {
+  const on = window.innerWidth <= 720;
+  document.body.classList.toggle('mobile', on);
+  if (!on) document.body.classList.remove('mob-chat');
+}
+// M133c (Jacob): the mobile test is a real device simulation — the app loaded
+// in an iPhone-sized frame (402×874 logical, iPhone 16/17 class), so the
+// mobile layout activates from the frame's own viewport width, exactly as on
+// the device. Scaled down if the desktop window is shorter than the phone.
+function openPhoneSim() {
+  if ($('phone-ov')) { $('phone-ov').remove(); return; }
+  const ov = document.createElement('div');
+  ov.id = 'phone-ov';
+  ov.innerHTML = `<div id="phone-frame">
+      <button id="phone-close" title="close the phone preview">✕</button>
+      <iframe src="/" title="mobile preview"></iframe>
+      <div id="phone-note">iPhone-size preview (402×874) — live app, same map</div>
+    </div>`;
+  document.body.appendChild(ov);
+  const fit = () => {
+    const frame = ov.querySelector('#phone-frame');
+    const scale = Math.min(1, (window.innerHeight - 80) / 902, (window.innerWidth - 80) / 430);
+    frame.style.transform = `scale(${scale})`;
+  };
+  fit();
+  window.addEventListener('resize', fit);
+  ov.querySelector('#phone-close').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+}
+window.addEventListener('resize', checkMobile);
+// M135: ChatGPT-style mobile shell — flip icon, guide composer, ☰ drawer.
+$('mob-flip').onclick = () => {
+  const toChat = !document.body.classList.contains('mob-chat');
+  document.body.classList.toggle('mob-chat', toChat);
+  $('mob-flip').textContent = toChat ? '🗺' : '💬';
+  window.dispatchEvent(new Event('resize'));
+};
+// The composer IS the map guide (ChatGPT's blank-field principle): submit
+// opens the guide with the question already sent.
+$('mob-ask').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const q = $('mob-ask').value.trim();
+  $('mob-ask').value = '';
+  openMapChat();
+  if (q) setTimeout(() => { const i = document.querySelector('#mc-input'); const b = document.querySelector('#mc-send'); if (i && b) { i.value = q; b.click(); } }, 60);
+});
+$('mob-ask').addEventListener('focus', () => { if (document.body.classList.contains('mobile') && window.innerWidth <= 720) {} });
+function renderMobTop() {
+  const t = $('mob-title');
+  if (t) t.textContent = (S.projects ?? []).find(pr => pr.id === S.projectId)?.name ?? 'map';
+  const h = $('mob-health');
+  if (h) { const lagEl = $('lag'); h.textContent = lagEl?.textContent?.includes('behind') ? '…' : '●'; h.style.color = lagEl?.textContent?.includes('behind') ? 'var(--danger)' : 'var(--muted)'; }
+}
+// ☰ drawer: sessions (recency, like ChatGPT's history) + maps + every map
+// function — rows drive the REAL hidden controls, one source of truth.
+function openDrawer() {
+  const ov = document.createElement('div');
+  ov.id = 'mob-drawer-ov';
+  const chats = [...(S.chats || [])].sort((a, b) => (b.lastActivity || '').localeCompare(a.lastActivity || ''));
+  const sess = chats.slice(0, 8).map(c => {
+    const f = node(c.focusContainerId);
+    return `<button class="dr-row ${c.id === S.mainChatId ? 'on' : ''}" data-dr-sess="${c.id}"><span class="g">${c.id === S.mainChatId ? '▸' : ''}</span><span>${esc(f ? disp(f).slice(0, 30) : 'session')}</span></button>`;
+  }).join('');
+  const maps = (S.projects || []).map(pr => `<button class="dr-row ${pr.id === S.projectId ? 'on' : ''}" data-dr-map="${pr.id}"><span class="g">${pr.id === S.projectId ? '▸' : ''}</span><span>${esc(pr.name.slice(0, 30))}</span></button>`).join('');
+  const act = (id, g, label) => `<button class="dr-row" data-dr-act="${id}"><span class="g">${g}</span><span>${label}</span></button>`;
+  ov.innerHTML = `<div id="mob-drawer">
+    <div class="dr-h">sessions</div>${sess}
+    ${act('tab-add', '＋', 'new session')}
+    <div class="dr-h">maps</div>${maps}
+    <div class="dr-h">map</div>
+    ${act('add-root', '＋', 'add node')}
+    ${act('undo-btn', '↩', 'undo last action')}
+    ${act('round-line', '≡', 'what changed')}
+    <div class="dr-h">view</div>
+    ${act('home-btn', '⌂', 'home')}
+    ${act('zoom-out', '↑', 'zoom out')}
+    ${act('search-btn', '🔍', 'search')}
+    <div class="dr-h">map agents</div>
+    ${act('auto-focus', '▶', 'auto-focus')}
+    ${act('auto-lit', '☀', 'auto-light')}
+    ${act('auto-zoom', '◱', 'auto-zoom')}
+    ${act('map-check', '⟳', 'tidy map')}
+    ${act('tidy-top', '⟳', 'tidy top level')}
+    <div class="dr-h">lighting</div>
+    ${act('lit-all', '☀', 'light all (this view)')}
+    ${act('dim-all', '◐', 'dim all (this view)')}
+    ${act('dim-outside', '◐', 'dim all outside')}
+    ${act('lit-mgr-btn', '▶☀', 'manage focus & light')}
+    <div class="dr-h">more</div>
+    ${act('auto-rename', '✎', 'auto-rename')}
+    ${act('prefs-btn', '☰', 'map preferences')}
+    ${act('ctx-btn', '👁', "chat agent's view")}
+    ${act('legend-btn', '?', 'tutorial & reference')}
+    ${act('dev-btn', '🔧', 'dev mode')}
+  </div>`;
+  document.body.appendChild(ov);
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  for (const b of ov.querySelectorAll('[data-dr-sess]')) b.onclick = () => { ov.remove(); showSession(b.dataset.drSess); document.body.classList.add('mob-chat'); $('mob-flip').textContent = '🗺'; };
+  for (const b of ov.querySelectorAll('[data-dr-map]')) b.onclick = () => { ov.remove(); const sel = $('proj-sel'); if (sel && sel.value !== b.dataset.drMap) { sel.value = b.dataset.drMap; sel.dispatchEvent(new Event('change')); } };
+  for (const b of ov.querySelectorAll('[data-dr-act]')) b.onclick = () => { ov.remove(); $(b.dataset.drAct)?.click(); };
+}
+$('undo-btn').onclick = () => { $('other-menu').hidden = true; doUndo(); };
+$('mob-menu').onclick = openDrawer;
+let lpTimer = null;
+$('tree').addEventListener('touchstart', (e) => {
+  if (!document.body.classList.contains('mobile')) return;
+  const row = e.target.closest?.('.nrow');
+  const id = row?.querySelector('[data-edit]')?.dataset.edit;
+  if (!id) return;
+  lpTimer = setTimeout(() => { lpTimer = null; openRowSheet(id); }, 450);
+}, { passive: true });
+$('tree').addEventListener('touchend', () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
+$('tree').addEventListener('touchmove', () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
+function openRowSheet(nodeId) {
+  const n = node(nodeId);
+  const row = [...document.querySelectorAll('.nrow')].find(r => r.querySelector(`[data-edit="${nodeId}"]`));
+  if (!n || !row) return;
+  const ov = document.createElement('div');
+  ov.id = 'sheet-ov';
+  const entries = [];
+  const caretEl = row.querySelector('.caret');
+  if (caretEl && kidsOf(nodeId).length) entries.push({ g: caretEl.textContent, t: folded.has(nodeId) ? 'expand' : 'collapse', d: caretEl.getAttribute('title') ?? '', click: () => caretEl.click() });
+  for (const b of row.querySelectorAll('.rowbtn')) {
+    entries.push({ g: b.textContent.trim() || '⌂', t: '', d: b.getAttribute('title') ?? '', click: () => b.click() });
+  }
+  entries.push({ g: '✎', t: 'open editor', d: 'name, category, status, description, memory', click: () => row.querySelector(`[data-edit="${nodeId}"]`)?.click() });
+  ov.innerHTML = `<div id="sheet"><h4>${esc(disp(n))}</h4>${entries.map((e, i) => `
+    <button class="sh-row" data-shi="${i}"><span class="g">${esc(e.g)}</span><span>${esc(e.t)}${e.t && e.d ? ' — ' : ''}<span class="d">${esc(e.d)}</span></span></button>`).join('')}</div>`;
+  document.body.appendChild(ov);
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  for (const btn of ov.querySelectorAll('[data-shi]')) btn.onclick = () => { ov.remove(); entries[Number(btn.dataset.shi)].click(); };
+}
+
+$('other-btn').onclick = (e) => { e.stopPropagation(); const m = $('other-menu'); m.hidden = !m.hidden; $('other-more').hidden = true; $('other-more-btn').hidden = false; };
+$('other-more-btn').onclick = (e) => { e.stopPropagation(); $('other-more').hidden = false; $('other-more-btn').hidden = true; };
+document.addEventListener('click', (e) => { if (!$('other-wrap').contains(e.target)) $('other-menu').hidden = true; });
+function renderNudges() {
+  const n = S.nudges || {};
+  const set = (btnId, on, tip) => {
+    const b = $(btnId); if (!b) return;
+    const d = b.querySelector('.nudge-dot'); if (d) d.hidden = !on;
+    if (on) b.title = tip;
+  };
+  set('auto-focus', n.focus, n.focusName
+    ? `you asked to focus on “${n.focusName}” — click to re-aim the map there`
+    : 'recent rounds keep landing in "to sort" — the conversation may have moved; consider re-aiming the focus');
+  set('auto-lit', n.light, 'recent rounds keep landing in "to sort" — the light may be too narrow; consider lighting more of the map');
+  // M124: a root-scope flag from the map reviewer lands as a dot on ⋯ and on
+  // "⟳ tidy top level" — clicking the button opens the root proposal with the
+  // reviewer's reason attached.
+  // M126 (Jacob): home always exists; the top level is the default home.
+  const hb = $('home-btn');
+  if (hb) {
+    const h = S.home && node(S.home) ? S.home : null;
+    hb.title = h ? `zoom to your home page: “${disp(node(h))}”` : 'zoom to the home page — the whole map (set a node as home on its row)';
+    hb.onclick = () => {
+      setZoom(h);
+      $('round-line').textContent = h ? `home — zoomed to “${disp(node(h))}” (view only)` : 'home — showing the whole map (set a node as home on its row)';
+    };
+  }
+  const rootSug = (S.suggestions || []).find(sg => sg.nodeId === '__top__');
+  const ob = $('other-btn').querySelector('.nudge-dot');
+  if (ob && rootSug) ob.hidden = false;
+  const mb = $('other-more-btn')?.querySelector('.nudge-dot');
+  if (mb) mb.hidden = !rootSug;
+  const tt = $('tidy-top');
+  if (tt) {
+    tt.innerHTML = `⟳ tidy top level${rootSug ? '<span class="nudge-dot">●</span>' : ''}`;
+    if (rootSug) tt.title = `the map reviewer suggests: ${rootSug.note} — click to see the grouping proposal`;
+    tt.onclick = () => { $('other-menu').hidden = true; openReorganize(null, 'the top level', rootSug ? { skipConfirm: true, hint: rootSug.note, suggestionId: rootSug.id } : {}); };
+  }
+}
+
+// M138: markdown for OUR chat — a safe subset rendered locally. Escape
+// FIRST, then transform; nothing external, nothing executable survives.
+function md2html(t) {
+  // Preferred path: battle-tested parsing (vendored marked) + sanitization
+  // (vendored DOMPurify) — don't reinvent the wheel (Mark). The regex subset
+  // below stays as the offline/degraded fallback.
+  if (window.marked && window.DOMPurify) {
+    const html = window.DOMPurify.sanitize(window.marked.parse(t, { breaks: true, mangle: false, headerIds: false }),
+      { ALLOWED_ATTR: ['href', 'class'], FORBID_TAGS: ['style', 'img'] });
+    return html.replace(/<a /g, '<a target="_blank" rel="noopener" ');
+  }
+  let x = esc(t);
+  x = x.replace(/```\w*\n?([\s\S]*?)```/g, (_, code) => `<pre class="code">${code.replace(/\n$/, '')}</pre>`);
+  x = x.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  x = x.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  x = x.replace(/^#{1,4} (.*)$/gm, '<strong>$1</strong>');
+  x = x.replace(/^[-*] (.*)$/gm, '<span class="li">• $1</span>');
+  x = x.replace(/^(\d+)\. (.*)$/gm, '<span class="li">$1. $2</span>');
+  return x;
+}
+function msgHtml(role, content) {
+  if (role === 'system') return `<div class="msg system">— ${esc(content)} —</div>`;
+  if (role === 'assistant') return `<div class="msg assistant" data-raw="${esc(content)}">${md2html(content)}<button class="mcopy" title="copy this message">⧉</button></div>`;
+  return `<div class="msg ${role}">${esc(content)}</div>`;
+}
+
+$('messages').addEventListener('click', async (e) => {
+  const b = e.target.closest?.('.mcopy');
+  if (!b) return;
+  const raw = b.closest('.msg')?.dataset.raw ?? '';
+  try { await navigator.clipboard.writeText(raw); b.textContent = '✓'; setTimeout(() => { b.textContent = '⧉'; }, 1200); }
+  catch { b.textContent = '✗'; setTimeout(() => { b.textContent = '⧉'; }, 1200); }
+});
+
+async function loadTurns() {
+  if (!S.mainChatId) return;
+  const turns = await (await fetch(`/api/chats/${S.mainChatId}/turns`)).json();
+  const box = $('messages');
+  box.innerHTML = turns.map(t => msgHtml(t.role, t.content)).join('')
+    || '<div class="empty">one continuous conversation — the map is its memory</div>';
+  box.scrollTop = box.scrollHeight;
+}
+
+// ---- tree interactions ----
+// M136 (Jacob): undo — confirm rarely, undo generously. After any destructive
+// action the status line becomes a one-click ↩ toast; Ctrl/Cmd+Z and the ⋯/☰
+// rows undo the latest from anywhere.
+async function doUndo() {
+  try {
+    const r = await post('/api/undo', {});
+    $('round-line').textContent = `↩ undone: ${r.label}`;
+  } catch (err) { $('round-line').textContent = err.message === 'nothing to undo' ? 'nothing to undo' : `undo failed: ${err.message}`; }
+}
+function undoToast(label) {
+  if (!label) return;
+  const rl = $('round-line');
+  rl.innerHTML = `${esc(label)} · <span id="undo-chip" style="color:var(--accent);cursor:pointer;font-style:normal;font-weight:600">↩ undo</span>`;
+  rl.querySelector('#undo-chip').onclick = (e) => { e.stopPropagation(); doUndo(); };
+}
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    e.preventDefault();
+    doUndo();
+  }
+});
+
+$('tree').addEventListener('click', async (e) => {
+  const t = e.target;
+  if (t.id === 'add-root') { await addNode(zoomId ?? null); return; }
+  // M135b: mobile rows are plain text — tap decides by what the row IS:
+  // parents fold/unfold, leaves open their action sheet. Suggestion dots
+  // keep their direct tap everywhere.
+  if (document.body.classList.contains('mobile') && !t.closest('.sdot') && !t.closest('#sheet-ov')
+      && !t.closest('.rowbtn') && !t.closest('.caret')) { // control clicks (incl. synthetic from the sheet) pass through
+    const mrow = t.closest('.nrow');
+    if (mrow) {
+      const id = mrow.querySelector('[data-edit]')?.dataset.edit;
+      if (id) {
+        if (kidsOf(id).length) {
+          if (folded.has(id)) { folded.delete(id); userUnfolded.add(id); userFolded.delete(id); }
+          else { folded.add(id); userFolded.add(id); userUnfolded.delete(id); }
+          renderTree();
+        } else openRowSheet(id);
+        return;
+      }
+    }
+  }
+  const sheetId = t.closest('[data-sheet]')?.dataset.sheet;
+  if (sheetId) { openRowSheet(sheetId); return; }
+  const foldId = t.closest('[data-fold]')?.dataset.fold;
+  if (foldId) {
+    if (folded.has(foldId)) { folded.delete(foldId); userUnfolded.add(foldId); userFolded.delete(foldId); }
+    else if (kidsOf(foldId).length) { folded.add(foldId); userFolded.add(foldId); userUnfolded.delete(foldId); }
+    renderTree(); return;
+  }
+  const homeId = t.closest('[data-sethome]')?.dataset.sethome;
+  if (homeId) {
+    const on = S.home !== homeId;
+    try { await post('/api/home', { nodeId: on ? homeId : null }); $('round-line').textContent = on ? `home page set to “${disp(node(homeId))}”` : 'home unset — the home page is the whole map again'; }
+    catch (err) { $('round-line').textContent = `failed: ${err.message}`; }
+    return;
+  }
+  const focusId = t.closest('[data-focus]')?.dataset.focus;
+  if (focusId && S.mainChatId) {
+    const c = chat();
+    const name = disp(node(focusId));
+    if (c && c.focusContainerId !== focusId) {
+      if (!confirm(`Move the conversation's focus to “${name}”?\n(The agent pivots there on your next message.)`)) return;
+      c.focusContainerId = focusId;            // optimistic
+      userUnfolded.clear(); userFolded.clear();
+      renderAll();
+      $('round-line').textContent = `focus → “${name}” (the chat agent pivots on your next message)`;
+      try { await post(`/api/chats/${S.mainChatId}/focus`, { nodeId: focusId }); }
+      catch (err) { $('round-line').textContent = `focus change failed: ${err.message}`; }
+    }
+    return;
+  }
+  const favId = t.closest('[data-fav]')?.dataset.fav;
+  if (favId) {
+    const on = !(S.favorites || []).includes(favId);
+    try { await post(`/api/nodes/${favId}/favorite`, { on }); $('round-line').textContent = on ? 'pinned to favorites (shown first in 🔍 search)' : 'unpinned from favorites'; }
+    catch (err) { $('round-line').textContent = `favorite failed: ${err.message}`; }
+    return;
+  }
+  const litId = t.closest('[data-lit]')?.dataset.lit;
+  if (litId && S.mainChatId) {
+    const on = !t.closest('[data-lit]').dataset.on;
+    try { await post(`/api/chats/${S.mainChatId}/lit`, { nodeId: litId, on }); }
+    catch (err) { $('round-line').textContent = `lighting failed: ${err.message}`; }
+    return;
+  }
+  // Z1(ii)+Z2 (+ correction): dedicated zoom button. Zoom dims everything
+  // outside the subtree; the focus shift is only SUGGESTED.
+  const zoomTo = t.closest('[data-zoomin]')?.dataset.zoomin;
+  if (zoomTo && S.mainChatId) {
+    const name = disp(node(zoomTo));
+    setZoom(zoomTo);
+    const c = chat();
+    const wantFocus = c && c.focusContainerId !== zoomTo
+      && confirm(`Zoomed into “${name}”. Also move the conversation's focus here?\n(Zoom only changes your view; focus re-aims the chat agent.)`);
+    if (wantFocus) { c.focusContainerId = zoomTo; userUnfolded.clear(); userFolded.clear(); renderAll(); }
+    $('round-line').textContent = wantFocus
+      ? `zoomed into “${name}” — focus moved here, other topics dimmed`
+      : `zoomed into “${name}” — other topics dimmed (focus unchanged)`;
+    try { await post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: zoomTo, focus: !!wantFocus }); }
+    catch (err) { $('round-line').textContent = `zoom-in failed on the server: ${err.message}`; }
+    return;
+  }
+  const addTo = t.closest('[data-add]')?.dataset.add;
+  if (addTo) { await addNode(addTo); return; }
+  const reorg = t.closest('[data-reorg]');
+  if (reorg) { openReorganize(reorg.dataset.reorg, reorg.dataset.name); return; }
+  const sugId = t.closest('[data-sug]')?.dataset.sug;
+  if (sugId) { openSuggestion(sugId); return; }
+  const promoteId = t.closest('[data-promote]')?.dataset.promote;
+  if (promoteId) {
+    if (!confirm(`Make “${disp(node(promoteId))}” a top-level topic of your map?`)) return;
+    try { await post(`/api/nodes/${promoteId}/place`, { parentId: null }); $('round-line').textContent = 'promoted to a top-level topic'; }
+    catch (err) { $('round-line').textContent = `promote failed: ${err.message}`; }
+    return;
+  }
+  const placeId = t.closest('[data-place]')?.dataset.place;
+  if (placeId) { openPlacePicker(placeId); return; }
+  const mv = t.closest('[data-move]');
+  if (mv) { openNodeMove(mv.dataset.move, mv.dataset.name); return; }
+  const mrg = t.closest('[data-merge]');
+  if (mrg) { openNodeMerge(mrg.dataset.merge, mrg.dataset.name); return; }
+  const ndel = t.closest('[data-ndel]');
+  if (ndel) {
+    const delId = ndel.dataset.ndel;
+    const count = Number(ndel.dataset.count);
+    const doDelete = async () => {
+      if (zoomId && (zoomId === delId || pathOf(zoomId).some(x => x.id === delId))) setZoom(null);
+      try { const r = await post(`/api/nodes/${delId}/delete`, {}); undoToast(r.undo); }
+      catch (err) { $('round-line').textContent = `delete failed: ${err.message}`; }
+    };
+    // M123 (Jacob): a session may be FOCUSED inside what's being deleted —
+    // warn, explain the rescue, and offer to close those sessions too.
+    const sub = new Set(subtreeIds(delId));
+    const affected = (S.chats || []).filter(c => sub.has(c.focusContainerId));
+    if (!affected.length) {
+      const msg = count > 0
+        ? `Delete “${ndel.dataset.name}” and the ${count} node(s) under it?\n(The agent will be told to drop it all.)`
+        : `Delete “${ndel.dataset.name}” from the map?\n(The agent will be told to drop it.)`;
+      if (confirm(msg)) await doDelete();
+      return;
+    }
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.innerHTML = `
+      <div class="modal" style="width:min(480px,94vw)">
+        <h3>✕ delete “${esc(ndel.dataset.name)}”${count > 0 ? ` (+${count} inside)` : ''}</h3>
+        <div style="font-size:13px;color:var(--danger)">⚠ ${affected.length} session(s) are focused inside what you're deleting:</div>
+        <div style="font-size:13px;margin:6px 0">${affected.map(c => `
+          <label style="display:flex;gap:8px;align-items:baseline;padding:2px 0;cursor:pointer">
+            ${c.id === S.mainChatId
+              ? `<span>▶ this session (focused on “${esc(disp(node(c.focusContainerId)))}”) — its focus moves to the parent</span>`
+              : `<input type="checkbox" checked data-close-chat="${c.id}" style="vertical-align:-2px"> <span>session focused on “${esc(disp(node(c.focusContainerId)))}” — will be CLOSED with it (uncheck to keep it; it refocuses to the parent)</span>`}
+          </label>`).join('')}</div>
+        <div class="actions">
+          <button id="dl-cancel" title="keep everything — nothing changes">cancel</button>
+          <button id="dl-go" class="primary" title="delete the node(s) and close the checked sessions; unchecked ones refocus to the parent">delete</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('#dl-cancel').onclick = () => ov.remove();
+    ov.onclick = (e2) => { if (e2.target === ov) ov.remove(); };
+    ov.querySelector('#dl-go').onclick = async () => {
+      const closeIds = [...ov.querySelectorAll('input[data-close-chat]')].filter(cb => cb.checked).map(cb => cb.dataset.closeChat);
+      ov.remove();
+      await doDelete();
+      for (const cid of closeIds) { try { await post(`/api/chats/${cid}/archive`, {}); } catch {} }
+      if (closeIds.length) $('round-line').textContent = `deleted — and closed ${closeIds.length} session(s) that were focused inside`;
+    };
+    return;
+  }
+  const retype = t.closest('[data-retype]')?.dataset.retype;
+  if (retype) {
+    const n = node(retype);
+    const nt = prompt('Category for this node (empty = plain topic):', n?.type ?? '');
+    if (nt !== null && nt.trim() !== (n?.type ?? '')) await post(`/api/nodes/${retype}`, { type: nt.trim(), chatId: S.mainChatId });
+    return;
+  }
+  const editId = t.closest('[data-edit]')?.dataset.edit;
+  if (editId) {
+    if ((S.recency || {})[editId]) post(`/api/nodes/${editId}/seen`, {}).catch(() => {});
+    openNodeDetail(editId); return;
+  }
+});
+
+// ---- place picker (M52+M53): the map agent fetches candidate homes; the
+// user picks — full-map browse as fallback ----
+function openPlacePicker(id) {
+  const n = node(id);
+  if (!n) return;
+  // M54: exclude the item's own subtree (cycle) and the whole to-sort branch.
+  const banned = new Set(subtreeIds(id));
+  const walk = (pid, depth) => S.nodes
+    .filter(x => x.parentId === pid && x.status !== 'removed' && !banned.has(x.id) && !(x.parentId === null && (x.title || x.content).startsWith('to sort')))
+    .map(x => `<div class="lit-row" style="margin-left:${depth * 14}px"><span class="crumb" data-dest="${x.id}" style="cursor:pointer;color:var(--accent)">${esc(disp(x))}</span></div>` + walk(x.id, depth + 1)).join('');
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `<div class="modal"><h3>Where does “${esc(disp(n))}” belong?</h3>
+    <div id="pp-sug" style="font-size:13px;color:var(--muted);font-style:italic">the placement agent is looking for likely homes…</div>
+    <details style="margin-top:10px"><summary style="font-size:12px;color:var(--muted);cursor:pointer">or browse the whole map</summary>
+    ${walk(null, 0) || '<div class="empty">no destinations yet</div>'}
+    </details>
+    <div class="actions"><button id="pp-cancel" title="close without picking a place">cancel</button></div></div>`;
+  document.body.appendChild(ov);
+  fetch(`/api/nodes/${id}/suggest-home`).then(r => r.json()).then(r => {
+    const el = ov.querySelector('#pp-sug');
+    if (!el) return;
+    if (r.candidates?.length) {
+      el.style.fontStyle = 'normal';
+      el.innerHTML = r.candidates.map(c => `
+        <div style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;margin:4px 0;cursor:pointer" data-dest="${c.nodeId}">
+          <b style="color:var(--accent)">${esc(c.name)}</b><br><span style="font-size:12px;color:var(--muted)">${esc(c.reason)}</span>
+        </div>`).join('');
+    } else {
+      el.textContent = r.error ? `couldn't search: ${r.error}` : 'no natural home found — browse below, or ★ promote it to a top-level topic';
+    }
+  }).catch(() => {});
+  ov.addEventListener('click', async (e) => {
+    if (e.target === ov || e.target.id === 'pp-cancel') { ov.remove(); return; }
+    const dest = e.target.closest('[data-dest]')?.dataset.dest;
+    if (dest) {
+      ov.remove();
+      try { await post(`/api/nodes/${id}/place`, { parentId: dest }); $('round-line').textContent = `placed under “${disp(node(dest))}”`; }
+      catch (err) { $('round-line').textContent = `place failed: ${err.message}`; }
+    }
+  });
+}
+
+// ---- node detail (M37): click a node → see + edit title and description ----
+function openNodeDetail(id) {
+  const n = node(id);
+  if (!n) return;
+  // M51: "to sort" is a system folder — show info, no editing.
+  if (n.parentId === null && (n.title || n.content).startsWith('to sort')) {
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.innerHTML = `<div class="modal"><h3>to sort</h3>
+      <p style="font-size:13px">System folder — the map's holding pen. Anything the filer can't place lands here, carrying a note of where it arrived from. ● dots on its items are placement suggestions: one click approves the move.</p>
+      <p style="font-size:12px;color:var(--muted)">To move something out: click its ● dot and approve the suggested move (one click). Or ↖ on the item to pick a parent yourself, ⇧ to promote it to a topic — or light its destination and the map files it home on the next round. ⟳ tidy on this folder proposes a full cleanup.</p>
+      <div class="actions"><button id="nd-cancel" class="primary" title="close this panel">close</button></div></div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => { if (e.target === ov || e.target.id === 'nd-cancel') ov.remove(); });
+    return;
+  }
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal">
+      <h3 style="display:flex;gap:8px;align-items:baseline">${n.type ? `<span style="color:var(--muted);font-size:12px">${esc(n.type)}</span>` : ''} <span>${esc(disp(n))}</span> <span style="color:var(--muted);font-size:12px;font-weight:400">(${esc(n.status)})</span></h3>
+      <label style="font-size:12px;color:var(--muted)">Title (short — the map shows this)</label>
+      <input id="nd-title" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.title ?? '')}" placeholder="(auto-named from the description)">
+      <div id="nd-sug" style="font-size:12px;color:var(--muted);margin-top:3px;font-style:italic">suggesting a name…</div>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Category (claim / question / option / … — or your own word; blank = plain topic)</label>
+      <input id="nd-type" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.type ?? '')}" placeholder="(none — plain topic)">
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Status (open / decided / parked / … — or your own word; blank = no status)</label>
+      <input id="nd-status" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.status === 'live' ? '' : n.status ?? '')}" placeholder="(none)">
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Description (the full statement — the agents read this)</label>
+      <textarea id="nd-desc" rows="4" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical">${esc(n.content)}</textarea>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">How it fits (parents above, children below — updates as they change)</label>
+      <div id="nd-rel" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">working out how this fits…</div>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Chat memory (what was discussed while this was the focus)</label>
+      <div id="nd-mem" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
+      <div class="actions">
+        <button id="nd-cancel" title="close without saving changes">cancel</button>
+        <button id="nd-save" class="primary" title="save these edits to the node">save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  // M38: fetch the relational description lazily (cached server-side by
+  // neighborhood hash — instant when nothing nearby changed).
+  fetch(`/api/nodes/${id}/relations`).then(r => r.json()).then(r => {
+    const el = ov.querySelector('#nd-rel');
+    if (el) { el.textContent = r.text ?? `couldn't work it out: ${r.error ?? '?'}`; el.style.fontStyle = 'normal'; el.style.color = 'var(--ink)'; }
+  }).catch(() => {});
+  // M41: per-node chat memory (read-only; the harness maintains it).
+  fetch(`/api/nodes/${id}/memory`).then(r => r.json()).then(r => {
+    const el = ov.querySelector('#nd-mem');
+    if (el) {
+      el.textContent = r.text ?? 'nothing yet — this fills in as you talk while focused here';
+      if (r.text) { el.style.fontStyle = 'normal'; el.style.color = 'var(--ink)'; }
+    }
+  }).catch(() => {});
+  // M40: suggested minimal title with an adopt button.
+  fetch(`/api/nodes/${id}/suggest-title`).then(r => r.json()).then(r => {
+    const el = ov.querySelector('#nd-sug');
+    if (!el) return;
+    if (r.title) {
+      el.innerHTML = `suggested: “${esc(r.title)}” <button id="nd-adopt" style="border:1px solid var(--hair);background:var(--panel);color:var(--accent);border-radius:4px;cursor:pointer;font-size:11px;padding:0 6px" title="adopt this suggested short name for the node">use this</button>`;
+      el.style.fontStyle = 'normal';
+      el.querySelector('#nd-adopt').onclick = (ev) => { ev.preventDefault(); ov.querySelector('#nd-title').value = r.title; };
+    } else el.textContent = '';
+  }).catch(() => { const el = ov.querySelector('#nd-sug'); if (el) el.textContent = ''; });
+  ov.addEventListener('click', async (e) => {
+    if (e.target === ov || e.target.id === 'nd-cancel') { ov.remove(); return; }
+    if (e.target.id === 'nd-save') {
+      const title = ov.querySelector('#nd-title').value.trim();
+      const content = ov.querySelector('#nd-desc').value.trim();
+      const type = ov.querySelector('#nd-type').value.trim();
+      const status = ov.querySelector('#nd-status').value.trim();
+      const patch = { chatId: S.mainChatId };
+      if (content && content !== n.content) patch.content = content;
+      if (title !== (n.title ?? '')) patch.title = title;
+      if (type !== (n.type ?? '')) patch.type = type;
+      const shownStatus = n.status === 'live' ? '' : (n.status ?? '');
+      if (status !== shownStatus) patch.status = status || 'live'; // blank = plain 'live'
+      ov.remove();
+      if (patch.content === undefined && patch.title === undefined && patch.type === undefined && patch.status === undefined) return;
+      try { await post(`/api/nodes/${id}`, patch); }
+      catch (err) { $('round-line').textContent = `edit failed: ${err.message}`; }
+    }
+  });
+}
+
+// ---- + new node (M34/M35: no name prompt, no zoom — adding is just adding;
+// the map names it from the conversation; click the node's text to name it ----
+// M114 (Jacob): no dialog, no naming choice — a new node is ALWAYS unnamed
+// and ALWAYS becomes the focus; the map names it after the first conversation
+// round aimed at it. (Click its text anytime to name it yourself.)
+async function addNode(parentId) {
+  const r = await post('/api/nodes', { parentId: parentId ?? undefined, focus: true });
+  const c = chat(); if (c) c.focusContainerId = r.id; renderAll();
+  $('round-line').textContent = parentId
+    ? `unnamed node added under “${disp(node(parentId))}” and focused — your next conversation names it`
+    : 'unnamed node added and focused — your next conversation names it';
+}
+
+// ---- lit-all / dim-all within the current view ----
+async function litScope(on) {
+  const tops = zoomId ? [zoomId] : S.nodes.filter(n => n.parentId === null).map(n => n.id);
+  for (const id of tops) await post(`/api/chats/${S.mainChatId}/lit`, { nodeId: id, on, bulk: true });
+  if (!on) $('round-line').textContent = 'dimmed the view — the focus path stays lit (protected)';
+}
+$('lit-all').onclick = () => litScope(true);
+$('dim-all').onclick = () => litScope(false);
+
+// Zoom out one level, to the immediate parent (Jacob, v0.4.1).
+$('zoom-out').onclick = () => {
+  if (!zoomId) { $('round-line').textContent = 'already at the whole map'; return; }
+  const parent = node(zoomId)?.parentId ?? null;
+  setZoom(parent);
+  $('round-line').textContent = parent ? `zoomed out to “${disp(node(parent))}”` : 'zoomed out to the whole map';
+};
+
+// Clean the chat (Jacob, v0.4.1): visual reset + fresh agent window; the map
+// carries everything forward.
+$('clear-chat').onclick = async () => {
+  if (!S.mainChatId) return;
+  if (!confirm('Clean the chat screen?\n\nThe conversation restarts visually and the chat agent begins a fresh window — but nothing is lost: the map carries all decisions, questions, and context forward, and the full transcript stays in the log.')) return;
+  try {
+    await post(`/api/chats/${S.mainChatId}/clear`, {});
+    await loadTurns();
+    $('round-line').textContent = 'chat cleaned — the map carries everything forward';
+  } catch (err) { $('round-line').textContent = `clean failed: ${err.message}`; }
+};
+
+// M39: long-operation status with estimates + over-a-minute warning.
+function opWatch(label, estimateSec) {
+  const t0 = Date.now();
+  $('round-line').textContent = `${label}… (estimated ~${estimateSec}s${estimateSec > 60 ? ' — WARNING: likely over a minute' : ''})`;
+  const iv = setInterval(() => {
+    const sec = Math.round((Date.now() - t0) / 1000);
+    if (sec >= 60) $('round-line').textContent = `${label}… still running (${sec}s — over a minute; big maps make this slower)`;
+    else if (sec >= estimateSec + 10) $('round-line').textContent = `${label}… taking longer than expected (${sec}s)`;
+  }, 5000);
+  return () => clearInterval(iv);
+}
+
+// M80 (Jacob): auto-light and auto-focus are propose→accept with a feedback
+// loop, exactly like tidy — the user can talk back ("propose differently")
+// before approving. Shared dialog, used by the header buttons AND talk-to-map.
+function openSpecialistProposal(kind) {
+  const isFocus = kind === 'focus', isZoom = kind === 'zoom';
+  const specName = isFocus ? 'focus' : isZoom ? 'zoom' : 'lighting';
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(520px,94vw)">
+      <h3>${isFocus ? '▶ focus proposal' : isZoom ? '◱ zoom proposal' : '☀ lighting proposal'}</h3>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">${
+        isFocus ? 'the focus agent suggests where to aim the conversation — nothing changes until you apply'
+        : isZoom ? 'the zoom agent suggests which subtree to show — view only, nothing changes until you apply'
+        : 'the lighting agent suggests what the chat agent should and shouldn’t see — nothing changes until you apply'}</div>
+      <div id="sp-body" style="font-size:13px;min-height:3em">…asking the ${specName} agent</div>
+      <div class="actions" style="align-items:center">
+        <input id="sp-feedback" placeholder="or tell it what you want instead…" style="flex:1;min-width:140px;border:1px solid var(--hair);border-radius:8px;padding:6px 10px;background:var(--bg);color:var(--ink);font:inherit" />
+        <button id="sp-again" title="re-propose with your direction">↻</button>
+        <button id="sp-cancel" title="close without applying — nothing changes">cancel</button>
+        <button id="sp-apply" class="primary" disabled title="apply this proposal to the map">apply</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const body = ov.querySelector('#sp-body'), applyBtn = ov.querySelector('#sp-apply'), fb = ov.querySelector('#sp-feedback');
+  let current = null, priorSummary = null;
+  const fetchProposal = async (feedback) => {
+    applyBtn.disabled = true;
+    body.textContent = `…asking the ${specName} agent`;
+    try {
+      // M116 (Jacob): proposals were run-on sentences — unreadable. Now a
+      // structured card: THE CHANGE first (target name big, its place on the
+      // map under it, or vertical light/dim lists), the WHY separate, and a
+      // one-line "what apply does".
+      const crumbs = (id) => esc(pathOf(id).slice(0, -1).map(n => disp(n)).join(' › ')) || 'top level';
+      const whyBlock = (why) => `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--hair)"><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">why</span><div style="color:var(--muted);margin-top:2px">${esc(why)}</div></div>`;
+      if (isFocus || isZoom) {
+        const r = await post(`/api/chats/${S.mainChatId}/recommend`, { kind, feedback, priorSummary });
+        current = r; priorSummary = `${kind} “${r.name}” — ${r.reason}`;
+        const already = isFocus ? r.containerId === chat()?.focusContainerId : r.containerId === zoomId;
+        current.already = already;
+        body.innerHTML = `
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${isFocus ? 'aim the conversation at' : 'show only this subtree'}</div>
+          <div style="font-size:16px;font-weight:600;margin:3px 0 1px">${isFocus ? '▶' : '◱'} ${esc(r.name)}</div>
+          <div style="font-size:11px;color:var(--muted)">on the map: ${crumbs(r.containerId)}</div>
+          ${already ? `<div style="margin-top:6px;color:var(--accent)">✓ this is already ${isFocus ? 'the focus' : 'your zoom'} — applying changes nothing</div>` : ''}
+          ${whyBlock(r.reason)}
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">apply = ${isFocus ? 'focus moves there; the chat agent pivots on your next message. Your view does not change.' : 'your view shows just that subtree. Lighting and focus stay as they are.'}</div>`;
+        applyBtn.disabled = false;
+      } else {
+        const r = await post(`/api/chats/${S.mainChatId}/autolit`, { preview: true, feedback, priorSummary });
+        current = r;
+        const lines = [r.lit.length ? `light: ${r.lit.map(x => `“${x.name}”`).join(', ')}` : '', r.dim.length ? `dim: ${r.dim.map(x => `“${x.name}”`).join(', ')}` : ''].filter(Boolean).join(' · ');
+        priorSummary = `${r.summary} (${lines || 'no changes'})`;
+        const list = (items, mark, label, note) => !items.length ? '' : `
+          <div style="margin-top:6px"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${mark} ${label} (${items.length}) — ${note}</div>
+          ${items.map(x => `<div style="padding:2px 0 0 14px">${mark} ${esc(x.name)} <span style="font-size:11px;color:var(--muted)">· ${crumbs(x.id)}</span></div>`).join('')}</div>`;
+        body.innerHTML = r.lit.length + r.dim.length > 0
+          ? list(r.lit, '☀', 'light up', 'the chat agent will see these')
+            + list(r.dim, '◐', 'dim', 'the chat agent will stop seeing these — you still see everything')
+            + whyBlock(r.summary)
+          : `<div>✓ no changes needed — the lighting already fits.</div>${whyBlock(r.summary)}`;
+        applyBtn.disabled = !(r.lit.length + r.dim.length);
+      }
+    } catch (err) { body.textContent = `failed: ${err.message}`; }
+  };
+  ov.querySelector('#sp-again').onclick = () => { const f = fb.value.trim(); fb.value = ''; fetchProposal(f || undefined); };
+  fb.onkeydown = (e) => { if (e.key === 'Enter') ov.querySelector('#sp-again').click(); };
+  ov.querySelector('#sp-cancel').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  applyBtn.onclick = async () => {
+    if (!current) { body.textContent = 'no proposal yet — ↻ re-propose or check the error above'; return; }
+    if (current.already) { $('round-line').textContent = isFocus ? 'that is already the focus — nothing to change' : 'already zoomed there'; ov.remove(); return; }
+    try {
+      if (isFocus) {
+        const c = chat(); if (c) c.focusContainerId = current.containerId;
+        userUnfolded.clear(); userFolded.clear(); renderAll();
+        await post(`/api/chats/${S.mainChatId}/focus`, { nodeId: current.containerId });
+        $('round-line').textContent = `focus → “${current.name}” (the chat agent pivots on your next message)`;
+      } else if (isZoom) {
+        setZoom(current.containerId);
+        await post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: current.containerId, focus: false });
+        $('round-line').textContent = `zoomed the view into “${current.name}” (lighting unchanged)`;
+      } else {
+        const a = await post(`/api/chats/${S.mainChatId}/autolit`, { apply: { lit: current.lit.map(x => x.id), dim: current.dim.map(x => x.id) }, summary: current.summary });
+        $('round-line').textContent = `auto-light: ${current.summary} (+${a.lit} lit, ${a.dim} dimmed)`;
+      }
+      ov.remove();
+    } catch (err) { body.textContent = `apply failed: ${err.message}`; }
+  };
+  fetchProposal();
+}
+const autoLight = () => openSpecialistProposal('light');
+$('auto-lit').onclick = autoLight;
+
+const autoFocus = () => openSpecialistProposal('focus');
+$('auto-focus').onclick = autoFocus;
+
+
+const autoZoom = () => openSpecialistProposal('zoom');
+$('auto-zoom').onclick = autoZoom;
+
+// On-demand map check (Jacob): demand suggestions — or get the clean bill.
+$('tidy-top').onclick = () => { $('other-menu').hidden = true; openReorganize(null, 'the top level'); };
+// M124: per-project map preferences — standing instructions every map agent
+// receives. Editable here; the map guide can propose additions you approve.
+$('prefs-btn').onclick = async () => {
+  $('other-menu').hidden = true;
+  let cur = '';
+  try { cur = (await post2get('/api/prefs')).text || ''; } catch {}
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(520px,94vw)">
+      <h3>☰ map preferences</h3>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">standing instructions EVERY map agent follows for this map — how to group, name, clean, what never to touch. The map guide can also save these for you when you tell it a lasting preference.</div>
+      <textarea id="pf-text" style="width:100%;min-height:140px;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px" placeholder="e.g.\n- keep top-level containers broad, few of them\n- never propose deleting exploratory notes\n- name nodes in plain everyday words">${esc(cur)}</textarea>
+      <div class="actions">
+        <button id="pf-cancel" title="close without saving">cancel</button>
+        <button id="pf-save" class="primary" title="save — applies to every map agent from the next call on">save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#pf-cancel').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.querySelector('#pf-save').onclick = async () => {
+    try { await post('/api/prefs', { text: ov.querySelector('#pf-text').value.slice(0, 1200) }); ov.remove(); $('round-line').textContent = 'map preferences saved — every map agent follows them from now on'; }
+    catch (err) { $('round-line').textContent = `save failed: ${err.message}`; }
+  };
+};
+$('map-check').onclick = async () => {
+  const stop = opWatch('reviewing the whole map', Math.round(8 + S.nodes.length * 0.4));
+  try {
+    const r = await post('/api/mapcheck', {});
+    stop();
+    $('round-line').textContent = r.count > 0
+      ? `map check: ${r.count} node(s) flagged — see the red dot(s). ${r.summary}`
+      : `well done — your map is clean! ${r.summary}`;
+  } catch (err) { stop(); $('round-line').textContent = `map check failed: ${err.message}`; }
+};
+
+// ---- manage panel: focus AND lit for the whole map ----
+$('lit-mgr-btn').onclick = () => {
+  const lit = new Set(chat()?.lit ?? []);
+  const focus = chat()?.focusContainerId;
+  const walk = (pid, depth) => S.nodes.filter(n => n.parentId === pid && n.status !== 'removed').map(n => `
+    <div class="lit-row" style="margin-left:${depth * 14}px">
+      <span class="lit-toggle focus-t ${n.id === focus ? 'on' : ''}" data-mfocus="${n.id}" data-name="${esc(n.content)}" title="focus the conversation here">▶</span>
+      <span class="lit-toggle ${lit.has(n.id) ? 'on' : ''}" data-mlit="${n.id}" title="light/dim as background">☀</span>
+      <span>${n.type ? `<span style="color:var(--muted);font-size:11px">${esc(n.type)}:</span> ` : ''}${esc(disp(n))}</span>
+    </div>` + walk(n.id, depth + 1)).join('');
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal">
+      <h3>Focus &amp; background — whole map</h3>
+      <p style="font-size:12px;color:var(--muted)">▶ is where the conversation is aimed (one node). ☀ nodes are in the chat agent's background; lighting a node lights everything under it. Zoom doesn't change any of this — this panel always shows everything.</p>
+      ${walk(null, 0) || '<div class="empty">no nodes yet</div>'}
+      <div class="actions">
+        <button id="lm-autolit" title="the lighting agent proposes background lighting for the current focus — you approve">☀ auto-light</button>
+        <button id="lm-autofocus" title="the focus agent proposes where the conversation should aim — you approve">▶ auto-focus</button>
+        <button id="lm-autozoom" title="the zoom agent proposes which subtree to isolate — you approve">◱ auto-zoom</button>
+        <button id="lm-close" class="primary" title="close this panel">done</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', async (e) => {
+    if (e.target.id === 'lm-close' || e.target === ov) { ov.remove(); return; }
+    if (e.target.id === 'lm-autolit') { ov.remove(); autoLight(); return; }
+    if (e.target.id === 'lm-autofocus') { ov.remove(); autoFocus(); return; }
+    if (e.target.id === 'lm-autozoom') { ov.remove(); autoZoom(); return; }
+    const litId = e.target.closest('[data-mlit]')?.dataset.mlit;
+    if (litId) {
+      const on = !e.target.closest('[data-mlit]').classList.contains('on');
+      e.target.closest('[data-mlit]').classList.toggle('on', on); // optimistic
+      await post(`/api/chats/${S.mainChatId}/lit`, { nodeId: litId, on });
+      return;
+    }
+    const fEl = e.target.closest('[data-mfocus]');
+    if (fEl && fEl.dataset.mfocus !== chat()?.focusContainerId) {
+      if (!confirm(`Move the conversation's focus to “${fEl.dataset.name}”?`)) return;
+      ov.querySelectorAll('[data-mfocus]').forEach((x) => x.classList.remove('on'));
+      fEl.classList.add('on');
+      const c = chat(); if (c) c.focusContainerId = fEl.dataset.mfocus;
+      await post(`/api/chats/${S.mainChatId}/focus`, { nodeId: fEl.dataset.mfocus });
+    }
+  });
+};
+
+// ---- agent's view (Jacob: the user should see the full map description) ----
+$('ctx-btn').onclick = async () => {
+  let r;
+  try { r = await (await fetch(`/api/chats/${S.mainChatId}/context`)).json(); }
+  catch (err) { $('round-line').textContent = `couldn't load the chat agent's view: ${err.message}`; return; }
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal">
+      <h3>What the chat agent sees next turn</h3>
+      <p style="font-size:12px;color:var(--muted)">This exact text — the map as memory plus the recent turns — is the chat agent's entire context. Nothing else survives from earlier in the conversation.</p>
+      <pre>${esc(r.context)}</pre>
+      <div class="actions"><button id="cx-close" class="primary" title="close the agent's-view panel">close</button></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => {
+    if (e.target.id === 'cx-close' || e.target === ov) ov.remove();
+  });
+};
+
+// ---- red-dot suggestion modal (Jacob: suggest, don't restructure) ----
+// M84 (Jacob): smart node search. Results ranked mechanically; confirm view
+// shows the node with its parents and children; then light / zoom / focus /
+// nothing. History + ★ favorites (pinned) like any dominant search function.
+function openSearch(seedQuery) {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(560px,94vw)">
+      <h3 style="display:flex;align-items:center;gap:8px">🔍 find a node
+        <button id="sr-close" class="hbtn" style="margin-left:auto" title="close">✕</button>
+      </h3>
+      <input id="sr-input" placeholder="type to search… (★ favorites appear first)" />
+      <div id="sr-list"></div>
+    </div>`;
+  document.body.appendChild(ov);
+  const input = ov.querySelector('#sr-input'), list = ov.querySelector('#sr-list');
+  ov.querySelector('#sr-close').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  let t = null, lastResults = [];
+
+  const run = async (record) => {
+    const q = input.value.trim();
+    const r = await post2get(`/api/search?q=${encodeURIComponent(q)}${record ? '&record=1' : ''}`);
+    lastResults = r.results;
+    list.innerHTML = '';
+    if (!q) {
+      if (r.results.length) {
+        list.insertAdjacentHTML('beforeend', '<div class="sr-section">★ favorites</div>');
+        r.results.forEach(renderRow);
+      }
+      if (r.history.length) {
+        list.insertAdjacentHTML('beforeend', '<div class="sr-section">recent searches</div>');
+        for (const h of r.history) {
+          const d = document.createElement('div');
+          d.className = 'sr-hist'; d.textContent = h;
+          d.onclick = () => { input.value = h; run(false); };
+          list.appendChild(d);
+        }
+      }
+      if (!r.results.length && !r.history.length) list.innerHTML = '<div class="sr-section">no favorites yet — ★ a result to pin it here</div>';
+      return;
+    }
+    if (!r.results.length) { list.innerHTML = '<div class="sr-section">nothing matches</div>'; return; }
+    r.results.forEach(renderRow);
+  };
+
+  function renderRow(res) {
+    const d = document.createElement('div');
+    d.className = 'sr-row';
+    const star = document.createElement('span');
+    star.className = 'sr-star' + (res.favorite ? ' on' : '');
+    star.textContent = '★';
+    star.title = res.favorite ? 'unpin from favorites' : 'pin to favorites (shown first when searching)';
+    star.onclick = async (e) => { e.stopPropagation(); res.favorite = !res.favorite; star.classList.toggle('on', res.favorite); await post(`/api/nodes/${res.id}/favorite`, { on: res.favorite }); };
+    const name = document.createElement('span'); name.textContent = res.name;
+    const path = document.createElement('span'); path.className = 'sr-path'; path.textContent = res.path.join(' › ');
+    d.append(star, name, path);
+    d.onclick = () => confirmView(res);
+    list.appendChild(d);
+  }
+
+  function confirmView(res) {
+    list.innerHTML = '';
+    const back = document.createElement('div');
+    back.className = 'sr-hist'; back.textContent = '‹ back to results';
+    back.onclick = () => run(false);
+    const crumbs = document.createElement('div');
+    crumbs.className = 'sr-crumbs';
+    crumbs.innerHTML = res.path.length ? `${res.path.map(esc).join(' › ')} › <b>${esc(res.name)}</b>` : `<b>${esc(res.name)}</b> (top level)`;
+    const nodeBox = document.createElement('div');
+    nodeBox.className = 'sr-node';
+    nodeBox.innerHTML = `${res.type ? `<span style="color:var(--muted);font-size:11px">${esc(res.type)} · ${esc(res.status)}</span><br>` : ''}${esc(res.content)}`;
+    const kids = document.createElement('div');
+    kids.className = 'sr-kids';
+    kids.textContent = res.children.length ? `children: ${res.children.join(' · ')}` : 'no children';
+    const acts = document.createElement('div');
+    acts.className = 'actions';
+    const mk = (label, fn, primary, tip) => { const b = document.createElement('button'); if (primary) b.className = 'primary'; b.textContent = label; if (tip) b.title = tip; b.onclick = fn; return b; };
+    acts.append(
+      mk(res.favorite ? '★ unpin' : '★ favorite', async () => { res.favorite = !res.favorite; acts.firstChild.textContent = res.favorite ? '★ unpin' : '★ favorite'; await post(`/api/nodes/${res.id}/favorite`, { on: res.favorite }); }),
+      mk('☀ light it', async () => { await post(`/api/chats/${S.mainChatId}/lit`, { nodeId: res.id, on: true }); $('round-line').textContent = `lit “${res.name}” (and everything under it)`; ov.remove(); }),
+      mk('◱ zoom to it', async () => { setZoom(res.id); await post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: res.id, focus: false }); $('round-line').textContent = `zoomed into “${res.name}”`; ov.remove(); }),
+      mk('▶ focus on it', async () => { const c = chat(); if (c) c.focusContainerId = res.id; userUnfolded.clear(); userFolded.clear(); renderAll(); await post(`/api/chats/${S.mainChatId}/focus`, { nodeId: res.id }); $('round-line').textContent = `focus → “${res.name}”`; ov.remove(); }, true),
+      mk('do nothing', () => ov.remove()),
+    );
+    list.append(back, crumbs, nodeBox, kids, acts);
+  }
+
+  input.oninput = () => { clearTimeout(t); t = setTimeout(() => run(false), 160); };
+  input.onkeydown = (e) => { if (e.key === 'Enter') { clearTimeout(t); run(true); } };
+  input.focus();
+  if (seedQuery) { input.value = seedQuery; run(true); } else run(false);
+}
+const post2get = async (url0) => { const r = await fetch(url0); if (!r.ok) throw new Error(await r.text()); return r.json(); };
+$('search-btn').onclick = () => openSearch();
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openSearch(); }
+});
+
+// M93 (Jacob): every search UI shares the same empty state — ★ favorites
+// first, then recent searches — not just the main 🔍 modal.
+function renderSearchDefault(list, r, onPickResult, onPickHistory, banned) {
+  list.innerHTML = '';
+  const results = (r.results || []).filter(x => !banned || !banned.has(x.id));
+  if (results.length) {
+    list.insertAdjacentHTML('beforeend', '<div class="sr-section">★ favorites</div>');
+    for (const res of results) {
+      const d = document.createElement('div');
+      d.className = 'sr-row';
+      d.innerHTML = `<span>${esc(res.name)}</span><span class="sr-path">${esc(res.path.join(' › '))}</span>`;
+      d.onclick = () => onPickResult(res);
+      list.appendChild(d);
+    }
+  }
+  if ((r.history || []).length) {
+    list.insertAdjacentHTML('beforeend', '<div class="sr-section">recent searches</div>');
+    for (const h of r.history) {
+      const d = document.createElement('div');
+      d.className = 'sr-hist'; d.textContent = h;
+      d.onclick = () => onPickHistory(h);
+      list.appendChild(d);
+    }
+  }
+  if (!results.length && !(r.history || []).length) list.innerHTML = '<div class="sr-section">type to search — ★ a node to pin it here</div>';
+}
+
+// M90: merge UIs — node into node (survivor picker), chat views, projects.
+// M100 (Mark): universal move — search for the new parent or go top-level.
+function openNodeMove(srcId, srcName) {
+  const banned = new Set(subtreeIds(srcId));
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(500px,94vw)">
+      <h3>↖ move “${esc(srcName)}” to…</h3>
+      <div class="sr-row" id="mv-top"><span style="color:var(--accent)">⤒ make it a top-level topic</span></div>
+      <input id="mv-q" placeholder="or type to find the new parent" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit;margin-top:6px" />
+      <div id="mv-list" style="display:flex;flex-direction:column;gap:2px;margin-top:8px;max-height:40vh;overflow-y:auto"></div>
+      <div class="actions"><button id="mv-cancel" title="close without moving">cancel</button></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.querySelector('#mv-cancel').onclick = () => ov.remove();
+  const doMove = async (parentId, label) => {
+    try { const mv = await post(`/api/nodes/${srcId}/move`, { parentId }); ov.remove(); undoToast(mv.undo ?? `moved “${srcName}” ${label}`); }
+    catch (err) { $('round-line').textContent = `move failed: ${err.message}`; }
+  };
+  ov.querySelector('#mv-top').onclick = () => doMove(null, 'to the top level');
+  const q = ov.querySelector('#mv-q'), list = ov.querySelector('#mv-list');
+  let t = null;
+  const pickParent = (res) => doMove(res.id, `under “${res.name}”`);
+  const run = async (record) => {
+    const qv = q.value.trim();
+    const r = await post2get(`/api/search?q=${encodeURIComponent(qv)}${record && qv ? '&record=1' : ''}`);
+    if (!qv) { renderSearchDefault(list, r, pickParent, (h) => { q.value = h; run(false); }, banned); return; }
+    list.innerHTML = '';
+    for (const res of r.results.filter(x => !banned.has(x.id))) {
+      const d = document.createElement('div');
+      d.className = 'sr-row';
+      d.innerHTML = `<span>${esc(res.name)}</span><span class="sr-path">${esc(res.path.join(' › '))}</span>`;
+      d.onclick = () => pickParent(res);
+      list.appendChild(d);
+    }
+    if (!list.children.length) list.innerHTML = '<div class="sr-section">no matches — type to search</div>';
+  };
+  q.oninput = () => { clearTimeout(t); t = setTimeout(() => run(false), 160); };
+  q.onkeydown = (e) => { if (e.key === 'Enter') { clearTimeout(t); run(true); } };
+  q.focus(); run(false);
+}
+
+function openNodeMerge(srcId, srcName) {
+  const banned = new Set(subtreeIds(srcId));
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(500px,94vw)">
+      <h3>⇢ merge “${esc(srcName)}” into…</h3>
+      <input id="nm-q" placeholder="type to find the surviving node" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit" />
+      <div id="nm-list" style="display:flex;flex-direction:column;gap:2px;margin-top:8px;max-height:40vh;overflow-y:auto"></div>
+      <p style="font-size:11px;color:var(--muted)">children move to the survivor; anything this node says that the survivor doesn't is kept as a child; the node itself disappears.</p>
+      <div class="actions"><button id="nm-cancel" title="close without merging">cancel</button></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.querySelector('#nm-cancel').onclick = () => ov.remove();
+  const q = ov.querySelector('#nm-q'), list = ov.querySelector('#nm-list');
+  let t = null;
+  const pickTarget = async (res) => {
+    if (!confirm(`Merge “${srcName}” into “${res.name}”?`)) return;
+    try { const m = await post(`/api/nodes/${srcId}/merge`, { intoId: res.id }); ov.remove(); undoToast(m.undo); }
+    catch (err) { $('round-line').textContent = `merge failed: ${err.message}`; }
+  };
+  const run = async (record) => {
+    const qv = q.value.trim();
+    const r = await post2get(`/api/search?q=${encodeURIComponent(qv)}${record && qv ? '&record=1' : ''}`);
+    if (!qv) { renderSearchDefault(list, r, pickTarget, (h) => { q.value = h; run(false); }, banned); return; }
+    list.innerHTML = '';
+    for (const res of r.results.filter(x => !banned.has(x.id))) {
+      const d = document.createElement('div');
+      d.className = 'sr-row';
+      d.innerHTML = `<span>${esc(res.name)}</span><span class="sr-path">${esc(res.path.join(' › '))}</span>`;
+      d.onclick = () => pickTarget(res);
+      list.appendChild(d);
+    }
+    if (!list.children.length) list.innerHTML = '<div class="sr-section">no candidates — type to search</div>';
+  };
+  q.oninput = () => { clearTimeout(t); t = setTimeout(() => run(false), 160); };
+  q.onkeydown = (e) => { if (e.key === 'Enter') { clearTimeout(t); run(true); } };
+  q.focus(); run(false);
+}
+async function mergeProjectFlow() {
+  const others = (S.projects || []).filter(p => p.id !== S.projectId);
+  if (!others.length) { $('round-line').textContent = 'no other map to merge with'; renderSwitchers(); return; }
+  const names = others.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+  const pick = prompt(`Merge THIS map into which one? Everything here becomes a topic there; this map disappears. IRREVERSIBLE.\n\n${names}\n\nEnter a number:`);
+  renderSwitchers();
+  const idx = parseInt(pick, 10) - 1;
+  if (isNaN(idx) || !others[idx]) return;
+  if (!confirm(`Really fold the map “${(S.projects.find(p => p.id === S.projectId) || {}).name}” into “${others[idx].name}”?`)) return;
+  try { await post(`/api/projects/${S.projectId}/merge`, { intoId: others[idx].id }); setZoom(null); loadTurns(); $('round-line').textContent = `map merged into “${others[idx].name}” — it's a topic there now`; }
+  catch (err) { $('round-line').textContent = `map merge failed: ${err.message}`; }
+}
+// M77 (Jacob): direct line to the map agent. Advisory — it explains and
+// instructs; it never edits the map from this channel. History is session-local.
+const mapChatLog = [];
+function openMapChat() {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(600px,94vw);display:flex;flex-direction:column;max-height:78vh">
+      <h3 style="display:flex;align-items:center;gap:8px">🗨 talk to the map guide
+        <span class="mc-hint">explains · proposes focus, light &amp; tidy changes · you approve</span>
+        <button id="mc-close" class="hbtn" style="margin-left:auto" title="close">✕</button>
+      </h3>
+      <div id="mc-log"></div>
+      <div id="mc-composer">
+        <input id="mc-input" placeholder="ask, or ask for a change — “merge those two”, “fix my lighting”…" />
+        <button id="mc-send" class="primary" title="ask the map guide — it can also propose changes for your approval">send</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const log = ov.querySelector('#mc-log'), input = ov.querySelector('#mc-input');
+  const push = (who, text) => {
+    const d = document.createElement('div');
+    d.className = who === 'you' ? 'msg user' : 'msg assistant';
+    d.textContent = text;
+    log.appendChild(d); log.scrollTop = log.scrollHeight;
+    return d;
+  };
+  for (const h of mapChatLog) { push('you', h.q); push('map', h.a); }
+  if (!mapChatLog.length) push('map', 'I file and maintain this map. Ask me anything about it — or ask for a change (“merge those two”, “dim the old stuff”, “where should I focus?”) and I\'ll propose it for your approval.');
+  const send = async () => {
+    const q = input.value.trim(); if (!q) return;
+    input.value = ''; push('you', q);
+    const wait = push('map', '…thinking');
+    try {
+      const r = await post('/api/map-chat', { question: q, history: mapChatLog.slice(-4) });
+      wait.textContent = r.answer;
+      mapChatLog.push({ q, a: r.answer });
+      if (r.actions) renderPlan(r.actions);
+    } catch (err) { wait.textContent = `failed: ${err.message}`; }
+  };
+  // M78 (Jacob): the map agent attaches proposals — focus / light / tidy —
+  // applied only on the user's click, through the same endpoints the buttons use.
+  // M81: multi-step plans — one card, steps applied in order on approve.
+  // Tidy comes last (server-sorted) and opens its own before/after approval.
+  const stepDesc = (st) => st.kind === 'favorite' ? `★ pin “${st.nodeName}” to favorites`
+    : st.kind === 'focus' ? `re-aim focus to “${st.nodeName}”`
+    : st.kind === 'zoom' ? `zoom the view into “${st.nodeName}” (view only)`
+    : st.kind === 'light' ? [st.lit?.length ? `light ${st.lit.map(x => `“${x.name}”`).join(', ')}` : '', st.dim?.length ? `dim ${st.dim.map(x => `“${x.name}”`).join(', ')}` : ''].filter(Boolean).join('; ')
+    : `tidy “${st.nodeName}” — ${st.instruction || 'clean up'} (opens its own proposal)`;
+  const renderPlan = (steps) => {
+    if (steps.length === 1) return renderAction(steps[0]);
+    const card = document.createElement('div');
+    card.className = 'mc-card';
+    card.style.whiteSpace = 'pre-wrap';
+    card.textContent = `proposal — ${steps.length} steps, in order:\n${steps.map((st, i) => `${i + 1}. ${stepDesc(st)}`).join('\n')}`;
+    const b = document.createElement('button');
+    b.textContent = '✓ approve — run the plan';
+    b.onclick = async () => {
+      b.disabled = true;
+      const doneLines = [];
+      try {
+        for (const st of steps) {
+          if (st.kind === 'focus') {
+            await post(`/api/chats/${S.mainChatId}/focus`, { nodeId: st.nodeId });
+            doneLines.push(`✓ focus → “${st.nodeName}”`);
+          } else if (st.kind === 'light') {
+            for (const x of (st.lit || [])) await post(`/api/chats/${S.mainChatId}/lit`, { nodeId: x.id, on: true });
+            for (const x of (st.dim || [])) await post(`/api/chats/${S.mainChatId}/lit`, { nodeId: x.id, on: false });
+            doneLines.push(`✓ lighting applied (+${(st.lit || []).length} lit, ${(st.dim || []).length} dimmed)`);
+          } else if (st.kind === 'zoom') {
+            setZoom(st.nodeId);
+            await post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: st.nodeId, focus: false });
+            doneLines.push(`✓ zoomed into “${st.nodeName}”`);
+          } else if (st.kind === 'favorite') {
+            await post(`/api/nodes/${st.nodeId}/favorite`, { on: true });
+            doneLines.push(`✓ pinned “${st.nodeName}” to favorites`);
+          } else if (st.kind === 'tidy') {
+            doneLines.push('→ tidy proposal opened for your approval');
+            ov.remove(); openReorganize(st.nodeId, st.nodeName, { hint: st.instruction, skipConfirm: true });
+          }
+        }
+        card.innerHTML = ''; card.classList.add('applied'); card.style.whiteSpace = 'pre-wrap';
+        card.textContent = doneLines.join('\n');
+      } catch (e) { card.classList.add('applied'); card.textContent = `failed midway: ${e.message}\n${doneLines.join('\n')}`; }
+    };
+    card.appendChild(b);
+    log.appendChild(card); log.scrollTop = log.scrollHeight;
+  };
+  const renderAction = (a) => {
+    const card = document.createElement('div');
+    card.className = 'mc-card';
+    const done = (msg) => { card.innerHTML = ''; card.classList.add('applied'); card.textContent = msg; };
+    const btn = (label) => { const b = document.createElement('button'); b.textContent = label; b.title = 'applies through the same guarded action as the buttons — nothing else changes'; return b; };
+    if (a.kind === 'focus') {
+      card.textContent = `proposal: re-aim the conversation to “${a.nodeName}”`;
+      const b = btn('▶ approve — set focus');
+      b.onclick = async () => { try { await post(`/api/chats/${S.mainChatId}/focus`, { nodeId: a.nodeId }); done(`✓ focus moved to “${a.nodeName}”`); } catch (e) { done(`failed: ${e.message}`); } };
+      card.appendChild(b);
+    } else if (a.kind === 'light') {
+      const lit = a.lit || [], dim = a.dim || [];
+      card.textContent = `proposal: ${[lit.length ? `light ${lit.map(x => `“${x.name}”`).join(', ')}` : '', dim.length ? `dim ${dim.map(x => `“${x.name}”`).join(', ')}` : ''].filter(Boolean).join('; ')}`;
+      const b = btn('☀ approve — apply lighting');
+      b.onclick = async () => {
+        try {
+          for (const x of lit) await post(`/api/chats/${S.mainChatId}/lit`, { nodeId: x.id, on: true });
+          for (const x of dim) await post(`/api/chats/${S.mainChatId}/lit`, { nodeId: x.id, on: false });
+          done(`✓ lighting applied (+${lit.length} lit, ${dim.length} dimmed)`);
+        } catch (e) { done(`failed: ${e.message}`); }
+      };
+      card.appendChild(b);
+    } else if (a.kind === 'tidy') {
+      card.textContent = `proposal: tidy “${a.nodeName}” — ${a.instruction || 'clean up'}`;
+      const b = btn('✦ see the cleanup proposal');
+      b.onclick = () => { ov.remove(); openReorganize(a.nodeId, a.nodeName, { hint: a.instruction, skipConfirm: true }); };
+      card.appendChild(b);
+    } else if (a.kind === 'zoom') {
+      card.textContent = `proposal: zoom the view into “${a.nodeName}” (view only — lighting and focus untouched)`;
+      const b = btn('◱ approve — zoom in');
+      b.onclick = async () => {
+        try {
+          setZoom(a.nodeId);
+          await post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: a.nodeId, focus: false });
+          done(`✓ zoomed into “${a.nodeName}”`);
+        } catch (e) { done(`failed: ${e.message}`); }
+      };
+      card.appendChild(b);
+    } else if (a.kind === 'search') {
+      card.textContent = `proposal: search the map for “${a.instruction}”`;
+      const b = btn('🔍 open the search');
+      b.onclick = () => { done('opened search ↗'); openSearch(a.instruction); };
+      card.appendChild(b);
+    } else if (a.kind === 'favorite') {
+      card.textContent = `proposal: pin “${a.nodeName}” to favorites (shown first when searching)`;
+      const b = btn('★ approve — pin it');
+      b.onclick = async () => {
+        try { await post(`/api/nodes/${a.nodeId}/favorite`, { on: true }); done(`✓ pinned “${a.nodeName}”`); }
+        catch (e) { done(`failed: ${e.message}`); }
+      };
+      card.appendChild(b);
+    } else if (a.kind === 'merge') {
+      card.textContent = `proposal: merge “${a.nodeName}” into “${a.intoName}” — children move over, the duplicate disappears`;
+      const b = btn('⇢ approve — merge');
+      b.onclick = async () => {
+        try { const r = await post(`/api/nodes/${a.nodeId}/merge`, { intoId: a.intoId }); done(`✓ merged into “${a.intoName}”`); undoToast(r.undo); }
+        catch (e) { done(`failed: ${e.message}`); }
+      };
+      card.appendChild(b);
+    } else if (a.kind === 'mergeproject') {
+      card.textContent = `proposal: fold the map “${a.projectName}” into this one as a topic — IRREVERSIBLE`;
+      const b = btn('⇥ approve — merge projects');
+      b.onclick = async () => {
+        if (!confirm(`Really fold the map “${a.projectName}” into this one? This cannot be undone.`)) return;
+        try { await post(`/api/projects/${a.projectId}/merge`, { intoId: S.projectId }); done(`✓ map “${a.projectName}” is now a topic here`); }
+        catch (e) { done(`failed: ${e.message}`); }
+      };
+      card.appendChild(b);
+    } else if (a.kind === 'pref') {
+      card.textContent = `proposal: save a standing preference — “${a.instruction}” (every map agent will follow it)`;
+      const b = btn('✎ approve — save preference');
+      b.onclick = async () => {
+        try { await post('/api/prefs', { append: a.instruction }); done('✓ saved — see ☰ map preferences in ⋯ other'); }
+        catch (e) { done(`failed: ${e.message}`); }
+      };
+      card.appendChild(b);
+    } else if (a.kind === 'autozoom') {
+      card.textContent = 'proposal: let the zoom agent pick which subtree to isolate';
+      const b = btn('◱ open the proposal');
+      b.onclick = () => { done('opened the zoom proposal ↗'); openSpecialistProposal('zoom'); };
+      card.appendChild(b);
+    } else if (a.kind === 'autofocus') {
+      card.textContent = 'proposal: ask the focus agent where the conversation should aim';
+      const b = btn('▶ open the proposal');
+      b.onclick = () => { done('opened the focus proposal ↗'); openSpecialistProposal('focus'); };
+      card.appendChild(b);
+    } else if (a.kind === 'autolight') {
+      card.textContent = 'proposal: let the lighting agent re-pick the background for the current focus';
+      const b = btn('☀ open the proposal');
+      b.onclick = () => { done('opened the lighting proposal ↗'); openSpecialistProposal('light'); };
+      card.appendChild(b);
+    } else return;
+    log.appendChild(card); log.scrollTop = log.scrollHeight;
+  };
+  ov.querySelector('#mc-send').onclick = send;
+  input.onkeydown = (e) => { if (e.key === 'Enter') send(); };
+  ov.querySelector('#mc-close').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  input.focus();
+}
+$('map-chat').onclick = openMapChat;
+$('dim-outside').onclick = async () => {
+  if (!zoomId) { $('round-line').textContent = 'zoom into a subtree first — then this dims everything outside it'; return; }
+  try {
+    const r = await post(`/api/chats/${S.mainChatId}/dim-outside`, { nodeId: zoomId });
+    $('round-line').textContent = r.dimmed ? `dimmed ${r.dimmed} node(s) outside this subtree` : 'nothing outside was lit';
+  } catch (err) { $('round-line').textContent = `dim outside failed: ${err.message}`; }
+};
+
+// M83 (Jacob): auto-rename — direct, no proposal ("just do the rename").
+$('auto-rename').onclick = async () => {
+  const stop = opWatch('renaming long node names (max 6 words)', 15);
+  try {
+    const r = await post('/api/rename-sweep', {});
+    stop();
+    $('round-line').textContent = r.renamed + r.remaining === 0
+      ? 'auto-rename: every node already has a short name'
+      : `auto-rename: ${r.renamed} renamed${r.remaining ? ` — ${r.remaining} still long, press again` : ''}`;
+  } catch (err) { stop(); $('round-line').textContent = `auto-rename failed: ${err.message}`; }
+};
+
+function openSuggestion(nodeId) {
+  const s = sugFor(nodeId);
+  if (!s) return;
+  const name = disp(node(nodeId));
+  const relight = s.kind === 'relight';
+  const targetId8 = relight ? (s.note.match(/\[([0-9a-f]{8})/) || [])[1] : null;
+  const target = targetId8 ? S.nodes.find(n => n.id.startsWith(targetId8)) : null;
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = relight ? `
+    <div class="modal">
+      <h3>Where “${esc(name)}” belongs</h3>
+      <p style="font-size:13px">${esc(s.note)}</p>
+      <p style="font-size:12px;color:var(--muted)">This couldn't be placed when it arrived, so it waits under "to sort". Approve to move it${target ? ` under “${esc(disp(target))}”` : ''} now — or ↖ on the node picks a different home.</p>
+      <div class="actions">
+        <button id="sg-dismiss" title="remove this suggestion — the dot disappears; the node stays in to sort">dismiss</button>
+        <button id="sg-later" title="keep the dot — decide another time">keep for later</button>
+        ${target ? `<button id="sg-place" class="primary" title="move it under the suggested branch now (the destination's lighting is unchanged)">↖ move under “${esc(disp(target))}”</button>` : ''}
+      </div>
+    </div>` : `
+    <div class="modal">
+      <h3>Restructure suggested: “${esc(name)}”</h3>
+      <p style="font-size:13px">${esc(s.note)}</p>
+      <p style="font-size:12px;color:var(--muted)">The auto-filer never restructures on its own — it flagged this for you. “See the proposal” runs tidy on this subtree with the suggestion in mind; you review before anything changes.</p>
+      <div class="actions">
+        <button id="sg-dismiss" title="remove this suggestion — the dot disappears">dismiss (remove dot)</button>
+        <button id="sg-later" title="keep the dot — decide another time">keep for later</button>
+        <button id="sg-tidy" class="primary" title="see the cleanup proposal, change by change — nothing applies until you approve">see the proposal</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', async (e) => {
+    if (e.target === ov || e.target.id === 'sg-later') { ov.remove(); return; }
+    if (e.target.id === 'sg-dismiss') {
+      ov.remove();
+      try { await post(`/api/suggestions/${s.id}`, { status: 'dismissed' }); }
+      catch (err) { $('round-line').textContent = `dismiss failed: ${err.message}`; }
+      return;
+    }
+    if (e.target.id === 'sg-place' && target) {
+      ov.remove();
+      try {
+        await post(`/api/nodes/${nodeId}/move`, { parentId: target.id });
+        await post(`/api/suggestions/${s.id}`, { status: 'done' });
+        $('round-line').textContent = `moved “${name}” under “${disp(target)}”`;
+      } catch (err) { $('round-line').textContent = `move failed: ${err.message}`; }
+      return;
+    }
+    if (e.target.id === 'sg-tidy') { ov.remove(); openReorganize(nodeId, name, { hint: s.note, suggestionId: s.id, skipConfirm: true }); }
+  });
+}
+
+// ---- reorganize modal ----
+async function openReorganize(nodeId, name, opts = {}) {
+  // M122: nodeId null = ROOT SCOPE — tidy the top level itself (the one place
+  // the tidy agent may create top-level containers).
+  const isRoot = !nodeId;
+  const sz = isRoot ? S.nodes.filter(n => n.status !== 'removed').length : subtreeIds(nodeId).length;
+  const est = Math.round(12 + sz * 1.5);
+  const warn = est > 60 ? `\n\n⚠ This subtree has ${sz} nodes — expect roughly ${est}s (over a minute).` : '';
+  if (!opts.skipConfirm && !confirm(isRoot ? `Tidy the top level? The tidy agent may propose domain containers to group your top-level threads — nothing changes until you apply.${warn}` : `Reorganize the “${name}” subtree? I'll propose a cleanup for your review — nothing changes until you apply.${warn}`)) return;
+  const stop = opWatch(`preparing a cleanup proposal for “${name}”`, est);
+  let p;
+  try { p = await post('/api/reorganize/preview', { nodeId, hint: opts.hint, feedback: opts.feedback, priorSummary: opts.priorSummary, suggestionId: opts.suggestionId }); stop(); if (p.cached) $('round-line').textContent = 'proposal was precomputed — instant'; }
+  catch (err) { stop(); $('round-line').textContent = `tidy failed: ${err.message}`; return; }
+  const removalIdx = new Set(p.alterations.map((a, i) => (a.op === 'update_node' && a.status === 'removed') ? i : -1).filter(i => i >= 0));
+  // M118 (Jacob): the proposal led with two raw tree dumps to diff by eye.
+  // Now it leads with the changes themselves in plain words, one per row
+  // (deletions keep their uncheck-to-keep boxes inline); the before/after
+  // trees are still there, folded behind "see the full before → after".
+  const clip = (t, n = 70) => { t = String(t ?? ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+  const nameOf = (id) => {
+    const ex = node(id);
+    if (ex) return clip(disp(ex), 50);
+    const made = p.alterations.find(a => a.op === 'create_node' && a.id === id);
+    return made ? clip(made.content, 50) : 'a node from this proposal';
+  };
+  const changeRow = (a, idx) => {
+    const wrap = (mark, html, color) => `<div style="padding:3px 0;display:flex;gap:8px;align-items:baseline"><span style="color:${color};min-width:14px">${mark}</span><span>${html}</span></div>`;
+    if (a.op === 'create_node') return wrap('+', `new node “${esc(clip(a.content))}”${a.parentId ? ` under “${esc(nameOf(a.parentId))}”` : ''}`, 'var(--accent)');
+    if (a.op === 'move_node') return wrap('→', `move “${esc(nameOf(a.id))}” ${a.parentId ? `under “${esc(nameOf(a.parentId))}”` : 'to the top level'}`, 'var(--accent)');
+    if (a.op === 'update_node' && a.status === 'removed') {
+      const subDel = new Set(subtreeIds(a.id));
+      const hits = (S.chats || []).filter(c => subDel.has(c.focusContainerId)).length;
+      return `<label style="padding:3px 0;display:flex;gap:8px;align-items:baseline;cursor:pointer"><span style="color:var(--danger);min-width:14px">−</span><span><input type="checkbox" checked data-ridx="${idx}" style="vertical-align:-2px"> delete “${esc(nameOf(a.id))}” <span style="font-size:11px;color:var(--muted)">(uncheck to keep it)</span>${hits ? `<span style="font-size:11px;color:var(--danger)"> ⚠ ${hits} session(s) focused here — they will refocus to the parent</span>` : ''}</span></label>`;
+    }
+    if (a.op === 'update_node' && a.content !== undefined)
+      return wrap('~', `reword “${esc(nameOf(a.id))}” to “${esc(clip(a.content))}”`, 'var(--muted)');
+    if (a.op === 'update_node')
+      return wrap('~', `mark “${esc(nameOf(a.id))}”${a.status ? ` as ${esc(a.status)}` : ''}${a.type !== undefined ? ` · category: ${esc(a.type || 'none')}` : ''}`, 'var(--muted)');
+    return wrap('·', esc(a.op), 'var(--muted)');
+  };
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal">
+      <h3>⟳ tidy proposal — “${esc(name)}”</h3>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">the tidy agent proposes ${p.alterations.length} change(s) to this subtree — nothing changes until you apply</div>
+      <div style="font-size:13px">${p.alterations.length ? p.alterations.map((a, i) => changeRow(a, i)).join('')
+        : `<div style="color:var(--muted)">the tidy agent proposes NO changes ${isRoot ? 'to the top level' : 'inside this subtree'}.${!isRoot && node(nodeId)?.parentId === null ? ' If the suggestion was about grouping the top-level threads themselves, that needs the top level as the target — use the button below.' : ''}</div>
+          ${!isRoot && node(nodeId)?.parentId === null ? `<button id="ro-root-bridge" class="hbtn" style="margin-top:8px" title="re-run this cleanup with the whole top level as the target — only there can threads be grouped under new containers">⟳ run tidy top level instead</button>` : ''}`}</div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--hair)"><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">why</span><div style="font-size:13px;color:var(--muted);margin-top:2px">${esc(p.summary)}</div></div>
+      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">see the full before → after</summary>
+        ${(() => {
+          // M121 (Jacob): the server's preview text is the AGENT serialization
+          // (glyphs, status tags, full statements) — not for humans. Build both
+          // trees from real node data instead, in the map's own visual
+          // language (short display names, category chips), and mark changes
+          // from the alterations themselves: − leaving, + arriving, → moving,
+          // ~ reworded. Node-level truth, no text matching.
+          const base = (isRoot ? S.nodes.filter(n => n.status !== 'removed').map(n => ({ ...n })) : subtreeIds(nodeId).map(id => ({ ...node(id) })).filter(n => n && n.status !== 'removed'));
+          const afterMap = new Map(base.map(n => [n.id, { ...n }]));
+          const marks = new Map();   // id → 'del' | 'new' | 'moved' | 'reword'
+          for (const a of p.alterations) {
+            if (a.op === 'create_node') { afterMap.set(a.id, { id: a.id, parentId: a.parentId ?? nodeId ?? null, content: a.content, title: a.title, type: a.type, status: a.status ?? 'live' }); marks.set(a.id, 'new'); }
+            else if (a.op === 'move_node' && afterMap.has(a.id)) { afterMap.get(a.id).parentId = a.parentId; if (!marks.has(a.id)) marks.set(a.id, 'moved'); }
+            else if (a.op === 'update_node' && a.status === 'removed') { afterMap.delete(a.id); marks.set(a.id, 'del'); }
+            else if (a.op === 'update_node' && afterMap.has(a.id)) { Object.assign(afterMap.get(a.id), a.content !== undefined ? { content: a.content } : {}, a.title !== undefined ? { title: a.title } : {}, a.type !== undefined ? { type: a.type } : {}, a.status !== undefined ? { status: a.status } : {}); if (!marks.has(a.id) && (a.content !== undefined || a.title !== undefined)) marks.set(a.id, 'reword'); }
+          }
+          const clip50 = (t) => clip(t, 60);
+          const treeRows = (nodes, mode) => {
+            const kidsIn = (pid) => nodes.filter(n => n.parentId === pid);
+            const rowFor = (n, depth) => {
+              const m = marks.get(n.id);
+              const gone = mode === 'before' && m === 'del';
+              const hot = mode === 'after' && (m === 'new' || m === 'moved' || m === 'reword');
+              const mk = mode === 'after' ? (m === 'new' ? '+' : m === 'moved' ? '→' : m === 'reword' ? '~' : '') : (gone ? '−' : '');
+              return `<div style="padding:1px 0 1px ${8 + depth * 16}px;border-left:2px solid ${hot ? 'var(--accent)' : gone ? 'var(--danger)' : 'transparent'};${gone ? 'color:var(--danger);text-decoration:line-through;opacity:.75' : hot ? 'color:var(--accent)' : ''}">${mk ? `<b>${mk} </b>` : ''}${n.type ? `<span style="font-size:9px;border:1px solid var(--hair);border-radius:3px;padding:0 3px;margin-right:4px">${esc(n.type)}</span>` : ''}${esc(clip50(n.title || n.content))}</div>`;
+            };
+            const walkP = (pid, depth) => kidsIn(pid).map(n => rowFor(n, depth) + walkP(n.id, depth + 1)).join('');
+            const root = isRoot ? null : nodes.find(n => n.id === nodeId);
+            return (root ? rowFor(root, 0) : '') + walkP(isRoot ? null : nodeId, root ? 1 : 0);
+          };
+          return `<div style="font-size:11px;color:var(--muted);margin:6px 0 4px">short names, like the map itself — <span style="color:var(--danger)">− red leaves</span> · <span style="color:var(--accent)">+ arrives · → moves · ~ reworded</span>; everything else is untouched</div>
+            <div class="cols">
+              <div><b style="font-size:12px">before (as it is now)</b><div style="font-size:12px;line-height:1.6;margin-top:4px;max-height:40vh;overflow:auto">${treeRows(base, 'before')}</div></div>
+              <div><b style="font-size:12px">after (if you apply)</b><div style="font-size:12px;line-height:1.6;margin-top:4px;max-height:40vh;overflow:auto">${treeRows([...afterMap.values()], 'after')}</div></div>
+            </div>`;
+        })()}
+      </details>
+      <div style="position:sticky;bottom:-18px;background:var(--panel);padding:10px 0 12px;margin-bottom:-18px;border-top:1px solid var(--hair)">
+        <div style="display:flex;gap:6px">
+          <input id="ro-feedback" placeholder="different idea? tell the tidy agent — e.g. 'group by price instead'" style="flex:1;border:1px solid var(--hair);border-radius:8px;padding:6px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px">
+          <button id="ro-again" style="border:1px solid var(--hair);border-radius:8px;padding:6px 12px;cursor:pointer;background:var(--panel);color:var(--accent)" title="tell the tidy agent what you want instead — it rebuilds the proposal around your words">↻ re-propose</button>
+        </div>
+        <div class="actions" style="margin-top:8px">
+          <button id="ro-cancel" title="close without applying — the map is untouched">cancel</button>
+          <button id="ro-apply" class="primary" title="apply only the checked changes to the map">apply ${p.alterations.length} change(s)</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const goAgain = () => {
+    const fb = ov.querySelector('#ro-feedback').value.trim();
+    if (!fb) return;
+    ov.remove();
+    openReorganize(nodeId, name, { ...opts, skipConfirm: true, feedback: fb, priorSummary: p.summary });
+  };
+  ov.querySelector('#ro-again').onclick = goAgain;
+  const bridge = ov.querySelector('#ro-root-bridge');
+  if (bridge) bridge.onclick = () => { ov.remove(); openReorganize(null, 'the top level', { skipConfirm: true, hint: opts.hint }); };
+  ov.querySelector('#ro-feedback').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); goAgain(); } });
+  ov.querySelector('#ro-cancel').onclick = () => { ov.remove(); $('round-line').textContent = 'reorganize cancelled'; };
+  ov.querySelector('#ro-apply').onclick = async () => {
+    const keep = new Set([...ov.querySelectorAll('input[data-ridx]')].filter(cb => cb.checked).map(cb => Number(cb.dataset.ridx)));
+    const chosen = p.alterations.filter((a, idx) => !removalIdx.has(idx) || keep.has(idx));
+    try {
+      const ra = await post('/api/reorganize/apply', { alterations: chosen, chatId: S.mainChatId, containerName: name, suggestionId: opts.suggestionId });
+      undoToast(ra.undo);
+    } catch (err) { $('round-line').textContent = `apply failed: ${err.message}`; }
+    ov.remove();
+  };
+}
+
+// ---- legend ----
+function openLegend() {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal">
+      <h3>What the map shows</h3>
+      <p id="lg-storage" style="font-size:12px;color:var(--muted)"></p>
+      <p style="font-size:12px;color:var(--muted)">Everything on the map is a NODE: one line of text, an optional category, a status, and children. A bold node is just one whose children matter most. Any node can be zoomed into, focused, lit, and grown. (Replay the guided tutorial anytime with the ? button.)</p>
+      <table class="legend-table">
+        <tr><td colspan="2"><b>The cast</b> — who does what. You talk to ONE agent: the <b>chat agent</b> (the Claude Code session in your tab). It has its own running session; the map + recent turns are its memory. Everyone else is a <b>map agent</b>: a one-shot worker with no session and no memory of its own — it wakes for one job, reads its prompt, answers, and is gone. Map agents never talk to each other or to the chat agent; the map itself is the only shared ground. (Watch them work: 🔧 dev mode in ⋯ other.)</td></tr>
+        <tr><td>the crew</td><td><b>filer</b> files each exchange onto the map · <b>lighting / focus / zoom agents</b> propose attention changes (you approve) · <b>tidy agent</b> proposes restructuring · <b>naming agent</b> shortens names · <b>memory agent</b> keeps node memories · <b>placement agent</b> suggests homes · <b>map guide</b> answers 🗨 talk-to-map</td></tr>
+        <tr><td colspan="2"><hr><b>Seeing &amp; steering</b> — what the chat agent knows, and where it aims.</td></tr>
+        <tr><td>▶ focus</td><td>the ONE node the conversation aims at — bright blue frame in the tree; the "▶ focus: …" chip above the map always points to it (click to jump, offers zoom)</td></tr>
+        <tr><td>☀ light / dim</td><td>the chat agent only sees LIT nodes. ☀ toggles a node + everything under it. Dimmed branches stay visible to you — the chat agent doesn't know them, and the filer can't write into them. The focus's ancestor chain is PROTECTED: focusing lights the path upward, and dimming can't darken it while the focus runs through it</td></tr>
+        <tr><td>📱 narrow screens</td><td>the page becomes one pane with a 🗺/💬 switcher at the bottom; ⋯ on each row opens its actions with plain-words explanations</td></tr>
+        <tr><td>◱ zoom · ↑ zoom out</td><td>isolate a subtree in the VIEW — zoom never changes lighting. ◐ dim all outside (in ⋯ other) dims everything outside the zoom</td></tr>
+        <tr><td><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</td><td>always there above the map: zooms to your home page — the whole map by default, or the node you set with the house button on its row</td></tr>
+        <tr><td colspan="2"><hr><b>The map speaks, you decide</b></td></tr>
+        <tr><td><span style="color:var(--danger)">●</span> dot on a node</td><td>a suggestion: on a normal node, a cleanup proposal (before/after, you approve); on a "to sort" item, a placement — click to approve the move</td></tr>
+        <tr><td><span style="color:var(--danger)">●</span> on ⋯</td><td>a suggestion is waiting inside (auto-focus / auto-light); any focus/light action clears it</td></tr>
+        <tr><td><span style="color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:0 4px;font-size:9px">new</span> <span style="color:var(--muted);border:1px solid var(--hair);border-radius:3px;padding:0 4px;font-size:9px">changed</span></td><td>the map added/edited this and you haven't touched it — clicking the node clears the mark. Click the status line under the map for the full change list ("clear all marks" lives there)</td></tr>
+        <tr><td>to sort</td><td>the holding pen: anything the filer can't place lands here with an arrival note. Leaving: approve its placement dot, ↖ pick a parent, ⇧ promote to a topic — or light the destination and the filer moves it home next round</td></tr>
+        <tr><td colspan="2"><hr><b>On every node</b> (hover the row)</td></tr>
+        <tr><td>◱ ▶ ☀ ★ <svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> + ↖ ⟳ ⇢ ✕</td><td>zoom · focus · light/dim · favorite (pins to search) · set home page · add child · move · tidy proposal · merge into a survivor · delete (⇧ promote appears on to-sort items)</td></tr>
+        <tr><td colspan="2"><hr><b>Toolbar &amp; sessions</b></td></tr>
+        <tr><td>🔍 search</td><td>Ctrl/Cmd+K — find a node, confirm it with parents and children, then light / zoom / focus it</td></tr>
+        <tr><td>🗨 talk to map</td><td>ask the map guide anything, or ask for changes in plain words — it proposes, you approve; complex asks become step-by-step plans</td></tr>
+        <tr><td>⋯ other</td><td>two tiers — everyday: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ⟳ tidy map · ◐ dim all outside · 🔧 dev mode; behind ＋ more: ☀/◐ light/dim all (this view) · ⟳ tidy top level · ✎ auto-rename · ☰ map preferences · ▶☀ manage</td></tr>
+        <tr><td>+ session</td><td>new session, three ways: ▶ focus on a topic (pick or create the node it aims at), ⑂ fork this view (same focus+lighting), ✳ start fresh (all dimmed) — then optionally open a real Claude Code terminal bound to it. ✕ closes a tab (filings stay); ⟳ re-fits a terminal</td></tr>
+        <tr><td>maps</td><td>each map is completely separate — one per repo by default; the name at the top-left switches, creates, or merges maps (irreversible)</td></tr>
+        <tr><td colspan="2"><hr><b>Fine print</b> — the filer's labels (you may retype/re-status anything; blank = plain).</td></tr>
+        <tr><td>categories</td><td>claim · question · option · decision · constraint · evidence · task — or any word of your own; bold = plain heading</td></tr>
+        <tr><td>statuses</td><td>✓ settled · ○ open/active · ▢ todo · ⚠ floated/provisional (agent-proposed, not yet yours) · ∿ exploratory (tentative) · ‖ parked (on hold, agent still sees it — unlike dimming) · ✗ rejected/dropped</td></tr>
+      </table>
+      <div class="actions"><button id="lg-close" class="primary" title="close the legend">got it</button></div>
+    </div>`;
+  document.body.appendChild(ov);
+  const st = ov.querySelector('#lg-storage');
+  if (st) st.textContent = `All map data is stored ONLY on this machine${S.storage ? ` — ${S.storage}` : ''} — nothing is sent anywhere.${S.version ? ` (server v${S.version})` : ''}`;
+  ov.querySelector('#lg-close').onclick = () => ov.remove();
+}
+$('legend-btn').onclick = () => tourShow(0);
+
+// M97/M98: sessions — each is a view (own focus+lighting) with an optional
+// live Claude Code terminal bound to it via the cwd claim mechanism.
+const chatTerms = new Map(); // chatId -> {el, xt, ws, fit, termId, cwd}
+let activeTab = 'session';   // 'session' = the active chat's surface
+function showSession(chatId) {
+  activeTab = 'session';
+  const t = chatTerms.get(chatId);
+  const showTerm = !!t;
+  $('messages').style.display = showTerm ? 'none' : '';
+  $('composer').style.display = showTerm ? 'none' : '';
+  document.querySelectorAll('.termhost').forEach(el => el.classList.toggle('on', showTerm && el === t.el));
+  renderTabs();
+  if (t) { t.xt.focus(); fitTerm(t); }
+}
+function fitTerm(t) {
+  if (!t.el.offsetWidth) return;
+  try {
+    t.fit.fit();
+    t.ws?.send?.(JSON.stringify({ t: 'rs', c: t.xt.cols, r: t.xt.rows }));
+  } catch {}
+}
+// M102 (Mark): resize storms (drag, maximize animations) were spamming the
+// PTY with intermediate sizes and could leave the TUI garbled at the settled
+// size. Debounce to the FINAL size only; refit() also nudges rows by one and
+// back, which forces the TUI to fully repaint (the tmux trick) — scrollback
+// intact.
+function scheduleFit(t) {
+  clearTimeout(t.fitTimer);
+  t.fitTimer = setTimeout(() => fitTerm(t), 160);
+}
+function refitTerm(t) {
+  if (!t.el.offsetWidth) return;
+  try {
+    t.fit.fit();
+    const c = t.xt.cols, r = t.xt.rows;
+    t.ws?.send?.(JSON.stringify({ t: 'rs', c, r: Math.max(2, r - 1) }));
+    setTimeout(() => { try { t.ws?.send?.(JSON.stringify({ t: 'rs', c, r })); } catch {} }, 60);
+  } catch {}
+}
+window.addEventListener('resize', () => { const t = chatTerms.get(S.mainChatId); if (t && activeTab === 'session') scheduleFit(t); });
+
+function attachTerm(chatId, termId, cwd) {
+  const host = document.createElement('div');
+  host.className = 'termhost'; host.dataset.term = termId;
+  $('chat-pane').appendChild(host);
+  const xt = new Terminal({ fontSize: 13, theme: { background: '#000000' }, scrollback: 5000, allowProposedApi: true });
+  const fit = new (window.FitAddon?.FitAddon ?? FitAddon)();
+  xt.loadAddon(fit);
+  xt.open(host);
+  const ws = new WebSocket(`ws://${location.host}/term?id=${termId}`);
+  ws.onmessage = (ev) => xt.write(typeof ev.data === 'string' ? ev.data : new Uint8Array(ev.data));
+  xt.onData((d) => { try { ws.send(JSON.stringify({ t: 'in', d })); } catch {} });
+  const t = { el: host, xt, ws, fit, termId, cwd };
+  chatTerms.set(chatId, t);
+  new ResizeObserver(() => { if (S.mainChatId === chatId && activeTab === 'session') scheduleFit(t); }).observe(host);
+  ws.onopen = () => setTimeout(() => fitTerm(t), 80);
+  // manual restore: a small refit control on the terminal itself
+  const fitBtn = document.createElement('button');
+  fitBtn.textContent = '⟳';
+  fitBtn.className = 'term-fit';
+  fitBtn.dataset.tip = 're-fit and repaint the terminal — use this if the display looks garbled after resizing';
+  fitBtn.onclick = () => refitTerm(t);
+  host.appendChild(fitBtn);
+  return t;
+}
+async function openTerminalFor(chatId, cwd) {
+  // Measure-first: mount, fit, then create the PTY at the exact grid.
+  const t = attachTerm(chatId, 'pending-' + chatId, cwd);
+  document.querySelectorAll('.termhost').forEach(el => el.classList.toggle('on', el === t.el));
+  $('messages').style.display = 'none'; $('composer').style.display = 'none';
+  try { t.fit.fit(); } catch {}
+  try { t.ws.close(); } catch {}
+  let r;
+  try { r = await post('/api/term', { cwd, cols: t.xt.cols, rows: t.xt.rows, chatId }); }
+  catch (err) {
+    $('round-line').textContent = `terminal failed: ${err.message} — session kept as a view`;
+    t.el.remove(); chatTerms.delete(chatId); showSession(chatId); return;
+  }
+  t.termId = r.id; t.el.dataset.term = r.id;
+  const ws = new WebSocket(`ws://${location.host}/term?id=${r.id}`);
+  ws.onmessage = (ev) => t.xt.write(typeof ev.data === 'string' ? ev.data : new Uint8Array(ev.data));
+  t.xt.onData((d) => { try { ws.send(JSON.stringify({ t: 'in', d })); } catch {} });
+  t.ws = ws;
+  ws.onopen = () => setTimeout(() => fitTerm(t), 80);
+  showSession(chatId);
+}
+async function closeSessionTab(chatId) {
+  const t = chatTerms.get(chatId);
+  const msg = t
+    ? 'Close this session? Its terminal ends (claude --resume in its folder can continue it) and the tab is put away. Everything it filed stays on the map.'
+    : 'Close this session tab? Everything it filed stays on the map.';
+  if (!confirm(msg)) return;
+  if (t) {
+    try { await fetch(`/api/term/${t.termId}`, { method: 'DELETE' }); } catch {}
+    try { t.ws.close(); } catch {}
+    t.el.remove();
+    chatTerms.delete(chatId);
+  }
+  try {
+    const r = await post(`/api/chats/${chatId}/archive`, {});
+  } catch (err) { $('round-line').textContent = err.message.includes('only session') ? 'this is the only session — create another before closing it' : `close failed: ${err.message}`; }
+  showSession(S.mainChatId);
+}
+// Reconnect after a page load: live terminals keep running server-side.
+async function reattachTerms() {
+  try {
+    const r = await post2get('/api/term');
+    for (const tm of r.terms) {
+      if (tm.alive && tm.chatId && !chatTerms.has(tm.chatId)) attachTerm(tm.chatId, tm.id, tm.cwd);
+    }
+    renderTabs();
+    if (chatTerms.has(S.mainChatId)) showSession(S.mainChatId);
+  } catch {}
+}
+setTimeout(reattachTerms, 800);
+
+
+// M110 (Jacob): flexible pane resizing. The splitter drives --split; the
+// terminal ResizeObservers and the tour reposition listener keep everything
+// in the map pane working while it moves.
+{
+  const saved = localStorage.getItem('hm-split');
+  if (saved) document.documentElement.style.setProperty('--split', saved);
+  const sp = $('splitter');
+  let dragging = false;
+  sp.addEventListener('mousedown', (e) => {
+    dragging = true;
+    sp.classList.add('dragging');
+    document.body.classList.add('splitting');
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const w = Math.min(Math.max(280, e.clientX), window.innerWidth * 0.75);
+    document.documentElement.style.setProperty('--split', w + 'px');
+  });
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    sp.classList.remove('dragging');
+    document.body.classList.remove('splitting');
+    localStorage.setItem('hm-split', getComputedStyle(document.documentElement).getPropertyValue('--split').trim());
+    window.dispatchEvent(new Event('resize'));
+  });
+}
+// the tour must follow its target through any resize (splitter or window)
+let tourReflow = null;
+window.addEventListener('resize', () => {
+  if (tourAt < 0) return;
+  clearTimeout(tourReflow);
+  tourReflow = setTimeout(() => { if (tourAt >= 0) tourShow(tourAt); }, 120);
+});
+
+// M96c (Jacob: "I don't see short explanation"): native title tooltips take
+// ~1s of dwell and are easy to miss — replace them globally with an instant
+// styled bubble. Delegated, so dynamically-created buttons get it free.
+const tipEl = document.createElement('div');
+tipEl.id = 'tip';
+document.body.appendChild(tipEl);
+let tipTimer = null;
+document.addEventListener('mouseover', (e) => {
+  const t = e.target.closest?.('[title], [data-tip]');
+  if (!t) return;
+  if (t.hasAttribute('title')) { t.dataset.tip = t.getAttribute('title'); t.removeAttribute('title'); }
+  const text = t.dataset.tip;
+  if (!text) return;
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => {
+    tipEl.textContent = text;
+    tipEl.classList.add('show');
+    const r = t.getBoundingClientRect();
+    tipEl.style.left = '0px'; tipEl.style.top = '0px'; // reset before measuring
+    const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+    let x = Math.min(Math.max(6, r.left), window.innerWidth - w - 6);
+    let y = r.bottom + 6;
+    if (y + h > window.innerHeight - 6) y = r.top - h - 6;
+    tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px';
+  }, 120);
+});
+document.addEventListener('mouseout', (e) => {
+  if (e.target.closest?.('[data-tip]')) { clearTimeout(tipTimer); tipEl.classList.remove('show'); }
+});
+document.addEventListener('click', () => { clearTimeout(tipTimer); tipEl.classList.remove('show'); });
+
+// ---- composer ----
+let sentLocal = [];
+$('composer').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('input').value.trim();
+  if (!text || !S.mainChatId) return;
+  sentLocal.push(text);
+  const box = $('messages');
+  box.querySelector('.empty')?.remove();
+  box.insertAdjacentHTML('beforeend', `<div class="msg user">${esc(text)}</div><div class="msg assistant pending">thinking…</div>`);
+  box.scrollTop = box.scrollHeight;
+  $('input').value = '';
+  await post(`/api/chats/${S.mainChatId}/messages`, { text });
+};
+$('input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); }
+});
+
+// M108 (Jacob): the ? button is a guided TUTORIAL over the real UI — each
+// step spotlights the actual element and says what it does; the old legend
+// survives as the reference card on the last step. Auto-offers once.
+const findRow = (pred) => {
+  const n = (S.nodes || []).find(pred);
+  return n ? document.querySelector(`[data-edit="${n.id}"]`)?.closest('.nrow') : null;
+};
+const TOUR = [
+  { sel: '#tree', title: 'This is your map (the left pane)', body: 'The highlighted area is the map. Everything you discuss with the chat agent files itself here as you talk — topics, decisions, questions, evidence. You never have to write it; you get to govern it. All of it stays on this machine only.' },
+  { sel: '#chat-pane', title: 'This is the conversation (the right pane)', body: 'The highlighted pane is where the talking happens — session tabs along the top, the conversation below. Everything discussed here (or in any terminal tab) files itself onto the map on the left as you go. Left pane: the memory. Right pane: the dialogue.' },
+  { sel: '#proj-sel', title: 'Which map you\u2019re in (top-left)', body: 'The highlighted name is the current MAP. Each map is completely separate — by default every repo gets its own. Click it to switch, create a new map, or fold this map into another (⇥ merge, irreversible).' },
+  { sel: '#ctx-btn', title: 'Chat agent\u2019s view (header button)', body: 'The highlighted button shows the EXACT map description the CHAT agent — the assistant you talk to — receives on its next turn: focus in full, lit branches, constraints, open questions. When you wonder “does it know this?”, this button answers verbatim. (The map agents that do the filing are separate — the reference card’s “The cast” section introduces everyone.)' },
+  { sel: '#beat', title: 'The heartbeat (top of the map pane)', body: 'The highlighted stepper shows each exchange\u2019s lifecycle: ✉ your message was seen → 💬 the chat agent is replying → ▤ the map is filing it → ✓ filed. Next to it, “map current” / “N rounds behind” tells you if filing is keeping up. If it warns in red, the map isn\u2019t hearing the conversation — say so.' },
+  { find: () => document.querySelector('#crumbs .focus-away') ?? document.querySelector('.nrow.focused'), title: 'The focus chip (this bar)', body: 'The highlighted chip always points to the FOCUS — the one node the conversation is aimed at (it carries a bright blue frame down in the tree). Click the chip to jump to it from anywhere; it offers zoom.' },
+  { sel: '#home-btn', title: 'Home (top of the map)', body: 'The highlighted button zooms to your home page — the whole map by default, or any node you pick with the little house on its row. One safe place your view can always come back to. (View only — lighting and focus never change.)' },
+  { sel: '#map-chat', title: '🗨 talk to map (in the toolbar)', body: 'The highlighted button opens a direct line to the map guide. Ask why something is filed where it is — or ask for changes in plain words (“merge those two”, “focus on X and dim Y”) and it proposes them for one-click approval. Complex requests become step-by-step plans — and if you state a LASTING preference (“keep containers broad”), it offers to save it so every map agent follows it.' },
+  { sel: '#search-btn', title: '🔍 search (in the toolbar)', body: 'The highlighted button — or Ctrl/Cmd+K — finds any node by a few words. You confirm the match with its parents and children in view, then light, zoom, or focus it. ★ favorites pin to the top; recent searches are remembered.' },
+  { sel: '#other-btn', title: '⋯ other (end of the toolbar)', body: 'The highlighted button folds away the rest, in two tiers. First the everyday six: ▶ auto-focus, ☀ auto-light, ◱ auto-zoom (each proposes — you approve), ⟳ tidy map, ◐ dim all outside, 🔧 dev mode. \u201c＋ more\u201d expands the rest: ☀/◐ light/dim all (this view), ⟳ tidy top level (groups your top-level threads), ✎ auto-rename, ☰ map preferences (standing rules every map agent follows), ▶☀ manage. A red dot means a suggestion is waiting inside.' },
+  { find: () => document.querySelector('.nrow:not(.focused)') ?? document.querySelector('.nrow'), title: 'This row is a node', body: 'The highlighted row is ONE node: one line, one thing — a topic (bold), a claim, a question… The small bordered chip is its category (click to change); clicking the text opens the full editor (name, status, description, memory). “+ add node” at the bottom of the tree adds your own — it starts unnamed and focused, and the map names it from your next conversation. Expanding a branch (▸) shows only its immediate children — a collapsed parent shows “N inside”; open deeper levels one at a time.' },
+  { find: () => document.querySelector('.nrow'), title: 'Light and shade (the ☀ button on this row)', body: 'The controls on the highlighted row are visible for this step — find ☀ among them. The chat agent only sees LIT nodes; ☀ toggles this node and everything under it into or out of its sight. Dimmed branches stay visible to YOU — the chat agent simply doesn\u2019t know them. One protection: the focus\u2019s ancestor chain always stays lit — you can\u2019t accidentally cut the conversation off from the topic it\u2019s inside.' },
+  { find: () => document.querySelector('.nrow'), title: 'All the node actions (shown on this row)', body: 'The highlighted row\u2019s full toolbox, normally shown on hover: ◱ zoom · ▶ focus · ☀ light/dim · ★ favorite · ⌂-style house = set home · + add child · ↖ move · ⟳ tidy proposal · ⇢ merge · ✕ delete. Hover any of them for a plain-words explanation.' },
+  { find: () => findRow((n) => n.parentId === null && (n.title || n.content).startsWith('to sort')) ?? document.querySelector('#tree'), title: 'The “to sort” node', body: 'The highlighted node is the map\u2019s holding pen: anything the filer can\u2019t place lands here, noting where it arrived from. It is a permanent system node — always present, even empty; nothing can delete it. Leaving is easy — approve its placement dot (one-click move), ↖ pick a parent yourself, or ⇧ promote it to a topic of its own.' },
+  { find: () => document.querySelector('.sdot') ?? document.querySelector('#round-line'), title: 'Dots are suggestions', body: 'When the map has a suggestion you\u2019ll see a <span style="color:var(--danger)">●</span> dot on a node: on a normal node it opens a before/after cleanup proposal; on a to-sort item it offers the suggested move instead. Nothing changes without your approval. (If none is highlighted now, your map is clean.)' },
+  { sel: '#round-line', title: 'The status line (bottom of the map pane)', body: 'The highlighted line summarizes what the last exchange filed. Nodes the map added or edited carry tiny “new”/“changed” chips until YOU touch them. CLICK this line for the full list of changes with jump-to-node — and “clear all marks”.' },
+  { sel: '#tabbar', title: 'Sessions (the tab bar, right pane)', body: 'The highlighted tabs are this map\u2019s sessions — each a view with its own focus and lighting. “+ session” starts one three ways — ▶ focused on a topic you pick, ⑂ forking this view, or ✳ fresh (all dimmed) — and can open a REAL Claude Code terminal bound to it. The 🗺 map-chat tab is a built-in chat that files the same way; “clean chat” resets only its screen — the map keeps everything.' },
+];
+let tourAt = -1;
+function tourStop() {
+  tourAt = -1;
+  document.querySelectorAll('.tour-target').forEach((el) => el.classList.remove('tour-target'));
+  $('tour-hole')?.remove();
+  $('tour-ring')?.remove();
+  $('tour-card')?.remove();
+  localStorage.setItem('hm-tour-done', '1');
+}
+function tourShow(i) {
+  if (i < 0 || i >= TOUR.length) {
+    tourStop();
+    if (i >= TOUR.length) openLegend(); // reference card as the finale
+    return;
+  }
+  tourAt = i;
+  const st = TOUR[i];
+  const target = st.find ? st.find() : document.querySelector(st.sel);
+  document.querySelectorAll('.tour-target').forEach((el) => el.classList.remove('tour-target'));
+  if (target) target.classList.add('tour-target');
+  $('tour-hole')?.remove();
+  $('tour-card')?.remove();
+  let rect = null;
+  if (target) {
+    target.scrollIntoView({ block: 'nearest' });
+    rect = target.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) rect = null;
+  }
+  $('tour-ring')?.remove();
+  const hole = document.createElement('div');
+  hole.id = 'tour-hole';
+  if (rect) {
+    hole.style.left = (rect.left - 6) + 'px'; hole.style.top = (rect.top - 6) + 'px';
+    hole.style.width = (rect.width + 12) + 'px'; hole.style.height = (rect.height + 12) + 'px';
+  } else {
+    hole.style.left = '50%'; hole.style.top = '40%'; hole.style.width = '0'; hole.style.height = '0';
+  }
+  document.body.appendChild(hole);
+  if (rect) {
+    const ring = document.createElement('div');
+    ring.id = 'tour-ring';
+    ring.style.left = (rect.left - 12) + 'px'; ring.style.top = (rect.top - 12) + 'px';
+    ring.style.width = (rect.width + 24) + 'px'; ring.style.height = (rect.height + 24) + 'px';
+    document.body.appendChild(ring);
+  }
+  const card = document.createElement('div');
+  card.id = 'tour-card';
+  card.innerHTML = `
+    <div class="tour-step">${i + 1} of ${TOUR.length}</div>
+    <h4>${st.title}</h4>
+    <div>${st.body}</div>
+    <div class="actions">
+      <button id="tour-skip" title="close the tutorial — reopen anytime with ?">skip</button>
+      <button id="tour-ref" title="jump straight to the reference card (the full key)">reference</button>
+      <span style="flex:1"></span>
+      ${i > 0 ? '<button id="tour-back">back</button>' : ''}
+      <button id="tour-next" class="primary">${i === TOUR.length - 1 ? 'finish → reference card' : 'next'}</button>
+    </div>`;
+  document.body.appendChild(card);
+  const ch = card.getBoundingClientRect();
+  let cx, cy;
+  if (!rect) {
+    cx = (window.innerWidth - ch.width) / 2; cy = window.innerHeight * 0.45;
+  } else if (rect.height > window.innerHeight * 0.55) {
+    // huge target (a whole pane): the card sits BESIDE it in the dimmed area,
+    // never on top of what it's introducing
+    cx = rect.right + 16 + ch.width <= window.innerWidth - 8
+      ? rect.right + 16
+      : Math.max(8, rect.left - ch.width - 16);
+    cy = Math.max(8, Math.min(rect.top + 40, window.innerHeight - ch.height - 8));
+  } else {
+    cx = Math.min(Math.max(8, rect.left), window.innerWidth - ch.width - 8);
+    cy = rect.bottom + 14;
+    if (cy + ch.height > window.innerHeight - 8) cy = Math.max(8, rect.top - ch.height - 14);
+  }
+  card.style.left = cx + 'px'; card.style.top = cy + 'px';
+  card.querySelector('#tour-skip').onclick = tourStop;
+  card.querySelector('#tour-ref').onclick = () => { tourStop(); openLegend(); };
+  card.querySelector('#tour-back') && (card.querySelector('#tour-back').onclick = () => tourShow(i - 1));
+  card.querySelector('#tour-next').onclick = () => tourShow(i + 1);
+}
+document.addEventListener('keydown', (e) => {
+  if (tourAt < 0) return;
+  if (e.key === 'Escape') tourStop();
+  else if (e.key === 'ArrowRight') tourShow(tourAt + 1);
+  else if (e.key === 'ArrowLeft') tourShow(tourAt - 1);
+});
+// first visit with a real map: offer the tour once
+setTimeout(() => {
+  if (!localStorage.getItem('hm-tour-done') && (S.nodes || []).length > 0) tourShow(0);
+}, 1500);
+
+// M106: the what-changed panel — click the status line to see exactly what
+// the last update did, each entry jumping to its node.
+$('round-line').dataset.tip = 'click to see exactly what the last map update changed';
+$('round-line').addEventListener('click', async () => {
+  const existing = $('changes-panel');
+  if (existing) { existing.remove(); return; }
+  let d;
+  try { d = await post2get('/api/changes/latest'); } catch { return; }
+  const panel = document.createElement('div');
+  panel.id = 'changes-panel';
+  const when = d.at ? new Date(d.at + 'Z').toLocaleTimeString() : '';
+  panel.innerHTML = `<h4 style="display:flex;gap:8px;align-items:center">last update ${when ? `· ${when}` : ''} — ${esc(d.summary ?? 'no rounds yet')}
+    <button id="chg-clear" class="hbtn" style="margin-left:auto" title="clear every new/changed mark on the map">✓ clear all marks</button></h4>`;
+  panel.querySelector('#chg-clear').onclick = async (e) => {
+    e.stopPropagation();
+    const r = await post('/api/changes/clear-marks', {});
+    panel.remove();
+    $('round-line').textContent = `cleared ${r.cleared} mark(s)`;
+  };
+  if (!(d.changes || []).length) panel.innerHTML += '<div style="color:var(--muted)">no node changes in the last round</div>';
+  for (const c of d.changes || []) {
+    const row = document.createElement('div');
+    row.className = 'chg-row';
+    const label = c.kind === 'added' ? '+ added' : c.kind === 'removed' ? '− removed' : c.kind === 'moved' ? '→ moved' : c.kind === 'flagged' ? '● flagged' : '~ updated';
+    row.innerHTML = `<span class="chg-k ${c.kind}">${label}</span><span>${esc(c.name)}</span><span style="color:var(--muted);font-size:12px">${esc(c.under ? `under ${c.under}` : c.what ?? '')}</span>`;
+    row.onclick = () => {
+      panel.remove();
+      // M120: parents now fold by default at every depth — unfold the target's
+      // ancestor chain before looking for its row, or the jump would miss.
+      if (node(c.nodeId)) {
+        for (const a of pathOf(c.nodeId)) { userUnfolded.add(a.id); userFolded.delete(a.id); }
+        renderAll();
+      }
+      const el = [...document.querySelectorAll('.nrow')].find(r => r.querySelector(`[data-edit="${c.nodeId}"]`));
+      if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); }
+      else $('round-line').textContent = 'that node is not in the current view (it may be inside a folded or zoomed-out branch)';
+    };
+    panel.appendChild(row);
+  }
+  $('map-pane').appendChild(panel);
+  const close = (e) => { if (!panel.contains(e.target) && e.target !== $('round-line')) { panel.remove(); document.removeEventListener('click', close); } };
+  setTimeout(() => document.addEventListener('click', close), 0);
+});
+
+// M113 (Jacob): dev mode — full visibility into the map agents and injected
+// context. The button toggles recording on the server, then shows a trace
+// timeline; each row expands to the verbatim system prompt, input, and
+// response of that call (or the injected block, for injections).
+let devTimer = null;
+// Who is talking to whom, per task — so the timeline reads as a story, not
+// raw task ids. Two kinds of row: the server PROMPTING a one-shot map
+// specialist (kind=call), and the server SLIPPING map context into the chat
+// agent's next turn (kind=inject). The chat agent is never prompted directly.
+const DEV_CAST = {
+  filer:        { who: 'server → filer agent', does: 'files your last chat round onto the map' },
+  memory:       { who: 'server → memory agent', does: 'updates or combines a node’s memory' },
+  relations:    { who: 'server → relations agent', does: 'describes how a node relates to its neighbors' },
+  title:        { who: 'server → naming agent', does: 'names a node' },
+  summary:      { who: 'server → summary agent', does: 'folds chat turns into the rolling summary' },
+  autolit:      { who: 'server → lighting agent', does: 'picks background nodes for the current focus' },
+  recommend:    { who: 'server → focus/zoom agent', does: 'suggests where to aim or zoom' },
+  place:        { who: 'server → placement agent', does: 'suggests homes for a node' },
+  mapchat:      { who: 'server → map guide', does: 'answers your talk-to-map question' },
+  tidy:         { who: 'server → tidy agent', does: 'proposes restructuring' },
+  mapcheck:     { who: 'server → tidy agent', does: 'reviews the whole map' },
+  inject_full:  { who: 'server ⇢ YOUR CHAT AGENT', does: 'whole map slipped into its next turn' },
+  inject_delta: { who: 'server ⇢ YOUR CHAT AGENT', does: 'map changes slipped into its next turn' },
+};
+function closeDevPanel() { $('dev-panel')?.remove(); if (devTimer) { clearInterval(devTimer); devTimer = null; } }
+async function openDevPanel() {
+  closeDevPanel();
+  const panel = document.createElement('div');
+  panel.id = 'dev-panel';
+  panel.innerHTML = `<h4>🔧 dev mode — agent traces (newest first, local only)
+    <select id="dev-filter" class="hbtn" data-tip="show only one kind of row"><option value="">everything</option></select>
+    <button id="dev-mobile" class="hbtn" style="margin-left:auto" data-tip="open the app in an iPhone-sized frame (402×874) — the real mobile presentation, live on this same map">📱 test mobile</button>
+    <button id="dev-off" class="hbtn" data-tip="stop recording and close">■ turn off</button>
+    <button id="dev-close" class="hbtn" data-tip="close the panel (keeps recording)">✕ close</button></h4>
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 8px;padding:6px 8px;border:1px solid var(--line,#2a2e37);border-radius:6px">
+      <b>Who’s who.</b> Your <b>chat agent</b> is the Claude Code session in the tab — a separate session the server never prompts. It meets the map two ways only: <b>⇢ inject</b> rows (the server slips map context into its next turn) and observation (the server reads its replies afterward to file them). Every <b>→</b> row is the server prompting a one-shot <b>map specialist</b> — no session, no memory of its own; the full prompt it saw is right there in the row.
+    </div>
+    <div id="dev-rows"><div style="color:var(--muted);font-size:12px">recording… traces appear here as the map agents run. Send a message in a session or press an auto-button to generate some.</div></div>`;
+  $('map-pane').appendChild(panel);
+  const seen = new Set();
+  const refresh = async () => {
+    if (!$('dev-panel')) return;
+    let d; try { d = await post2get(`/api/dev/traces?limit=100`); } catch { return; }
+    const filter = $('dev-filter').value;
+    const traces = (d.traces || []).filter(t => !filter || t.task === filter);
+    const tasks = [...new Set((d.traces || []).map(t => t.task))].sort();
+    const sel = $('dev-filter');
+    if (sel.options.length !== tasks.length + 1) {
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">everything</option>' + tasks.map(t => `<option value="${esc(t)}">${esc(DEV_CAST[t]?.who ?? t)}</option>`).join('');
+      sel.value = cur;
+    }
+    const rows = $('dev-rows');
+    const key = traces.map(t => t.id).join(',') + '|' + filter;
+    if (rows.dataset.key === key) return;   // don't rebuild (and collapse open rows) when nothing changed
+    rows.dataset.key = key;
+    if (!traces.length) { rows.innerHTML = '<div style="color:var(--muted);font-size:12px">no traces yet' + (filter ? ' for this task' : '') + ' — recording is on; traces appear as the map agents run.</div>'; return; }
+    rows.innerHTML = '';
+    for (const t of traces) {
+      const el = document.createElement('details');
+      el.className = 'dev-row';
+      const when = t.ts ? new Date(t.ts + 'Z').toLocaleTimeString() : '';
+      const cast = DEV_CAST[t.task] ?? { who: `server → ${t.task}`, does: '' };
+      el.innerHTML = `<summary><span class="dv-task">${esc(cast.who)}</span>
+        <span class="dv-meta">${esc(cast.does)}${t.kind !== 'inject' && t.model ? ` · ${esc(t.model)}` : ''}${t.ms != null ? ` · ${t.ms}ms` : ''} · ${when}</span>
+        ${t.ok === 0 ? '<span class="dv-fail">✗ failed</span>' : ''}</summary>`
+        + (t.system ? `<div class="dv-sec">the agent’s standing instructions (system prompt)</div><pre>${esc(t.system)}</pre>` : '')
+        + (t.user ? `<div class="dv-sec">${t.kind === 'inject' ? 'which chat session received it' : 'what the server sent it (input)'}</div><pre>${esc(t.user)}</pre>` : '')
+        + (t.response ? `<div class="dv-sec">${t.kind === 'inject' ? 'the exact context slipped into the chat agent’s next turn' : (t.ok === 0 ? 'the error it returned' : 'what it returned (response)')}</div><pre>${esc(t.response)}</pre>` : '');
+      rows.appendChild(el);
+    }
+  };
+  $('dev-filter').onchange = refresh;
+  panel.querySelector('#dev-mobile').onclick = () => openPhoneSim();
+  $('dev-close').onclick = closeDevPanel;
+  $('dev-off').onclick = async () => { await post('/api/dev/toggle', {}); closeDevPanel(); $('round-line').textContent = 'dev mode off — recording stopped (traces kept until restart cap)'; };
+  await refresh();
+  devTimer = setInterval(refresh, 2500);
+}
+$('dev-btn').onclick = async () => {
+  $('other-menu').hidden = true;
+  if ($('dev-panel')) { closeDevPanel(); return; }
+  const st = await post2get('/api/dev');
+  if (!st.on) await post('/api/dev/toggle', {});
+  openDevPanel();
+};
+
+// ---- turn-lifecycle beat (M62): visual per-turn health ----
+// states: idle → prompt (message seen, agent replying) → observed (reply
+// landed, filing) → filed ✓. Staleness: prompt seen but nothing observed for
+// minutes = the observation pipe may be broken — say so loudly.
+let beatState = 'idle', beatAt = 0, lastFiledAt = 0;
+function setBeat(st) { beatState = st; beatAt = Date.now(); renderBeat(); }
+function renderBeat() {
+  const el = $('beat');
+  if (!el) return;
+  const age = (t) => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? s + 's' : Math.round(s / 60) + 'm'; };
+  const steps = (a, b, c) => `<span class="step ${a}">✉ seen</span> · <span class="step ${b}">💬 replying</span> · <span class="step ${c}">▤ filing</span>`;
+  el.classList.remove('stale');
+  if (beatState === 'prompt') {
+    if (Date.now() - beatAt > 240000) { el.classList.add('stale'); el.innerHTML = '⚠ message seen but no reply observed — is the map plugged in?'; return; }
+    el.innerHTML = steps('done', 'on', '');
+  } else if (beatState === 'observed') {
+    el.innerHTML = steps('done', 'done', 'on');
+  } else if (beatState === 'filed') {
+    el.innerHTML = `✓ filed ${age(lastFiledAt)} ago`;
+  } else {
+    el.innerHTML = lastFiledAt ? `✓ filed ${age(lastFiledAt)} ago` : 'waiting for activity';
+  }
+}
+setInterval(renderBeat, 5000);
+
+function connect() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'map') {
+      const prevChat = S.mainChatId;
+      S = m;
+      if (zoomId && !node(zoomId)) setZoom(null);
+      renderAll();
+      if (S.mainChatId && S.mainChatId !== prevChat) { loadTurns(); showSession(S.mainChatId); }
+    } else if (m.type === 'turn' && m.chatId === S.mainChatId) {
+      if (beatState === 'prompt') setBeat('observed');
+      document.querySelector('.msg.pending')?.remove();
+      document.querySelector('.msg.hostpending')?.remove();
+      const i = sentLocal.indexOf(m.content);
+      if (m.role === 'user' && i >= 0) { sentLocal.splice(i, 1); return; }
+      const box = $('messages');
+      box.querySelector('.empty')?.remove();
+      if (m.role === 'assistant') box.querySelector('.msg.streaming')?.remove(); // the final turn replaces the live draft
+      box.insertAdjacentHTML('beforeend', msgHtml(m.role, m.content));
+      box.scrollTop = box.scrollHeight;
+    } else if (m.type === 'chat_delta' && m.chatId === S.mainChatId) {
+      // M139: the reply builds up live, block by block, rendered as it grows.
+      const box = $('messages');
+      document.querySelector('.msg.pending')?.remove();
+      document.querySelector('.msg.hostpending')?.remove();
+      let st = box.querySelector('.msg.streaming');
+      if (!st) { box.querySelector('.empty')?.remove(); box.insertAdjacentHTML('beforeend', '<div class="msg assistant streaming" data-raw=""></div>'); st = box.querySelector('.msg.streaming'); }
+      st.dataset.raw += m.text;
+      st.innerHTML = md2html(st.dataset.raw);
+      box.scrollTop = box.scrollHeight;
+    } else if (m.type === 'round') {
+      lastFiledAt = Date.now(); setBeat('filed');
+      $('round-line').textContent = `↳ ${m.summary} (${m.alterations} change${m.alterations === 1 ? '' : 's'})`;
+    } else if (m.type === 'lag') {
+      const el = $('lag');
+      el.textContent = m.lag > 0 ? `map is ${m.lag} round${m.lag === 1 ? '' : 's'} behind` : 'map current';
+      el.classList.toggle('behind', m.lag > 0);
+      if (m.lag > 0) $('round-line').textContent = 'filing the round onto the map…';
+    } else if (m.type === 'host_prompt') {
+      setBeat('prompt');
+      // A host-harness session just took a user message — show life in the
+      // mirror until the round's turns arrive.
+      const box = $('messages');
+      if (!document.querySelector('.msg.hostpending')) {
+        box.querySelector('.empty')?.remove();
+        box.insertAdjacentHTML('beforeend', '<div class="msg assistant pending hostpending">✍ message received in the terminal session — agent is replying…</div>');
+        box.scrollTop = box.scrollHeight;
+      }
+      $('round-line').textContent = 'host session active — agent replying…';
+    } else if (m.type === 'chat_cleared' && m.chatId === S.mainChatId) {
+      loadTurns();
+    } else if (m.type === 'translator_error') {
+      $('round-line').textContent = 'translator error — map may lag (chat unaffected)';
+    }
+  };
+  ws.onclose = () => setTimeout(connect, 1500);
+  window.__wsInject = (m) => ws.onmessage({ data: JSON.stringify(m) }); // test hook (ui-smoke)
+}
+
+async function refresh() {
+  S = await (await fetch('/api/state')).json();
+  if (S.health?.filedAt) { lastFiledAt = S.health.filedAt; if (beatState === 'idle') renderBeat(); }
+  if (zoomId && !node(zoomId)) setZoom(null);
+  renderAll();
+  await loadTurns();
+}
+
+connect();
+refresh();
+checkMobile();
+window.TOUR = TOUR; window.tourShow = tourShow; window.tourStop = tourStop; window.__state = () => S; window.__refresh = refresh; window.__md = md2html; // test hooks (ui-smoke)
+</script>
+</body>
+</html>

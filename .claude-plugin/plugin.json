@@ -1,0 +1,11 @@
+{
+  "name": "map",
+  "description": "A live map of your goals, decisions, and questions beside Claude Code \u2014 the map is the memory. Everything you discuss files itself onto the map; focus, light, and dim branches to control what the agent knows. All data stays local in ~/.harnessmap.",
+  "version": "0.9.5",
+  "keywords": [
+    "map",
+    "memory",
+    "context",
+    "goals"
+  ]
+}

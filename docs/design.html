@@ -1,0 +1,383 @@
+<title>Harnessmap — Design v2</title>
+<style>
+  :root {
+    --bg: #F5F6F2;
+    --panel: #FDFDFB;
+    --ink: #202B36;
+    --muted: #5C6C7A;
+    --hair: #DCE1D9;
+    --route: #2560B8;
+    --route-soft: #2560B81f;
+    --branch: #3B8759;
+    --save: #B57E22;
+    --dead: #9AA5AD;
+    --code-bg: #ECEFE8;
+    --display: "Gill Sans", "Gill Sans MT", Seravek, "Trebuchet MS", "Segoe UI", sans-serif;
+    --body: Charter, "Bitstream Charter", Cambria, Georgia, serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0F161F; --panel: #151E29; --ink: #E3E9EF; --muted: #8FA0B0;
+      --hair: #243140; --route: #7CACF2; --route-soft: #7CACF226;
+      --branch: #5FB884; --save: #D9A24C; --dead: #5C6975; --code-bg: #1A2532;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F161F; --panel: #151E29; --ink: #E3E9EF; --muted: #8FA0B0;
+    --hair: #243140; --route: #7CACF2; --route-soft: #7CACF226;
+    --branch: #5FB884; --save: #D9A24C; --dead: #5C6975; --code-bg: #1A2532;
+  }
+  :root[data-theme="light"] {
+    --bg: #F5F6F2; --panel: #FDFDFB; --ink: #202B36; --muted: #5C6C7A;
+    --hair: #DCE1D9; --route: #2560B8; --route-soft: #2560B81f;
+    --branch: #3B8759; --save: #B57E22; --dead: #9AA5AD; --code-bg: #ECEFE8;
+  }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--body); font-size: 1.05rem; line-height: 1.65; margin: 0;
+  }
+  a { color: var(--route); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:focus-visible { outline: 2px solid var(--route); outline-offset: 2px; border-radius: 2px; }
+
+  nav {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(6px); border-bottom: 1px solid var(--hair);
+  }
+  .nav-inner {
+    max-width: 74rem; margin: 0 auto; padding: 0.55rem 1.25rem;
+    display: flex; align-items: baseline; gap: 1.4rem;
+    overflow-x: auto; white-space: nowrap;
+  }
+  .nav-title { font-family: var(--display); font-weight: 600; letter-spacing: 0.02em; font-size: 0.95rem; }
+  .nav-inner a {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); text-decoration: none;
+  }
+  .nav-inner a:hover { color: var(--route); }
+
+  main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 5rem; }
+  .wide { max-width: 74rem; margin-left: auto; margin-right: auto; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--route); margin: 0 0 0.6rem;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 600; font-size: clamp(2.1rem, 5vw, 3.1rem);
+    line-height: 1.08; letter-spacing: -0.01em; margin: 0 0 0.8rem; text-wrap: balance;
+  }
+  .thesis { font-size: 1.18rem; font-style: italic; color: var(--muted); margin: 0 0 1rem; text-wrap: balance; }
+  .meta { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin: 0 0 2.5rem; }
+  .meta b { color: var(--save); font-weight: 600; }
+
+  h2 {
+    font-family: var(--display); font-weight: 600; font-size: 1.55rem; line-height: 1.2;
+    margin: 3.2rem 0 0.9rem; padding-top: 1.6rem; border-top: 1px solid var(--hair);
+    text-wrap: balance;
+  }
+  h2 .sec { font-family: var(--mono); font-size: 0.8rem; color: var(--route); letter-spacing: 0.1em; display: block; margin-bottom: 0.35rem; }
+  h3 { font-family: var(--display); font-weight: 600; font-size: 1.12rem; margin: 1.9rem 0 0.5rem; }
+  p, ul, ol { margin: 0 0 1rem; }
+  ul, ol { padding-left: 1.3rem; }
+  li { margin-bottom: 0.35rem; }
+
+  table { border-collapse: collapse; width: 100%; margin: 1.2rem 0 1.5rem; font-size: 0.92rem; }
+  th {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--muted); text-align: left; padding: 0.45rem 0.9rem 0.45rem 0;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  td { padding: 0.5rem 0.9rem 0.5rem 0; border-bottom: 1px solid var(--hair); vertical-align: top; }
+  .tbl-scroll { overflow-x: auto; }
+  .tbl-scroll table { min-width: 30rem; }
+
+  code {
+    font-family: var(--mono); font-size: 0.86em;
+    background: var(--code-bg); padding: 0.08em 0.35em; border-radius: 3px;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--hair); border-radius: 6px;
+    padding: 1rem 1.2rem; overflow-x: auto; font-size: 0.8rem; line-height: 1.5;
+    margin: 1.2rem 0 1.5rem;
+  }
+  pre code { background: none; padding: 0; font-size: 1em; }
+
+  .callout {
+    background: var(--route-soft); border-left: 3px solid var(--route);
+    padding: 0.8rem 1.1rem; border-radius: 0 6px 6px 0; margin: 1.2rem 0 1.5rem;
+    font-size: 0.97rem;
+  }
+  .dead-note {
+    border: 1px dashed var(--dead); border-radius: 6px; padding: 0.7rem 1rem;
+    color: var(--muted); font-size: 0.9rem; margin: 1.2rem 0;
+  }
+
+  figure { margin: 2rem 0; }
+  figcaption {
+    font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+    letter-spacing: 0.06em; margin-top: 0.7rem; text-align: center;
+  }
+  .treefig {
+    background: var(--panel); border: 1px solid var(--hair); border-radius: 8px;
+    padding: 1.1rem 1.4rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 0.82rem; line-height: 1.7; white-space: pre;
+  }
+  .treefig .focus { color: var(--route); font-weight: bold; }
+  .treefig .lit { color: var(--save); }
+  .treefig .frame { color: var(--branch); }
+  .treefig .dark { color: var(--dead); }
+
+  footer {
+    border-top: 1px solid var(--hair); margin-top: 4rem; padding-top: 1.2rem;
+    font-family: var(--mono); font-size: 0.72rem; color: var(--muted);
+  }
+</style>
+
+<nav aria-label="Sections">
+  <div class="nav-inner">
+    <span class="nav-title">harnessmap · v2</span>
+    <a href="#thesis">Thesis</a>
+    <a href="#layers">Two layers</a>
+    <a href="#ontology">Ontology</a>
+    <a href="#bridge">Translation</a>
+    <a href="#focus">Focus + lit</a>
+    <a href="#ops">Operations</a>
+    <a href="#ui">UI</a>
+    <a href="#arch">Architecture</a>
+    <a href="#roadmap">Roadmap</a>
+  </div>
+</nav>
+
+<main>
+  <header>
+    <p class="eyebrow">Harnessmap · Design v2</p>
+    <h1>The map that writes itself</h1>
+    <p class="thesis">The user controls the flow tangibly — by understanding and prioritizing the goals of the conversation in the way they want.</p>
+    <p class="meta">Endorsed design · Jacob (07-17→07-19) + Mark's rulings (08-12) · <b>v1 archived</b> at <code>docs/archive/DESIGN-v1.md</code> · working docs in <code>docs/ontology/</code></p>
+  </header>
+
+  <figure class="wide">
+    <div class="treefig">▶ <span class="focus">arg2: prompt-crafting is intentional   ← FOCUS · full detail</span>
+   ├─ ev: Study S — median 12 ✓
+   ├─ q: iteration data ✓ answered
+   └─ objection: "just curation" ○  ⚡pulse
+<span class="lit">☀ related-work · lit — brief · 1.2k tok</span>
+<span class="frame">▲ essay → thesis ✓ · audience ✓          ← frame · one-liners</span>
+<span class="dark">· arg1 (done) · intro ☐ · conclusion ⚠   ← dark · absent</span></div>
+    <figcaption>context composition, v2: one focus node · lit briefs · ancestor frame · everything else dark</figcaption>
+  </figure>
+
+  <section id="thesis">
+    <h2><span class="sec">§ 1</span>Thesis</h2>
+    <p>Working with an AI today means one long chat: it fills with junk, side-topics pollute the main work, nothing is findable, and after a week away you re-read everything to remember where you were. The deep cause: <strong>chat products organize your thinking by time</strong>, and time is the wrong index for work.</p>
+    <p>Harnessmap replaces the long chat with a <strong>map of the work itself</strong> — what you're trying to do, what's decided, what's open, what's parked. You still converse with the AI; the chats become short working sessions, and the map is the lasting record.</p>
+    <div class="callout">The promise in three verbs: <strong>see</strong> everything that matters at a glance, <strong>point</strong> at any piece of it in plain speech, <strong>change</strong> it directly — and the system keeps everything consistent with your change.</div>
+    <p>The analogy that compresses it: a chat harness makes you work inside the <em>commit log</em>; harnessmap moves you into the <em>codebase</em>, with the log kept underneath for provenance.</p>
+  </section>
+
+  <section id="layers">
+    <h2><span class="sec">§ 2</span>The two layers</h2>
+    <p>Everything lives on one of two layers, connected by exactly one bridge.</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>History layer (events)</th><th>Goal layer (meaning)</th></tr></thead>
+        <tbody>
+          <tr><td>turn</td><td>item</td></tr>
+          <tr><td>chat</td><td>map alteration set</td></tr>
+          <tr><td>a node's chat history</td><td>a node's revision history</td></tr>
+          <tr><td>the log</td><td>the map</td></tr>
+          <tr><td>ordering: happened-before</td><td>ordering: frames / summarizes</td></tr>
+          <tr><td>immutable · total · singular</td><td>editable · partial · plural</td></tr>
+          <tr><td>attention by recency</td><td>attention by <strong>focus + lit set</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul>
+      <li><strong>The log</strong> is append-only, never edited. Every turn of every chat is kept forever, reachable by recall. Nothing done on the map can lose history.</li>
+      <li><strong>The map</strong> is the editable structure of meaning — what users navigate, point at, rearrange. Many valid maps could describe one history; the user's map is theirs.</li>
+      <li><strong>The bridge</strong> is the per-round translation loop (§4) — the ONLY mechanism turning history into map content. Map ops never touch the log; chat ops never directly edit the map. A feature ambiguous about its layer is a design smell.</li>
+    </ul>
+    <p>A chat is temporal scaffolding: people and models think by conversing in time. Once translated, the chat archives to the log; what remains on the map is the meaning it produced.</p>
+  </section>
+
+  <section id="ontology">
+    <h2><span class="sec">§ 3</span>Ontology: containers &amp; items</h2>
+    <div class="callout"><strong>The carving principle:</strong> a unit is whatever the user can point at and operate on in speech — <em>"drop objection 1 to argument 2, that's bullshit."</em> Location + separable identity + pointability. The user's referential habits ARE the ontology; the system only suggests.</div>
+    <p><strong>Containers</strong> — locations that give addresses, from the deliverable's part-whole spine (essay → section; trip → leg). With no deliverable, <strong>the chat itself is the default container</strong>; items live homeless and structure crystallizes later (§6). Status: <code>live | provisional | cut</code>.</p>
+    <p><strong>Items</strong> — the deliberation atoms:</p>
+    <pre><code>item = (id, type, content, status, author, home container, role-links, provenance)</code></pre>
+    <p>Seven types, domain-independent (validated on essay / travel / free-exploration transcripts):</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Type</th><th>Lifecycle</th></tr></thead>
+        <tbody>
+          <tr><td><code>claim</code> (incl. ideas)</td><td>floated → proposed → accepted / rejected</td></tr>
+          <tr><td><code>question</code></td><td>open → answered / mooted</td></tr>
+          <tr><td><code>option</code></td><td>live → chosen / dropped</td></tr>
+          <tr><td><code>decision</code></td><td>proposed → decided / reversed</td></tr>
+          <tr><td><code>constraint</code></td><td>active / hard → relaxed / lifted</td></tr>
+          <tr><td><code>evidence</code></td><td>noted → cited / retracted</td></tr>
+          <tr><td><code>task</code></td><td>todo → doing → done / dropped</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Overlays: <code>parked</code>, <code>dropped-as-noise</code>. Role-links (typed, cross-container): <code>supports · objection-to · replies-to · answers · motivated-by · satisfies · blocks · chooses</code>.</p>
+    <ul>
+      <li><strong>"Goal" is not a primitive.</strong> A goal-node = a container + its live items — a view, not a stored kind.</li>
+      <li><strong>Author matters:</strong> agent-created items enter floated and are promoted only by user engagement; containers require outright ratification. The agent cannot colonize the map.</li>
+      <li><strong>Lazy granularity:</strong> items are as fine as pointing has needed. Pointing <em>inside</em> one triggers a split proposal.</li>
+      <li><strong>Provenance everywhere:</strong> <code>item ← round summary ← raw turns</code> is the audit chain.</li>
+      <li><strong>Dropped ≠ deleted:</strong> dropped items revive by pointing, history intact.</li>
+    </ul>
+  </section>
+
+  <section id="bridge">
+    <h2><span class="sec">§ 4</span>The bridge: per-round translation</h2>
+    <p>Translation is per-round, never an end-of-chat batch — that is what connects the history layer to the goal layer continuously.</p>
+<pre><code>Per round (each message, agent turns included):
+  input:  M (current map), buffer (exchange scratch), R (new message)
+  1. S ← summarize(R), phrased in M's existing vocabulary
+  2. classify: content-level → map alterations
+               process-level → exchange buffer only
+               map-level     → re-carve proposal (gated; deferred)
+  3. alterations: update node | new connected subnode | new detached node
+  4. apply; advance localization pointer + buffer</code></pre>
+    <ul>
+      <li><strong>Map-conditioned summarization is the identity system</strong> — "the claim about authorship" resolves to <em>thesis</em> for free; project language stops drifting.</li>
+      <li><strong>Eager creation:</strong> introduced topics become nodes at introduction (⚠ tentative, author-marked), pruned later — so every later rebuke has an addressable target. <em>(Awaiting Jacob's explicit confirm.)</em></li>
+      <li><strong>Commitment-detection is the core skill, register-sensitive.</strong> "Not copyright" and "ugh, no red-eyes" bind; "I'll just quit lol" doesn't. Under-extract from venting; when unsure, float. About half of real items arrive as casual asides — missing them is how trust dies.</li>
+      <li><strong>Dialogue mechanics never become nodes</strong> (test: would the user later point at it?). Affect is not state. About a third of rounds correctly change nothing.</li>
+      <li><strong>Flip-flops apply in utterance order</strong>, history kept. Refinement ≠ duplication: identity = role-in-structure, not wording.</li>
+      <li><strong>Development rhythm</strong> (from the 22-round essay simulation): user plants a live root → agent inflates grey hypothesis → pushback converts grey to black or kills it. The map hardens exactly as fast as the user commits — never faster.</li>
+      <li><strong>Most content never becomes items</strong> — drafts and process stay in the log. Items are the skeleton, not the flesh.</li>
+    </ul>
+    <p>Worked material: <code>docs/ontology/translation-essay.md</code> (22-round map history, round anatomy, re-carve semantics) + the raw corpus.</p>
+  </section>
+
+  <section id="focus">
+    <h2><span class="sec">§ 5</span>Context composition: focus + lit</h2>
+    <div class="dead-note">Replaces the earlier <strong>faders</strong> concept — killed 2026-08-12: "40% of context" is ill-defined; compression isn't a continuum and users can't perceive proportions.</div>
+    <p>Two separate needs, two simple mechanisms:</p>
+    <ul>
+      <li><strong>Inclusion</strong> (what the model can see) — a SET: each node is <strong>lit</strong> or dark. Binary.</li>
+      <li><strong>Salience</strong> (what we're working on) — a POINTER: exactly <strong>one focus node</strong> per chat — the localization pointer the translation loop already maintains.</li>
+    </ul>
+    <p>Detail level derives from role; the user never dials percentages:</p>
+<pre><code>FOCUS node      → full detail: whole item-tree, open questions, key verbatim
+LIT nodes       → brief: one-paragraph summary each
+ANCESTORS       → frame: one-liners (thesis, constraints never lost)
+everything else → dark: absent</code></pre>
+    <ul>
+      <li><strong>Seeds</strong> state the priority structure explicitly: "You are working ON [focus]. Background: [lit briefs]. Frame: [one-liners]." Lit nodes show token weights — the map doubles as a context-budget dashboard.</li>
+      <li><strong>Mid-session</strong>, map changes ride in as labeled <code>[map update]</code> headers on the next user message — append-only, cache-friendly, marked as harness state, never as user words. Save points consolidate headers into a fresh seed.</li>
+      <li><strong>The exact-rewind exception (Mark's ruling):</strong> within your own live chat, rewinding is a verbatim, instant, cache-friendly resume — a prefix is always self-consistent. Everything else re-seeds from the map. Two ops, one "go back" gesture.</li>
+    </ul>
+  </section>
+
+  <section id="ops">
+    <h2><span class="sec">§ 6</span>Operations</h2>
+    <h3>Point and operate — speech is the API</h3>
+    <p>"Drop objection 1 to argument 2" resolves via address + role-links to one item, applies the status change, then runs damage advice. Scoped mass-ops work ("park the whole Nara thing"), confirming when the resolved set looks bigger than intended. Homeless items resolve by type + topic + recency — how humans point in unstructured talk.</p>
+    <h3>Delete → damage report → one confirm</h3>
+    <p>Deleting or rejecting an item walks its links and sorts dependents: <em>fatally hurt</em> (advise delete) · <em>degraded</em> (advise review) · <em>untouched</em> (silent) — like a refactoring tool reporting broken call sites. Never auto-delete. <strong>MVP: downward only</strong>; upward (parent summaries) and sideways defer to v1.</p>
+    <h3>Crystallization — dumb v0</h3>
+    <p>No declared project? Items accumulate under the chat container. When enough cohere, the system offers: "want me to organize this?" One-word ratification re-homes them. Never forced — the honest floor is a structured-memory chat, which is already value.</p>
+    <h3>Restructuring — manual in MVP</h3>
+    <p>Drag items between containers; rename; create/cut containers. Two gestures the UI must never conflate: <em>moving</em> an item (re-home) vs <em>re-linking</em> it. Re-homing can stale content → mini rewrite flag. <strong>Re-carve automation deferred</strong> (spec preserved): map-level speech → gated reorganization, tombstones with forwarding aliases, ghost overlays for musing-register structure-talk.</p>
+    <h3>Fold / merge — deferred, groundwork kept</h3>
+    <p>The merge unit is a goal <em>subtree</em>; folding = distilling a completed structure into its parent's context. Under the item ontology, a fold is just a batch of contributions delivered at once — merge becomes a quantity, not a special thing.</p>
+  </section>
+
+  <section id="ui">
+    <h2><span class="sec">§ 7</span>UI</h2>
+    <p><strong>Two panes: map (left), workspace (right).</strong> The workspace shows either a <em>chat</em> or a <em>node view</em> (a container's items with statuses and provenance). The whole seam in one rule: click a node → see its contents; press Continue → a chat opens beneath it, seeded per §5.</p>
+    <ul>
+      <li><strong>Map v0 = plain interactive tree:</strong> indented, collapsible, status glyphs (✓ ○ ⚠ ✗ ⏸ ☐ ●), focus marker ▶, lit/dark state, token weights — the format validated in the simulation flipbook.</li>
+      <li><strong>Async + pulse:</strong> chat never blocks on translation; the map catches up a beat behind; changed nodes pulse; clicking a pulsed node shows the round summary that caused the change. "What did you think I meant?" is always one click deep, and correcting the summary re-derives the alteration.</li>
+      <li><strong>The galaxy</strong> (goals as stars, focus as your ship, lit = illuminated) is a future <em>rendering</em> of the same data — deterministic orbits, gravity as motion flavor only. Deferred to keep v0 honest; the renderer interface must not preclude it.</li>
+    </ul>
+  </section>
+
+  <section id="arch">
+    <h2><span class="sec">§ 8</span>Architecture</h2>
+<pre><code>┌──────────────────── Browser (localhost) ────────────────────┐
+│  Map view (tree v0)      Workspace: chat view / node view   │
+│  pulse · summary cards · focus &amp; lighting controls          │
+└──────────────▲─────────────────────────▲────────────────────┘
+               │ WebSocket (map deltas, chat stream)
+┌──────────────┴─────────────────────────┴────────────────────┐
+│                harnessmap server (local)                     │
+│  ┌──────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │ Store     │  │ Session Mgr │  │ Translator              │  │
+│  │ SQLite:   │  │ live chats, │  │ per-round loop (§4):    │  │
+│  │ log+map+  │  │ seeds,      │  │ summarize→classify→     │  │
+│  │ provenance│  │ focus/lit,  │  │ alter; async, cheap     │  │
+│  │           │  │ exact rewind│  │ model; damage walker;   │  │
+│  │           │  │             │  │ crystallizer            │  │
+│  └──────────┘  └──────┬──────┘  └─────────────────────────┘  │
+│                       │ wraps                                 │
+│              ┌────────▼─────────┐                             │
+│              │ Claude Agent SDK │ ← agent turns, tool exec,   │
+│              │ (resume/fork)    │   session resume (rewind)   │
+│              └──────────────────┘                             │
+└───────────────────────────────────────────────────────────────┘</code></pre>
+    <ul>
+      <li><strong>Wrap, don't rebuild</strong> (unchanged from v1): the SDK owns agent turns and resume.</li>
+      <li><strong>Single user</strong> in MVP; the <code>author</code> field and immutable log future-proof multiplayer.</li>
+      <li>Translator outputs stored with provenance (prompt, model) — translations are auditable.</li>
+    </ul>
+    <h3>SDK integration contract <span style="font-family: var(--mono); font-size: 0.7rem; color: var(--muted);">(verified 2026-08-12)</span></h3>
+    <ul>
+      <li><strong>Session birth — we compose.</strong> New chat = new SDK session with <code>systemPrompt: {preset: 'claude_code', append: …}</code> (keeps the full Claude Code harness: tools, MCP, subagents, permissions) + our composed seed as the opening message.</li>
+      <li><strong>Mid-session — append, never rewrite.</strong> Our server constructs every user-message payload, so <code>[map update]</code> headers ride in as content blocks we prepend. The SDK transcript is strictly append-only — no API edits past messages — which matches rebuild-don't-splice exactly.</li>
+      <li><strong>Exact rewind — the one constraint:</strong> <code>resume + forkSession</code> branch only from a session's <em>latest</em> state. Implementation: <strong>fork-at-save-point</strong> — fork the live session the moment a save point materializes (its latest state IS the save point); the fork's ID is the checkpoint handle. Between save points: prefix re-seed from our own log, clearly labeled approximate.</li>
+      <li><strong>Custom tools:</strong> in-process MCP server registers harness functions (<code>recall</code>, later map-ops) as <code>mcp__harnessmap__*</code>.</li>
+      <li><strong>Flagged risk:</strong> SDK auto-compaction has no documented disable flag; our short-chat design rarely triggers it, and a <code>PreCompact</code> hook archives if it does. Verify in the first spike.</li>
+    </ul>
+  </section>
+
+  <section id="roadmap">
+    <h2><span class="sec">§ 9</span>MVP cut &amp; roadmap</h2>
+    <div class="callout"><strong>TD review outcomes (2026-08-12 — verdict: PROCEED WITH CHANGES, adopted):</strong> ① build order inverted — a <em>headless translator eval</em> is Phase A and the explicit kill-criterion, before any app code (implemented: <code>src/eval/run.ts</code>); ② the map store is <em>event-sourced</em> — append-only <code>map_events</code> is the source of truth, tables are a rebuildable projection (implemented); ③ rewind semantics specified: abandoned rounds' alterations demote to floated/provisional, never silently deleted; ④ v0 trimmed further — crystallization cut, damage triage reduced to inbound-link display, exact rewind gated on the SDK spike, click-ops before speech-ops; ⑤ SDK sessions demoted to best-effort cache (our log is canonical); ⑥ serial translation queue + "map is N rounds behind" indicator + backfill; ⑦ new open items: resolver evals, cost budgets, map digest for large projects, redaction escape hatch.</div>
+    <h3>v0 — "the map that writes itself" (thinking/writing work)</h3>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>In</th><th>Out (deferred)</th></tr></thead>
+        <tbody>
+          <tr><td>Two-pane local web app wrapping the SDK</td><td>Coding use case; shadow-git workspaces</td></tr>
+          <tr><td>Items + containers, full ontology</td><td>Re-carve automation (manual restructure only)</td></tr>
+          <tr><td>Per-round translation, async + pulse</td><td>Upward/sideways damage propagation</td></tr>
+          <tr><td>Focus + binary lit; composed seeds</td><td>Graded detail levels; galaxy rendering</td></tr>
+          <tr><td>Exact same-branch rewind</td><td>Fold/merge</td></tr>
+          <tr><td>Point-and-operate; downward damage advice</td><td>Multiplayer</td></tr>
+          <tr><td>Dumb crystallization</td><td>Recall tool (log search UI suffices in v0)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout"><strong>Success signal:</strong> users stop scrolling transcripts — they answer "where were we / what did we decide?" from the map, and drop/park/focus gestures become habitual. If the map isn't trusted as the record, nothing downstream matters.</div>
+    <h3>v1 — "the harness for building"</h3>
+    <p>Coding target: shadow-git workspaces (save point = commit, branch = git branch, jump = checkout). Re-carve automation. Upward damage. Galaxy-lite rendering. Recall tool. Translation-quality evals (commitment-detection precision/recall on seeded transcripts) — quality here is upstream of everything.</p>
+    <h3>v2 — ambitions</h3>
+    <p>Fold/merge of goal subtrees. Multiplayer maps. Agent-initiated cartography (the agent proposes forks, folds, cleanups). Map-level search. The map as a <em>planning</em> surface: sketch future containers as empty goals and let sessions grow toward them.</p>
+
+    <h3>Open items</h3>
+    <ol>
+      <li>Eager node creation — working assumption in all simulations; awaiting Jacob's explicit confirm.</li>
+      <li>Translation simulation on the exploration case (detached nodes + crystallization) — queued.</li>
+      <li>Glossary freeze (~6 user-facing terms) before UI copy.</li>
+      <li>Translation-quality evals before v0 ships beyond us.</li>
+    </ol>
+
+    <h3>Design history</h3>
+    <p>v1 (history-based: snapshots, fork/checkpoint/merge, galaxy-first) is archived; its fork-without-pollution instinct survives as a structural guarantee, its snapshot-resume as the exact-rewind exception. Superseded en route: prose goal-docs (→ item trees), body+inbox docs (→ per-round translation), percentage faders (→ focus + lit), facet-based carving (→ pointability). Full record: <code>docs/ontology/</code> + the Discord design threads.</p>
+  </section>
+
+  <footer>
+    harnessmap · design v2 · updated 2026-08-12 · source of truth: <code>DESIGN.md</code> (repo) — this page mirrors it
+  </footer>
+</main>
