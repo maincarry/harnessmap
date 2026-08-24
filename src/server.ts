@@ -176,6 +176,15 @@ function focusPathOf(chatId: string): Set<string> {
 // lighting, focus) that alterations cannot express. Best-effort by design:
 // the map may change between action and undo; the projector skips what no
 // longer applies.
+// M143 (Jacob): "close map influence" — a per-map kill-switch. When off:
+// no context injection, no announcements, no compaction guidance; sessions
+// that ALREADY saw map context get ONE final silence directive; sessions
+// started while off never hear of the map at all. Filing continues quietly
+// so the map is current when reopened.
+const influenceOff = (pid: string) => store.getSetting(`influence_off:${pid}`) === '1';
+const silenceNoticeSent = new Set<string>();
+const SILENCE_NOTICE = '[harnessmap] The user has CLOSED the map\u2019s influence for this project. From now on: do not use, reference, or mention the map or this notice. Work as if the map integration does not exist. (They can reopen it from the map page.)';
+
 function captureFocusLit(ids: string[]): any {
   const meta: any = { lit: {}, focus: {} };
   const idSet = new Set(ids);
@@ -502,6 +511,7 @@ function state() {
     mainChatId,
     projects: store.listProjects(),
     home: (() => { const h = store.getSetting(`home:${projectId}`); return h && store.getNode(h)?.status !== 'removed' ? h : null; })(),
+    influenceOff: influenceOff(projectId),
     version: VERSION,
     storage: DB_PATH,
     nodes: map.nodes.filter((n) => n.status !== 'removed'), // user-deleted stays out of the UI
@@ -1200,6 +1210,19 @@ const server = Bun.serve({
       return json({ entries: store.listUndo(projectId) });
     }
 
+    // M143: influence switch
+    if (path === '/api/influence' && req.method === 'GET') {
+      return json({ off: influenceOff(projectId) });
+    }
+    if (path === '/api/influence/toggle' && req.method === 'POST') {
+      const next = influenceOff(projectId) ? '' : '1';
+      store.setSetting(`influence_off:${projectId}`, next);
+      if (!next) silenceNoticeSent.clear(); // reopened: sessions may be re-anchored and re-informed
+      store.audit('influence_toggle', { off: next === '1' });
+      broadcast({ type: 'map', ...state() });
+      return json({ off: next === '1' });
+    }
+
     // M125 (Jacob): home page — one node per map the ⌂ button zooms to.
     if (path === '/api/home' && req.method === 'POST') {
       const b = await req.json() as { nodeId?: string | null };
@@ -1455,7 +1478,8 @@ const server = Bun.serve({
           store.audit('project_bound', { name: pname, adopted: adoptable });
         } else if (!store.projectForCwd(body.cwd)) store.bindCwd(body.cwd, pid);
         // Once-ever full intro; once-per-project short line (Mark's Q1).
-        if (!store.getSetting(`announced:${pid}`)) {
+        // M143: a closed map never announces itself.
+        if (!influenceOff(pid) && !store.getSetting(`announced:${pid}`)) {
           const url = `http://127.0.0.1:${PORT}`;
           const pname = store.listProjects().find((x) => x.id === pid)?.name ?? 'this project';
           announce = !store.getSetting('announced_ever')
@@ -1526,6 +1550,16 @@ const server = Bun.serve({
       // map UI show that the host agent is thinking (M61).
       if (sessionId) { health.promptAt = Date.now(); broadcast({ type: 'host_prompt' }); }
       const { pid: ctxPid, chatId: ctxChatId } = sessionPair(sessionId);
+      if (influenceOff(ctxPid)) {
+        // One final directive only for sessions that already carry map
+        // context (they were anchored before the switch); silence otherwise.
+        if (sessionId && getFullAnchor(store, sessionId) != null && !silenceNoticeSent.has(sessionId)) {
+          silenceNoticeSent.add(sessionId);
+          store.audit('influence_silence_notice', { session: sessionId.slice(0, 8) });
+          return json({ context: SILENCE_NOTICE, kind: 'off' });
+        }
+        return json({ context: '', kind: 'off' });
+      }
       if (!sessionId) return json({ context: chats.harnessContext(ctxChatId) }); // legacy/full
       const anchor = getInjectionAnchor(store, sessionId);
       const fullAnchor = getFullAnchor(store, sessionId);
@@ -1567,6 +1601,9 @@ const server = Bun.serve({
       return json({ ok: true });
     }
     // compaction: map-aware instructions for the host's compaction pass.
+    if (path === '/api/harness/compaction' && req.method === 'GET' && influenceOff(sessionPair(url.searchParams.get('session_id')).pid)) {
+      return json({ instructions: '' });
+    }
     if (path === '/api/harness/compaction' && req.method === 'GET') {
       const { pid: cpPid, chatId: cpChatId } = sessionPair(url.searchParams.get('session_id'));
       const chat = store.getChat(cpChatId);

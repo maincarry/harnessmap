@@ -212,6 +212,14 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   await click(document.querySelector('#im-cancel'), 'import modal cancel');
 }
 
+// ---------- influence switch (M143) ----------
+{
+  await viaMore('influence-btn', '⏻ close map influence');
+  check('influence button flips to reopen', $('influence-btn')!.textContent!.includes('reopen'));
+  await viaMore('influence-btn', '⏻ reopen map influence');
+  check('influence button flips back', $('influence-btn')!.textContent!.includes('close'));
+}
+
 // ---------- undo toast (M136) ----------
 {
   const hotel = S()?.nodes.find((n: any) => n.content === 'hotel shortlist')?.id;

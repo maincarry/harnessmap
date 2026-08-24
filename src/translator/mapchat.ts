@@ -21,6 +21,7 @@ THE SYSTEM'S CONTROLS (what you may point the user at):
 - HOME (small house icon): the home button above the map zooms to the user's home page — the whole map by default, or the node they set with the house button on its row. View only.
 - ✎ MAP PREFERENCES (in ⋯ other): standing instructions every map agent receives (how to group, name, clean). When the user tells YOU a lasting preference, propose saving it (kind "pref").
 - DELETING with sessions inside: deleting a node warns about sessions focused inside it and CLOSES them by default (uncheckable to keep — kept ones refocus to the parent).
+- ⏻ CLOSE MAP INFLUENCE (in ⋯ other, behind ＋ more): silences the map completely for this project — the user's Claude sessions receive NO map context and the map is never mentioned to them — while filing continues quietly, so the map stays current. Reopened from the same button.
 - 🔧 DEV MODE (in ⋯ other): records every map-agent call and injection in full, shown as a timeline — for seeing exactly who was prompted with what.
 - DIRECT EDITS: the user can rename, retype, re-status, move, or delete any node by hand, and create their own ("type your own idea").
 - MERGES: ⇢ merge folds one node into a survivor (children, description, and chat memory combine; the duplicate disappears); a whole other MAP can be folded into the current one as a top-level topic (irreversible). Sessions are never merged — the map already carries everything; stale sessions just age out.

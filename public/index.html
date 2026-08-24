@@ -382,6 +382,7 @@
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
           <button id="prefs-btn" title="standing preferences every map agent follows — how to group, name, and clean your maps; edit anytime">☰ map preferences</button>
           <button id="lit-mgr-btn" title="manage focus and background for the whole map in one list">▶☀ manage</button>
+          <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
           </div></div>
       </div>
     </div>
@@ -605,7 +606,7 @@ function renderTree() {
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
 }
 
-function renderAll() { applyAutoFold(); renderCrumbs(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); }
+function renderAll() { applyAutoFold(); renderCrumbs(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); }
 // M88: one server, many projects (each its own map) and many chats (views).
 function renderSwitchers() {
   const ps = $('proj-sel');
@@ -880,6 +881,7 @@ function openDrawer() {
     ${act('add-root', '＋', 'add node')}
     ${act('undo-btn', '↩', 'undo last action')}
     ${act('import-btn', '⇪', 'import notes, documents, or past sessions')}
+    ${act('influence-btn', '⏻', 'close / reopen map influence')}
     ${act('round-line', '≡', 'what changed')}
     <div class="dr-h">view</div>
     ${act('home-btn', '⌂', 'home')}
@@ -914,6 +916,26 @@ $('undo-btn').onclick = () => { $('other-menu').hidden = true; doUndo(); };
 // the import agent (fancy model) and approved by the user. Apply rides the
 // reorganize pipeline: guards + undo for free.
 $('import-btn').onclick = () => { $('other-menu').hidden = true; openImport(); };
+// M143 (Jacob): close map influence — sessions hear nothing from the map
+// (and are told once to stop mentioning it); the map keeps updating quietly.
+function paintInfluence() {
+  const b = $('influence-btn');
+  if (!b) return;
+  const off = !!S.influenceOff;
+  b.textContent = off ? '⏻ reopen map influence' : '⏻ close map influence';
+  b.title = off
+    ? 'the map is currently silent: no context reaches your Claude sessions, nothing is announced — but filing continues. Click to reopen its influence'
+    : "close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime";
+}
+$('influence-btn').onclick = async () => {
+  $('other-menu').hidden = true;
+  const r = await post('/api/influence/toggle', {});
+  S.influenceOff = r.off;
+  paintInfluence();
+  $('round-line').textContent = r.off
+    ? '⏻ map influence CLOSED — your sessions get nothing from the map (it keeps updating quietly; reopen in ⋯)'
+    : '⏻ map influence reopened — sessions receive map context again from their next message';
+};
 function openImport() {
   const ov = document.createElement('div');
   ov.className = 'overlay';

@@ -828,6 +828,38 @@ console.log('\n== 28. import: sources, proposal, apply, undo (M142) ==');
   check('file reads are scoped to project folders', evil.status === 400);
 }
 
+console.log('\n== 29. close map influence (M143) ==');
+{
+  check('influence on by default', (await get('/api/influence')).off === false);
+  // anchor a session with full context first
+  await post('/api/harness/session-start', { session_id: 's-inf', cwd: CWD_DEF });
+  const c0 = await get('/api/harness/context?session_id=s-inf');
+  check('anchored session receives map context', (c0.context ?? '').length > 50);
+
+  const t = await post('/api/influence/toggle', {});
+  check('toggle closes influence', t.status === 200 && t.body.off === true);
+  const c1 = await get('/api/harness/context?session_id=s-inf');
+  check('anchored session gets ONE silence directive', c1.kind === 'off' && /do not use, reference, or mention/i.test(c1.context ?? ''));
+  const c2 = await get('/api/harness/context?session_id=s-inf');
+  check('then nothing, ever', c2.kind === 'off' && (c2.context ?? '') === '');
+
+  const fresh = await post('/api/harness/session-start', { session_id: 's-inf-new', cwd: CWD_DEF });
+  check('new session while closed: no announcements', !(fresh.body.announce ?? ''));
+  const c3 = await get('/api/harness/context?session_id=s-inf-new');
+  check('new session while closed: total silence (no directive either)', c3.kind === 'off' && (c3.context ?? '') === '');
+  const comp = await get('/api/harness/compaction?session_id=s-inf');
+  check('compaction guidance silenced', (comp.instructions ?? '') === '');
+
+  // the map itself still updates (Jacob's requirement)
+  const nBefore = (await state()).nodes.length;
+  const filed = await observe('s-inf', 'while silent: our fig tree needs winter wrapping, decide burlap', 'Burlap wrap in late November protects fig trees; unwrap after last frost.');
+  const nAfter = (await state()).nodes.length;
+  check('filing continues while influence is closed', filed && nAfter > nBefore);
+
+  const t2 = await post('/api/influence/toggle', {});
+  check('reopen restores context flow', t2.body.off === false && ((await get('/api/harness/context?session_id=s-inf')).context ?? '').length > 50);
+}
+
 console.log('\n== 13. audit ==');
 {
   const a = await get('/api/audit?limit=10');

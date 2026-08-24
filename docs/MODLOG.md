@@ -515,3 +515,10 @@ The day-one-value piece. Jacob's model ruling honored: "use a fancy model, for i
 - FLOW: ⋯ → ⇪ import (also in the mobile drawer) → pick/paste → the agent proposes → summary + full tree preview + feedback loop (↻ re-propose rebuilds around the user's direction) → "⇪ add to the map" applies through the reorganize pipeline: born lit, guarded, and UNDOABLE (the ↩ toast appears).
 - Endpoints: GET /api/import/sources, POST /api/import/preview; apply reuses /api/reorganize/apply.
 - TESTS: suite section 28 (9 checks: source listing incl. a seeded fake transcript under a scratch HOME, creates-only + single-root proposal from real model calls, preview render, apply + undo roundtrip, drift-surviving session import, /etc/passwd scoping refusal) → 174/174. UI smoke: modal mechanics → 129/129. Suite pins the import model to haiku; production default stays fancy.
+
+## M143 — Close map influence (Jacob, 2026-08-24)
+"This should not only stop map prompting but also make sure that the map is no longer brought up again (unless of course the plugin is reopened)... But the map itself still updates." A per-map kill-switch, exactly to that spec:
+- CLOSED means silent, not blind: context injection stops, announcements stop, compaction guidance stops — but FILING CONTINUES quietly (Jacob's explicit requirement), so the map is current the moment it's reopened.
+- The silence is thorough: a session that ALREADY carries map context receives ONE final directive ("do not use, reference, or mention the map from now on") and then nothing ever; a session started while closed never hears of the map at all — no intro, no directive, total silence.
+- Surface: ⏻ close/reopen map influence (⋯ ＋more tier + mobile drawer), state-synced label; per-project setting; audited; the map guide knows the control.
+- Endpoints: GET /api/influence, POST /api/influence/toggle. Suite section 29 (10 checks incl. the one-directive-then-nothing sequence, fresh-session total silence, filing-continues via a real round, reopen restoration): 184/184. UI smoke: 137/137.
