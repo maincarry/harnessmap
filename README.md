@@ -18,7 +18,7 @@ Requirements: [Claude Code](https://claude.com/claude-code) and [bun](https://bu
 Inside Claude Code:
 
 ```
-/plugin marketplace add <this-repo-url-or-owner/repo>
+/plugin marketplace add maincarry/harnessmap
 /plugin install map@harnessmap
 ```
 
