@@ -203,6 +203,15 @@ await click($('round-line'), 'status line opens what-changed', 500);
 check('changes panel opened', !!$('changes-panel'));
 document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
 
+// ---------- import modal (M142) ----------
+{
+  if ($('other-menu')!.hasAttribute('hidden')) await click($('other-btn'), '⋯ open (import)', 80);
+  await click($('import-btn'), '⇪ import opens the modal', 500);
+  check('import modal: paste area + source sections', !!document.querySelector('#im-text') && !!document.querySelector('#im-files') && !!document.querySelector('#im-sess'));
+  check('apply hidden until a proposal exists', document.querySelector('#im-apply')!.hasAttribute('hidden'));
+  await click(document.querySelector('#im-cancel'), 'import modal cancel');
+}
+
 // ---------- undo toast (M136) ----------
 {
   const hotel = S()?.nodes.find((n: any) => n.content === 'hotel shortlist')?.id;

@@ -370,6 +370,7 @@
           <button id="auto-lit" title="the lighting agent picks which nodes belong in the background for the current focus">☀ auto-light<span class="nudge-dot" hidden>●</span></button>
           <button id="auto-zoom" title="the zoom agent suggests which subtree to isolate — you confirm">◱ auto-zoom</button>
           <button id="map-check" title="review the whole map now — red dots for anything that needs restructuring, or a clean bill">⟳ tidy map</button>
+          <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes an organized subtree you approve">⇪ import</button>
           <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
           <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
           <button id="undo-btn" title="undo the last destructive action — delete, merge, tidy, or move (Ctrl/Cmd+Z works too)">↩ undo</button>
@@ -878,6 +879,7 @@ function openDrawer() {
     <div class="dr-h">map</div>
     ${act('add-root', '＋', 'add node')}
     ${act('undo-btn', '↩', 'undo last action')}
+    ${act('import-btn', '⇪', 'import notes, documents, or past sessions')}
     ${act('round-line', '≡', 'what changed')}
     <div class="dr-h">view</div>
     ${act('home-btn', '⌂', 'home')}
@@ -908,6 +910,108 @@ function openDrawer() {
   for (const b of ov.querySelectorAll('[data-dr-act]')) b.onclick = () => { ov.remove(); $(b.dataset.drAct)?.click(); };
 }
 $('undo-btn').onclick = () => { $('other-menu').hidden = true; doUndo(); };
+// M142: IMPORT — outside material becomes ONE organized subtree, proposed by
+// the import agent (fancy model) and approved by the user. Apply rides the
+// reorganize pipeline: guards + undo for free.
+$('import-btn').onclick = () => { $('other-menu').hidden = true; openImport(); };
+function openImport() {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(640px,94vw)">
+      <h3>⇪ import onto the map</h3>
+      <div id="im-pick">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Bring outside material in: the import agent reads it and proposes ONE organized branch — you see the whole tree before anything lands, and it's undoable after.</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px">paste anything</div>
+        <textarea id="im-text" placeholder="notes, a document, meeting minutes, an old conversation…" style="width:100%;min-height:110px;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px"></textarea>
+        <div class="actions" style="margin:6px 0 2px"><button id="im-go-text" class="primary" title="the import agent organizes the pasted text into a subtree proposal">propose from pasted text</button></div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">project documents</div>
+        <div id="im-files" style="display:flex;flex-direction:column;gap:2px;max-height:18vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">past Claude Code sessions (this project)</div>
+        <div id="im-sess" style="display:flex;flex-direction:column;gap:2px;max-height:18vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
+      </div>
+      <div id="im-prop" hidden>
+        <div id="im-summary" style="font-size:13px"></div>
+        <details open style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">the proposed branch</summary>
+          <pre id="im-tree" style="font-size:12px;line-height:1.55;max-height:38vh;overflow:auto;background:var(--bg);border:1px solid var(--hair);border-radius:8px;padding:8px 10px"></pre>
+        </details>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <input id="im-feedback" placeholder="different idea? tell the import agent — e.g. 'organize by week, not by topic'" style="flex:1;border:1px solid var(--hair);border-radius:8px;padding:6px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px">
+          <button id="im-again" title="rebuild the proposal around your direction">↻ re-propose</button>
+        </div>
+      </div>
+      <div id="im-busy" hidden style="font-size:13px;color:var(--muted);padding:14px 0">⇪ the import agent is organizing this… (the fancy model takes its time — usually under a minute)</div>
+      <div class="actions" style="margin-top:10px">
+        <button id="im-cancel" title="close — the map is untouched">cancel</button>
+        <button id="im-apply" class="primary" hidden title="add this branch to the map (undoable)">⇪ add to the map</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.querySelector('#im-cancel').onclick = () => ov.remove();
+  let current = null, lastReq = null;
+  const propose = async (req) => {
+    lastReq = req;
+    ov.querySelector('#im-pick').hidden = true;
+    ov.querySelector('#im-prop').hidden = true;
+    ov.querySelector('#im-apply').hidden = true;
+    ov.querySelector('#im-busy').hidden = false;
+    try {
+      const r = await post('/api/import/preview', req);
+      current = r;
+      ov.querySelector('#im-busy').hidden = true;
+      ov.querySelector('#im-prop').hidden = false;
+      ov.querySelector('#im-apply').hidden = false;
+      ov.querySelector('#im-summary').innerHTML = `<b>${esc(r.label)}</b> → ${esc(r.summary)} <span style="color:var(--muted)">(${r.alterations.length} node(s))</span>`;
+      ov.querySelector('#im-tree').textContent = r.preview || '(empty preview)';
+    } catch (err) {
+      ov.querySelector('#im-busy').hidden = true;
+      ov.querySelector('#im-pick').hidden = false;
+      $('round-line').textContent = `import failed: ${err.message}`;
+    }
+  };
+  ov.querySelector('#im-go-text').onclick = () => {
+    const t = ov.querySelector('#im-text').value.trim();
+    if (t.length < 20) { $('round-line').textContent = 'paste something first (a few lines at least)'; return; }
+    propose({ kind: 'text', text: t });
+  };
+  ov.querySelector('#im-again').onclick = () => {
+    const fb = ov.querySelector('#im-feedback').value.trim();
+    if (!fb || !lastReq) return;
+    ov.querySelector('#im-feedback').value = '';
+    propose({ ...lastReq, feedback: fb, priorSummary: current?.summary });
+  };
+  ov.querySelector('#im-apply').onclick = async () => {
+    if (!current) return;
+    try {
+      const r = await post('/api/reorganize/apply', { alterations: current.alterations, chatId: S.mainChatId, containerName: current.label });
+      ov.remove();
+      undoToast(r.undo);
+    } catch (err) { $('round-line').textContent = `import apply failed: ${err.message}`; }
+  };
+  (async () => {
+    try {
+      const src = await post2get('/api/import/sources');
+      const files = ov.querySelector('#im-files'), sess = ov.querySelector('#im-sess');
+      files.innerHTML = (src.files ?? []).length ? '' : '<span style="color:var(--muted);font-size:12px">no documents found in this map\'s folder</span>';
+      for (const f of src.files ?? []) {
+        const d = document.createElement('div');
+        d.className = 'sr-row';
+        d.innerHTML = `<span>${esc(f.name)}</span><span class="sr-path">${f.sizeKB} KB</span>`;
+        d.onclick = () => propose({ kind: 'file', path: f.path });
+        files.appendChild(d);
+      }
+      sess.innerHTML = (src.sessions ?? []).length ? '' : '<span style="color:var(--muted);font-size:12px">no past sessions found for this map\'s folder</span>';
+      for (const x of src.sessions ?? []) {
+        const d = document.createElement('div');
+        d.className = 'sr-row';
+        d.innerHTML = `<span>${esc(new Date(x.mtime).toLocaleString())}</span><span class="sr-path">${x.sizeKB} KB</span>`;
+        d.onclick = () => propose({ kind: 'session', sessionFile: x.file });
+        sess.appendChild(d);
+      }
+    } catch {}
+  })();
+}
 $('mob-menu').onclick = openDrawer;
 let lpTimer = null;
 $('tree').addEventListener('touchstart', (e) => {

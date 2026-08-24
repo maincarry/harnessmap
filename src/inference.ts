@@ -16,13 +16,17 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 
 export type Task =
   | 'filer' | 'memory' | 'relations' | 'title' | 'summary' | 'autolit' | 'recommend' | 'place' | 'mapchat'
-  | 'tidy' | 'mapcheck';
+  | 'tidy' | 'mapcheck' | 'import';
 
 const CHEAP = process.env.HARNESSMAP_TRANSLATOR_MODEL ?? 'claude-haiku-4-5';
 const SMART = process.env.HARNESSMAP_SMART_MODEL ?? 'claude-sonnet-4-6';
+// M142 (Jacob): import is the first-impression reorganization — it gets the
+// fancy model. Overridable (tests pin a cheap one).
+const FANCY = process.env.HARNESSMAP_IMPORT_MODEL ?? 'claude-opus-4-8';
 const HEAVY_TASKS: Task[] = ['tidy', 'mapcheck'];
 
 export function modelFor(task: Task): string {
+  if (task === 'import') return FANCY;
   return HEAVY_TASKS.includes(task) ? SMART : CHEAP;
 }
 

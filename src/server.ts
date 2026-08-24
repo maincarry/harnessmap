@@ -4,11 +4,12 @@
 
 import { randomUUID } from 'node:crypto';
 import { join, dirname } from 'node:path';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { Store } from './store/db.js';
 import { Translator } from './translator/translator.js';
 import { ChatSessionManager } from './agent/chat-session.js';
-import { loadMap, descendantNodes } from './map/render.js';
+import { loadMap, descendantNodes, renderSubtreeFull } from './map/render.js';
 import { proposeReorganize } from './translator/reorganize.js';
 import { proposeAutolit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
@@ -19,10 +20,11 @@ import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
+import { proposeImport, extractTranscript } from './translator/importer.js';
 import { setTraceSink } from './inference.js';
 import { foldTurns } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync } from 'node:fs';
 import { basename } from 'node:path';
 import { authUser, authEnabled, unauthorized } from './auth.js';
 
@@ -1121,6 +1123,69 @@ const server = Bun.serve({
     // The map's bound directories (for the new-tab picker).
     if (path === '/api/dirs' && req.method === 'GET') {
       return json({ dirs: store.cwdsForProject(projectId) });
+    }
+
+    // M142: IMPORT — sources live on this machine only; reading is tightly
+    // scoped (bound project folders for documents, this project's own Claude
+    // Code transcript dir for sessions). The proposal applies through the
+    // normal reorganize pipeline (guards + undo).
+    if (path === '/api/import/sources' && req.method === 'GET') {
+      const dirs = store.cwdsForProject(projectId);
+      const files: any[] = [];
+      for (const d of dirs) {
+        for (const cand of ['CLAUDE.md', 'README.md', 'readme.md', 'NOTES.md', 'TODO.md']) {
+          const fp = join(d, cand);
+          try { const st = statSync(fp); if (st.isFile() && st.size < 512_000) files.push({ path: fp, name: cand, dir: d, sizeKB: Math.round(st.size / 1024) }); } catch {}
+        }
+        try {
+          for (const f of readdirSync(join(d, 'docs'))) {
+            if (!f.endsWith('.md') || files.length > 20) continue;
+            const fp = join(d, 'docs', f);
+            try { const st = statSync(fp); if (st.isFile() && st.size < 512_000) files.push({ path: fp, name: `docs/${f}`, dir: d, sizeKB: Math.round(st.size / 1024) }); } catch {}
+          }
+        } catch {}
+      }
+      const sessions: any[] = [];
+      for (const d of dirs) {
+        const slug = d.replace(/\//g, '-');
+        const tdir = join(homedir(), '.claude', 'projects', slug);
+        try {
+          for (const f of readdirSync(tdir)) {
+            if (!f.endsWith('.jsonl')) continue;
+            const fp = join(tdir, f);
+            try { const st = statSync(fp); sessions.push({ file: f, dir: tdir, sizeKB: Math.round(st.size / 1024), mtime: st.mtime.toISOString() }); } catch {}
+          }
+        } catch {}
+      }
+      sessions.sort((a, b) => b.mtime.localeCompare(a.mtime));
+      return json({ files: files.slice(0, 20), sessions: sessions.slice(0, 15) });
+    }
+    if (path === '/api/import/preview' && req.method === 'POST') {
+      const b = await req.json() as { kind?: string; text?: string; path?: string; sessionFile?: string; feedback?: string; priorSummary?: string };
+      let text = '', label = '';
+      if (b.kind === 'text') { text = (b.text ?? '').trim(); label = 'pasted notes'; }
+      else if (b.kind === 'file' && b.path) {
+        const dirs = store.cwdsForProject(projectId);
+        if (!dirs.some((d) => b.path!.startsWith(d + '/')) || !/\.(md|txt)$/i.test(b.path)) return json({ error: 'file outside the project folders' }, 400);
+        try { text = readFileSync(b.path, 'utf8'); } catch { return json({ error: 'could not read the file' }, 400); }
+        label = `document: ${basename(b.path)}`;
+      } else if (b.kind === 'session' && b.sessionFile) {
+        const dirs = store.cwdsForProject(projectId);
+        const base = basename(b.sessionFile);
+        let raw = '';
+        for (const d of dirs) {
+          try { raw = readFileSync(join(homedir(), '.claude', 'projects', d.replace(/\//g, '-'), base), 'utf8'); break; } catch {}
+        }
+        if (!raw) return json({ error: 'session transcript not found for this project' }, 400);
+        text = extractTranscript(raw);
+        label = `past session: ${base.slice(0, 12)}…`;
+      }
+      if (!text || text.length < 20) return json({ error: 'nothing to import — the source is empty' }, 400);
+      const p = await proposeImport(store, projectId, label, text, b.feedback, b.priorSummary);
+      if ('error' in p) return json({ error: p.error }, 502);
+      const preview = store.previewAlterations(projectId, p.alterations, () => p.rootId ? renderSubtreeFull(store, p.rootId) : '');
+      store.audit('import_preview', { label: label.slice(0, 40), nodes: p.alterations.length, chars: text.length });
+      return json({ summary: p.summary, alterations: p.alterations, rootId: p.rootId, preview, label, chars: text.length });
     }
 
     // M136: undo — pop the latest destructive action and apply its inverse.

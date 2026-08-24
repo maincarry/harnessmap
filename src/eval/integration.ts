@@ -51,7 +51,8 @@ rmSync(TMP, { recursive: true, force: true });
 mkdirSync(CWD_BETA, { recursive: true });
 mkdirSync(CWD_DEF, { recursive: true });
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
-  env: { ...process.env, HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash' },
+  env: { ...process.env, HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash',
+    HOME: join(TMP, 'home'), HARNESSMAP_IMPORT_MODEL: 'claude-haiku-4-5' /* tests pin cheap; prod default is the fancy model */ },
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
 });
 process.on('exit', () => server.kill());
@@ -787,6 +788,44 @@ console.log('\n== 27. mode-A chat: streamed reply over WS (M139) ==');
   check('assistant turn arrived over WS', !!final && /paris/i.test(final.content));
   check('reply was streamed as chat_delta first', deltas.length >= 1 && /paris/i.test(deltas.map((d) => d.text).join('')));
   ws.close();
+}
+
+console.log('\n== 28. import: sources, proposal, apply, undo (M142) ==');
+{
+  const { writeFileSync: wf, mkdirSync: mk } = await import('node:fs');
+  wf(join(CWD_DEF, 'README.md'), '# Widget project\n\nGoal: ship a widget.\n\n- decide pricing model\n- open question: annual billing?\n');
+  const slugDir = join(TMP, 'home', '.claude', 'projects', CWD_DEF.replace(/\//g, '-'));
+  mk(slugDir, { recursive: true });
+  wf(join(slugDir, 'past-session.jsonl'), [
+    JSON.stringify({ type: 'user', message: { content: 'let us plan the greenhouse: glass or polycarbonate?' } }),
+    JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'Polycarbonate is cheaper and shatterproof; glass looks better and lasts longer. For a first build I recommend polycarbonate.' }] } }),
+    JSON.stringify({ type: 'user', message: { content: 'ok decided: polycarbonate. next question is heating.' } }),
+    'not-json-line-simulating-format-drift',
+  ].join('\n'));
+
+  const src = await get('/api/import/sources');
+  check('sources list the project document', (src.files ?? []).some((f: any) => f.name === 'README.md'));
+  check('sources list the past session', (src.sessions ?? []).some((x: any) => x.file === 'past-session.jsonl'));
+
+  const pv = await post('/api/import/preview', { kind: 'text', text: 'Trip to Osaka in October.\nDecided: fly, not train.\nOpen: which neighborhood to stay in?\nBudget constraint: 2000 total.' });
+  check('pasted-text proposal returns creates only', pv.status === 200 && pv.body.alterations.length >= 3 && pv.body.alterations.every((a: any) => a.op === 'create_node'));
+  const roots = pv.body.alterations.filter((a: any) => !a.parentId);
+  check('exactly one new top-level container', roots.length === 1 && pv.body.rootId === roots[0].id);
+  check('preview tree rendered', typeof pv.body.preview === 'string' && pv.body.preview.length > 40);
+
+  const before28 = (await state()).nodes.length;
+  const ap = await post('/api/reorganize/apply', { alterations: pv.body.alterations, containerName: pv.body.label });
+  let s28 = await state();
+  check('apply lands the container + children', ap.status === 200 && s28.nodes.some((n: any) => n.id === pv.body.rootId && n.parentId === null) && s28.nodes.length >= before28 + 3);
+  await post('/api/undo', {});
+  s28 = await state();
+  check('import is undoable', !s28.nodes.some((n: any) => n.id === pv.body.rootId));
+
+  const sess = await post('/api/import/preview', { kind: 'session', sessionFile: 'past-session.jsonl' });
+  check('past-session import proposes (drifted lines survived)', sess.status === 200 && sess.body.alterations.length >= 2 && /polycarbonate|greenhouse/i.test(JSON.stringify(sess.body.alterations)));
+
+  const evil = await post('/api/import/preview', { kind: 'file', path: '/etc/passwd' });
+  check('file reads are scoped to project folders', evil.status === 400);
 }
 
 console.log('\n== 13. audit ==');
