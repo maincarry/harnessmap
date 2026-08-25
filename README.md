@@ -6,9 +6,13 @@ the map becomes the agent's governed memory: you *focus* it, *light* and *dim*
 branches to control exactly what the agent knows, approve its cleanup
 proposals, and undo anything. A file manager for the AI's mind.
 
-- **Automatic**: talk normally in any Claude Code session; the map maintains itself a beat behind the conversation.
-- **Governed**: the agent only sees what you light. Focus aims it. Every restructuring is propose → approve. Everything is undoable.
-- **Yours, locally**: all data lives in `~/.harnessmap` on your machine. Nothing is sent anywhere. Inference runs through your own Claude Code login — no API key, no extra account.
+Three ideas, and everything else follows:
+
+1. **A map** of your work — a tree that files itself as you talk.
+2. **Focus ▶** — *talk about this.*
+3. **Light ☀** — *keep this in the background* (dim it, and Claude forgets it — you still see everything).
+
+Underneath: every restructuring is propose → approve, everything is undoable, and all data lives in `~/.harnessmap` on your machine — nothing is sent anywhere, no API key, no extra account.
 
 ## Install
 

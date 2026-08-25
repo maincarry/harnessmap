@@ -9,6 +9,18 @@
 
 ---
 
+## 0. The conceptual point (canonical — Jacob, 2026-08-25)
+
+A user needs to understand exactly **three things**, and everything else follows:
+
+1. **The map** — a tree of your work that files itself. Self-evident to anyone who has used a file manager or a decision tree.
+2. **Focus ▶** — *talk about this.*
+3. **Light / dim ☀** — *keep this in the background / let the AI forget it* (you still see everything).
+
+All other features are peripheral: they either automate upkeep of these three (dots, nudges, tidy), operate them in plain words (the map guide), or protect them (undo, approval gates). Every surface that explains the product — tour, README, guide orientation — states these three and stops.
+
+---
+
 ## 1. Thesis
 
 Working with an AI today means one long chat: it fills with junk, side-topics pollute the

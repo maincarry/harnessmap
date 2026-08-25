@@ -555,3 +555,7 @@ The Codex-style pain (many chats, evolving topics, manual pinning) inverted by o
 
 ## M151b — Zoom in plain words too (Jacob, 2026-08-25)
 "The zoom description should also be simple: something like 'view only this node'." Swept: the ◱ row button is "view only this branch (nothing else changes)"; auto-zoom "suggests which branch to view alone"; proposal cards, subtitle, apply-line, and legend match. "Isolate the subtree" is gone from every user-facing string.
+
+## M152 — THE CONCEPTUAL POINT, canonized (Jacob, 2026-08-25)
+"The user only need to know three minimal things in the end: 1. the idea of a map … 2. the idea of a focus, to talk about this thing 3. the light/dim, to keep something in the background. All the rest are peripheral and easily follows." — "keep this as the conceptual point."
+Canonized as DESIGN.md §0 (the governing statement), and every product-explaining surface now says exactly this and stops: the tour finale ("That's it — three things"), the map guide's newcomer orientation, and the README's opening. The doctrine also settles future UI arguments: a feature earns default visibility only if it IS one of the three or directly serves them; otherwise it is automation, guide vocabulary, or ⋯.
