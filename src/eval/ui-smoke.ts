@@ -212,6 +212,14 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   await click(document.querySelector('#im-cancel'), 'import modal cancel');
 }
 
+// ---------- text size (M144) ----------
+{
+  await viaMore('font-btn', '🔠 text size cycles');
+  check('text size steps to large-ward + persists', $('font-btn')!.textContent!.includes('large') && window.localStorage.getItem('hm-font') === 'large');
+  await viaMore('font-btn', 'cycle'); await viaMore('font-btn', 'cycle'); await viaMore('font-btn', 'cycle');
+  check('cycles back to normal', window.localStorage.getItem('hm-font') === 'normal');
+}
+
 // ---------- influence switch (M143) ----------
 {
   await viaMore('influence-btn', '⏻ close map influence');

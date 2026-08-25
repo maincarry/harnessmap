@@ -382,6 +382,7 @@
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
           <button id="prefs-btn" title="standing preferences every map agent follows — how to group, name, and clean your maps; edit anytime">☰ map preferences</button>
           <button id="lit-mgr-btn" title="manage focus and background for the whole map in one list">▶☀ manage</button>
+          <button id="font-btn" title="text size for the whole page — cycles Small / Normal / Large / Extra large">🔠 text size: normal</button>
           <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
           </div></div>
       </div>
@@ -881,6 +882,7 @@ function openDrawer() {
     ${act('add-root', '＋', 'add node')}
     ${act('undo-btn', '↩', 'undo last action')}
     ${act('import-btn', '⇪', 'import notes, documents, or past sessions')}
+    ${act('font-btn', '🔠', 'text size')}
     ${act('influence-btn', '⏻', 'close / reopen map influence')}
     ${act('round-line', '≡', 'what changed')}
     <div class="dr-h">view</div>
@@ -915,6 +917,25 @@ $('undo-btn').onclick = () => { $('other-menu').hidden = true; doUndo(); };
 // M142: IMPORT — outside material becomes ONE organized subtree, proposed by
 // the import agent (fancy model) and approved by the user. Apply rides the
 // reorganize pipeline: guards + undo for free.
+// M144 (Mark): text size — one control scales the whole page consistently
+// (zoom keeps every layout relationship intact). Persisted per browser.
+const FONT_STEPS = [['small', 0.9], ['normal', 1], ['large', 1.15], ['extra large', 1.3]];
+function applyFont(name) {
+  const step = FONT_STEPS.find(f => f[0] === name) ?? FONT_STEPS[1];
+  document.body.style.zoom = String(step[1]);
+  localStorage.setItem('hm-font', step[0]);
+  const b = $('font-btn');
+  if (b) b.textContent = `🔠 text size: ${step[0]}`;
+  window.dispatchEvent(new Event('resize'));
+}
+$('font-btn').onclick = () => {
+  const cur = localStorage.getItem('hm-font') ?? 'normal';
+  const i = FONT_STEPS.findIndex(f => f[0] === cur);
+  applyFont(FONT_STEPS[(i + 1) % FONT_STEPS.length][0]);
+  $('round-line').textContent = `text size: ${localStorage.getItem('hm-font')} — click again to cycle`;
+};
+applyFont(localStorage.getItem('hm-font') ?? 'normal');
+
 $('import-btn').onclick = () => { $('other-menu').hidden = true; openImport(); };
 // M143 (Jacob): close map influence — sessions hear nothing from the map
 // (and are told once to stop mentioning it); the map keeps updating quietly.
@@ -2588,23 +2609,14 @@ const findRow = (pred) => {
   return n ? document.querySelector(`[data-edit="${n.id}"]`)?.closest('.nrow') : null;
 };
 const TOUR = [
-  { sel: '#tree', title: 'This is your map (the left pane)', body: 'The highlighted area is the map. Everything you discuss with the chat agent files itself here as you talk — topics, decisions, questions, evidence. You never have to write it; you get to govern it. All of it stays on this machine only.' },
-  { sel: '#chat-pane', title: 'This is the conversation (the right pane)', body: 'The highlighted pane is where the talking happens — session tabs along the top, the conversation below. Everything discussed here (or in any terminal tab) files itself onto the map on the left as you go. Left pane: the memory. Right pane: the dialogue.' },
-  { sel: '#proj-sel', title: 'Which map you\u2019re in (top-left)', body: 'The highlighted name is the current MAP. Each map is completely separate — by default every repo gets its own. Click it to switch, create a new map, or fold this map into another (⇥ merge, irreversible).' },
-  { sel: '#ctx-btn', title: 'Chat agent\u2019s view (header button)', body: 'The highlighted button shows the EXACT map description the CHAT agent — the assistant you talk to — receives on its next turn: focus in full, lit branches, constraints, open questions. When you wonder “does it know this?”, this button answers verbatim. (The map agents that do the filing are separate — the reference card’s “The cast” section introduces everyone.)' },
-  { sel: '#beat', title: 'The heartbeat (top of the map pane)', body: 'The highlighted stepper shows each exchange\u2019s lifecycle: ✉ your message was seen → 💬 the chat agent is replying → ▤ the map is filing it → ✓ filed. Next to it, “map current” / “N rounds behind” tells you if filing is keeping up. If it warns in red, the map isn\u2019t hearing the conversation — say so.' },
-  { find: () => document.querySelector('#crumbs .focus-away') ?? document.querySelector('.nrow.focused'), title: 'The focus chip (this bar)', body: 'The highlighted chip always points to the FOCUS — the one node the conversation is aimed at (it carries a bright blue frame down in the tree). Click the chip to jump to it from anywhere; it offers zoom.' },
-  { sel: '#home-btn', title: 'Home (top of the map)', body: 'The highlighted button zooms to your home page — the whole map by default, or any node you pick with the little house on its row. One safe place your view can always come back to. (View only — lighting and focus never change.)' },
-  { sel: '#map-chat', title: '🗨 talk to map (in the toolbar)', body: 'The highlighted button opens a direct line to the map guide. Ask why something is filed where it is — or ask for changes in plain words (“merge those two”, “focus on X and dim Y”) and it proposes them for one-click approval. Complex requests become step-by-step plans — and if you state a LASTING preference (“keep containers broad”), it offers to save it so every map agent follows it.' },
-  { sel: '#search-btn', title: '🔍 search (in the toolbar)', body: 'The highlighted button — or Ctrl/Cmd+K — finds any node by a few words. You confirm the match with its parents and children in view, then light, zoom, or focus it. ★ favorites pin to the top; recent searches are remembered.' },
-  { sel: '#other-btn', title: '⋯ other (end of the toolbar)', body: 'The highlighted button folds away the rest, in two tiers. First the everyday six: ▶ auto-focus, ☀ auto-light, ◱ auto-zoom (each proposes — you approve), ⟳ tidy map, ◐ dim all outside, 🔧 dev mode. \u201c＋ more\u201d expands the rest: ☀/◐ light/dim all (this view), ⟳ tidy top level (groups your top-level threads), ✎ auto-rename, ☰ map preferences (standing rules every map agent follows), ▶☀ manage. A red dot means a suggestion is waiting inside.' },
-  { find: () => document.querySelector('.nrow:not(.focused)') ?? document.querySelector('.nrow'), title: 'This row is a node', body: 'The highlighted row is ONE node: one line, one thing — a topic (bold), a claim, a question… The small bordered chip is its category (click to change); clicking the text opens the full editor (name, status, description, memory). “+ add node” at the bottom of the tree adds your own — it starts unnamed and focused, and the map names it from your next conversation. Expanding a branch (▸) shows only its immediate children — a collapsed parent shows “N inside”; open deeper levels one at a time.' },
-  { find: () => document.querySelector('.nrow'), title: 'Light and shade (the ☀ button on this row)', body: 'The controls on the highlighted row are visible for this step — find ☀ among them. The chat agent only sees LIT nodes; ☀ toggles this node and everything under it into or out of its sight. Dimmed branches stay visible to YOU — the chat agent simply doesn\u2019t know them. One protection: the focus\u2019s ancestor chain always stays lit — you can\u2019t accidentally cut the conversation off from the topic it\u2019s inside.' },
-  { find: () => document.querySelector('.nrow'), title: 'All the node actions (shown on this row)', body: 'The highlighted row\u2019s full toolbox, normally shown on hover: ◱ zoom · ▶ focus · ☀ light/dim · ★ favorite · ⌂-style house = set home · + add child · ↖ move · ⟳ tidy proposal · ⇢ merge · ✕ delete. Hover any of them for a plain-words explanation.' },
-  { find: () => findRow((n) => n.parentId === null && (n.title || n.content).startsWith('to sort')) ?? document.querySelector('#tree'), title: 'The “to sort” node', body: 'The highlighted node is the map\u2019s holding pen: anything the filer can\u2019t place lands here, noting where it arrived from. It is a permanent system node — always present, even empty; nothing can delete it. Leaving is easy — approve its placement dot (one-click move), ↖ pick a parent yourself, or ⇧ promote it to a topic of its own.' },
-  { find: () => document.querySelector('.sdot') ?? document.querySelector('#round-line'), title: 'Dots are suggestions', body: 'When the map has a suggestion you\u2019ll see a <span style="color:var(--danger)">●</span> dot on a node: on a normal node it opens a before/after cleanup proposal; on a to-sort item it offers the suggested move instead. Nothing changes without your approval. (If none is highlighted now, your map is clean.)' },
-  { sel: '#round-line', title: 'The status line (bottom of the map pane)', body: 'The highlighted line summarizes what the last exchange filed. Nodes the map added or edited carry tiny “new”/“changed” chips until YOU touch them. CLICK this line for the full list of changes with jump-to-node — and “clear all marks”.' },
-  { sel: '#tabbar', title: 'Sessions (the tab bar, right pane)', body: 'The highlighted tabs are this map\u2019s sessions — each a view with its own focus and lighting. “+ session” starts one three ways — ▶ focused on a topic you pick, ⑂ forking this view, or ✳ fresh (all dimmed) — and can open a REAL Claude Code terminal bound to it. The 🗺 map-chat tab is a built-in chat that files the same way; “clean chat” resets only its screen — the map keeps everything.' },
+  // M144 (Mark): the tour is SHORT and human — seven beats, one idea each.
+  { sel: '#tree', title: 'Your map', body: 'Everything you and Claude discuss files itself here — topics, decisions, questions. You never take notes again; you just govern them.' },
+  { find: () => document.querySelector('.nrow.focused') ?? document.querySelector('.nrow'), title: '▶ Focus', body: 'One node is the FOCUS — what the conversation is about right now. Press ▶ on any row to aim it somewhere new.' },
+  { find: () => document.querySelector('.nrow'), title: '☀ Light and shade', body: 'Claude only sees what\u2019s LIT ☀. Dim a branch and it forgets it — while you still see everything. That\u2019s the whole trick: you decide what it knows.' },
+  { find: () => document.querySelector('.sdot') ?? document.querySelector('#other-btn'), title: '● Suggestions', body: 'Red dots are the map suggesting its own cleanups. Click one to see exactly what would change — nothing ever happens without your OK.' },
+  { sel: '#round-line', title: 'What just happened', body: 'This line reports every map update — click it for the full list. And anything destructive is one ↩ undo away (Ctrl/Cmd+Z).' },
+  { sel: '#tabbar', title: 'Sessions', body: 'Each tab is a session on this same map — a real Claude Code terminal or a clean chat, your pick at ＋ session.' },
+  { sel: '#legend-btn', title: 'That\u2019s it!', body: 'Three ideas: it files itself, you govern what Claude knows, nothing changes without you. Every detail lives in the reference card (next) — and 🗨 talk to map answers questions in plain words.' },
 ];
 let tourAt = -1;
 function tourStop() {

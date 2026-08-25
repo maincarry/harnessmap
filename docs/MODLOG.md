@@ -522,3 +522,9 @@ The day-one-value piece. Jacob's model ruling honored: "use a fancy model, for i
 - The silence is thorough: a session that ALREADY carries map context receives ONE final directive ("do not use, reference, or mention the map from now on") and then nothing ever; a session started while closed never hears of the map at all — no intro, no directive, total silence.
 - Surface: ⏻ close/reopen map influence (⋯ ＋more tier + mobile drawer), state-synced label; per-project setting; audited; the map guide knows the control.
 - Endpoints: GET /api/influence, POST /api/influence/toggle. Suite section 29 (10 checks incl. the one-directive-then-nothing sequence, fresh-session total silence, filing-continues via a real round, reopen restoration): 184/184. UI smoke: 137/137.
+
+## M144 — Fresh-Mac feedback: text-size control + the tour cut to seven beats (Mark, 2026-08-25)
+Mark's clean fresh-Mac install (the first stranger-path install ever) came back with two rulings:
+- 🔠 TEXT SIZE (⋯ ＋more + drawer): one control cycling small / normal / large / extra large — zoom-based so every layout relationship scales together; persisted per browser; applied at boot.
+- TUTORIAL REWRITTEN: 17 dense steps → SEVEN beats, one idea each, in plain human words ("Claude only sees what's lit ☀ — that's the whole trick: you decide what it knows"). The finale lands the three-idea summary (files itself / you govern / nothing without you) and hands off to the reference card + map guide. Note for Jacob: this reshapes the tour he governed step-by-step — Mark's later ruling supersedes; veto welcome.
+UI smoke: 143/143 (tour checks are dynamic; font cycle + persistence covered).
