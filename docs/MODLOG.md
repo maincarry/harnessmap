@@ -546,3 +546,6 @@ The Codex-style pain (many chats, evolving topics, manual pinning) inverted by o
 
 ## M149 — Chat agent's view → dev mode (Jacob, 2026-08-25)
 "Chat agent's view is a test function not a user interface function." Moved: gone from the header and the mobile drawer; lives in the dev panel as 👁 agent's view (same modal, same verbatim injection preview). The header is now: map name · project switcher · ？ · health.
+
+## M150 — Import demoted to ＋more (Jacob, 2026-08-25)
+"Import is a one time activity, it's unclear why you need it constantly on the screen. So it's clearly a other." Moved from the ⋯ everyday tier to the ＋more tier (top slot, still findable); my earlier proposal to promote it to the toolbar is withdrawn. The reference card's ⋯ row updated to actual current membership of both tiers. First-run onboarding can still OFFER import once (announce/tour) without it living on any surface.

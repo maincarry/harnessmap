@@ -373,13 +373,13 @@
           <button id="auto-lit" title="the lighting agent picks which nodes belong in the background for the current focus">☀ auto-light<span class="nudge-dot" hidden>●</span></button>
           <button id="auto-zoom" title="the zoom agent suggests which subtree to isolate — you confirm">◱ auto-zoom</button>
           <button id="map-check" title="review the whole map now — red dots for anything that needs restructuring, or a clean bill">⟳ tidy map</button>
-          <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes an organized subtree you approve">⇪ import</button>
           <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
           <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
           <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
           <button id="undo-btn" title="undo the last destructive action — delete, merge, tidy, or move (Ctrl/Cmd+Z works too)">↩ undo</button>
           <button id="other-more-btn" title="show the rest of the map functions">＋ more…<span class="nudge-dot" hidden>●</span></button>
           <div id="other-more" hidden>
+          <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes an organized subtree you approve">⇪ import</button>
           <button id="lit-all" title="light every node in the current view — all of it enters the chat agent's background">☀ light all (this view)</button>
           <button id="dim-all" title="dim every node in the current view — the chat agent stops seeing all of it (you still see everything)">◐ dim all (this view)</button>
           <button id="tidy-top" title="group and clean the top level — only here may the tidy agent propose domain containers and move top-level threads under them; you approve">⟳ tidy top level</button>
@@ -2425,7 +2425,7 @@ function openLegend() {
         <tr><td colspan="2"><hr><b>Toolbar &amp; sessions</b></td></tr>
         <tr><td>🔍 search</td><td>Ctrl/Cmd+K — find a node, confirm it with parents and children, then light / zoom / focus it</td></tr>
         <tr><td>🗨 talk to map</td><td>ask the map guide anything, or ask for changes in plain words — it proposes, you approve; complex asks become step-by-step plans</td></tr>
-        <tr><td>⋯ other</td><td>two tiers — everyday: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ⟳ tidy map · ◐ dim all outside · 🔧 dev mode; behind ＋ more: ☀/◐ light/dim all (this view) · ⟳ tidy top level · ✎ auto-rename · ☰ map preferences · ▶☀ manage</td></tr>
+        <tr><td>⋯ other</td><td>two tiers — everyday: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ⟳ tidy map · ◐ dim all outside · ▦ sessions · 🔧 dev mode · ↩ undo; behind ＋ more: ⇪ import · ☀/◐ light/dim all (this view) · ⟳ tidy top level · ✎ auto-rename · ☰ map preferences · ▶☀ manage · 🔠 text size · ⏻ close map influence</td></tr>
         <tr><td>+ session</td><td>new session, three ways: ▶ focus on a topic (pick or create the node it aims at), ⑂ fork this view (same focus+lighting), ✳ start fresh (all dimmed) — then optionally open a real Claude Code terminal bound to it. ✕ closes a tab (filings stay); ⟳ re-fits a terminal</td></tr>
         <tr><td>maps</td><td>each map is completely separate — one per repo by default; the name at the top-left switches, creates, or merges maps (irreversible)</td></tr>
         <tr><td colspan="2"><hr><b>Fine print</b> — nodes also carry a category and status under the hood (the agents use them; see and edit both in the node editor — click any node's text).</td></tr>
