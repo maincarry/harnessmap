@@ -371,7 +371,7 @@
         <div id="other-menu" hidden>
           <button id="auto-focus" title="the focus agent suggests what to talk about next — you confirm">▶ auto-focus<span class="nudge-dot" hidden>●</span></button>
           <button id="auto-lit" title="the lighting agent picks which nodes belong in the background for the current focus">☀ auto-light<span class="nudge-dot" hidden>●</span></button>
-          <button id="auto-zoom" title="the zoom agent suggests which subtree to isolate — you confirm">◱ auto-zoom</button>
+          <button id="auto-zoom" title="the zoom agent suggests which branch to view alone — you confirm">◱ auto-zoom</button>
           <button id="map-check" title="review the whole map now — red dots for anything that needs restructuring, or a clean bill">⟳ tidy map</button>
           <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
           <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
@@ -555,7 +555,7 @@ function renderTree() {
       ${sugFor(n.id) ? `<span class="sdot ${sugFor(n.id).kind === 'relight' ? 'relight' : ''}" data-sug="${n.id}" title="${sugFor(n.id).kind === 'relight' ? 'placement suggestion: the map knows where this belongs — click to approve the move' : 'the map suggests a restructure here — click to see'}">●</span>` : ''}
       <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
       <span class="rowops">
-        ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="zoom in: isolate this subtree in the view (lighting unchanged); offers a focus shift">◱</button>`}
+        ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes)">◱</button>`}
         <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? 'the conversation is focused here' : 'focus: talk about this (no zoom)'}">▶</button>
         <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? 'dim: remove from the chat agent’s background' : 'light as background (incl. everything under it)'}">☀</button>
         <button class="rowbtn" data-rowmore="${n.id}" title="more actions: favorite, home, add child, move, tidy, merge">⋯</button>
@@ -1597,7 +1597,7 @@ function openSpecialistProposal(kind) {
       <h3>${isFocus ? '▶ focus proposal' : isZoom ? '◱ zoom proposal' : '☀ lighting proposal'}</h3>
       <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">${
         isFocus ? 'the focus agent suggests what to talk about next — nothing changes until you apply'
-        : isZoom ? 'the zoom agent suggests which subtree to show — view only, nothing changes until you apply'
+        : isZoom ? 'the zoom agent suggests which branch to view alone — nothing changes until you apply'
         : 'the lighting agent suggests what the chat agent should and shouldn’t see — nothing changes until you apply'}</div>
       <div id="sp-body" style="font-size:13px;min-height:3em">…asking the ${specName} agent</div>
       <div class="actions" style="align-items:center">
@@ -1631,7 +1631,7 @@ function openSpecialistProposal(kind) {
           <div style="font-size:11px;color:var(--muted)">on the map: ${crumbs(r.containerId)}</div>
           ${already ? `<div style="margin-top:6px;color:var(--accent)">✓ this is already ${isFocus ? 'the focus' : 'your zoom'} — applying changes nothing</div>` : ''}
           ${whyBlock(r.reason)}
-          <div style="font-size:11px;color:var(--muted);margin-top:8px">apply = ${isFocus ? 'the conversation talks about this from your next message on. Your view does not change.' : 'your view shows just that subtree. Lighting and focus stay as they are.'}</div>`;
+          <div style="font-size:11px;color:var(--muted);margin-top:8px">apply = ${isFocus ? 'the conversation talks about this from your next message on. Your view does not change.' : 'you view only that branch. Nothing else changes.'}</div>`;
         applyBtn.disabled = false;
       } else {
         const r = await post(`/api/chats/${S.mainChatId}/autolit`, { preview: true, feedback, priorSummary });
@@ -1745,7 +1745,7 @@ $('lit-mgr-btn').onclick = () => {
       <div class="actions">
         <button id="lm-autolit" title="the lighting agent proposes background lighting for the current focus — you approve">☀ auto-light</button>
         <button id="lm-autofocus" title="the focus agent proposes what to talk about next — you approve">▶ auto-focus</button>
-        <button id="lm-autozoom" title="the zoom agent proposes which subtree to isolate — you approve">◱ auto-zoom</button>
+        <button id="lm-autozoom" title="the zoom agent proposes which branch to view alone — you approve">◱ auto-zoom</button>
         <button id="lm-close" class="primary" title="close this panel">done</button>
       </div>
     </div>`;
@@ -2132,7 +2132,7 @@ function openMapChat() {
       b.onclick = () => { ov.remove(); openReorganize(a.nodeId, a.nodeName, { hint: a.instruction, skipConfirm: true }); };
       card.appendChild(b);
     } else if (a.kind === 'zoom') {
-      card.textContent = `proposal: zoom the view into “${a.nodeName}” (view only — lighting and focus untouched)`;
+      card.textContent = `proposal: view only “${a.nodeName}” (nothing else changes)`;
       const b = btn('◱ approve — zoom in');
       b.onclick = async () => {
         try {
@@ -2181,7 +2181,7 @@ function openMapChat() {
       };
       card.appendChild(b);
     } else if (a.kind === 'autozoom') {
-      card.textContent = 'proposal: let the zoom agent pick which subtree to isolate';
+      card.textContent = 'proposal: let the zoom agent pick which branch to view alone';
       const b = btn('◱ open the proposal');
       b.onclick = () => { done('opened the zoom proposal ↗'); openSpecialistProposal('zoom'); };
       card.appendChild(b);
@@ -2412,7 +2412,7 @@ function openLegend() {
         <tr><td colspan="2"><b>Seeing &amp; steering</b> — what the chat agent knows, and what it talks about.</td></tr>
         <tr><td>▶ focus</td><td>what the conversation is about — ONE node, bright blue frame in the tree; the "▶ focus: …" chip above the map always points to it (click to jump, offers zoom)</td></tr>
         <tr><td>☀ light / dim</td><td>the chat agent only sees LIT nodes. ☀ toggles a node + everything under it. Dimmed branches stay visible to you — the chat agent doesn't know them, and the filer can't write into them. The focus's ancestor chain is PROTECTED: focusing lights the path upward, and dimming can't darken it while the focus runs through it</td></tr>
-        <tr><td>◱ zoom · ↑ zoom out</td><td>isolate a subtree in the VIEW — zoom never changes lighting. ◐ dim all outside (in ⋯ other) dims everything outside the zoom</td></tr>
+        <tr><td>◱ zoom · ↑ zoom out</td><td>view only one branch — nothing else changes. ◐ dim all outside (in ⋯ other) then dims everything you zoomed away from</td></tr>
         <tr><td><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</td><td>always there above the map: zooms to your home page — the whole map by default, or the node you set with the house button on its row</td></tr>
         <tr><td>📱 narrow screens</td><td>the page becomes one pane with a 🗺/💬 switcher at the bottom; ⋯ on each row opens its actions with plain-words explanations</td></tr>
         <tr><td colspan="2"><hr><b>The map speaks, you decide</b></td></tr>

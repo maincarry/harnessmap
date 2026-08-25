@@ -552,3 +552,6 @@ The Codex-style pain (many chats, evolving topics, manual pinning) inverted by o
 
 ## M151 — Plain words for focus everywhere (Jacob, 2026-08-25)
 "Don't say things like 'aim conversation on', just say 'talk about / focus on this'." Full sweep of tooltips, tour, proposal cards, modals, legend, nudges, and the dev cast: every "aim the conversation" is now "talk about this" / "what to talk about next" / "what the conversation is about". (Remaining 'aim' hits are code comments and the substring of 'claim'.)
+
+## M151b — Zoom in plain words too (Jacob, 2026-08-25)
+"The zoom description should also be simple: something like 'view only this node'." Swept: the ◱ row button is "view only this branch (nothing else changes)"; auto-zoom "suggests which branch to view alone"; proposal cards, subtitle, apply-line, and legend match. "Isolate the subtree" is gone from every user-facing string.
