@@ -159,9 +159,11 @@ export function composeState(store: Store, chatId: string, manipulations: string
     memKept.push(...b.t.memory);
   }
   if (shapeAll.length) {
-    litLines.push('  THE SHAPE (what is in the background):', ...shapeAll);
-    if (subKept.length) litLines.push('', '  THE SUBSTANCE (each point in full):', ...subKept);
-    if (memKept.length) litLines.push('', '  REMEMBERED DISCUSSIONS (deep layer):', ...memKept);
+    // Plain existing words only (Jacob: no new terminology) — titles,
+    // full statements, earlier discussion.
+    litLines.push('  titles:', ...shapeAll);
+    if (subKept.length) litLines.push('', '  in full:', ...subKept);
+    if (memKept.length) litLines.push('', '  earlier discussion:', ...memKept);
   }
 
   // 2. OPEN QUESTIONS — only from visible (focus+lit) parts of the map.
