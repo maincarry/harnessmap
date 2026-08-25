@@ -528,3 +528,6 @@ Mark's clean fresh-Mac install (the first stranger-path install ever) came back 
 - 🔠 TEXT SIZE (⋯ ＋more + drawer): one control cycling small / normal / large / extra large — zoom-based so every layout relationship scales together; persisted per browser; applied at boot.
 - TUTORIAL REWRITTEN: 17 dense steps → SEVEN beats, one idea each, in plain human words ("Claude only sees what's lit ☀ — that's the whole trick: you decide what it knows"). The finale lands the three-idea summary (files itself / you govern / nothing without you) and hands off to the reference card + map guide. Note for Jacob: this reshapes the tour he governed step-by-step — Mark's later ruling supersedes; veto welcome.
 UI smoke: 143/143 (tour checks are dynamic; font cycle + persistence covered).
+
+## M145 — Reference card: cast section removed, formatting pass (Jacob, 2026-08-25)
+"Format the reference card and delete the 'crew' description. That's for dev mode not user." The Cast/crew rows are gone from the user card (their content already lives in dev mode's who's-who box, which is the right audience); sections get consistent breathing room; the misfiled 📱 narrow-screens row moved out of Seeing & steering to sit with the view rows. Jacob also approved the 7-beat tour ("that's fine"). UI smoke: 143/143.
