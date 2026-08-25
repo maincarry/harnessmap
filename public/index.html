@@ -548,8 +548,8 @@ function renderTree() {
       <span class="caret" data-fold="${n.id}" title="${kids.length ? (folded.has(n.id) ? 'expand: show its immediate children' : 'collapse this branch') : 'nothing nested under this node yet — + adds a sub-node'}">${kids.length ? (folded.has(n.id) ? '▸' : '▾') : '·'}</span>
       ${lit.has(n.id) ? '<span class="badge lit" title="in the chat agent’s background">☀</span>' : ''}
       ${S.home === n.id ? `<span class="badge" title="home page — the home button (top of the map) zooms here">${HOME_ICO}</span>` : ''}
-      ${n.type ? `<span class="glyph">${GLYPH[n.status] ?? '·'}</span><span class="ntype" data-retype="${n.id}" title="click to change category">${esc(n.type)}</span>` : ''}
-      <span class="ncontent" data-edit="${n.id}" title="${esc(n.title && n.title !== n.content ? n.content : 'click to edit')}">${esc(disp(n))}${n.status === 'provisional' ? ' <span class="prov">⚠</span>' : ''}</span>
+
+      <span class="ncontent" data-edit="${n.id}" title="${esc(n.title && n.title !== n.content ? n.content : 'click to edit')}">${esc(disp(n))}</span>
       ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
       ${recChip(n.id)}
       ${sugFor(n.id) ? `<span class="sdot ${sugFor(n.id).kind === 'relight' ? 'relight' : ''}" data-sug="${n.id}" title="${sugFor(n.id).kind === 'relight' ? 'placement suggestion: the map knows where this belongs — click to approve the move' : 'the map suggests a restructure here — click to see'}">●</span>` : ''}
@@ -2429,9 +2429,7 @@ function openLegend() {
         <tr><td>⋯ other</td><td>two tiers — everyday: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ⟳ tidy map · ◐ dim all outside · 🔧 dev mode; behind ＋ more: ☀/◐ light/dim all (this view) · ⟳ tidy top level · ✎ auto-rename · ☰ map preferences · ▶☀ manage</td></tr>
         <tr><td>+ session</td><td>new session, three ways: ▶ focus on a topic (pick or create the node it aims at), ⑂ fork this view (same focus+lighting), ✳ start fresh (all dimmed) — then optionally open a real Claude Code terminal bound to it. ✕ closes a tab (filings stay); ⟳ re-fits a terminal</td></tr>
         <tr><td>maps</td><td>each map is completely separate — one per repo by default; the name at the top-left switches, creates, or merges maps (irreversible)</td></tr>
-        <tr><td colspan="2"><hr><b>Fine print</b> — the filer's labels (you may retype/re-status anything; blank = plain).</td></tr>
-        <tr><td>categories</td><td>claim · question · option · decision · constraint · evidence · task — or any word of your own; bold = plain heading</td></tr>
-        <tr><td>statuses</td><td>✓ settled · ○ open/active · ▢ todo · ⚠ floated/provisional (agent-proposed, not yet yours) · ∿ exploratory (tentative) · ‖ parked (on hold, agent still sees it — unlike dimming) · ✗ rejected/dropped</td></tr>
+        <tr><td colspan="2"><hr><b>Fine print</b> — nodes also carry a category and status under the hood (the agents use them; see and edit both in the node editor — click any node's text).</td></tr>
       </table>
       <div class="actions"><button id="lg-close" class="primary" title="close the legend">got it</button></div>
     </div>`;

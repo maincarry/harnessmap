@@ -540,3 +540,6 @@ The Codex-style pain (many chats, evolving topics, manual pinning) inverted by o
 
 ## M147 — Row buttons: four keys, rest folded (Jacob, 2026-08-25 — INTERIM)
 "Keep the four key ones: zoom, light, focus and delete. Make others fold unless expanded." Rows now show ◱ ▶ ☀ ⋯ ✕; the ⋯ unfolds ★ home + ↖ ⟳ ⇢ (⇧ on to-sort) inline. Legend updated. NOTE: Mark immediately raised the deeper question ("instead of fold let's rethink what is actually needed for a MVP that user loves") — this fold ships as the interim de-clutter while that rethink (the radical-cut proposal, delivered to Discord) is decided.
+
+## M148 — Categories + statuses off the rows (Jacob, 2026-08-25)
+"Delete the categories and status. They are substantially irrelevant, as user can read them in description/title." DISPLAY removal, data intact: rows lose the category chip, status glyph, and ⚠ — desktop rows now read like mobile's (M135b): a name, actionable signals only. The ontology keeps working underneath (the filer types/statuses everything, the agents' injected view still renders them, the node editor still shows and edits both). Reference card's category/status tables collapse to one fine-print line pointing at the editor.
