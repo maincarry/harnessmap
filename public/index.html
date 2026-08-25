@@ -21,6 +21,8 @@
   body { margin: 0; font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink);
          display: grid; grid-template-columns: var(--split, 40%) 6px 1fr; height: 100vh; }
   #splitter { cursor: col-resize; background: var(--hair); position: relative; }
+  #zoom-tools #map-chat, #map-chat { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; padding: 6px 16px; }
+  #zoom-tools #map-chat:hover { filter: brightness(1.12); }
   /* M133 (Jacob): mobile — one pane at a time, bottom switcher. body.mobile
      is set by JS from viewport width so tests can drive it deterministically. */
   body.mobile { grid-template-columns: 1fr; grid-template-rows: 1fr 52px; }
@@ -142,7 +144,11 @@
   .folded-line { display: flex; }
   .nrow:hover { background: var(--user); }
   /* the focus: one bright frame — nothing else changes */
-  .nrow.focused { border: 2px solid var(--accent); border-radius: 6px; padding-top: 0; padding-bottom: 0; }
+  .nrow.focused { border: 2px solid var(--accent); border-radius: 6px; padding-top: 0; padding-bottom: 0;
+                  background: color-mix(in srgb, var(--accent) 9%, transparent); }
+  .nrow.focused .ncontent { font-weight: 600; }
+  .fmark { color: var(--accent); font-weight: 700; margin-right: 2px; flex: none; }
+  body.mobile .fmark { margin-right: 6px; }
   /* M112: "to sort" is a TRAY, not a topic — separated, dashed, always last */
   .nrow.tosort { margin-top: 14px; border: 1px dashed var(--hair); border-radius: 8px;
                  background: color-mix(in srgb, var(--panel) 60%, var(--bg)); padding-top: 3px; padding-bottom: 3px; }
@@ -362,9 +368,9 @@
     </header>
     <div id="crumbs"></div>
     <div id="zoom-tools">
+      <button id="map-chat" title="confused, or want anything done? Ask in plain words — the map guide explains and proposes; you approve">🗨 talk to map</button>
       <button id="home-btn" title="zoom to the home page (the whole map unless you set a node as home on its row)"><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</button>
       <button id="zoom-out" title="zoom out one level, to the parent node">↑ zoom out</button>
-      <button id="map-chat" title="talk to the map guide — ask why something is filed where it is, how to clean up, what a control does">🗨 talk to map</button>
       <button id="search-btn" title="find a node (Ctrl/Cmd+K) — confirm it with its parents and children, then light, zoom, or focus it">🔍 search</button>
       <div id="other-wrap" style="position:relative;margin-left:auto">
         <button id="other-btn" title="all other map functions">⋯ other<span class="nudge-dot" hidden>●</span></button>
@@ -549,6 +555,7 @@ function renderTree() {
       ${lit.has(n.id) ? '<span class="badge lit" title="in the chat agent’s background">☀</span>' : ''}
       ${S.home === n.id ? `<span class="badge" title="home page — the home button (top of the map) zooms here">${HOME_ICO}</span>` : ''}
 
+      ${n.id === focus ? '<span class="fmark" title="the conversation is talking about this">▶</span>' : ''}
       <span class="ncontent" data-edit="${n.id}" title="${esc(n.title && n.title !== n.content ? n.content : 'click to edit')}">${esc(disp(n))}</span>
       ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
       ${recChip(n.id)}

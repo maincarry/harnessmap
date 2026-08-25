@@ -562,3 +562,9 @@ Canonized as DESIGN.md §0 (the governing statement), and every product-explaini
 
 ## M153 — Tour teaches the map + its three moves (Jacob, 2026-08-25)
 "The tutorial should let the user know exactly the idea of the three core functions: zoom, focus, and light/dim. Also do not introduce 'suggestions'... instead introduce that other functions are hidden in other." Rebuilt: map → ▶ focus (talk about this) → ☀ light (keep in mind) → ◱ zoom (view only this) → "everything else is in ⋯ / each row's ⋯ / or ask 🗨 in plain words, all undoable" → sessions → finale restating the three moves. The dots beat is gone (dots explain themselves on click). CHANGELOG-LINE refreshed (it was stale from the sessions-tabs era — users see this line on update).
+
+## M154 — 🗨 talk to map is THE button (Jacob, 2026-08-25)
+"Make the Talk to agent a major, distinct button, for this is the fallback for everything if the user is confused." Promoted: first position in the toolbar, filled accent style (the only filled button on the page), tooltip reframed as the universal fallback ("confused, or want anything done? Ask in plain words"). Mobile already had this via the composer.
+
+## M155 — Focus made unmistakable (Mark, 2026-08-25)
+"The focus button should have a matching icon. Then when the user focus on one node, we need a UI showing it is focused. We need it to be more clear." The ▶ icon now travels: the row button, the chip, and — new — a persistent accent ▶ mark on the focused row itself, whose treatment strengthened to accent frame + tinted background + bold name (mobile keeps its accent bar + colored text, now with the ▶ mark too). Pressing ▶ and seeing ▶ appear is the icon-to-state match Mark asked for. Verified by desktop render.
