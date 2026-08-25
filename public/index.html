@@ -2649,14 +2649,15 @@ const findRow = (pred) => {
   return n ? document.querySelector(`[data-edit="${n.id}"]`)?.closest('.nrow') : null;
 };
 const TOUR = [
-  // M144 (Mark): the tour is SHORT and human — seven beats, one idea each.
-  { sel: '#tree', title: 'Your map', body: 'Everything you and Claude discuss files itself here — topics, decisions, questions. You never take notes again; you just govern them.' },
-  { find: () => document.querySelector('.nrow.focused') ?? document.querySelector('.nrow'), title: '▶ Focus', body: 'One node is the FOCUS — what the conversation is about right now. Press ▶ on any row to talk about something else.' },
-  { find: () => document.querySelector('.nrow'), title: '☀ Light and shade', body: 'Claude only sees what\u2019s LIT ☀. Dim a branch and it forgets it — while you still see everything. That\u2019s the whole trick: you decide what it knows.' },
-  { find: () => document.querySelector('.sdot') ?? document.querySelector('#other-btn'), title: '● Suggestions', body: 'Red dots are the map suggesting its own cleanups. Click one to see exactly what would change — nothing ever happens without your OK.' },
-  { sel: '#round-line', title: 'What just happened', body: 'This line reports every map update — click it for the full list. And anything destructive is one ↩ undo away (Ctrl/Cmd+Z).' },
+  // M153 (Jacob): teach the map + its three moves; no "suggestions" beat —
+  // newcomers learn that everything else hides in ⋯.
+  { sel: '#tree', title: 'Your map', body: 'Everything you and Claude discuss files itself here — topics, decisions, questions. You never take notes; the map takes them for you.' },
+  { find: () => document.querySelector('.nrow.focused') ?? document.querySelector('.nrow'), title: '▶ Focus — talk about this', body: 'One node is what the conversation is about right now. Press ▶ on any row and Claude talks about that instead.' },
+  { find: () => document.querySelector('.nrow'), title: '☀ Light — keep it in mind', body: 'Claude only sees what\u2019s lit ☀. Dim a branch and Claude forgets it — you still see everything. You decide what it knows.' },
+  { find: () => document.querySelector('.nrow'), title: '◱ Zoom — view only this', body: '◱ shows just one branch on your screen. It changes what YOU see, never what Claude sees.' },
+  { sel: '#other-btn', title: 'Everything else is in here', body: 'All other functions hide under ⋯ (and under each row\u2019s ⋯) until you want them. Or skip the buttons entirely: 🗨 talk to map does anything in plain words — and everything is undoable (Ctrl/Cmd+Z).' },
   { sel: '#tabbar', title: 'Sessions', body: 'Each tab is a session on this same map — a real Claude Code terminal or a clean chat, your pick at ＋ session.' },
-  { sel: '#legend-btn', title: 'That\u2019s it — three things', body: 'One: it\u2019s a MAP of your work that files itself. Two: FOCUS ▶ — talk about this. Three: LIGHT ☀ — keep it in the background, or dim it away. Everything else follows. Details: the reference card (next); questions: 🗨 in plain words.' },
+  { sel: '#legend-btn', title: 'That\u2019s it', body: 'A map that files itself, and three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (view only this). The rest follows. Details: the reference card (next); questions: 🗨.' },
 ];
 let tourAt = -1;
 function tourStop() {
