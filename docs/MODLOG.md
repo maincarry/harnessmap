@@ -543,3 +543,6 @@ The Codex-style pain (many chats, evolving topics, manual pinning) inverted by o
 
 ## M148 — Categories + statuses off the rows (Jacob, 2026-08-25)
 "Delete the categories and status. They are substantially irrelevant, as user can read them in description/title." DISPLAY removal, data intact: rows lose the category chip, status glyph, and ⚠ — desktop rows now read like mobile's (M135b): a name, actionable signals only. The ontology keeps working underneath (the filer types/statuses everything, the agents' injected view still renders them, the node editor still shows and edits both). Reference card's category/status tables collapse to one fine-print line pointing at the editor.
+
+## M149 — Chat agent's view → dev mode (Jacob, 2026-08-25)
+"Chat agent's view is a test function not a user interface function." Moved: gone from the header and the mobile drawer; lives in the dev panel as 👁 agent's view (same modal, same verbatim injection preview). The header is now: map name · project switcher · ？ · health.

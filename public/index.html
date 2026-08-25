@@ -356,7 +356,7 @@
     <header><span class="htitle">the map</span>
       <select id="proj-sel" class="hbtn" title="switch map — each map is completely separate"></select>
       <button class="hbtn" id="legend-btn" title="tutorial: a guided walk through every part of the map (the reference card is at the end)">?</button>
-      <button class="hbtn" id="ctx-btn" title="see the exact map description the CHAT agent receives next turn (the assistant you talk to — as opposed to the map agent that does the filing)">chat agent's view</button>
+      <button class="hbtn" id="ctx-btn" hidden title="see the exact map description the CHAT agent receives next turn">chat agent's view</button>
       <span id="beat" title="the turn lifecycle: message seen → agent replying → filed onto the map" style="margin-left:auto;font-weight:400;font-size:12px;color:var(--muted)">waiting for activity</span>
       <span class="lag" id="lag" style="margin-left:10px">map current</span>
     </header>
@@ -911,7 +911,6 @@ function openDrawer() {
     <div class="dr-h">more</div>
     ${act('auto-rename', '✎', 'auto-rename')}
     ${act('prefs-btn', '☰', 'map preferences')}
-    ${act('ctx-btn', '👁', "chat agent's view")}
     ${act('legend-btn', '?', 'tutorial & reference')}
     ${act('dev-btn', '🔧', 'dev mode')}
   </div>`;
@@ -2826,7 +2825,8 @@ async function openDevPanel() {
   panel.id = 'dev-panel';
   panel.innerHTML = `<h4>🔧 dev mode — agent traces (newest first, local only)
     <select id="dev-filter" class="hbtn" data-tip="show only one kind of row"><option value="">everything</option></select>
-    <button id="dev-mobile" class="hbtn" style="margin-left:auto" data-tip="open the app in an iPhone-sized frame (402×874) — the real mobile presentation, live on this same map">📱 test mobile</button>
+    <button id="dev-ctx" class="hbtn" style="margin-left:auto" data-tip="the exact map description the chat agent receives on its next turn — verbatim">👁 agent's view</button>
+    <button id="dev-mobile" class="hbtn" data-tip="open the app in an iPhone-sized frame (402×874) — the real mobile presentation, live on this same map">📱 test mobile</button>
     <button id="dev-off" class="hbtn" data-tip="stop recording and close">■ turn off</button>
     <button id="dev-close" class="hbtn" data-tip="close the panel (keeps recording)">✕ close</button></h4>
     <div style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 8px;padding:6px 8px;border:1px solid var(--line,#2a2e37);border-radius:6px">
@@ -2869,6 +2869,7 @@ async function openDevPanel() {
   };
   $('dev-filter').onchange = refresh;
   panel.querySelector('#dev-mobile').onclick = () => openPhoneSim();
+  panel.querySelector('#dev-ctx').onclick = () => $('ctx-btn').click();
   $('dev-close').onclick = closeDevPanel;
   $('dev-off').onclick = async () => { await post('/api/dev/toggle', {}); closeDevPanel(); $('round-line').textContent = 'dev mode off — recording stopped (traces kept until restart cap)'; };
   await refresh();
