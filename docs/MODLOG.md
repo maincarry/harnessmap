@@ -531,3 +531,6 @@ UI smoke: 143/143 (tour checks are dynamic; font cycle + persistence covered).
 
 ## M145 — Reference card: cast section removed, formatting pass (Jacob, 2026-08-25)
 "Format the reference card and delete the 'crew' description. That's for dev mode not user." The Cast/crew rows are gone from the user card (their content already lives in dev mode's who's-who box, which is the right audience); sections get consistent breathing room; the misfiled 📱 narrow-screens row moved out of Seeing & steering to sit with the view rows. Jacob also approved the 7-beat tour ("that's fine"). UI smoke: 143/143.
+
+## M145b — The map guide is the comprehension fallback (Jacob, 2026-08-25)
+On the mind-map feedback: "we don't have the ability to design that more complex UI... there is a very easy solution for the user who is extra impatient: just talk to the map guide." Agreed and leaned in: the guide's prompt now handles disoriented newcomer questions ("what am I looking at?") with a friendly 20-second orientation grounded in the user's own node names. Spatial view stays parked (with a note: if ever prioritized, the visual could be prototyped in Lovable and ported — their GitHub sync direction already established).
