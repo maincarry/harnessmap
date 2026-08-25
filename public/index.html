@@ -2850,13 +2850,19 @@ async function openDevPanel() {
   closeDevPanel();
   const panel = document.createElement('div');
   panel.id = 'dev-panel';
-  panel.innerHTML = `<h4>🔧 dev mode — agent traces (newest first, local only)
-    <select id="dev-filter" class="hbtn" data-tip="show only one kind of row"><option value="">everything</option></select>
-    <button id="dev-ctx" class="hbtn" style="margin-left:auto" data-tip="the exact map description the chat agent receives on its next turn — verbatim">👁 agent's view</button>
+  panel.innerHTML = `<h4 style="display:flex;align-items:center;gap:8px">🔧 dev mode
+    <button id="dev-close" class="hbtn" style="margin-left:auto" data-tip="close the panel (keeps recording)">✕ close</button></h4>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;padding:2px 0 8px;border-bottom:1px solid var(--hair)">
+    <button id="dev-ctx" class="hbtn" data-tip="the exact map description the chat agent receives on its next turn — verbatim">👁 agent's view</button>
     <button id="dev-mobile" class="hbtn" data-tip="open the app in an iPhone-sized frame (402×874) — the real mobile presentation, live on this same map">📱 test mobile</button>
-    <button id="dev-off" class="hbtn" data-tip="stop recording and close">■ turn off</button>
-    <button id="dev-close" class="hbtn" data-tip="close the panel (keeps recording)">✕ close</button></h4>
-    <div style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 8px;padding:6px 8px;border:1px solid var(--line,#2a2e37);border-radius:6px">
+    <button id="dev-bug" class="hbtn" data-tip="report a bug or suggestion — opens a pre-filled GitHub issue you review and submit yourself; nothing is sent automatically">🐞 report a bug</button>
+    <button id="dev-off" class="hbtn" data-tip="stop recording traces and close dev mode">■ stop recording</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:8px 0 4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">
+    traces — every agent call and injection, newest first, stored only on this machine
+    <select id="dev-filter" class="hbtn" style="margin-left:auto;text-transform:none;letter-spacing:0" data-tip="show only one kind of row"><option value="">everything</option></select>
+  </div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;margin:8px 0;padding:6px 8px;border:1px solid var(--line,#2a2e37);border-radius:6px">
       <b>Who’s who.</b> Your <b>chat agent</b> is the Claude Code session in the tab — a separate session the server never prompts. It meets the map two ways only: <b>⇢ inject</b> rows (the server slips map context into its next turn) and observation (the server reads its replies afterward to file them). Every <b>→</b> row is the server prompting a one-shot <b>map specialist</b> — no session, no memory of its own; the full prompt it saw is right there in the row.
     </div>
     <div id="dev-rows"><div style="color:var(--muted);font-size:12px">recording… traces appear here as the map agents run. Send a message in a session or press an auto-button to generate some.</div></div>`;
@@ -2897,6 +2903,11 @@ async function openDevPanel() {
   $('dev-filter').onchange = refresh;
   panel.querySelector('#dev-mobile').onclick = () => openPhoneSim();
   panel.querySelector('#dev-ctx').onclick = () => $('ctx-btn').click();
+  panel.querySelector('#dev-bug').onclick = () => {
+    const body = `What happened:\n\nWhat I expected:\n\n---\nharnessmap ${S.version ?? ''} · reported from dev mode (user-initiated)`;
+    window.open(`https://github.com/maincarry/harnessmap/issues/new?body=${encodeURIComponent(body)}`, '_blank');
+    $('round-line').textContent = '🐞 opened a pre-filled issue in your browser — nothing is sent until you submit it there';
+  };
   $('dev-close').onclick = closeDevPanel;
   $('dev-off').onclick = async () => { await post('/api/dev/toggle', {}); closeDevPanel(); $('round-line').textContent = 'dev mode off — recording stopped (traces kept until restart cap)'; };
   await refresh();

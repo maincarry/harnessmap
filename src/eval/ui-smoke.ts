@@ -145,6 +145,7 @@ await click($('dev-btn'), '🔧 dev mode on + panel', 600);
 check('dev panel opened', !!$('dev-panel'));
 const dm = document.querySelector('#dev-mobile') as any;
 check('dev panel has 📱 test mobile', !!dm);
+check('dev panel reorganized: tools row has 👁 + 🐞 (M159)', !!document.querySelector('#dev-ctx') && !!document.querySelector('#dev-bug'));
 await click(dm, '📱 opens iPhone frame');
 const pframe: any = document.querySelector('#phone-frame iframe');
 check('iPhone-size frame with live app iframe', !!pframe && pframe.getAttribute('src') === '/');
