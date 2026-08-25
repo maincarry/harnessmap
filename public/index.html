@@ -2924,6 +2924,14 @@ async function openDevPanel() {
 }
 $('dev-btn').onclick = async () => {
   $('other-menu').hidden = true;
+  // M159c (Jacob): "dev mode are for us" — a simple gate, not security (the
+  // code is public and the data is the user's own): it keeps ordinary users
+  // out of developer tooling.
+  if (!localStorage.getItem('hm-dev-ok')) {
+    const pw = prompt('dev mode is for the developers — password:');
+    if (pw !== 'marco123') { if (pw !== null) $('round-line').textContent = 'dev mode is for the developers'; return; }
+    localStorage.setItem('hm-dev-ok', '1');
+  }
   if ($('dev-panel')) { closeDevPanel(); return; }
   const st = await post2get('/api/dev');
   if (!st.on) await post('/api/dev/toggle', {});

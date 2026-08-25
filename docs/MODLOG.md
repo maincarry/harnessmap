@@ -599,3 +599,6 @@ Slice 4 shipped too — the proof: suite section 32 works a branch in one chat, 
 
 ## M159b — Feedback LIST in dev mode; users never need dev mode (Jacob, 2026-08-25)
 Correction to M159: "No the report a bug, but the list of reported bugs. Users should not go to dev mode in the full version." Right: the USER path is the guide only (it offers reporting when something looks serious); dev mode carries the LIST — a "reported feedback" section showing everything the user chose to report (recorded locally at the moment they open the pre-filled issue; timestamp + source + text). The 🐞 button is removed from dev mode. New: local feedback table, POST/GET /api/feedback. Suite section 33 + smoke updated: 196/150 green.
+
+## M159c — Dev mode gated (Jacob, 2026-08-25)
+"Simply put, dev mode are for us. In fact just set a password for dev mode for now. Let it be marco123." A prompt gate on 🔧 (remembered per browser once entered). Stated honestly: this is a speed bump keeping ordinary users out of developer tooling, not security — the code is public and the data is already the user's own, local.

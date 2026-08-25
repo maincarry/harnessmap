@@ -141,6 +141,7 @@ document.querySelectorAll('.overlay').forEach((o: any) => o.remove());
 
 // ---------- dev mode ----------
 if ($('other-menu')!.hasAttribute('hidden')) await click($('other-btn'), '⋯ open (dev)', 80);
+window.localStorage.setItem('hm-dev-ok', '1'); // pass the founders' gate (M159c)
 await click($('dev-btn'), '🔧 dev mode on + panel', 600);
 check('dev panel opened', !!$('dev-panel'));
 const dm = document.querySelector('#dev-mobile') as any;
