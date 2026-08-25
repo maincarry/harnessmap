@@ -374,6 +374,16 @@ export class Store {
       .map((r) => ({ id: r.id, label: r.label, createdAt: r.created_at }));
   }
 
+  // M159b: local feedback log — what the user chose to report (never sent
+  // anywhere by us; the GitHub issue is theirs to submit).
+  addFeedback(text: string, source: string): void {
+    this.db.prepare('INSERT INTO feedback (text, source) VALUES (?, ?)').run(text.slice(0, 1000), source);
+  }
+  listFeedback(limit = 50): { id: number; text: string; source: string; createdAt: string }[] {
+    return (this.db.prepare('SELECT * FROM feedback ORDER BY id DESC LIMIT ?').all(limit) as any[])
+      .map((r) => ({ id: r.id, text: r.text, source: r.source, createdAt: r.created_at }));
+  }
+
   // M113: dev traces — full prompts/responses, ring-capped, local only.
   addTrace(t: { kind: string; task: string; model?: string; backend?: string; ms?: number; ok?: boolean; system?: string; user?: string; response?: string }): void {
     this.db.prepare('INSERT INTO dev_traces (kind, task, model, backend, ms, ok, system, user, response) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')

@@ -2194,6 +2194,7 @@ function openMapChat() {
       const b = btn('🐞 open a GitHub issue (you review and submit it)');
       b.onclick = () => {
         const body = `${a.instruction}\n\n---\nharnessmap ${S.version ?? ''} · reported via talk-to-map (user-initiated)`;
+        post('/api/feedback', { text: a.instruction, source: 'talk-to-map' }).catch(() => {});
         window.open(`https://github.com/maincarry/harnessmap/issues/new?title=${encodeURIComponent(a.instruction.slice(0, 70))}&body=${encodeURIComponent(body)}`, '_blank');
         done('✓ opened a pre-filled issue in your browser — nothing is sent until you submit it there');
       };
@@ -2855,8 +2856,11 @@ async function openDevPanel() {
   <div style="display:flex;gap:6px;flex-wrap:wrap;padding:2px 0 8px;border-bottom:1px solid var(--hair)">
     <button id="dev-ctx" class="hbtn" data-tip="the exact map description the chat agent receives on its next turn — verbatim">👁 agent's view</button>
     <button id="dev-mobile" class="hbtn" data-tip="open the app in an iPhone-sized frame (402×874) — the real mobile presentation, live on this same map">📱 test mobile</button>
-    <button id="dev-bug" class="hbtn" data-tip="report a bug or suggestion — opens a pre-filled GitHub issue you review and submit yourself; nothing is sent automatically">🐞 report a bug</button>
     <button id="dev-off" class="hbtn" data-tip="stop recording traces and close dev mode">■ stop recording</button>
+  </div>
+  <div id="dev-fb-wrap" hidden>
+    <div style="padding:8px 0 4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">reported feedback (what the user chose to report — recorded here only)</div>
+    <div id="dev-fb" style="font-size:12px;max-height:16vh;overflow-y:auto"></div>
   </div>
   <div style="display:flex;align-items:center;gap:8px;padding:8px 0 4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">
     traces — every agent call and injection, newest first, stored only on this machine
@@ -2903,11 +2907,16 @@ async function openDevPanel() {
   $('dev-filter').onchange = refresh;
   panel.querySelector('#dev-mobile').onclick = () => openPhoneSim();
   panel.querySelector('#dev-ctx').onclick = () => $('ctx-btn').click();
-  panel.querySelector('#dev-bug').onclick = () => {
-    const body = `What happened:\n\nWhat I expected:\n\n---\nharnessmap ${S.version ?? ''} · reported from dev mode (user-initiated)`;
-    window.open(`https://github.com/maincarry/harnessmap/issues/new?body=${encodeURIComponent(body)}`, '_blank');
-    $('round-line').textContent = '🐞 opened a pre-filled issue in your browser — nothing is sent until you submit it there';
-  };
+  (async () => {
+    try {
+      const fb = await post2get('/api/feedback');
+      if ((fb.entries ?? []).length) {
+        panel.querySelector('#dev-fb-wrap').hidden = false;
+        panel.querySelector('#dev-fb').innerHTML = fb.entries.map(e =>
+          `<div style="padding:4px 0;border-top:1px solid var(--hair)"><span style="color:var(--muted);font-size:11px">${esc(new Date(e.createdAt + 'Z').toLocaleString())} · ${esc(e.source)}</span><br>${esc(e.text.slice(0, 200))}</div>`).join('');
+      }
+    } catch {}
+  })();
   $('dev-close').onclick = closeDevPanel;
   $('dev-off').onclick = async () => { await post('/api/dev/toggle', {}); closeDevPanel(); $('round-line').textContent = 'dev mode off — recording stopped (traces kept until restart cap)'; };
   await refresh();

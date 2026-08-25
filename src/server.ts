@@ -1306,6 +1306,18 @@ const server = Bun.serve({
       return json({ ok: true, text });
     }
 
+    // M159b: feedback log — local record of what the user chose to report.
+    if (path === '/api/feedback' && req.method === 'POST') {
+      const b = await req.json() as { text?: string; source?: string };
+      if (!b.text?.trim()) return json({ error: 'empty' }, 400);
+      store.addFeedback(b.text.trim(), (b.source ?? 'guide').slice(0, 30));
+      store.audit('feedback_recorded', { source: b.source ?? 'guide' });
+      return json({ ok: true });
+    }
+    if (path === '/api/feedback' && req.method === 'GET') {
+      return json({ entries: store.listFeedback() });
+    }
+
     // M113: dev mode — toggle + traces.
     if (path === '/api/dev' && req.method === 'GET') {
       return json({ on: store.getSetting('dev_mode') === '1' });

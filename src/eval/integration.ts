@@ -937,6 +937,13 @@ console.log('\n== 32. cold-branch resume via lit memory (M156 slice 4) ==');
   check('cold-lit branch delivered the planted details (1:5:5 + 24C)', /1\s*:\s*5\s*:\s*5/.test(txt) && /24/.test(txt));
 }
 
+console.log('\n== 33. feedback log (M159b) ==');
+{
+  const f1 = await post('/api/feedback', { text: 'the tidy proposal froze on a 200-node branch', source: 'talk-to-map' });
+  check('feedback records locally', f1.status === 200 && (await get('/api/feedback')).entries.some((e: any) => /froze/.test(e.text)));
+  check('empty feedback refused', (await post('/api/feedback', { text: '' })).status === 400);
+}
+
 console.log('\n== 13. audit ==');
 {
   const a = await get('/api/audit?limit=10');
