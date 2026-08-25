@@ -549,3 +549,6 @@ The Codex-style pain (many chats, evolving topics, manual pinning) inverted by o
 
 ## M150 — Import demoted to ＋more (Jacob, 2026-08-25)
 "Import is a one time activity, it's unclear why you need it constantly on the screen. So it's clearly a other." Moved from the ⋯ everyday tier to the ＋more tier (top slot, still findable); my earlier proposal to promote it to the toolbar is withdrawn. The reference card's ⋯ row updated to actual current membership of both tiers. First-run onboarding can still OFFER import once (announce/tour) without it living on any surface.
+
+## M151 — Plain words for focus everywhere (Jacob, 2026-08-25)
+"Don't say things like 'aim conversation on', just say 'talk about / focus on this'." Full sweep of tooltips, tour, proposal cards, modals, legend, nudges, and the dev cast: every "aim the conversation" is now "talk about this" / "what to talk about next" / "what the conversation is about". (Remaining 'aim' hits are code comments and the substring of 'claim'.)
