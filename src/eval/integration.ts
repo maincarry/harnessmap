@@ -883,16 +883,52 @@ console.log('\n== 31. touched-node memory (M156 slice 1) ==');
   const herb = s31.nodes.find((n: any) => n.content === 'balcony herb garden')?.id;
   await post(`/api/chats/${mainCh31}/focus`, { nodeId: herb });
   await observe('s-def', 'for the balcony herb garden: basil needs the sunniest corner, mint must stay in its own pot or it takes over', 'Agreed: basil in the south corner; mint contained in a separate pot — it spreads aggressively through shared soil.');
-  await sleep(6000); // async memory batch settles
+  // async memory batch settles — poll up to 25s (two model calls can queue)
   const kids31 = (await state()).nodes.filter((n: any) => n.parentId === herb);
   let touchedMem = false;
-  for (const k of kids31) {
-    const m = await get(`/api/nodes/${k.id}/memory`);
-    if ((m.memory ?? m.text ?? '').length > 20) { touchedMem = true; break; }
+  for (let i = 0; i < 5 && !touchedMem && kids31.length; i++) {
+    await sleep(5000);
+    for (const k of kids31) {
+      const m = await get(`/api/nodes/${k.id}/memory`);
+      if ((m.memory ?? m.text ?? '').length > 20) { touchedMem = true; break; }
+    }
   }
   const focusMem = await get(`/api/nodes/${herb}/memory`);
   check('focus node accumulated memory (M41 baseline)', ((focusMem.memory ?? focusMem.text ?? '') as string).length > 20);
   check('a touched NON-focus node accumulated memory too (M156)', kids31.length === 0 || touchedMem);
+}
+
+console.log('\n== 32. cold-branch resume via lit memory (M156 slice 4) ==');
+{
+  // Work a branch, then ask about it from a FRESH chat that never saw the
+  // conversation — all-dim, no window, no rolling summary. Light the branch:
+  // the injected tier stack is the ONLY route to the planted details.
+  let s32 = await state();
+  await post('/api/nodes', { content: 'sourdough starter care' });
+  s32 = await state();
+  const sour = s32.nodes.find((n: any) => n.content === 'sourdough starter care')?.id;
+  await post(`/api/chats/${s32.mainChatId}/focus`, { nodeId: sour });
+  await observe('s-def', 'for the sourdough starter: we settled the feed ratio at 1:5:5 and the jar temperature at 24C, right?', 'Yes — 1:5:5 flour:water:starter, and hold the jar at 24C; cooler slows fermentation noticeably.');
+  await sleep(6000); // memory batch settles
+
+  const fc = await post('/api/chats', { mode: 'fresh' });
+  const freshCh = fc.body.chatId ?? fc.body.id;
+  await post(`/api/chats/${freshCh}/lit`, { nodeId: sour, on: true });
+  const events32: any[] = [];
+  const ws32 = new WebSocket(`ws://127.0.0.1:${PORT}/ws`);
+  ws32.onmessage = (ev: any) => { try { events32.push(JSON.parse(ev.data)); } catch {} };
+  await new Promise((r) => { ws32.onopen = r; setTimeout(r, 3000); });
+  await post(`/api/chats/${freshCh}/messages`, { text: 'quick check from a clean slate: what feed ratio and jar temperature did we settle on for the sourdough starter?' });
+  const t0 = Date.now();
+  let reply32: any = null;
+  while (Date.now() - t0 < 90_000 && !reply32) {
+    reply32 = events32.find((e) => e.type === 'turn' && e.role === 'assistant' && e.chatId === freshCh);
+    await sleep(1000);
+  }
+  ws32.close();
+  const txt = reply32?.content ?? '';
+  check('fresh chat answered at all', txt.length > 20);
+  check('cold-lit branch delivered the planted details (1:5:5 + 24C)', /1\s*:\s*5\s*:\s*5/.test(txt) && /24/.test(txt));
 }
 
 console.log('\n== 13. audit ==');

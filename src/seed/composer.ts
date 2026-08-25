@@ -109,36 +109,59 @@ export function composeState(store: Store, chatId: string, manipulations: string
   const litSet = new Set(store.getLit(chatId));
   const topLit = freshestFirst([...litSet].filter((id) =>
     !focusSubtree.has(id) && store.getNode(id) && !litSet.has(store.getNode(id)!.parentId ?? '')));
-  // M156 slice 2 (Jacob's ruling: THE HIERARCHY IS THE ATTENTION PATTERN —
-  // no separate depth rules). A lit branch renders hierarchically: the HEAD
-  // carries the full tier stack (description, fit, remembered discussion);
-  // its children appear as titles; anything deeper is a count. Depth belongs
-  // to focus — light says "keep this in mind", not "read all of this".
-  const litBlock = (id: string): string[] => {
-    const n = store.getNode(id);
-    if (!n || n.status === 'removed') return [];
-    const label = n.title && n.title !== n.content ? `${n.title}: ` : '';
-    const lines = [`  • ${label}${n.content}${n.type ? ` [${n.type}, ${n.status}]` : ''}`];
-    const rel = store.getCachedRelation(id);
-    if (rel) lines.push(`    (fits: ${rel.split('\n')[0].slice(0, 200)})`);
-    const mem = getNodeMemory(store, id);
-    if (mem) lines.push(`    (remembered: ${mem.slice(0, 400)})`);
-    for (const kid of store.childrenOf(id)) {
-      if (!litSet.has(kid.id) || kid.status === 'removed') continue;
-      const inside = store.childrenOf(kid.id).filter((g) => g.status !== 'removed' && litSet.has(g.id)).length;
-      const kidLabel = kid.title || (kid.content.length > 90 ? kid.content.slice(0, 89) + '…' : kid.content);
-      lines.push(`    - ${kidLabel}${inside ? ` (+${inside} inside)` : ''}`);
-    }
-    return lines;
+  // M156 slice 2, corrected per Jacob: lit branches get FULL ACCESS with
+  // TIERED ATTENTION — one importance ranking used twice. Reading order:
+  // titles (the shape) → descriptions + fit (the substance) → remembered
+  // discussions. Budget order: the same ranking bottom-up — discussions are
+  // dropped first, then substance (stalest branch first), titles last. What
+  // is always present in attention is the last dropped.
+  type LitTiers = { shape: string[]; substance: string[]; memory: string[] };
+  const litTiers = (id: string): LitTiers => {
+    const t: LitTiers = { shape: [], substance: [], memory: [] };
+    const walk = (nid: string, depth: number) => {
+      const n = store.getNode(nid);
+      if (!n || n.status === 'removed' || !litSet.has(nid)) return;
+      const pad = '  '.repeat(depth + 1);
+      const short = n.title || (n.content.length > 70 ? n.content.slice(0, 69) + '…' : n.content);
+      t.shape.push(`${pad}- ${short}`);
+      const label = n.title && n.title !== n.content ? `${n.title}: ` : '';
+      t.substance.push(`${pad}• ${label}${n.content}${n.type ? ` [${n.type}, ${n.status}]` : ''}`);
+      const rel = depth === 0 ? store.getCachedRelation(nid) : null;
+      if (rel) t.substance.push(`${pad}  (fits: ${rel.split('\n')[0].slice(0, 200)})`);
+      const mem = getNodeMemory(store, nid);
+      if (mem) t.memory.push(`${pad}${short} — remembered: ${mem.slice(0, 400)}`);
+      for (const kid of store.childrenOf(nid)) walk(kid.id, depth + 1);
+    };
+    walk(id, 0);
+    return t;
   };
+  const branchTiers = topLit.map((id) => ({ id, t: litTiers(id) }));
+  // Tier 1 — the shape: always present (titles are cheap; last to ever drop).
   const litLines: string[] = [];
   let litOmitted = 0;
-  for (const id of topLit) {
-    const block = litBlock(id);
-    const size = block.join('\n').length;
+  const shapeAll = branchTiers.flatMap((b) => b.t.shape);
+  budget -= shapeAll.join('\n').length;
+  // Tier 2 — substance per branch, freshest kept when short.
+  const subKept: string[] = [];
+  for (const b of branchTiers) {
+    const size = b.t.substance.join('\n').length;
     if (budget - size < 0) { litOmitted++; continue; }
     budget -= size;
-    litLines.push(...block);
+    subKept.push(...b.t.substance);
+  }
+  // Tier 3 — remembered discussions, first to go under pressure.
+  const memKept: string[] = [];
+  for (const b of branchTiers) {
+    if (!b.t.memory.length) continue;
+    const size = b.t.memory.join('\n').length;
+    if (budget - size < 0) continue;
+    budget -= size;
+    memKept.push(...b.t.memory);
+  }
+  if (shapeAll.length) {
+    litLines.push('  THE SHAPE (what is in the background):', ...shapeAll);
+    if (subKept.length) litLines.push('', '  THE SUBSTANCE (each point in full):', ...subKept);
+    if (memKept.length) litLines.push('', '  REMEMBERED DISCUSSIONS (deep layer):', ...memKept);
   }
 
   // 2. OPEN QUESTIONS — only from visible (focus+lit) parts of the map.
