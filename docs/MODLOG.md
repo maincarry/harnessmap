@@ -585,3 +585,11 @@ Slice 4 shipped too — the proof: suite section 32 works a branch in one chat, 
 
 ## M156b — No new terminology (Jacob, 2026-08-25)
 "Why did you create incessant new terminology though. Like the shape. Don't add unnecessary burden of understanding." The injection's tier headers now use only existing plain words: "titles:" / "in full:" / "earlier discussion:" under the existing "BACKGROUND (lit by the user as reference)" header. Standing rule reinforced: the product's vocabulary is closed — new concepts reuse existing words or don't ship.
+
+## M157 — Import Claude's own memory; the playground paste-only mystery explained (Jacob, 2026-08-25)
+"Currently the import is not working. It asks user to upload text but I am thinking about directly importing memory from user's claude." Two parts:
+- NOT BROKEN, but situational: import sources are read by the SERVER from ITS machine. Jacob's playground runs on the dev VM — his Mac's ~/.claude is invisible to it, so files/sessions listed empty and only paste remained. On a real install (server on the user's machine — Mark's Mac) all sources appear. The modal's empty-states now… (already explain themselves).
+- BUILT his idea: Claude Code's own per-project auto-memory (~/.claude/projects/<slug>/memory/*.md — MEMORY.md + notes) is now a first-class import source: "Claude's own memory (this project)" section in the modal, kind 'memory' preview path (scoped to the project's slug memory dir). Suite: seeded memory file listed + imported with content preserved. 194/194 (a PTY-timing flake cleared on rerun).
+
+## M158 — Feedback channel via the guide (Jacob, 2026-08-25)
+"The talk to map would suggest telling the developer about the bug when it judges there is a serious bug or user suggested something important. We do not monitor user activity." Built exactly on those principles: the guide gains action kind 'feedback' — ONLY for clear serious bugs or important suggestions, never ordinary traffic. The card opens a PRE-FILLED GitHub issue in the user's browser (title + their words + version + "user-initiated" note): the user reviews and submits it themselves; nothing is ever sent automatically; no telemetry, no monitoring — the repo being public makes the channel free and transparent.

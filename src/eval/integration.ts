@@ -803,9 +803,15 @@ console.log('\n== 28. import: sources, proposal, apply, undo (M142) ==');
     'not-json-line-simulating-format-drift',
   ].join('\n'));
 
+  const memDir = join(TMP, 'home', '.claude', 'projects', CWD_DEF.replace(/\//g, '-'), 'memory');
+  mk(memDir, { recursive: true });
+  wf(join(memDir, 'MEMORY.md'), '# Memory\n- user prefers metric units\n- project ships Fridays\n- the widget API is versioned v2\n');
   const src = await get('/api/import/sources');
   check('sources list the project document', (src.files ?? []).some((f: any) => f.name === 'README.md'));
   check('sources list the past session', (src.sessions ?? []).some((x: any) => x.file === 'past-session.jsonl'));
+  check("sources list Claude's memory files (M157)", (src.memories ?? []).some((x: any) => x.file === 'MEMORY.md'));
+  const mp = await post('/api/import/preview', { kind: 'memory', sessionFile: 'MEMORY.md' });
+  check("Claude-memory import proposes (M157)", mp.status === 200 && mp.body.alterations.length >= 2 && /metric|friday|v2/i.test(JSON.stringify(mp.body.alterations)));
 
   const pv = await post('/api/import/preview', { kind: 'text', text: 'Trip to Osaka in October.\nDecided: fly, not train.\nOpen: which neighborhood to stay in?\nBudget constraint: 2000 total.' });
   check('pasted-text proposal returns creates only', pv.status === 200 && pv.body.alterations.length >= 3 && pv.body.alterations.every((a: any) => a.op === 'create_node'));

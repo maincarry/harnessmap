@@ -1184,6 +1184,20 @@ const server = Bun.serve({
           }
         } catch {}
       }
+      // M157 (Jacob): "directly importing memory from user's claude" —
+      // Claude Code keeps per-project auto-memory (MEMORY.md + notes) on
+      // disk; surface it as a first-class source.
+      const memories: any[] = [];
+      for (const d of dirs) {
+        const mdir = join(homedir(), '.claude', 'projects', d.replace(/\//g, '-'), 'memory');
+        try {
+          for (const f of readdirSync(mdir)) {
+            if (!f.endsWith('.md')) continue;
+            const fp = join(mdir, f);
+            try { const st = statSync(fp); if (st.isFile() && st.size < 512_000) memories.push({ file: f, dir: mdir, sizeKB: Math.round(st.size / 1024) }); } catch {}
+          }
+        } catch {}
+      }
       const sessions: any[] = [];
       for (const d of dirs) {
         const slug = d.replace(/\//g, '-');
@@ -1197,7 +1211,7 @@ const server = Bun.serve({
         } catch {}
       }
       sessions.sort((a, b) => b.mtime.localeCompare(a.mtime));
-      return json({ files: files.slice(0, 20), sessions: sessions.slice(0, 15) });
+      return json({ files: files.slice(0, 20), sessions: sessions.slice(0, 15), memories: memories.slice(0, 20) });
     }
     if (path === '/api/import/preview' && req.method === 'POST') {
       const b = await req.json() as { kind?: string; text?: string; path?: string; sessionFile?: string; feedback?: string; priorSummary?: string };
@@ -1208,6 +1222,13 @@ const server = Bun.serve({
         if (!dirs.some((d) => b.path!.startsWith(d + '/')) || !/\.(md|txt)$/i.test(b.path)) return json({ error: 'file outside the project folders' }, 400);
         try { text = readFileSync(b.path, 'utf8'); } catch { return json({ error: 'could not read the file' }, 400); }
         label = `document: ${basename(b.path)}`;
+      } else if (b.kind === 'memory' && b.sessionFile) {
+        const base = basename(b.sessionFile);
+        for (const d of store.cwdsForProject(projectId)) {
+          try { text = readFileSync(join(homedir(), '.claude', 'projects', d.replace(/\//g, '-'), 'memory', base), 'utf8'); break; } catch {}
+        }
+        if (!text) return json({ error: 'memory file not found for this project' }, 400);
+        label = `Claude's memory: ${base}`;
       } else if (b.kind === 'session' && b.sessionFile) {
         const dirs = store.cwdsForProject(projectId);
         const base = basename(b.sessionFile);

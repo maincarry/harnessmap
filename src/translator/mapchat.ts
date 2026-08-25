@@ -42,6 +42,7 @@ HOW TO ANSWER:
   * kind "favorite" + nodeId: they want a node pinned ("favorite X", "pin Y") — applies on approval. Single-step only.
   * kind "merge" + nodeId + intoId: they want two nodes combined ("merge X into Y", "these two are the same") — nodeId disappears into intoId. If they named only the duplicates without a survivor, pick the better-worded one as intoId. Single-step only.
   * kind "mergeproject" + projectName (one of OTHER MAPS): they want that whole map folded into THIS one as a topic. Warn in the answer that it is irreversible. Single-step only.
+  * kind "feedback" + instruction: the user has hit what looks like a SERIOUS BUG in this product (something clearly broken, data loss, wrong behavior they demonstrated) or made an important product suggestion — and ONLY then. instruction = a crisp report in their words (what happened / what they expected). In your answer, offer to send it to the developers — it opens a GitHub issue THEY review and submit themselves; nothing is sent automatically and usage is never monitored. Never use this for ordinary questions or map operations. Single-step only.
   * kind "pref" + instruction: they express a LASTING preference about how the map should be managed ("keep containers broad", "never propose deleting my exploratory notes", "name nodes in my language") — instruction is the preference as ONE short standing rule. It is saved (with their approval) into the map preferences that EVERY map agent receives. Only for durable taste — not one-off requests. Single-step only.
 - MISSING CONTEXT: you see the map but NOT node memories or the map's change history. If the question genuinely cannot be answered without them ("why is this node here?", "what does the map remember about X?"), set need to what you require and give your best partial answer — the server re-runs you ONCE with those blocks added. Don't request context you don't need.
 - Pick the LEVEL by the system's division of labor: attention → focus/light, structure → tidy. Named targets → focus/light with ids; unnamed → autofocus/autolight delegation.
@@ -64,7 +65,7 @@ const SCHEMA = {
       additionalProperties: false,
       required: ['kind'],
       properties: {
-        kind: { type: 'string' as const, enum: ['focus', 'light', 'tidy', 'zoom', 'autofocus', 'autolight', 'autozoom', 'search', 'favorite', 'merge', 'mergeproject', 'pref'] },
+        kind: { type: 'string' as const, enum: ['focus', 'light', 'tidy', 'zoom', 'autofocus', 'autolight', 'autozoom', 'search', 'favorite', 'merge', 'mergeproject', 'pref', 'feedback'] },
         nodeId: { type: 'string' as const, description: 'For focus: the deepest node whose content matches what the user named — NEVER its parent. For tidy: the subtree root to clean. For merge: the node that disappears.' },
         intoId: { type: 'string' as const, description: 'merge only: the surviving node' },
         projectName: { type: 'string' as const, description: 'mergeproject only: the other map to fold into this one' },
@@ -98,7 +99,7 @@ const SCHEMA = {
 };
 
 export interface MapChatAction {
-  kind: 'focus' | 'light' | 'tidy' | 'zoom' | 'autofocus' | 'autolight' | 'autozoom' | 'search' | 'favorite' | 'merge' | 'mergeproject' | 'pref';
+  kind: 'focus' | 'light' | 'tidy' | 'zoom' | 'autofocus' | 'autolight' | 'autozoom' | 'search' | 'favorite' | 'merge' | 'mergeproject' | 'pref' | 'feedback';
   nodeId?: string; nodeName?: string;
   lit?: { id: string; name: string }[];
   dim?: { id: string; name: string }[];
@@ -243,6 +244,10 @@ export async function answerMapQuestion(
         const ref = String(a.projectName ?? '').toLowerCase();
         const hit = otherProjects.find((pr) => pr.name.toLowerCase().includes(ref) || ref.includes(pr.name.toLowerCase()));
         return hit ? { kind: 'mergeproject', projectId: hit.id, projectName: hit.name } : undefined;
+      }
+      if (a?.kind === 'feedback') {
+        const instruction = (a.instruction ?? '').trim().slice(0, 800);
+        return instruction ? { kind: 'feedback', instruction } : undefined;
       }
       if (a?.kind === 'pref') {
         const instruction = (a.instruction ?? '').trim().slice(0, 200);

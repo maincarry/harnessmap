@@ -1019,6 +1019,8 @@ function openImport() {
         <div class="actions" style="margin:6px 0 2px"><button id="im-go-text" class="primary" title="the import agent organizes the pasted text into a subtree proposal">propose from pasted text</button></div>
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">project documents</div>
         <div id="im-files" style="display:flex;flex-direction:column;gap:2px;max-height:18vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">Claude's own memory (this project)</div>
+        <div id="im-mem" style="display:flex;flex-direction:column;gap:2px;max-height:14vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">past Claude Code sessions (this project)</div>
         <div id="im-sess" style="display:flex;flex-direction:column;gap:2px;max-height:18vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
       </div>
@@ -1084,7 +1086,15 @@ function openImport() {
   (async () => {
     try {
       const src = await post2get('/api/import/sources');
-      const files = ov.querySelector('#im-files'), sess = ov.querySelector('#im-sess');
+      const files = ov.querySelector('#im-files'), sess = ov.querySelector('#im-sess'), mem = ov.querySelector('#im-mem');
+      mem.innerHTML = (src.memories ?? []).length ? '' : '<span style="color:var(--muted);font-size:12px">no Claude memory found for this map\'s folder — it appears once Claude saves memories there</span>';
+      for (const x of src.memories ?? []) {
+        const d = document.createElement('div');
+        d.className = 'sr-row';
+        d.innerHTML = `<span>${esc(x.file)}</span><span class="sr-path">${x.sizeKB} KB</span>`;
+        d.onclick = () => propose({ kind: 'memory', sessionFile: x.file });
+        mem.appendChild(d);
+      }
       files.innerHTML = (src.files ?? []).length ? '' : '<span style="color:var(--muted);font-size:12px">no documents found in this map\'s folder</span>';
       for (const f of src.files ?? []) {
         const d = document.createElement('div');
@@ -2177,6 +2187,15 @@ function openMapChat() {
         if (!confirm(`Really fold the map “${a.projectName}” into this one? This cannot be undone.`)) return;
         try { await post(`/api/projects/${a.projectId}/merge`, { intoId: S.projectId }); done(`✓ map “${a.projectName}” is now a topic here`); }
         catch (e) { done(`failed: ${e.message}`); }
+      };
+      card.appendChild(b);
+    } else if (a.kind === 'feedback') {
+      card.textContent = `proposal: report this to the developers — “${a.instruction.slice(0, 120)}${a.instruction.length > 120 ? '…' : ''}”`;
+      const b = btn('🐞 open a GitHub issue (you review and submit it)');
+      b.onclick = () => {
+        const body = `${a.instruction}\n\n---\nharnessmap ${S.version ?? ''} · reported via talk-to-map (user-initiated)`;
+        window.open(`https://github.com/maincarry/harnessmap/issues/new?title=${encodeURIComponent(a.instruction.slice(0, 70))}&body=${encodeURIComponent(body)}`, '_blank');
+        done('✓ opened a pre-filled issue in your browser — nothing is sent until you submit it there');
       };
       card.appendChild(b);
     } else if (a.kind === 'pref') {
