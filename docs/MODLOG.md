@@ -534,3 +534,9 @@ UI smoke: 143/143 (tour checks are dynamic; font cycle + persistence covered).
 
 ## M145b — The map guide is the comprehension fallback (Jacob, 2026-08-25)
 On the mind-map feedback: "we don't have the ability to design that more complex UI... there is a very easy solution for the user who is extra impatient: just talk to the map guide." Agreed and leaned in: the guide's prompt now handles disoriented newcomer questions ("what am I looking at?") with a friendly 20-second orientation grounded in the user's own node names. Spatial view stays parked (with a note: if ever prioritized, the visual could be prototyped in Lovable and ported — their GitHub sync direction already established).
+
+## M146 — Sessions overview + pins (Mark ← pilot user, 2026-08-25)
+The Codex-style pain (many chats, evolving topics, manual pinning) inverted by our model: each session's topic IS its focus; the rolling summary IS "what it evolved into" — the scribe was already on staff, invisible. Now surfaced: ▦ sessions (⋯ + drawer) lists every session with focus, summary line, last activity; 📌 pin (pinned ride first in tabs + drawer), ✕ close, jump. Deliberate line held: NO tags — the focus is the label. Endpoints: /api/chats/:id/pin; state.chats gains pinned + summary. Suite section 30: 188/188.
+
+## M147 — Row buttons: four keys, rest folded (Jacob, 2026-08-25 — INTERIM)
+"Keep the four key ones: zoom, light, focus and delete. Make others fold unless expanded." Rows now show ◱ ▶ ☀ ⋯ ✕; the ⋯ unfolds ★ home + ↖ ⟳ ⇢ (⇧ on to-sort) inline. Legend updated. NOTE: Mark immediately raised the deeper question ("instead of fold let's rethink what is actually needed for a MVP that user loves") — this fold ships as the interim de-clutter while that rethink (the radical-cut proposal, delivered to Discord) is decided.

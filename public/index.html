@@ -201,6 +201,8 @@
   .chip-new.changed { border-color: var(--hair); color: var(--muted); }
   .rowops { visibility: hidden; display: flex; gap: 4px; margin-left: 6px; flex: none; }
   .nrow:hover .rowops { visibility: visible; }
+  .rowext { display: none; gap: 4px; }
+  .nrow.ops-open .rowext { display: inline-flex; }
   .rowbtn { border: 1px solid var(--hair); background: var(--panel); color: var(--ink);
             border-radius: 4px; cursor: pointer; font-size: 11px; padding: 0 6px; white-space: nowrap; }
   .rowbtn:hover { border-color: var(--accent); color: var(--accent); }
@@ -373,6 +375,7 @@
           <button id="map-check" title="review the whole map now — red dots for anything that needs restructuring, or a clean bill">⟳ tidy map</button>
           <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes an organized subtree you approve">⇪ import</button>
           <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
+          <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
           <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
           <button id="undo-btn" title="undo the last destructive action — delete, merge, tidy, or move (Ctrl/Cmd+Z works too)">↩ undo</button>
           <button id="other-more-btn" title="show the rest of the map functions">＋ more…<span class="nudge-dot" hidden>●</span></button>
@@ -555,6 +558,8 @@ function renderTree() {
         ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="zoom in: isolate this subtree in the view (lighting unchanged); offers a focus shift">◱</button>`}
         <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? 'the conversation is focused here' : 'focus: aim the conversation here (no zoom)'}">▶</button>
         <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? 'dim: remove from the chat agent’s background' : 'light as background (incl. everything under it)'}">☀</button>
+        <button class="rowbtn" data-rowmore="${n.id}" title="more actions: favorite, home, add child, move, tidy, merge">⋯</button>
+        <span class="rowext">
         <button class="rowbtn ${(S.favorites || []).includes(n.id) ? 'on' : ''}" data-fav="${n.id}" title="${(S.favorites || []).includes(n.id) ? 'unpin from favorites' : 'favorite: pin this node to the top of search'}">★</button>
         <button class="rowbtn ${S.home === n.id ? 'on' : ''}" data-sethome="${n.id}" title="${S.home === n.id ? 'this is the home page — click to unset (home falls back to the whole map)' : 'set as the home page — the home button (top of the map) zooms here'}">${HOME_ICO}</button>
         <button class="rowbtn" data-add="${n.id}" title="add an unnamed sub-node here and focus it — the map names it from what you talk about next">+</button>
@@ -562,8 +567,9 @@ function renderTree() {
           ? `<button class="rowbtn" data-promote="${n.id}" title="make this a real top-level topic">⇧</button>` : ''; })()}
         ${isTray ? '' : `<button class="rowbtn" data-move="${n.id}" data-name="${esc(disp(n))}" title="move this node somewhere else on the map — search for the new parent, or make it a top-level topic">↖</button>`}
         ${kids.length && !isTray ? `<button class="rowbtn" data-reorg="${n.id}" data-name="${esc(disp(n))}" title="propose a cleanup of this subtree">⟳</button>` : ''}
-        ${isTray ? '' : `<button class="rowbtn" data-merge="${n.id}" data-name="${esc(disp(n))}" title="merge this node into another — children move to the survivor, this one disappears">⇢</button>
-        <button class="rowbtn danger" data-ndel="${n.id}" data-name="${esc(disp(n))}" data-count="${subtreeIds(n.id).length - 1}" title="delete this node${kids.length ? ' and everything under it' : ''}">✕</button>`}
+        ${isTray ? '' : `<button class="rowbtn" data-merge="${n.id}" data-name="${esc(disp(n))}" title="merge this node into another — children move to the survivor, this one disappears">⇢</button>`}
+        </span>
+        ${isTray ? '' : `<button class="rowbtn danger" data-ndel="${n.id}" data-name="${esc(disp(n))}" data-count="${subtreeIds(n.id).length - 1}" title="delete this node${kids.length ? ' and everything under it' : ''}">✕</button>`}
       </span>
     </div>`;
   };
@@ -625,7 +631,7 @@ function renderSwitchers() {
 function renderTabs() {
   const list = $('tab-list');
   if (!list) return;
-  const chats = [...(S.chats || [])].sort((a, b) => (b.lastActivity || '').localeCompare(a.lastActivity || ''));
+  const chats = [...(S.chats || [])].sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.lastActivity || '').localeCompare(a.lastActivity || ''));
   const cutoff = Date.now() - 7 * 86400_000;
   const fresh = [], older = [];
   for (const c of chats) (new Date((c.lastActivity || '') + 'Z').getTime() >= cutoff || c.id === S.mainChatId ? fresh : older).push(c);
@@ -638,7 +644,7 @@ function renderTabs() {
     b.className = 'tab' + (c.id === S.mainChatId && activeTab === 'session' ? ' on' : '');
     b.dataset.tab = c.id;
     b.dataset.tip = `session focused on “${name}”${hasTerm ? ' — live terminal attached' : ''} — click to switch; its own focus and lighting apply`;
-    b.innerHTML = `${hasTerm ? '⌨ ' : ''}${esc(name.slice(0, 22))}${c.id === S.mainChatId ? '<span class="tx" data-tip="close this session: ends its terminal if one is running and puts the tab away — everything it filed stays on the map">✕</span>' : ''}`;
+    b.innerHTML = `${c.pinned ? '📌 ' : ''}${hasTerm ? '⌨ ' : ''}${esc(name.slice(0, 22))}${c.id === S.mainChatId ? '<span class="tx" data-tip="close this session: ends its terminal if one is running and puts the tab away — everything it filed stays on the map">✕</span>' : ''}`;
     b.onclick = async (e) => {
       if (e.target.classList?.contains('tx')) { await closeSessionTab(c.id); return; }
       if (c.id !== S.mainChatId) await post(`/api/chats/${c.id}/activate`, {});
@@ -868,7 +874,7 @@ function renderMobTop() {
 function openDrawer() {
   const ov = document.createElement('div');
   ov.id = 'mob-drawer-ov';
-  const chats = [...(S.chats || [])].sort((a, b) => (b.lastActivity || '').localeCompare(a.lastActivity || ''));
+  const chats = [...(S.chats || [])].sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.lastActivity || '').localeCompare(a.lastActivity || ''));
   const sess = chats.slice(0, 8).map(c => {
     const f = node(c.focusContainerId);
     return `<button class="dr-row ${c.id === S.mainChatId ? 'on' : ''}" data-dr-sess="${c.id}"><span class="g">${c.id === S.mainChatId ? '▸' : ''}</span><span>${esc(f ? disp(f).slice(0, 30) : 'session')}</span></button>`;
@@ -883,6 +889,7 @@ function openDrawer() {
     ${act('add-root', '＋', 'add node')}
     ${act('undo-btn', '↩', 'undo last action')}
     ${act('import-btn', '⇪', 'import notes, documents, or past sessions')}
+    ${act('sessions-btn', '▦', 'all sessions: pin, close, jump')}
     ${act('font-btn', '🔠', 'text size')}
     ${act('influence-btn', '⏻', 'close / reopen map influence')}
     ${act('round-line', '≡', 'what changed')}
@@ -938,6 +945,41 @@ $('font-btn').onclick = () => {
 applyFont(localStorage.getItem('hm-font') ?? 'normal');
 
 $('import-btn').onclick = () => { $('other-menu').hidden = true; openImport(); };
+// M146 (Mark, from a pilot user): the sessions overview — the scribe was
+// already on staff (focus = each session's topic, rolling summary = what it
+// evolved into); this panel is the window onto it. Pin what you live in.
+$('sessions-btn').onclick = () => { $('other-menu').hidden = true; openSessions(); };
+function openSessions() {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  const ago = (t) => { const s0 = Math.round((Date.now() - new Date((t || '') + 'Z').getTime()) / 1000); return s0 < 3600 ? `${Math.max(1, Math.round(s0 / 60))}m ago` : s0 < 86400 ? `${Math.round(s0 / 3600)}h ago` : `${Math.round(s0 / 86400)}d ago`; };
+  const rows = [...(S.chats || [])]
+    .sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.lastActivity || '').localeCompare(a.lastActivity || ''))
+    .map(c => {
+      const f = node(c.focusContainerId);
+      return `<div class="sr-row" style="align-items:baseline;gap:10px">
+        <button class="rowbtn ${c.pinned ? 'on' : ''}" data-spin="${c.id}" title="${c.pinned ? 'unpin — back to recency order' : 'pin: keep this session first in the tab bar'}">📌</button>
+        <span style="min-width:140px;font-weight:${c.id === S.mainChatId ? '600' : '400'}">${esc(f ? disp(f).slice(0, 26) : 'session')}</span>
+        <span style="flex:1;color:var(--muted);font-size:12px">${esc((c.summary ?? '').slice(0, 90) || '—')}</span>
+        <span style="color:var(--muted);font-size:11px;white-space:nowrap">${ago(c.lastActivity)}</span>
+        <button class="rowbtn" data-sopen="${c.id}" title="switch to this session">open</button>
+        ${c.id === S.mainChatId ? '' : `<button class="rowbtn danger" data-sclose="${c.id}" title="close this session — everything it filed stays on the map">✕</button>`}
+      </div>`;
+    }).join('');
+  ov.innerHTML = `
+    <div class="modal" style="width:min(680px,94vw)">
+      <h3>▦ sessions on this map</h3>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">each session's topic is its focus; the grey line is what the conversation has evolved into. 📌 pinned sessions ride first in the tab bar.</div>
+      <div style="display:flex;flex-direction:column;gap:2px;max-height:55vh;overflow-y:auto">${rows || '<span style="color:var(--muted)">no sessions yet</span>'}</div>
+      <div class="actions"><button id="sv-close" class="primary" title="close this panel">close</button></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  ov.querySelector('#sv-close').onclick = () => ov.remove();
+  for (const b of ov.querySelectorAll('[data-spin]')) b.onclick = async () => { await post(`/api/chats/${b.dataset.spin}/pin`, {}); ov.remove(); openSessions(); };
+  for (const b of ov.querySelectorAll('[data-sopen]')) b.onclick = () => { ov.remove(); showSession(b.dataset.sopen); };
+  for (const b of ov.querySelectorAll('[data-sclose]')) b.onclick = async () => { if (!confirm('Close this session? Everything it filed stays on the map.')) return; await post(`/api/chats/${b.dataset.sclose}/archive`, {}); ov.remove(); openSessions(); };
+}
 // M143 (Jacob): close map influence — sessions hear nothing from the map
 // (and are told once to stop mentioning it); the map keeps updating quietly.
 function paintInfluence() {
@@ -1216,6 +1258,8 @@ $('tree').addEventListener('click', async (e) => {
       }
     }
   }
+  const rowMoreBtn = t.closest('[data-rowmore]');
+  if (rowMoreBtn) { rowMoreBtn.closest('.nrow')?.classList.toggle('ops-open'); return; }
   const sheetId = t.closest('[data-sheet]')?.dataset.sheet;
   if (sheetId) { openRowSheet(sheetId); return; }
   const foldId = t.closest('[data-fold]')?.dataset.fold;
@@ -2378,7 +2422,7 @@ function openLegend() {
         <tr><td><span style="color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:0 4px;font-size:9px">new</span> <span style="color:var(--muted);border:1px solid var(--hair);border-radius:3px;padding:0 4px;font-size:9px">changed</span></td><td>the map added/edited this and you haven't touched it — clicking the node clears the mark. Click the status line under the map for the full change list ("clear all marks" lives there)</td></tr>
         <tr><td>to sort</td><td>the holding pen: anything the filer can't place lands here with an arrival note. Leaving: approve its placement dot, ↖ pick a parent, ⇧ promote to a topic — or light the destination and the filer moves it home next round</td></tr>
         <tr><td colspan="2"><hr><b>On every node</b> (hover the row)</td></tr>
-        <tr><td>◱ ▶ ☀ ★ <svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> + ↖ ⟳ ⇢ ✕</td><td>zoom · focus · light/dim · favorite (pins to search) · set home page · add child · move · tidy proposal · merge into a survivor · delete (⇧ promote appears on to-sort items)</td></tr>
+        <tr><td>◱ ▶ ☀ ⋯ ✕</td><td>on every row: zoom · focus · light/dim · ✕ delete. ⋯ unfolds the rest — ★ favorite · <svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home · + add child · ↖ move · ⟳ tidy · ⇢ merge (⇧ promote on to-sort items)</td></tr>
         <tr><td colspan="2"><hr><b>Toolbar &amp; sessions</b></td></tr>
         <tr><td>🔍 search</td><td>Ctrl/Cmd+K — find a node, confirm it with parents and children, then light / zoom / focus it</td></tr>
         <tr><td>🗨 talk to map</td><td>ask the map guide anything, or ask for changes in plain words — it proposes, you approve; complex asks become step-by-step plans</td></tr>

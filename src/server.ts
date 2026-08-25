@@ -22,7 +22,7 @@ import { updateNodeMemory, getNodeMemory, setNodeMemory, clearNodeMemory } from 
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, extractTranscript } from './translator/importer.js';
 import { setTraceSink } from './inference.js';
-import { foldTurns } from './agent/rolling-summary.js';
+import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -516,10 +516,15 @@ function state() {
     storage: DB_PATH,
     nodes: map.nodes.filter((n) => n.status !== 'removed'), // user-deleted stays out of the UI
     recency: recency(),
-    chats: store.getChats(projectId).filter((c) => c.status !== 'archived').map((c) => ({
-      ...c, lit: store.getLit(c.id),
-      lastActivity: ((store as any).db.prepare('SELECT MAX(created_at) t FROM turns WHERE chat_id = ?').get(c.id) as any)?.t ?? c.createdAt,
-    })),
+    chats: (() => {
+      const pins = new Set<string>(JSON.parse(store.getSetting(`chatpins:${projectId}`) ?? '[]'));
+      return store.getChats(projectId).filter((c) => c.status !== 'archived').map((c) => ({
+        ...c, lit: store.getLit(c.id),
+        lastActivity: ((store as any).db.prepare('SELECT MAX(created_at) t FROM turns WHERE chat_id = ?').get(c.id) as any)?.t ?? c.createdAt,
+        pinned: pins.has(c.id),
+        summary: (getConversationSummary(store, c.id) ?? '').slice(0, 200) || null,
+      }));
+    })(),
     suggestions: store.getOpenSuggestions(projectId),
     nudges: { ...nudges, focusName: nudgeFocusTarget?.name ?? null },
     favorites: store.getFavorites(),
@@ -860,6 +865,22 @@ const server = Bun.serve({
       } else broadcast({ type: 'map', ...state() });
       store.audit('chat_archived', { id: c.id.slice(0, 8) });
       return json({ ok: true });
+    }
+    // M146 (Mark, user suggestion): pin sessions — pinned ride first in the
+    // tab bar; the sessions overview panel is the window onto per-session
+    // bookkeeping the map already keeps (focus = topic, rolling summary).
+    const chatPinMatch = path.match(/^\/api\/chats\/([\w-]+)\/pin$/);
+    if (chatPinMatch && req.method === 'POST') {
+      const c = store.getChat(chatPinMatch[1]);
+      if (!c || c.projectId !== projectId) return json({ error: 'unknown chat' }, 404);
+      const key = `chatpins:${projectId}`;
+      const pins = new Set<string>(JSON.parse(store.getSetting(key) ?? '[]'));
+      const on = !pins.has(c.id);
+      if (on) pins.add(c.id); else pins.delete(c.id);
+      store.setSetting(key, JSON.stringify([...pins]));
+      store.audit('chat_pin', { chat: c.id.slice(0, 8), on });
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true, pinned: on });
     }
     const chatActMatch = path.match(/^\/api\/chats\/([\w-]+)\/activate$/);
     if (chatActMatch && req.method === 'POST') {

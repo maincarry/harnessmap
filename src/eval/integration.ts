@@ -860,6 +860,18 @@ console.log('\n== 29. close map influence (M143) ==');
   check('reopen restores context flow', t2.body.off === false && ((await get('/api/harness/context?session_id=s-inf')).context ?? '').length > 50);
 }
 
+console.log('\n== 30. sessions: pins + overview data (M146) ==');
+{
+  const s30 = await state();
+  check('chats carry pinned + summary fields', s30.chats.every((c: any) => 'pinned' in c && 'summary' in c));
+  const target = s30.chats[0].id;
+  const p1 = await post(`/api/chats/${target}/pin`, {});
+  check('pin toggles on', p1.status === 200 && p1.body.pinned === true && (await state()).chats.find((c: any) => c.id === target)?.pinned === true);
+  const p2 = await post(`/api/chats/${target}/pin`, {});
+  check('pin toggles off', p2.body.pinned === false && (await state()).chats.find((c: any) => c.id === target)?.pinned === false);
+  check('unknown chat pin → 404', (await post('/api/chats/nope/pin', {})).status === 404);
+}
+
 console.log('\n== 13. audit ==');
 {
   const a = await get('/api/audit?limit=10');

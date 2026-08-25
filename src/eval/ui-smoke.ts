@@ -212,6 +212,18 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   await click(document.querySelector('#im-cancel'), 'import modal cancel');
 }
 
+// ---------- sessions overview (M146) ----------
+{
+  if ($('other-menu')!.hasAttribute('hidden')) await click($('other-btn'), '⋯ open (sessions)', 80);
+  await click($('sessions-btn'), '▦ sessions panel opens');
+  check('overview lists sessions with pin/open', document.querySelectorAll('[data-spin]').length >= 1 && document.querySelectorAll('[data-sopen]').length >= 1);
+  await click(document.querySelector('[data-spin]'), '📌 pin a session', 500);
+  await pump();
+  check('pin lands in state + tab bar order', S()?.chats.some((c: any) => c.pinned) && document.querySelector('#tab-list button')?.textContent?.includes('📌'));
+  await click(document.querySelector('[data-spin]'), '📌 unpin', 500);
+  document.querySelectorAll('.overlay').forEach((o: any) => o.remove());
+}
+
 // ---------- text size (M144) ----------
 {
   await viaMore('font-btn', '🔠 text size cycles');
