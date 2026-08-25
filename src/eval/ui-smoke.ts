@@ -329,7 +329,7 @@ await click($('other-btn'), '⋯ close after sweep', 80);
   const aisleId = S()?.nodes.find((n: any) => n.content === 'aisle seat preference')?.id;
   await click(rowFor(aisleId), 'tap leaf row → action sheet');
   check('action sheet listed labeled actions', document.querySelectorAll('#sheet .sh-row').length >= 6 && !!document.querySelector('#sheet .sh-row .d'));
-  const sheetFocus = [...document.querySelectorAll('#sheet .sh-row')].find((r: any) => r.textContent.includes('aim the conversation'));
+  const sheetFocus = [...document.querySelectorAll('#sheet .sh-row')].find((r: any) => r.textContent.includes('talk about this'));
   await click(sheetFocus, 'sheet action executes (focus)');
   check('sheet closed after action', !document.querySelector('#sheet-ov'));
   await click(rowFor(trip), 'tap parent again → collapses');
