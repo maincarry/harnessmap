@@ -109,21 +109,32 @@ export function composeState(store: Store, chatId: string, manipulations: string
   const litSet = new Set(store.getLit(chatId));
   const topLit = freshestFirst([...litSet].filter((id) =>
     !focusSubtree.has(id) && store.getNode(id) && !litSet.has(store.getNode(id)!.parentId ?? '')));
-  const litBlock = (id: string, depth: number): string[] => {
+  // M156 slice 2 (Jacob's ruling: THE HIERARCHY IS THE ATTENTION PATTERN —
+  // no separate depth rules). A lit branch renders hierarchically: the HEAD
+  // carries the full tier stack (description, fit, remembered discussion);
+  // its children appear as titles; anything deeper is a count. Depth belongs
+  // to focus — light says "keep this in mind", not "read all of this".
+  const litBlock = (id: string): string[] => {
     const n = store.getNode(id);
     if (!n || n.status === 'removed') return [];
-    const pad = '  '.repeat(depth + 1);
     const label = n.title && n.title !== n.content ? `${n.title}: ` : '';
-    const lines = [`${pad}• ${label}${n.content}${n.type ? ` [${n.type}, ${n.status}]` : ''}`];
+    const lines = [`  • ${label}${n.content}${n.type ? ` [${n.type}, ${n.status}]` : ''}`];
+    const rel = store.getCachedRelation(id);
+    if (rel) lines.push(`    (fits: ${rel.split('\n')[0].slice(0, 200)})`);
+    const mem = getNodeMemory(store, id);
+    if (mem) lines.push(`    (remembered: ${mem.slice(0, 400)})`);
     for (const kid of store.childrenOf(id)) {
-      if (litSet.has(kid.id)) lines.push(...litBlock(kid.id, depth + 1));
+      if (!litSet.has(kid.id) || kid.status === 'removed') continue;
+      const inside = store.childrenOf(kid.id).filter((g) => g.status !== 'removed' && litSet.has(g.id)).length;
+      const kidLabel = kid.title || (kid.content.length > 90 ? kid.content.slice(0, 89) + '…' : kid.content);
+      lines.push(`    - ${kidLabel}${inside ? ` (+${inside} inside)` : ''}`);
     }
     return lines;
   };
   const litLines: string[] = [];
   let litOmitted = 0;
   for (const id of topLit) {
-    const block = litBlock(id, 0);
+    const block = litBlock(id);
     const size = block.join('\n').length;
     if (budget - size < 0) { litOmitted++; continue; }
     budget -= size;
