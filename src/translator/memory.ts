@@ -43,6 +43,52 @@ export async function updateNodeMemory(store: Store, nodeId: string, userText: s
   }
 }
 
+// M156 slice 1 (Mark + Jacob): every node the ROUND TOUCHED gets its memory
+// updated — not just the focus, and pointedly NOT "all lit nodes": the filer
+// already identified which nodes this round is about (Jacob's tiered-cost
+// point), so the batch is small (typically 1-5) and relevance-driven. ONE
+// cheap call maintains them all.
+const BATCH_SYSTEM = `You maintain the conversational memories of SEVERAL nodes on a goal map — for each, a running digest of what the conversation established about THAT node (positions and reasons, decisions and their why, open threads, how the user reacted). You get the newest exchange and each node with its existing memory. For each node, fold in ONLY what this exchange says about that node — different nodes take different things from the same exchange. Integrate, don't append; drop superseded material; ≤120 words each; plain language, no headers. If the exchange adds nothing for a node, return its memory unchanged.`;
+
+const BATCH_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['updates'],
+  properties: { updates: { type: 'array', items: {
+    type: 'object', additionalProperties: false, required: ['id', 'memory'],
+    properties: { id: { type: 'string' }, memory: { type: 'string' } },
+  } } },
+} as const;
+
+export async function updateTouchedMemories(store: Store, nodeIds: string[], userText: string, assistantText: string): Promise<void> {
+  const db = (store as any).db;
+  const nodes = [...new Set(nodeIds)].map((id) => store.getNode(id)).filter((n): n is NonNullable<typeof n> => !!n && n.status !== 'removed').slice(0, 6);
+  if (!nodes.length) return;
+  try {
+    const parsed = await call({
+      task: 'memory', system: BATCH_SYSTEM, maxTokens: 1200, schema: BATCH_SCHEMA as any, timeoutMs: 90_000,
+      audit: (k, d) => store.audit(k, d),
+      user: [
+        `NEWEST EXCHANGE:
+USER: ${userText.slice(0, 1500)}
+AGENT: ${assistantText.slice(0, 1500)}`,
+        ...nodes.map((n) => {
+          const ex = (db.prepare('SELECT text FROM node_memory WHERE node_id = ?').get(n.id) as any)?.text ?? '';
+          return `NODE [${n.id}]: ${n.type ? `${n.type}: ` : ''}${n.content}
+EXISTING MEMORY: ${ex || '(none yet)'}`;
+        }),
+        'Update each memory.',
+      ].join('\n\n'),
+    });
+    for (const u of parsed.updates ?? []) {
+      const id = String(u.id ?? '').replace(/[\[\]]/g, '');
+      if (!nodes.some((n) => n.id === id)) continue;
+      const text = String(u.memory ?? '').trim();
+      if (text) db.prepare("INSERT OR REPLACE INTO node_memory (node_id, text, updated_at) VALUES (?, ?, datetime('now'))").run(id, text);
+    }
+  } catch (err) {
+    console.error('[memory] batch update failed (next round catches up):', err);
+  }
+}
+
 export function setNodeMemory(store: Store, nodeId: string, text: string): void {
   const db = (store as any).db;
   if (text) db.prepare("INSERT OR REPLACE INTO node_memory (node_id, text, updated_at) VALUES (?, ?, datetime('now'))").run(nodeId, text);

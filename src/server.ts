@@ -18,7 +18,7 @@ import { answerMapQuestion } from './translator/mapchat.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend } from './term.js';
 import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
-import { updateNodeMemory, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
+import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, extractTranscript } from './translator/importer.js';
 import { setTraceSink } from './inference.js';
@@ -468,6 +468,12 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
       healTitles(5, roundPid).catch(() => {});
       // M41: fold this exchange into the focus node's chat memory (async).
       updateNodeMemory(store, chat.focusContainerId, params.userText, params.assistantText).catch(() => {});
+      // M156: every node the ROUND touched gets deep too — one batched cheap
+      // call over the filer's own relevance list (never "all lit nodes").
+      const touchedIds = out.result.alterations
+        .map((a: any) => a.id ?? a.nodeId)
+        .filter((id: any) => id && id !== chat.focusContainerId);
+      if (touchedIds.length) updateTouchedMemories(store, touchedIds, params.userText, params.assistantText).catch(() => {});
       // M48: relight notes auto-close once their node found a home.
       for (const sg of store.getOpenSuggestions(roundPid)) {
         if (sg.kind !== 'relight') continue;
@@ -658,7 +664,9 @@ const server = Bun.serve({
         store.setLit(litMatch[1], id, body.on);
       }
       const n = store.getNode(nodeId);
-      chats.noteMapChange(litMatch[1], `${body.on ? 'lit as background' : 'removed from background'}: "${nodeName(n)}"${ids.length > 1 ? ' (and everything under it)' : ''}`);
+      chats.noteMapChange(litMatch[1], body.on
+        ? `lit as background: "${nodeName(n)}"${ids.length > 1 ? ' (and everything under it)' : ''}`
+        : `set aside (dimmed): "${nodeName(n)}"${ids.length > 1 ? ' and everything under it' : ''} — don't bring it up or draw on its earlier discussion unless the user does`);
       broadcast({ type: 'map', ...state() });
       return json({ ok: true, affected: ids.length });
     }

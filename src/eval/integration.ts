@@ -872,6 +872,29 @@ console.log('\n== 30. sessions: pins + overview data (M146) ==');
   check('unknown chat pin → 404', (await post('/api/chats/nope/pin', {})).status === 404);
 }
 
+console.log('\n== 31. touched-node memory (M156 slice 1) ==');
+{
+  // a round that files into a specific branch should leave MEMORY on the
+  // touched node(s), not only on the focus.
+  let s31 = await state();
+  const mainCh31 = s31.mainChatId;
+  await post('/api/nodes', { content: 'balcony herb garden' });
+  s31 = await state();
+  const herb = s31.nodes.find((n: any) => n.content === 'balcony herb garden')?.id;
+  await post(`/api/chats/${mainCh31}/focus`, { nodeId: herb });
+  await observe('s-def', 'for the balcony herb garden: basil needs the sunniest corner, mint must stay in its own pot or it takes over', 'Agreed: basil in the south corner; mint contained in a separate pot — it spreads aggressively through shared soil.');
+  await sleep(6000); // async memory batch settles
+  const kids31 = (await state()).nodes.filter((n: any) => n.parentId === herb);
+  let touchedMem = false;
+  for (const k of kids31) {
+    const m = await get(`/api/nodes/${k.id}/memory`);
+    if ((m.memory ?? m.text ?? '').length > 20) { touchedMem = true; break; }
+  }
+  const focusMem = await get(`/api/nodes/${herb}/memory`);
+  check('focus node accumulated memory (M41 baseline)', ((focusMem.memory ?? focusMem.text ?? '') as string).length > 20);
+  check('a touched NON-focus node accumulated memory too (M156)', kids31.length === 0 || touchedMem);
+}
+
 console.log('\n== 13. audit ==');
 {
   const a = await get('/api/audit?limit=10');
