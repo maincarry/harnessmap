@@ -99,7 +99,12 @@ async function checkLatest(force = false): Promise<string | null> {
   store.setSetting('latest_checked', String(Date.now()));
   return latestKnown;
 }
-const updateAvailable = () => (latestKnown && latestKnown !== VERSION ? latestKnown : null);
+const newer = (a: string, b: string) => { // is a newer than b (x.y.z)
+  const A = a.split('.').map(Number), B = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) { if ((A[i] || 0) !== (B[i] || 0)) return (A[i] || 0) > (B[i] || 0); }
+  return false;
+};
+const updateAvailable = () => (latestKnown && newer(latestKnown, VERSION) ? latestKnown : null);
 checkLatest().catch(() => {});
 
 let projectId = store.getSetting('active_project') ?? store.ensureProject('default');
@@ -1352,6 +1357,7 @@ const server = Bun.serve({
     if (path === '/api/dev/setting' && req.method === 'POST') {
       const b2 = (await req.json()) as { key: string; value: string };
       store.setSetting(b2.key, b2.value);
+      if (b2.key === 'latest_ver') latestKnown = b2.value || null;
       return json({ ok: true });
     }
     if (path === '/api/dev/toggle' && req.method === 'POST') {

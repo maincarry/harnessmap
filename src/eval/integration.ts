@@ -954,6 +954,9 @@ console.log('\n== 34. update visibility (M161) ==');
   check('startup announce carries ONE concise upgrade line', /upgrade available \(v99\.0\.0\).*marketplace update harnessmap/.test(s1.body.announce ?? ''));
   const s2 = await post('/api/harness/session-start', { session_id: 's-upd2', cwd: CWD_DEF });
   check('same-day second start: no repeat (no bombardment)', !/upgrade available/.test(s2.body.announce ?? ''));
+  await post('/api/dev/setting', { key: 'latest_ver', value: '0.0.1' });
+  check('an OLDER published version is never an upgrade', (await state()).updateAvailable === null);
+  await post('/api/update-check', {}); // override restores 99.0.0 for anything downstream
 }
 
 console.log('\n== 13. audit ==');
