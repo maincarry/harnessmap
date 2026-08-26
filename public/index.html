@@ -392,6 +392,7 @@
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
           <button id="prefs-btn" title="standing preferences every map agent follows — how to group, name, and clean your maps; edit anytime">☰ map preferences</button>
           <button id="lit-mgr-btn" title="manage focus and background for the whole map in one list">▶☀ manage</button>
+          <button id="update-btn" title="check whether a newer harnessmap exists — updating itself happens in Claude Code, never automatically">⬆ check for updates</button>
           <button id="font-btn" title="text size for the whole page — cycles Small / Normal / Large / Extra large">🔠 text size: normal</button>
           <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
           </div></div>
@@ -898,6 +899,7 @@ function openDrawer() {
     ${act('import-btn', '⇪', 'import notes, documents, or past sessions')}
     ${act('sessions-btn', '▦', 'all sessions: pin, close, jump')}
     ${act('font-btn', '🔠', 'text size')}
+    ${act('update-btn', '⬆', 'check for updates')}
     ${act('influence-btn', '⏻', 'close / reopen map influence')}
     ${act('round-line', '≡', 'what changed')}
     <div class="dr-h">view</div>
@@ -951,6 +953,15 @@ $('font-btn').onclick = () => {
 applyFont(localStorage.getItem('hm-font') ?? 'normal');
 
 $('import-btn').onclick = () => { $('other-menu').hidden = true; openImport(); };
+$('update-btn').onclick = async () => {
+  $('other-menu').hidden = true;
+  try {
+    const r = await post('/api/update-check', {});
+    $('round-line').textContent = r.updateAvailable
+      ? `⬆ upgrade available (v${r.updateAvailable}) — in Claude Code run: /plugin marketplace update harnessmap`
+      : `you're on the latest (v${r.current})`;
+  } catch (err) { $('round-line').textContent = `update check failed: ${err.message}`; }
+};
 // M146 (Mark, from a pilot user): the sessions overview — the scribe was
 // already on staff (focus = each session's topic, rolling summary = what it
 // evolved into); this panel is the window onto it. Pin what you live in.

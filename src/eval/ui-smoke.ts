@@ -228,6 +228,8 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
 
 // ---------- text size (M144) ----------
 {
+  check('update check hidden in +more (M161)', !!$('update-btn') && $('update-btn')!.closest('#other-more') !== null && /check for updates/.test($('update-btn')!.textContent!));
+
   await viaMore('font-btn', '🔠 text size cycles');
   check('text size steps to large-ward + persists', $('font-btn')!.textContent!.includes('large') && window.localStorage.getItem('hm-font') === 'large');
   await viaMore('font-btn', 'cycle'); await viaMore('font-btn', 'cycle'); await viaMore('font-btn', 'cycle');

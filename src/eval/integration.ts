@@ -51,7 +51,7 @@ rmSync(TMP, { recursive: true, force: true });
 mkdirSync(CWD_BETA, { recursive: true });
 mkdirSync(CWD_DEF, { recursive: true });
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
-  env: { ...process.env, HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash',
+  env: { ...process.env, HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0',
     HOME: join(TMP, 'home'), HARNESSMAP_IMPORT_MODEL: 'claude-haiku-4-5' /* tests pin cheap; prod default is the fancy model */ },
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
 });
@@ -942,6 +942,18 @@ console.log('\n== 33. feedback log (M159b) ==');
   const f1 = await post('/api/feedback', { text: 'the tidy proposal froze on a 200-node branch', source: 'talk-to-map' });
   check('feedback records locally', f1.status === 200 && (await get('/api/feedback')).entries.some((e: any) => /froze/.test(e.text)));
   check('empty feedback refused', (await post('/api/feedback', { text: '' })).status === 400);
+}
+
+console.log('\n== 34. update visibility (M161) ==');
+{
+  check('state exposes updateAvailable (override seam)', (await state()).updateAvailable === '99.0.0');
+  const uc = await post('/api/update-check', {});
+  check('menu check returns latest vs current', uc.status === 200 && uc.body.updateAvailable === '99.0.0' && typeof uc.body.current === 'string');
+  await post('/api/dev/setting', { key: 'update_nudged', value: '' }); // earlier sections consumed today's nudge
+  const s1 = await post('/api/harness/session-start', { session_id: 's-upd', cwd: CWD_DEF });
+  check('startup announce carries ONE concise upgrade line', /upgrade available \(v99\.0\.0\).*marketplace update harnessmap/.test(s1.body.announce ?? ''));
+  const s2 = await post('/api/harness/session-start', { session_id: 's-upd2', cwd: CWD_DEF });
+  check('same-day second start: no repeat (no bombardment)', !/upgrade available/.test(s2.body.announce ?? ''));
 }
 
 console.log('\n== 13. audit ==');

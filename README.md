@@ -72,7 +72,9 @@ this as beta. One map, both agents — your memory follows you across harnesses.
 
 Everything is local-only by construction: the server binds to `127.0.0.1`, the
 database is `~/.harnessmap/map.sqlite`, and no network calls leave your machine
-except the model calls Claude Code itself makes through your existing login.
+except the model calls Claude Code itself makes through your existing login —
+plus one tiny disclosed exception: a daily version check fetches the latest
+release number from GitHub (nothing about you or your data is sent).
 Uninstalling the plugin stops the integration; your data stays in
 `~/.harnessmap` until you delete that folder.
 

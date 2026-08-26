@@ -83,6 +83,25 @@ function bootstrapProject(pid: string): string {
   store.setLit(chatId, rootId, true);
   return chatId;
 }
+// M161 (Mark): update visibility without bombardment. A tiny daily check
+// fetches ONLY the latest version number from GitHub (disclosed in the
+// README; fail-silent offline; HARNESSMAP_LATEST_OVERRIDE is the test seam).
+let latestKnown: string | null = store.getSetting('latest_ver') || null;
+async function checkLatest(force = false): Promise<string | null> {
+  if (process.env.HARNESSMAP_LATEST_OVERRIDE) { latestKnown = process.env.HARNESSMAP_LATEST_OVERRIDE; return latestKnown; }
+  const last = Number(store.getSetting('latest_checked') ?? 0);
+  if (!force && Date.now() - last < 20 * 3600_000) return latestKnown;
+  try {
+    const r = await fetch('https://raw.githubusercontent.com/maincarry/harnessmap/main/package.json', { signal: AbortSignal.timeout(4000) });
+    const v = ((await r.json()) as any)?.version;
+    if (typeof v === 'string' && v) { latestKnown = v; store.setSetting('latest_ver', v); }
+  } catch { /* offline is fine */ }
+  store.setSetting('latest_checked', String(Date.now()));
+  return latestKnown;
+}
+const updateAvailable = () => (latestKnown && latestKnown !== VERSION ? latestKnown : null);
+checkLatest().catch(() => {});
+
 let projectId = store.getSetting('active_project') ?? store.ensureProject('default');
 for (const pr of store.listProjects()) ensureToSort(pr.id);
 if (!store.listProjects().some((p) => p.id === projectId)) projectId = store.ensureProject('default');
@@ -518,6 +537,7 @@ function state() {
     projects: store.listProjects(),
     home: (() => { const h = store.getSetting(`home:${projectId}`); return h && store.getNode(h)?.status !== 'removed' ? h : null; })(),
     influenceOff: influenceOff(projectId),
+    updateAvailable: updateAvailable(),
     version: VERSION,
     storage: DB_PATH,
     nodes: map.nodes.filter((n) => n.status !== 'removed'), // user-deleted stays out of the UI
@@ -1306,6 +1326,12 @@ const server = Bun.serve({
       return json({ ok: true, text });
     }
 
+    // M161: menu-triggered update check.
+    if (path === '/api/update-check' && req.method === 'POST') {
+      await checkLatest(true);
+      return json({ current: VERSION, latest: latestKnown, updateAvailable: updateAvailable() });
+    }
+
     // M159b: feedback log — local record of what the user chose to report.
     if (path === '/api/feedback' && req.method === 'POST') {
       const b = await req.json() as { text?: string; source?: string };
@@ -1321,6 +1347,12 @@ const server = Bun.serve({
     // M113: dev mode — toggle + traces.
     if (path === '/api/dev' && req.method === 'GET') {
       return json({ on: store.getSetting('dev_mode') === '1' });
+    }
+    // dev/test seam: poke a settings key (localhost-only server; used by suites).
+    if (path === '/api/dev/setting' && req.method === 'POST') {
+      const b2 = (await req.json()) as { key: string; value: string };
+      store.setSetting(b2.key, b2.value);
+      return json({ ok: true });
     }
     if (path === '/api/dev/toggle' && req.method === 'POST') {
       const on = store.getSetting('dev_mode') === '1' ? '0' : '1';
@@ -1550,6 +1582,15 @@ const server = Bun.serve({
           store.setSetting('announced_ever', '1');
           store.setSetting(`announced:${pid}`, '1');
         }
+      }
+      // M161: one concise upgrade line, on session start only, at most once
+      // a day — never per prompt, never repeated (Mark: no bombardment).
+      checkLatest().catch(() => {});
+      const uv = updateAvailable();
+      const today = new Date().toISOString().slice(0, 10);
+      if (uv && store.getSetting('update_nudged') !== today && !influenceOff((body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId)) {
+        store.setSetting('update_nudged', today);
+        announce = [announce, `[harnessmap] upgrade available (v${uv}): run /plugin marketplace update harnessmap to upgrade. Tell the user in one short line.`].filter(Boolean).join('\n');
       }
       const pid2 = (body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId;
       const claimed = body.cwd ? claimChat(body.cwd) : null;

@@ -1,1 +1,1 @@
-simpler everywhere: a map + three moves (focus, light, zoom); import your past sessions; undo everything
+the map now tells you when an upgrade exists: one quiet line at startup, plus "check for updates" in the more menu
