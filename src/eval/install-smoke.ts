@@ -113,6 +113,38 @@ console.log('\n== 6. restart path: hook revives a stopped server ==');
   check('server is back with the same data', !!st && st.projects.some((p: any) => p.name === 'my-fresh-project'));
 }
 
+console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');
+{
+  // Codex's payloads match Claude Code's — prove OUR hooks serve both.
+  // (a) enable-codex writes a valid merged hooks.json with absolute paths
+  const CODEX_HOME = join(TMP, 'dot-codex');
+  const p = Bun.spawn(['bun', 'run', join('hooks', 'enable-codex.ts')], {
+    env: { ...HOOK_ENV, CODEX_HOME } as any, stdout: 'pipe', stderr: 'pipe',
+  });
+  await p.exited;
+  const hj = JSON.parse(await Bun.file(join(CODEX_HOME, 'hooks.json')).text());
+  check('enable-codex registers all three events', ['SessionStart', 'UserPromptSubmit', 'Stop'].every((e) => (hj.hooks[e] ?? []).length > 0));
+  check('commands use absolute paths (no plugin vars)', JSON.stringify(hj).includes('/hooks/session-start.ts') && !JSON.stringify(hj).includes('CLAUDE_PLUGIN_ROOT'));
+  // merge-preserving: run again → no duplicates
+  const p2 = Bun.spawn(['bun', 'run', join('hooks', 'enable-codex.ts')], { env: { ...HOOK_ENV, CODEX_HOME } as any, stdout: 'pipe', stderr: 'pipe' });
+  await p2.exited;
+  const hj2 = JSON.parse(await Bun.file(join(CODEX_HOME, 'hooks.json')).text());
+  check('re-running does not duplicate entries', JSON.stringify(hj2).length === JSON.stringify(hj).length);
+
+  // (b) Codex-shaped payloads drive the SAME hooks (extra fields tolerated)
+  const r = await runHook('session-start.ts', { session_id: 'codex-1', cwd: PROJ, hook_event_name: 'SessionStart', model: 'gpt-x', permission_mode: 'default', source: 'startup' });
+  check('session-start accepts a Codex payload', r.code === 0);
+  const rp = await runHook('on-prompt.ts', { session_id: 'codex-1', prompt: 'hello from codex', cwd: PROJ, turn_id: 't1', hook_event_name: 'UserPromptSubmit' });
+  check('on-prompt accepts a Codex payload and injects', rp.code === 0 && ctxOf(rp.out).length > 50);
+  const rs = await runHook('on-stop.ts', { session_id: 'codex-1', turn_id: 't1', stop_hook_active: false, last_assistant_message: 'Hi codex user!' });
+  check('on-stop accepts a Codex payload', rs.code === 0);
+
+  // (c) source:'compact' re-anchors (shared improvement for BOTH harnesses)
+  await runHook('session-start.ts', { session_id: 'codex-1', cwd: PROJ, source: 'compact' });
+  const cf = await (await fetch(`${BASE}/api/harness/context?session_id=codex-1`)).json();
+  check("SessionStart source='compact' re-anchors to a FULL injection", cf.kind === 'full');
+}
+
 await fetch(`${BASE}/api/shutdown`, { method: 'POST' }).catch(() => {});
 console.log(`\n================ install smoke: ${pass} passed, ${fail} failed ================`);
 if (failures.length) console.log('failures:\n  - ' + failures.join('\n  - '));

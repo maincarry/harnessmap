@@ -54,6 +54,20 @@ Open the map page and press **?** for the guided tutorial. The short version:
 | `/map:stop` | stop the server (all data stays in `~/.harnessmap`) |
 | `/map:restart` | restart it (after an update, or if the map looks stuck) |
 
+## Codex (beta)
+
+The same map works beside [OpenAI's Codex CLI](https://developers.openai.com/codex) — Codex's
+hook dialect matches Claude Code's, so the identical hooks serve both. To enable:
+
+```sh
+bun run hooks/enable-codex.ts   # registers the hooks in ~/.codex/hooks.json
+```
+
+Then in `~/.codex/config.toml`: set `[features] hooks = true` (Codex ships hooks
+disabled by default) and raise `additionalContextLimit` above ~4500 tokens so the
+full map fits. Codex hooks are experimental on their side (no Windows), so treat
+this as beta. One map, both agents — your memory follows you across harnesses.
+
 ## Privacy & data
 
 Everything is local-only by construction: the server binds to `127.0.0.1`, the

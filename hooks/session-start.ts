@@ -9,6 +9,19 @@ const input = await readHookInput();
 const { up, updateNote } = await ensureServer();
 if (!up) process.exit(0);
 
+// Both Claude Code and Codex report WHY the session started; a 'compact'
+// source means the context was just compacted — tell the server so the next
+// injection re-anchors with the FULL map (shared across harness dialects).
+if (input.source === 'compact') {
+  try {
+    await fetch(`${BASE}/api/harness/compacted`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ session_id: input.session_id }),
+      signal: AbortSignal.timeout(4000),
+    });
+  } catch { /* never break the host */ }
+}
+
 let announce = '';
 try {
   const r = await fetch(`${BASE}/api/harness/session-start`, {
