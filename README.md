@@ -57,16 +57,31 @@ Open the map page and press **?** for the guided tutorial. The short version:
 ## Codex (beta)
 
 The same map works beside [OpenAI's Codex CLI](https://developers.openai.com/codex) — Codex's
-hook dialect matches Claude Code's, so the identical hooks serve both. To enable:
+hook dialect matches Claude Code's, so the identical hooks serve both. Codex has
+no plugin system, so setup is three terminal steps instead of two slash commands:
 
 ```sh
-bun run hooks/enable-codex.ts   # registers the hooks in ~/.codex/hooks.json
+# 1. put harnessmap on your machine (the engine lives here; you never work in it)
+git clone https://github.com/maincarry/harnessmap ~/harnessmap
+cd ~/harnessmap && bun install
+
+# 2. connect it to Codex (writes the hooks into ~/.codex/hooks.json, merge-safe)
+bun run hooks/enable-codex.ts
 ```
 
-Then in `~/.codex/config.toml`: set `[features] hooks = true` (Codex ships hooks
-disabled by default) and raise `additionalContextLimit` above ~4500 tokens so the
-full map fits. Codex hooks are experimental on their side (no Windows), so treat
-this as beta. One map, both agents — your memory follows you across harnesses.
+3. Codex ships hooks disabled — opt in by adding to `~/.codex/config.toml`:
+
+```toml
+[features]
+hooks = true
+additional_context_limit = 8000   # our map needs more room than Codex's default
+```
+
+Then run `codex` in any project folder as usual and open the map at
+**http://localhost:8790** — each project gets its own map, and it fills itself
+in as you talk. Codex hooks are experimental on their side (no Windows), so
+treat this as beta. One map, both agents — and if you use Claude Code and Codex
+in the same folder, they share one memory.
 
 ## Privacy & data
 
