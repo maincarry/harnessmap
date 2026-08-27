@@ -276,6 +276,39 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   {
     const html = (window as any).__msgHtml?.('assistant', 'Hit the 🗨 talk to map button and ask the map agent.') ?? '';
     check('guide-referring reply embeds a 🗨 button (M171)', /msg-mapchat/.test(html));
+    // M171b: clicking the inline button opens the guide pre-seeded with context
+    $('messages')!.insertAdjacentHTML('beforeend',
+      (window as any).__msgHtml('user', 'how do I turn off the wifi?') + (window as any).__msgHtml('assistant', "That's folded away right now — ask via talk to map."));
+    (document.querySelector('.msg-mapchat') as any).click(); await sleep(300);
+    {
+      const ov = [...document.querySelectorAll('.overlay')].pop();
+      const seeded = ov && [...ov.querySelectorAll('.msg.user')].some((d: any) => /brought over from the chat/.test(d.textContent));
+      check('inline referral seeds the guide with context (M171b)', !!seeded);
+      (ov?.querySelector('#mc-close') as any)?.click(); await sleep(80);
+    }
+    // M171c: a CC-style verbal referral (arriving as a mirrored turn) seeds
+    // the TOOLBAR button too — but only for one round
+    window.__wsInject?.({ type: 'turn', chatId: S()!.mainChatId, role: 'user', content: 'wifi off?' });
+    window.__wsInject?.({ type: 'turn', chatId: S()!.mainChatId, role: 'assistant', content: 'That area is set aside — use talk to map to bring it back.' });
+    window.__wsInject?.({ type: 'round', chatId: 'x', summary: 's', alterations: 0 });
+    window.__wsInject?.({ type: 'round', chatId: 'x', summary: 's', alterations: 0 });
+    await sleep(150);
+    ($('map-chat') as any).click(); await sleep(250);
+    {
+      const ov = [...document.querySelectorAll('.overlay')].pop();
+      const seeded = ov && [...ov.querySelectorAll('.msg.user')].some((d: any) => /brought over/.test(d.textContent));
+      check('stale referral (2 rounds old) does NOT seed the toolbar (M171c)', !seeded);
+      (ov?.querySelector('#mc-close') as any)?.click(); await sleep(80);
+    }
+    window.__wsInject?.({ type: 'turn', chatId: S()!.mainChatId, role: 'assistant', content: 'That is dimmed — talk to map can relight it.' });
+    await sleep(120);
+    ($('map-chat') as any).click(); await sleep(250);
+    {
+      const ov = [...document.querySelectorAll('.overlay')].pop();
+      const seeded = ov && [...ov.querySelectorAll('.msg.user')].some((d: any) => /brought over/.test(d.textContent));
+      check('fresh CC-style referral seeds the toolbar button (M171c)', !!seeded);
+      (ov?.querySelector('#mc-close') as any)?.click(); await sleep(80);
+    }
     const folded = (window as any).__msgHtml?.('assistant', "That's folded away right now — the home network setup area. Want me to help anyway?") ?? '';
     check('set-aside/folded replies embed it too', /msg-mapchat/.test(folded));
     const plain = (window as any).__msgHtml?.('assistant', 'Just a normal answer.') ?? '';

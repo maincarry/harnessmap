@@ -1,1 +1,1 @@
-no more browser popups: every ask is now a proper in-app dialog box; the map reviews itself every 10 rounds (proposals only)
+referrals carry their context: talk-to-map opens already knowing what the conversation needs, from chat or Claude Code, for one round

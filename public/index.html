@@ -1405,20 +1405,36 @@ function md2html(t) {
   x = x.replace(/^(\d+)\. (.*)$/gm, '<span class="li">$1. $2</span>');
   return x;
 }
+const REFERS_GUIDE = /talk to map|set aside|folded away|folded[^a-z]|dimmed|relight|light (?:it|that|this|them) (?:back )?up|bring (?:it|that|this|them) back/i;
+// M171b/c (Jacob): the latest referral is remembered briefly — ONE round —
+// so opening the guide right after (from the button, or the toolbar after a
+// Claude Code session referred verbally) starts with the context in hand.
+let lastReferral = null; // { fromReply, userAsk, rounds }
+let lastUserTurnText = '';
+function freshReferral() {
+  if (lastReferral && lastReferral.rounds <= 1) { const r = lastReferral; lastReferral = null; return r; }
+  return null;
+}
 function msgHtml(role, content) {
   if (role === 'system') return `<div class="msg system">— ${esc(content)} —</div>`;
   if (role === 'assistant') {
     // M171 (Jacob): when the reply points the user at the map guide — or
     // talks about set-aside/folded/dimmed areas the guide could bring back —
     // put the button right there, no hunting in the map panel.
-    const refersGuide = /talk to map|set aside|folded away|folded[^a-z]|dimmed|relight|light (?:it|that|this|them) (?:back )?up|bring (?:it|that|this|them) back/i.test(content);
+    const refersGuide = REFERS_GUIDE.test(content);
     return `<div class="msg assistant" data-raw="${esc(content)}">${md2html(content)}<button class="mcopy" title="copy this message">⧉</button>${refersGuide ? '<div style="margin-top:8px"><button class="msg-mapchat" title="ask the map guide — it explains and proposes; you approve"><svg class="chat-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v7.5h-6l-3 2.5v-2.5h-2z"/></svg>talk to map</button></div>' : ''}</div>`;
   }
   return `<div class="msg ${role}">${esc(content)}</div>`;
 }
 
 $('messages').addEventListener('click', async (e) => {
-  if (e.target.closest('.msg-mapchat')) { openMapChat(); return; }
+  if (e.target.closest('.msg-mapchat')) {
+    const m = e.target.closest('.msg');
+    let prev = m?.previousElementSibling;
+    while (prev && !prev.classList.contains('user')) prev = prev.previousElementSibling;
+    openMapChat({ fromReply: m?.dataset.raw ?? '', userAsk: prev?.textContent ?? '' });
+    return;
+  }
   const b = e.target.closest?.('.mcopy');
   if (!b) return;
   const raw = b.closest('.msg')?.dataset.raw ?? '';
@@ -2249,7 +2265,7 @@ async function mergeProjectFlow() {
 // M77 (Jacob): direct line to the map agent. Advisory — it explains and
 // instructs; it never edits the map from this channel. History is session-local.
 const mapChatLog = [];
-function openMapChat() {
+function openMapChat(seed) {
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `
@@ -2275,17 +2291,30 @@ function openMapChat() {
   };
   for (const h of mapChatLog) { push('you', h.q); push('map', h.a); }
   if (!mapChatLog.length) push('map', 'I file and maintain this map. Ask me anything about it — or ask for a change (“merge those two”, “dim the old stuff”, “where should I focus?”) and I\'ll propose it for your approval.');
-  const send = async () => {
-    const q = input.value.trim(); if (!q) return;
-    input.value = ''; push('you', q);
+  const ask = async (q, display) => {
+    push('you', display ?? q);
     const wait = push('map', '…thinking');
     try {
       const r = await post('/api/map-chat', { question: q, history: mapChatLog.slice(-4) });
       wait.textContent = r.answer;
-      mapChatLog.push({ q, a: r.answer });
+      mapChatLog.push({ q: display ?? q, a: r.answer });
       if (r.actions) renderPlan(r.actions);
     } catch (err) { wait.textContent = `failed: ${err.message}`; }
   };
+  const send = async () => {
+    const q = input.value.trim(); if (!q) return;
+    input.value = '';
+    await ask(q);
+  };
+  // M171b (Jacob): a referral arrives WITH its context — the guide hears what
+  // the conversation was about and proposes directly; the user never
+  // re-explains.
+  if (seed?.fromReply) {
+    ask(
+      `The chat agent just referred the user here mid-conversation. The user's last message: ${JSON.stringify((seed.userAsk || '(not captured)').slice(0, 400))}. The chat agent's reply that pointed them here: ${JSON.stringify(seed.fromReply.slice(0, 800))}. Work out what map change they need (usually lighting/unfolding a set-aside area, or a focus move) and PROPOSE it directly — do not ask them to repeat anything.`,
+      '(brought over from the chat — figuring out what you need…)',
+    );
+  }
   // M78 (Jacob): the map agent attaches proposals — focus / light / tidy —
   // applied only on the user's click, through the same endpoints the buttons use.
   // M81: multi-step plans — one card, steps applied in order on approve.
@@ -2453,7 +2482,7 @@ function openMapChat() {
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   input.focus();
 }
-$('map-chat').onclick = openMapChat;
+$('map-chat').onclick = () => openMapChat(freshReferral());
 $('dim-outside').onclick = async () => {
   if (!zoomId) { $('round-line').textContent = 'zoom into a subtree first — then this dims everything outside it'; return; }
   try {
@@ -3218,6 +3247,8 @@ function connect() {
       if (beatState === 'prompt') setBeat('observed');
       document.querySelector('.msg.pending')?.remove();
       document.querySelector('.msg.hostpending')?.remove();
+      if (m.role === 'user') lastUserTurnText = m.content;
+      if (m.role === 'assistant' && REFERS_GUIDE.test(m.content)) lastReferral = { fromReply: m.content, userAsk: lastUserTurnText, rounds: 0 };
       const i = sentLocal.indexOf(m.content);
       if (m.role === 'user' && i >= 0) { sentLocal.splice(i, 1); return; }
       const box = $('messages');
@@ -3237,6 +3268,7 @@ function connect() {
       box.scrollTop = box.scrollHeight;
     } else if (m.type === 'round') {
       lastFiledAt = Date.now(); setBeat('filed');
+      if (lastReferral) lastReferral.rounds++;
       $('round-line').classList.remove('working');
       $('round-line').textContent = `↳ ${m.summary} (${m.alterations} change${m.alterations === 1 ? '' : 's'})`;
     } else if (m.type === 'lag') {
