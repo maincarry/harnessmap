@@ -635,3 +635,6 @@ Correction to my M162 point-3 reading: Mark meant the literal "— pinned —" l
 
 ## M163d — Talk-to-map, second pass (Jacob, 2026-08-27)
 "talk to map button still bad." The gradient pill went — likely offenders were the gloss and the 🗨 emoji (platform-inconsistent rendering; same reason home became an SVG in M128). Now: flat accent, crisp inline-SVG speech bubble, 6px radius matching the toolbar row, darkens slightly on hover. Reads as the row's one primary button without shouting. The 🗨 glyph stays everywhere else as vocabulary.
+
+## M163e — Ruling: the exact agent text stays user-visible (Jacob asked, my call, 2026-08-27)
+Jacob: "is there a security concern in letting user to see the exact chat agent text? I do think so but your call." Call: NO concern today — the text is the user's own data (already fully visible in the UI and their own sqlite), the surrounding prompts are public (composer.ts, public repo — hiding them in-product is theater), and the endpoint sits on the same localhost-only server that already serves every node verbatim. Transparency is the product's honesty affordance. STANDING CAVEAT for the future: the moment maps become SHARED or HOSTED (team maps, paid tier), this ruling flips — the exact text could expose another member's dimmed/private branches, and /api/agent-view (like everything else) needs auth. Revisit at that boundary.
