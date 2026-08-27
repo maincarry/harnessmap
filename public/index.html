@@ -266,6 +266,10 @@
   .msg-mapchat { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); border: 1px solid var(--accent); color: #fff; font-weight: 600;
     font-size: 12.5px; padding: 4px 12px; border-radius: 6px; cursor: pointer; }
   .msg-mapchat .chat-ico { width: 12px; height: 12px; }
+  .fb-opt { display: block; width: 100%; text-align: left; border: 1px solid var(--hair); background: var(--bg);
+    color: var(--ink); border-radius: 8px; padding: 9px 12px; font-size: 13px; cursor: pointer; }
+  .fb-opt:hover { border-color: var(--accent); color: var(--accent); }
+  .fb-opt b { user-select: all; }
   .msg-mapchat:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
   .modal .actions button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
   .fold-count { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--hair); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
@@ -1148,10 +1152,11 @@ $('feedback-btn').onclick = () => {
         </div>
       </div>
       <div id="fb-stage2" hidden>
-        <div style="font-size:13px;margin:2px 0 10px">✓ saved on this machine. Also get it to the developers?</div>
+        <div style="font-size:13px;margin:2px 0 4px">✓ saved on this machine — <b>thank you!</b></div>
+        <div style="font-size:12px;color:var(--muted);margin:0 0 10px">feedback is what shapes the map, and the developers are almost always available. Want it to reach them?</div>
         <div style="display:flex;flex-direction:column;gap:8px">
-          <button id="fb-gh" style="text-align:left">🐞 open it as a GitHub issue — pre-filled, you press submit there (needs an account)</button>
-          <button id="fb-copy" style="text-align:left">⧉ copy the report — paste it into an email to <b id="fb-addr" style="user-select:all"></b></button>
+          <button id="fb-gh" class="fb-opt">🐞 open it as a GitHub issue — pre-filled, you press submit there (needs an account)</button>
+          <button id="fb-copy" class="fb-opt">⧉ copy the report — paste it into an email to <b id="fb-addr"></b></button>
         </div>
         <div class="actions"><button id="fb-done" class="primary">done</button></div>
       </div>
