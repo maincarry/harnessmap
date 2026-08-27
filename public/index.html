@@ -257,6 +257,8 @@
   .srow.favhead { border-style: solid; gap: 6px; }
   .srow.favhead .fold-count { margin-left: 4px; }
   .srow.sind { margin-left: 22px; }
+  .uidlg .uimsg { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
+  .modal .actions button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
   .fold-count { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--hair); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
   .fold-count:hover { color: var(--ink); background: var(--hair); }
   .home-ico { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; vertical-align: -1px; }
@@ -478,6 +480,42 @@ const $ = (id) => document.getElementById(id);
 const HOME_ICO = '<svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg>';
 const chat = () => S.chats.find(c => c.id === S.mainChatId);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// M167 (Jacob): our own dialog boxes replace the browser's native popups —
+// same questions, same defaults, our chrome. Enter = confirm, Esc / outside
+// click = cancel. __autoDialog is the test seam (ui-smoke answers instantly).
+function uiDialog({ msg, input = null, ok = 'OK', danger = false, type = 'text' }) {
+  if (window.__autoDialog) {
+    const yes = window.__autoDialog === 'ok';
+    return Promise.resolve(input !== null ? (yes ? String(input ?? '') : null) : yes);
+  }
+  return new Promise((resolve) => {
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.innerHTML = `
+      <div class="modal uidlg" style="width:min(400px,94vw)">
+        <div class="uimsg">${esc(msg)}</div>
+        ${input !== null ? `<input id="uid-in" type="${type}" value="${esc(input)}" style="width:100%;margin-top:10px;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px">` : ''}
+        <div class="actions">
+          <button id="uid-cancel">cancel</button>
+          <button id="uid-ok" class="primary${danger ? ' danger' : ''}">${esc(ok)}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const inEl = ov.querySelector('#uid-in');
+    const key = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); done(input !== null ? (inEl.value ?? '') : true); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(input !== null ? null : false); }
+    };
+    const done = (v) => { document.removeEventListener('keydown', key, true); ov.remove(); resolve(v); };
+    ov.querySelector('#uid-ok').onclick = () => done(input !== null ? (inEl.value ?? '') : true);
+    ov.querySelector('#uid-cancel').onclick = () => done(input !== null ? null : false);
+    ov.onclick = (e) => { if (e.target === ov) done(input !== null ? null : false); };
+    document.addEventListener('keydown', key, true);
+    if (inEl) { inEl.focus(); inEl.select(); }
+  });
+}
+const uiConfirm = (msg, ok = 'OK', danger = false) => uiDialog({ msg, ok, danger });
+const uiPrompt = (msg, val = '', ok = 'OK', type = 'text') => uiDialog({ msg, input: val, ok, type });
 async function post(p, b) {
   const r = await fetch(p, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(b) });
   let d = null; try { d = await r.json(); } catch {}
@@ -528,7 +566,7 @@ function renderCrumbs() {
   }
   el.innerHTML = parts.join('') + focusChip;
 }
-$('crumbs').addEventListener('click', (e) => {
+$('crumbs').addEventListener('click', async (e) => {
   const j = e.target.closest('[data-jump-focus]');
   if (j) {
     const fid = j.dataset.jumpFocus;
@@ -537,11 +575,11 @@ $('crumbs').addEventListener('click', (e) => {
       row.scrollIntoView({ block: 'center', behavior: 'smooth' });
       row.classList.add('flash');
       setTimeout(() => row.classList.remove('flash'), 1600);
-      if (confirm('Zoom the view in to the focus?')) {
+      if (await uiConfirm('Zoom the view in to the focus?', 'zoom')) {
         setZoom(fid);
         post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: fid, focus: false }).catch(() => {});
       }
-    } else if (confirm('The focus is outside this view. Zoom the view to it?')) {
+    } else if (await uiConfirm('The focus is outside this view. Zoom the view to it?', 'zoom')) {
       setZoom(fid);
       post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: fid, focus: false }).catch(() => {});
     }
@@ -771,7 +809,7 @@ $('proj-sel').onchange = async (e) => {
   const v = e.target.value;
   if (v === '__merge') { mergeProjectFlow(); return; }
   if (v === '__new') {
-    const name = prompt('New map — completely separate from this one. Name it:');
+    const name = await uiPrompt('New map — completely separate from this one. Name it:', '', 'create map');
     renderSwitchers();
     if (!name?.trim()) return;
     await post('/api/projects', { name: name.trim() });
@@ -1136,7 +1174,7 @@ function openSessions() {
   ov.querySelector('#sv-close').onclick = () => ov.remove();
   for (const b of ov.querySelectorAll('[data-spin]')) b.onclick = async () => { await post(`/api/chats/${b.dataset.spin}/pin`, {}); ov.remove(); openSessions(); };
   for (const b of ov.querySelectorAll('[data-sopen]')) b.onclick = () => { ov.remove(); showSession(b.dataset.sopen); };
-  for (const b of ov.querySelectorAll('[data-sclose]')) b.onclick = async () => { if (!confirm('Close this session? Everything it filed stays on the map.')) return; await post(`/api/chats/${b.dataset.sclose}/archive`, {}); ov.remove(); openSessions(); };
+  for (const b of ov.querySelectorAll('[data-sclose]')) b.onclick = async () => { if (!(await uiConfirm('Close this session? Everything it filed stays on the map.', 'close session'))) return; await post(`/api/chats/${b.dataset.sclose}/archive`, {}); ov.remove(); openSessions(); };
 }
 // M143 (Jacob): close map influence — sessions hear nothing from the map
 // (and are told once to stop mentioning it); the map keeps updating quietly.
@@ -1448,7 +1486,7 @@ $('tree').addEventListener('click', async (e) => {
     const c = chat();
     const name = disp(node(focusId));
     if (c && c.focusContainerId !== focusId) {
-      if (!confirm(`Move the conversation's focus to “${name}”?\n(The agent pivots there on your next message.)`)) return;
+      if (!(await uiConfirm(`Move the conversation's focus to “${name}”?\n(The agent pivots there on your next message.)`, 'move focus'))) return;
       c.focusContainerId = focusId;            // optimistic
       userUnfolded.clear(); userFolded.clear();
       renderAll();
@@ -1484,7 +1522,7 @@ $('tree').addEventListener('click', async (e) => {
     setZoom(zoomTo);
     const c = chat();
     const wantFocus = c && c.focusContainerId !== zoomTo
-      && confirm(`Zoomed into “${name}”. Also talk about this?\n(Zoom only changes your view; focus changes the topic.)`);
+      && await uiConfirm(`Zoomed into “${name}”. Also talk about this?\n(Zoom only changes your view; focus changes the topic.)`, 'talk about it');
     if (wantFocus) { c.focusContainerId = zoomTo; userUnfolded.clear(); userFolded.clear(); renderAll(); }
     $('round-line').textContent = wantFocus
       ? `zoomed into “${name}” — focus moved here, other topics dimmed`
@@ -1501,7 +1539,7 @@ $('tree').addEventListener('click', async (e) => {
   if (sugId) { openSuggestion(sugId); return; }
   const promoteId = t.closest('[data-promote]')?.dataset.promote;
   if (promoteId) {
-    if (!confirm(`Make “${disp(node(promoteId))}” a top-level topic of your map?`)) return;
+    if (!(await uiConfirm(`Make “${disp(node(promoteId))}” a top-level topic of your map?`, 'make top-level'))) return;
     try { await post(`/api/nodes/${promoteId}/place`, { parentId: null }); $('round-line').textContent = 'promoted to a top-level topic'; }
     catch (err) { $('round-line').textContent = `promote failed: ${err.message}`; }
     return;
@@ -1529,7 +1567,7 @@ $('tree').addEventListener('click', async (e) => {
       const msg = count > 0
         ? `Delete “${ndel.dataset.name}” and the ${count} node(s) under it?\n(The agent will be told to drop it all.)`
         : `Delete “${ndel.dataset.name}” from the map?\n(The agent will be told to drop it.)`;
-      if (confirm(msg)) await doDelete();
+      if (await uiConfirm(msg, 'delete', true)) await doDelete();
       return;
     }
     const ov = document.createElement('div');
@@ -1564,7 +1602,7 @@ $('tree').addEventListener('click', async (e) => {
   const retype = t.closest('[data-retype]')?.dataset.retype;
   if (retype) {
     const n = node(retype);
-    const nt = prompt('Category for this node (empty = plain topic):', n?.type ?? '');
+    const nt = await uiPrompt('Category for this node (empty = plain topic):', n?.type ?? '', 'set category');
     if (nt !== null && nt.trim() !== (n?.type ?? '')) await post(`/api/nodes/${retype}`, { type: nt.trim(), chatId: S.mainChatId });
     return;
   }
@@ -1737,7 +1775,7 @@ $('zoom-out').onclick = () => {
 // carries everything forward.
 $('clear-chat').onclick = async () => {
   if (!S.mainChatId) return;
-  if (!confirm('Clean the chat screen?\n\nThe conversation restarts visually and the chat agent begins a fresh window — but nothing is lost: the map carries all decisions, questions, and context forward, and the full transcript stays in the log.')) return;
+  if (!(await uiConfirm('Clean the chat screen?\n\nThe conversation restarts visually and the chat agent begins a fresh window — but nothing is lost: the map carries all decisions, questions, and context forward, and the full transcript stays in the log.', 'clean chat'))) return;
   try {
     await post(`/api/chats/${S.mainChatId}/clear`, {});
     await loadTurns();
@@ -1937,7 +1975,7 @@ $('lit-mgr-btn').onclick = () => {
     }
     const fEl = e.target.closest('[data-mfocus]');
     if (fEl && fEl.dataset.mfocus !== chat()?.focusContainerId) {
-      if (!confirm(`Move the conversation's focus to “${fEl.dataset.name}”?`)) return;
+      if (!(await uiConfirm(`Move the conversation's focus to “${fEl.dataset.name}”?`, 'move focus'))) return;
       ov.querySelectorAll('[data-mfocus]').forEach((x) => x.classList.remove('on'));
       fEl.classList.add('on');
       const c = chat(); if (c) c.focusContainerId = fEl.dataset.mfocus;
@@ -2155,7 +2193,7 @@ function openNodeMerge(srcId, srcName) {
   const q = ov.querySelector('#nm-q'), list = ov.querySelector('#nm-list');
   let t = null;
   const pickTarget = async (res) => {
-    if (!confirm(`Merge “${srcName}” into “${res.name}”?`)) return;
+    if (!(await uiConfirm(`Merge “${srcName}” into “${res.name}”?`, 'merge', true))) return;
     try { const m = await post(`/api/nodes/${srcId}/merge`, { intoId: res.id }); ov.remove(); undoToast(m.undo); }
     catch (err) { $('round-line').textContent = `merge failed: ${err.message}`; }
   };
@@ -2181,11 +2219,11 @@ async function mergeProjectFlow() {
   const others = (S.projects || []).filter(p => p.id !== S.projectId);
   if (!others.length) { $('round-line').textContent = 'no other map to merge with'; renderSwitchers(); return; }
   const names = others.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
-  const pick = prompt(`Merge THIS map into which one? Everything here becomes a topic there; this map disappears. IRREVERSIBLE.\n\n${names}\n\nEnter a number:`);
+  const pick = await uiPrompt(`Merge THIS map into which one? Everything here becomes a topic there; this map disappears. IRREVERSIBLE.\n\n${names}\n\nEnter a number:`, '', 'merge', 'text');
   renderSwitchers();
   const idx = parseInt(pick, 10) - 1;
   if (isNaN(idx) || !others[idx]) return;
-  if (!confirm(`Really fold the map “${(S.projects.find(p => p.id === S.projectId) || {}).name}” into “${others[idx].name}”?`)) return;
+  if (!(await uiConfirm(`Really fold the map “${(S.projects.find(p => p.id === S.projectId) || {}).name}” into “${others[idx].name}”?`, 'fold map', true))) return;
   try { await post(`/api/projects/${S.projectId}/merge`, { intoId: others[idx].id }); setZoom(null); loadTurns(); $('round-line').textContent = `map merged into “${others[idx].name}” — it's a topic there now`; }
   catch (err) { $('round-line').textContent = `map merge failed: ${err.message}`; }
 }
@@ -2340,7 +2378,7 @@ function openMapChat() {
       card.textContent = `proposal: fold the map “${a.projectName}” into this one as a topic — IRREVERSIBLE`;
       const b = btn('⇥ approve — merge projects');
       b.onclick = async () => {
-        if (!confirm(`Really fold the map “${a.projectName}” into this one? This cannot be undone.`)) return;
+        if (!(await uiConfirm(`Really fold the map “${a.projectName}” into this one? This cannot be undone.`, 'fold map', true))) return;
         try { await post(`/api/projects/${a.projectId}/merge`, { intoId: S.projectId }); done(`✓ map “${a.projectName}” is now a topic here`); }
         catch (e) { done(`failed: ${e.message}`); }
       };
@@ -2468,7 +2506,7 @@ async function openReorganize(nodeId, name, opts = {}) {
   const sz = isRoot ? S.nodes.filter(n => n.status !== 'removed').length : subtreeIds(nodeId).length;
   const est = Math.round(12 + sz * 1.5);
   const warn = est > 60 ? `\n\n⚠ This subtree has ${sz} nodes — expect roughly ${est}s (over a minute).` : '';
-  if (!opts.skipConfirm && !confirm(isRoot ? `Tidy the top level? The tidy agent may propose domain containers to group your top-level threads — nothing changes until you apply.${warn}` : `Reorganize the “${name}” subtree? I'll propose a cleanup for your review — nothing changes until you apply.${warn}`)) return;
+  if (!opts.skipConfirm && !(await uiConfirm(isRoot ? `Tidy the top level? The tidy agent may propose domain containers to group your top-level threads — nothing changes until you apply.${warn}` : `Reorganize the “${name}” subtree? I'll propose a cleanup for your review — nothing changes until you apply.${warn}`, isRoot ? 'tidy top level' : 'tidy'))) return;
   const stop = opWatch(`preparing a cleanup proposal for “${name}”`, est);
   let p;
   try { p = await post('/api/reorganize/preview', { nodeId, hint: opts.hint, feedback: opts.feedback, priorSummary: opts.priorSummary, suggestionId: opts.suggestionId }); stop(); if (p.cached) $('round-line').textContent = 'proposal was precomputed — instant'; }
@@ -2713,7 +2751,7 @@ async function closeSessionTab(chatId) {
   const msg = t
     ? 'Close this session? Its terminal ends (claude --resume in its folder can continue it) and the tab is put away. Everything it filed stays on the map.'
     : 'Close this session tab? Everything it filed stays on the map.';
-  if (!confirm(msg)) return;
+  if (!(await uiConfirm(msg, 'close session'))) return;
   if (t) {
     try { await fetch(`/api/term/${t.termId}`, { method: 'DELETE' }); } catch {}
     try { t.ws.close(); } catch {}
@@ -3084,7 +3122,7 @@ $('dev-btn').onclick = async () => {
   // code is public and the data is the user's own): it keeps ordinary users
   // out of developer tooling.
   if (!localStorage.getItem('hm-dev-ok')) {
-    const pw = prompt('dev mode is for the developers — password:');
+    const pw = await uiPrompt('dev mode is for the developers — password:', '', 'enter', 'password');
     if (pw !== 'marco123') { if (pw !== null) $('round-line').textContent = 'dev mode is for the developers'; return; }
     localStorage.setItem('hm-dev-ok', '1');
   }

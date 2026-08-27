@@ -89,6 +89,7 @@ try {
   process.exit(1);
 }
 await sleep(900); // initial fetches settle
+(window as any).__autoDialog = 'ok'; // M167: in-UI dialogs answer instantly in the harness
 const $ = (id: string) => document.getElementById(id);
 const S = () => window.__state?.();
 // no WebSocket in the harness — pump the page's own refresh() where the real
@@ -239,6 +240,19 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     rl.textContent = rl.getAttribute('data-idle')!;
     await sleep(80);
     check('idle text is never marked fresh', !rl.classList.contains('fresh'));
+  }
+
+  // M167: native popups are gone — our dialog boxes carry every ask
+  {
+    (window as any).__autoDialog = null; // exercise the REAL modal once
+    const fbtn = [...document.querySelectorAll('.nrow:not(.focused) [data-focus]')][0] as any;
+    fbtn.click(); await sleep(200);
+    const dlg = document.querySelector('.uidlg');
+    check('confirm renders as our own dialog box', !!dlg && /focus/.test(dlg.textContent!));
+    check('action button carries a verb, not OK', dlg?.querySelector('#uid-ok')?.textContent === 'move focus');
+    (dlg?.querySelector('#uid-cancel') as any)?.click(); await sleep(150);
+    check('cancel closes without acting', !document.querySelector('.uidlg'));
+    (window as any).__autoDialog = 'ok';
   }
 
   check('agent view hidden in +more (M162)', !!$('agent-view-btn') && $('agent-view-btn')!.closest('#other-more') !== null && /what the agent sees/.test($('agent-view-btn')!.textContent!));

@@ -1,1 +1,1 @@
-the pinned band: to-sort, a favorites folder of shortcuts, and a to-tidy folder that replaces suggestion dots; the agent view breaks the exact text down section by section
+no more browser popups: every ask is now a proper in-app dialog box; the map reviews itself every 10 rounds (proposals only)
