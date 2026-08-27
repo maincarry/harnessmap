@@ -499,6 +499,31 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
         .map((a: any) => a.id ?? a.nodeId)
         .filter((id: any) => id && id !== chat.focusContainerId);
       if (touchedIds.length) updateTouchedMemories(store, touchedIds, params.userText, params.assistantText).catch(() => {});
+      // M166 (Jacob): the whole-map review runs itself once in a while —
+      // every HARNESSMAP_AUTOTIDY_ROUNDS filed rounds (default 15) — and only
+      // PROPOSES: findings land in the ⟳ to tidy folder as suggestions, never
+      // applied without the user. Holds while suggestions are still pending
+      // (no piling); fires on the next round after the user clears them.
+      {
+        const AUTOTIDY = Number(process.env.HARNESSMAP_AUTOTIDY_ROUNDS ?? 10);
+        const tk = `tidy_ct:${roundPid}`;
+        // A fresh map gets its first review early (round 5) — early mess is
+        // cheapest to fix; thereafter every 10 rounds. Keeps running under
+        // influence-off (Jacob: the switch means "stay out of my
+        // conversations", not "stop maintaining yourself").
+        const threshold = store.getSetting(`tidy_first:${roundPid}`) === '1' ? AUTOTIDY : Math.min(5, AUTOTIDY);
+        const tct = Number(store.getSetting(tk) ?? 0) + 1;
+        if (AUTOTIDY > 0 && tct >= threshold && store.getOpenSuggestions(roundPid).length === 0) {
+          store.setSetting(tk, '0');
+          store.setSetting(`tidy_first:${roundPid}`, '1');
+          store.audit('auto_mapcheck', { after: tct });
+          checkMap(store, roundPid, chat.focusContainerId ?? null)
+            .then(() => broadcast({ type: 'map', ...state() }))
+            .catch(() => {});
+        } else {
+          store.setSetting(tk, String(AUTOTIDY > 0 ? Math.min(tct, threshold) : tct));
+        }
+      }
       // M48: relight notes auto-close once their node found a home.
       for (const sg of store.getOpenSuggestions(roundPid)) {
         if (sg.kind !== 'relight') continue;
