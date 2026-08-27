@@ -125,13 +125,17 @@ await click($('other-btn'), '⋯ other opens');
 check('primary tier visible, secondary folded', !$('other-menu')!.hasAttribute('hidden') && $('other-more')!.hasAttribute('hidden'));
 await click($('other-more-btn'), '＋ more expands');
 check('secondary tier visible, more-btn gone', !$('other-more')!.hasAttribute('hidden') && $('other-more-btn')!.hasAttribute('hidden'));
+check('third tier still folded behind ＋ settings', $('other-settings')!.hasAttribute('hidden') && !$('other-settings-btn')!.hasAttribute('hidden'));
+await click($('other-settings-btn'), '＋ settings expands');
+check('third tier visible (M168)', !$('other-settings')!.hasAttribute('hidden') && !!$('dev-btn')!.closest('#other-settings'));
 await click($('other-btn'), '⋯ closes');
 await click($('other-btn'), '⋯ reopens folded');
-check('reopen resets the fold', $('other-more')!.hasAttribute('hidden') && !$('other-more-btn')!.hasAttribute('hidden'));
+check('reopen resets the fold', $('other-more')!.hasAttribute('hidden') && !$('other-more-btn')!.hasAttribute('hidden') && $('other-settings')!.hasAttribute('hidden'));
 await click($('dim-outside'), '◐ dim all outside (no zoom → explains)');
 const viaMore = async (id: string, name: string) => {
   if ($('other-menu')!.hasAttribute('hidden')) await click($('other-btn'), `⋯ open (for ${name})`, 80);
   if ($('other-more')!.hasAttribute('hidden')) await click($('other-more-btn'), `expand (for ${name})`, 80);
+  if ($('other-settings')!.hasAttribute('hidden')) await click($('other-settings-btn'), `settings tier (for ${name})`, 80);
   await click($(id), name);
 };
 await viaMore('lit-all', '☀ light all (view)');
