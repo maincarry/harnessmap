@@ -674,3 +674,6 @@ Jacob reversed the empty-hides rule after tracing its attribution ("then your ru
 
 ## M168b — Tutorial + reference card caught up (Jacob, 2026-08-27)
 "update the toturials and reference cards." Tour was already on the pinned band (M167b, 7 beats). Reference card audit fixed the leftovers: the dead "● dot on a node" row became a "pinned" row describing all three folders + the every-10-rounds self-review; the to-sort row's "placement dot" wording now points at ⟳ to tidy; the focus row describes the pill (and its amber off-view state) instead of the old chip. ⋯ row was already on the three tiers.
+
+## M168c — Tier amendment: dim-all-outside + import are everyday (Jacob, 2026-08-27)
+"dim all outside is a everyday operating. So is import." Both promoted to tier 1 (now 7: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ◐ dim all outside · ⇪ import · ↩ undo · 🔠 text size); housekeeping tier is 6. Reference card updated.

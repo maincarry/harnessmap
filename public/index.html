@@ -422,6 +422,8 @@
           <button id="auto-focus" title="the focus agent suggests what to talk about next — you confirm">▶ auto-focus<span class="nudge-dot" hidden>●</span></button>
           <button id="auto-lit" title="the lighting agent picks which nodes belong in the background for the current focus">☀ auto-light<span class="nudge-dot" hidden>●</span></button>
           <button id="auto-zoom" title="the zoom agent suggests which branch to view alone — you confirm">◱ auto-zoom</button>
+          <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
+          <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes an organized subtree you approve">⇪ import</button>
           <button id="undo-btn" title="undo the last destructive action — delete, merge, tidy, or move (Ctrl/Cmd+Z works too)">↩ undo</button>
           <button id="font-btn" title="text size for the whole page — cycles Small / Normal / Large / Extra large">🔠 text size: normal</button>
           <button id="other-more-btn" title="map housekeeping: tidy, bulk lighting, import, preferences">＋ more…<span class="nudge-dot" hidden>●</span></button>
@@ -431,10 +433,8 @@
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
           <button id="lit-all" title="light every node in the current view — all of it enters the chat agent's background">☀ light all (this view)</button>
           <button id="dim-all" title="dim every node in the current view — the chat agent stops seeing all of it (you still see everything)">◐ dim all (this view)</button>
-          <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
           <button id="prefs-btn" title="standing preferences every map agent follows — how to group, name, and clean your maps; edit anytime">☰ map preferences</button>
           <button id="lit-mgr-btn" title="manage focus and background for the whole map in one list">▶☀ manage</button>
-          <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes an organized subtree you approve">⇪ import</button>
           <button id="other-settings-btn" title="rare, set-and-forget: the agent's view, sessions overview, updates, influence, dev mode">＋ more…</button>
           <div id="other-settings" hidden>
           <button id="agent-view-btn" title="what the chat agent receives from the map each turn — the context composition, and the exact text if you want it">👁 what the agent sees</button>
@@ -2650,7 +2650,7 @@ function openLegend() {
         <tr><td colspan="2"><hr><b>Toolbar &amp; sessions</b></td></tr>
         <tr><td>🔍 search</td><td>Ctrl/Cmd+K — find a node, confirm it with parents and children, then light / zoom / focus it</td></tr>
         <tr><td>🗨 talk to map</td><td>ask the map guide anything, or ask for changes in plain words — it proposes, you approve; complex asks become step-by-step plans</td></tr>
-        <tr><td>⋯ other</td><td>three tiers — everyday: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ↩ undo · 🔠 text size; first ＋ more (housekeeping): ⟳ tidy map · ⟳ tidy top level · ✎ auto-rename · ☀/◐ light/dim all · ◐ dim all outside · ☰ map preferences · ▶☀ manage · ⇪ import; second ＋ more (rare): 👁 what the agent sees · ▦ sessions · ⬆ check for updates · ⏻ close map influence · 🔧 dev mode</td></tr>
+        <tr><td>⋯ other</td><td>three tiers — everyday: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ◐ dim all outside · ⇪ import · ↩ undo · 🔠 text size; first ＋ more (housekeeping): ⟳ tidy map · ⟳ tidy top level · ✎ auto-rename · ☀/◐ light/dim all (this view) · ☰ map preferences · ▶☀ manage; second ＋ more (rare): 👁 what the agent sees · ▦ sessions · ⬆ check for updates · ⏻ close map influence · 🔧 dev mode</td></tr>
         <tr><td>+ session</td><td>new session, three ways: ▶ focus on a topic (pick or create what it talks about), ⑂ fork this view (same focus+lighting), ✳ start fresh (all dimmed) — then optionally open a real Claude Code terminal bound to it. ✕ closes a tab (filings stay); ⟳ re-fits a terminal</td></tr>
         <tr><td>maps</td><td>each map is completely separate — one per repo by default; the name at the top-left switches, creates, or merges maps (irreversible)</td></tr>
         <tr><td colspan="2"><hr><b>Fine print</b> — nodes also carry a category and status under the hood (the agents use them; see and edit both in the node editor — click any node's text).</td></tr>
