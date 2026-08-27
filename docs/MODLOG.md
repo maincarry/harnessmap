@@ -683,3 +683,6 @@ Jacob reversed the empty-hides rule after tracing its attribution ("then your ru
 
 ## M168e — Card drops the narrow-screens row (Jacob, 2026-08-27)
 "the 'narrow screen' is a mobile reference which is irrelevant now." Removed from the reference card (mobile support itself stays as-is, parked since M135b — this is documentation only).
+
+## M169 — Feedback: ✉ send by email, no account needed (Jacob, 2026-08-27)
+"Can't they just do it directly and we record them in github?" Analysis: truly direct is impossible (GitHub has no anonymous issues; a shipped token/webhook secret dies instantly in a public product) and a hosted relay would retire the "nothing is sent anywhere" promise — parked as a founders' call if pilot data ever shows sign-in friction. Jacob picked the zero-infrastructure middle: the feedback card now offers "✉ send by email (no account needed)" beside the GitHub button — opens the user's own mail app pre-filled (same template); nothing sends until they press send. Address: yuhinc@sas.upenn.edu (Jacob's, his call — "we will create a harnessmap email later"; HARNESSMAP_FEEDBACK_EMAIL overrides). Both paths log to the local feedback list.

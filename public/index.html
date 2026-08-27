@@ -2389,14 +2389,23 @@ function openMapChat() {
       card.appendChild(b);
     } else if (a.kind === 'feedback') {
       card.textContent = `proposal: report this to the developers — “${a.instruction.slice(0, 120)}${a.instruction.length > 120 ? '…' : ''}”`;
+      const fbBody = `${a.instruction}\n\n---\nharnessmap ${S.version ?? ''} · reported via talk-to-map (user-initiated)`;
       const b = btn('🐞 open a GitHub issue (you review and submit it)');
       b.onclick = () => {
-        const body = `${a.instruction}\n\n---\nharnessmap ${S.version ?? ''} · reported via talk-to-map (user-initiated)`;
         post('/api/feedback', { text: a.instruction, source: 'talk-to-map' }).catch(() => {});
-        window.open(`https://github.com/maincarry/harnessmap/issues/new?title=${encodeURIComponent(a.instruction.slice(0, 70))}&body=${encodeURIComponent(body)}`, '_blank');
+        window.open(`https://github.com/maincarry/harnessmap/issues/new?title=${encodeURIComponent(a.instruction.slice(0, 70))}&body=${encodeURIComponent(fbBody)}`, '_blank');
         done('✓ opened a pre-filled issue in your browser — nothing is sent until you submit it there');
       };
       card.appendChild(b);
+      // M169 (Jacob): no GitHub account needed — same report via the user's
+      // own mail app; nothing sends until they press send there.
+      const em = btn('✉ send by email (no account needed)');
+      em.onclick = () => {
+        post('/api/feedback', { text: a.instruction, source: 'talk-to-map-email' }).catch(() => {});
+        window.open(`mailto:${S.feedbackEmail ?? 'yuhinc@sas.upenn.edu'}?subject=${encodeURIComponent('[harnessmap] ' + a.instruction.slice(0, 60))}&body=${encodeURIComponent(fbBody)}`, '_blank');
+        done('✓ opened a pre-filled email in your mail app — nothing is sent until you press send there');
+      };
+      card.appendChild(em);
     } else if (a.kind === 'pref') {
       card.textContent = `proposal: save a standing preference — “${a.instruction}” (every map agent will follow it)`;
       const b = btn('✎ approve — save preference');

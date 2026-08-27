@@ -569,6 +569,7 @@ function state() {
     home: (() => { const h = store.getSetting(`home:${projectId}`); return h && store.getNode(h)?.status !== 'removed' ? h : null; })(),
     influenceOff: influenceOff(projectId),
     updateAvailable: updateAvailable(),
+    feedbackEmail: process.env.HARNESSMAP_FEEDBACK_EMAIL ?? 'yuhinc@sas.upenn.edu',
     version: VERSION,
     storage: DB_PATH,
     nodes: map.nodes.filter((n) => n.status !== 'removed'), // user-deleted stays out of the UI
