@@ -67,6 +67,8 @@ const shims: Record<string, any> = {
   location: window.location, history: { pushState() {}, replaceState() {} },
   getComputedStyle: (el: any) => window.getComputedStyle(el),
   ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
+  MutationObserver: (window as any).MutationObserver, // happy-dom has one; pass it through
+
   Event: window.Event, screen: { width: 1600, height: 1000 },
   Terminal: undefined, FitAddon: undefined,
 };
@@ -229,6 +231,17 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
 // ---------- text size (M144) ----------
 {
   check('update check hidden in +more (M161)', !!$('update-btn') && $('update-btn')!.closest('#other-more') !== null && /check for updates/.test($('update-btn')!.textContent!));
+  check('agent view hidden in +more (M162)', !!$('agent-view-btn') && $('agent-view-btn')!.closest('#other-more') !== null && /what the agent sees/.test($('agent-view-btn')!.textContent!));
+
+  await viaMore('agent-view-btn', '👁 what the agent sees opens');
+  await sleep(400);
+  {
+    const ov = document.querySelector('.overlay');
+    check('agent view modal: composition bar + legend', !!ov && !!ov.querySelector('.avbar') && ov.querySelectorAll('.avrow').length >= 2);
+    check('agent view modal: exact text behind a fold', !!ov && !!ov.querySelector('details pre') && ov.querySelector('details pre')!.textContent!.includes('[map state'));
+    (ov!.querySelector('#av-close') as any).click(); await sleep(60);
+    check('agent view modal closes', !document.querySelector('.overlay'));
+  }
 
   await viaMore('font-btn', '🔠 text size cycles');
   check('text size steps to large-ward + persists', $('font-btn')!.textContent!.includes('large') && window.localStorage.getItem('hm-font') === 'large');

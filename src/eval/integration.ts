@@ -959,6 +959,25 @@ console.log('\n== 34. update visibility (M161) ==');
   await post('/api/update-check', {}); // override restores 99.0.0 for anything downstream
 }
 
+console.log('\n== 35. context visibility (M162) ==');
+{
+  const av = await (await fetch(`${BASE}/api/agent-view`)).json();
+  check('agent-view: sections with labels and sizes', Array.isArray(av.sections) && av.sections.length > 0 && av.sections.every((x: any) => typeof x.label === 'string' && x.chars > 0));
+  check('agent-view: exact text + budget + total', av.text.startsWith('[map state') && av.budget > 0 && av.total === av.text.length);
+  check('budget derives from harness window (~5% of 200k tokens)', av.budget === 40_000);
+  check('nothing trimmed at full budget', (await state()).trimmedLit.length === 0);
+  // Shrink the budget via the settings seam; the big planted map must overflow.
+  await post('/api/dev/setting', { key: 'map_budget', value: '1800' });
+  const s2 = await state();
+  check('lit-but-trimmed branches surface in state', Array.isArray(s2.trimmedLit) && s2.trimmedLit.length > 0);
+  check('trimmed ids are real lit branch tops', s2.trimmedLit.every((id: string) => s2.nodes.some((n: any) => n.id === id)));
+  const av2 = await (await fetch(`${BASE}/api/agent-view`)).json();
+  check('agent view reports the same trims', av2.trimmedLit.length === s2.trimmedLit.length && av2.budget === 1800);
+  check('titles still present for trimmed branches (tiered, not vanished)', av2.text.includes('titles:'));
+  await post('/api/dev/setting', { key: 'map_budget', value: '' });
+  check('budget seam resets clean', (await (await fetch(`${BASE}/api/agent-view`)).json()).budget === 40_000);
+}
+
 console.log('\n== 13. audit ==');
 {
   const a = await get('/api/audit?limit=10');

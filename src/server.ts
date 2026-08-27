@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { Store } from './store/db.js';
 import { Translator } from './translator/translator.js';
 import { ChatSessionManager } from './agent/chat-session.js';
+import { composeParts } from './seed/composer.js';
 import { loadMap, descendantNodes, renderSubtreeFull } from './map/render.js';
 import { proposeReorganize } from './translator/reorganize.js';
 import { proposeAutolit } from './translator/autolit.js';
@@ -557,6 +558,9 @@ function state() {
       }));
     })(),
     suggestions: store.getOpenSuggestions(projectId),
+    // M162: lit branches whose full statements did not fit this turn's budget
+    // — the map shows a loud mark so a lit choice is never silently ignored.
+    trimmedLit: (() => { try { return composeParts(store, mainChatId, []).trimmedLit; } catch { return []; } })(),
     nudges: { ...nudges, focusName: nudgeFocusTarget?.name ?? null },
     favorites: store.getFavorites(),
     health: { ...health, now: Date.now() },
@@ -1329,6 +1333,12 @@ const server = Bun.serve({
       store.audit('prefs_updated', { chars: text.length, appended: Boolean(b.append) });
       broadcast({ type: 'map', ...state() });
       return json({ ok: true, text });
+    }
+
+    // M162: user-facing agent view — what one turn's injection is made of.
+    if (path === '/api/agent-view' && req.method === 'GET') {
+      const { text, trimmedLit, sections, budget } = composeParts(store, mainChatId, []);
+      return json({ sections, trimmedLit, budget, total: text.length, text });
     }
 
     // M161: menu-triggered update check.

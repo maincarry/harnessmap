@@ -155,6 +155,14 @@
   .nrow.tosort > .ncontent::before { content: '📥 '; }
   .nrow.tosort > .ncontent { color: var(--muted); font-weight: 600; }
   #round-line { cursor: pointer; }
+  .trimwarn { color: #c62828; font-weight: 900; font-size: 15px; cursor: help; margin: 0 2px; }
+  #crumbs .focus-away { background: var(--accent); color: #fff; padding: 2px 10px; border-radius: 999px; font-weight: 600; }
+  #crumbs .focus-away:hover { filter: brightness(1.1); }
+  .avbar { display: flex; height: 18px; border-radius: 6px; overflow: hidden; border: 1px solid var(--hair); margin: 8px 0; }
+  .avseg { min-width: 2px; }
+  .avrow { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
+  .avrow .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .avrow .sz { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
   #round-line:hover { color: var(--accent); }
   #changes-panel { position: absolute; bottom: 34px; left: 12px; right: 12px; max-height: 45vh; overflow-y: auto;
                    background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; padding: 10px 12px;
@@ -392,6 +400,7 @@
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
           <button id="prefs-btn" title="standing preferences every map agent follows — how to group, name, and clean your maps; edit anytime">☰ map preferences</button>
           <button id="lit-mgr-btn" title="manage focus and background for the whole map in one list">▶☀ manage</button>
+          <button id="agent-view-btn" title="what the chat agent receives from the map each turn — the context composition, and the exact text if you want it">👁 what the agent sees</button>
           <button id="update-btn" title="check whether a newer harnessmap exists — updating itself happens in Claude Code, never automatically">⬆ check for updates</button>
           <button id="font-btn" title="text size for the whole page — cycles Small / Normal / Large / Extra large">🔠 text size: normal</button>
           <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
@@ -399,7 +408,7 @@
       </div>
     </div>
     <div id="tree"><div class="empty">no map yet — press “+ add node” to begin</div></div>
-    <div id="round-line">no map update running — click here after an update to see what changed</div>
+    <div id="round-line" data-idle="no map update running — click here after an update to see what changed">no map update running — click here after an update to see what changed</div>
   </div>
   <div id="splitter" data-tip="drag to resize the panes"></div>
   <div id="mob-bar">
@@ -482,7 +491,7 @@ function renderCrumbs() {
   let focusChip = '';
   if (f && node(f)) {
     const away = zoomId ? !pathOf(f).some(n => n.id === zoomId) && f !== zoomId : false;
-    focusChip = `<span class="focus-away" style="${away ? '' : 'color:var(--muted)'}" data-jump-focus="${f}" title="${away ? 'the focus is outside this view — click to zoom to it' : 'click to jump to the focus (offers auto-zoom)'}">▶ focus: ${esc(disp(node(f)))}</span>`;
+    focusChip = `<span class="focus-away" style="${away ? 'background:var(--warn)' : ''}" data-jump-focus="${f}" title="${away ? 'the focus is outside this view — click to zoom to it' : 'click to jump to the focus (offers auto-zoom)'}">▶ focus: ${esc(disp(node(f)))}</span>`;
   }
   el.innerHTML = parts.join('') + focusChip;
 }
@@ -554,6 +563,7 @@ function renderTree() {
       ${'<span class="tguide"></span>'.repeat(depth)}
       <span class="caret" data-fold="${n.id}" title="${kids.length ? (folded.has(n.id) ? 'expand: show its immediate children' : 'collapse this branch') : 'nothing nested under this node yet — + adds a sub-node'}">${kids.length ? (folded.has(n.id) ? '▸' : '▾') : '·'}</span>
       ${lit.has(n.id) ? '<span class="badge lit" title="in the chat agent’s background">☀</span>' : ''}
+      ${(S.trimmedLit || []).includes(n.id) ? '<span class="trimwarn" title="lit, but it did NOT fit the agent’s context this turn — only its titles went in. Dim other topics or shrink the lit area to make room.">❗</span>' : ''}
       ${S.home === n.id ? `<span class="badge" title="home page — the home button (top of the map) zooms here">${HOME_ICO}</span>` : ''}
 
       ${n.id === focus ? '<span class="fmark" title="the conversation is talking about this">▶</span>' : ''}
@@ -899,6 +909,7 @@ function openDrawer() {
     ${act('import-btn', '⇪', 'import notes, documents, or past sessions')}
     ${act('sessions-btn', '▦', 'all sessions: pin, close, jump')}
     ${act('font-btn', '🔠', 'text size')}
+    ${act('agent-view-btn', '👁', 'what the agent sees')}
     ${act('update-btn', '⬆', 'check for updates')}
     ${act('influence-btn', '⏻', 'close / reopen map influence')}
     ${act('round-line', '≡', 'what changed')}
@@ -953,6 +964,33 @@ $('font-btn').onclick = () => {
 applyFont(localStorage.getItem('hm-font') ?? 'normal');
 
 $('import-btn').onclick = () => { $('other-menu').hidden = true; openImport(); };
+$('agent-view-btn').onclick = async () => {
+  $('other-menu').hidden = true;
+  let av;
+  try { av = await (await fetch('/api/agent-view')).json(); } catch { $('round-line').textContent = 'could not load the agent view'; return; }
+  const colors = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#dc2626', '#0891b2', '#64748b'];
+  const free = Math.max(0, av.budget - av.total);
+  const pct = (c) => Math.max(0.5, (c / av.budget) * 100);
+  const segs = av.sections.map((sec, i) => `<div class="avseg" style="width:${pct(sec.chars)}%;background:${colors[i % colors.length]}" title="${esc(sec.label)}"></div>`).join('')
+    + `<div class="avseg" style="width:${pct(free)}%;background:var(--hair)" title="free space"></div>`;
+  const rows = av.sections.map((sec, i) => `<div class="avrow"><span class="sw" style="background:${colors[i % colors.length]}"></span>${esc(sec.label)}<span class="sz">${(sec.chars / 1000).toFixed(1)}k</span></div>`).join('')
+    + `<div class="avrow"><span class="sw" style="background:var(--hair)"></span>free space<span class="sz">${(free / 1000).toFixed(1)}k</span></div>`;
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(560px,94vw)">
+      <h3>👁 what the agent sees</h3>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 4px">the map's contribution to every turn — refreshed each time you talk. Room used: ${(av.total / 1000).toFixed(1)}k of ${(av.budget / 1000).toFixed(1)}k characters.${av.trimmedLit.length ? ` <b style="color:#c62828">❗ ${av.trimmedLit.length} lit topic(s) did not fit</b> — only their titles went in; dim something to make room.` : ''}</div>
+      <div class="avbar">${segs}</div>
+      ${rows}
+      <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px">the exact text</summary>
+        <pre style="max-height:44vh;overflow:auto;font-size:11px;background:var(--bg);border:1px solid var(--hair);border-radius:8px;padding:10px;white-space:pre-wrap">${esc(av.text)}</pre></details>
+      <div class="actions"><button id="av-close" class="primary">close</button></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#av-close').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+};
 $('update-btn').onclick = async () => {
   $('other-menu').hidden = true;
   try {
@@ -2463,7 +2501,7 @@ function openLegend() {
         <tr><td colspan="2"><hr><b>Toolbar &amp; sessions</b></td></tr>
         <tr><td>🔍 search</td><td>Ctrl/Cmd+K — find a node, confirm it with parents and children, then light / zoom / focus it</td></tr>
         <tr><td>🗨 talk to map</td><td>ask the map guide anything, or ask for changes in plain words — it proposes, you approve; complex asks become step-by-step plans</td></tr>
-        <tr><td>⋯ other</td><td>two tiers — everyday: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ⟳ tidy map · ◐ dim all outside · ▦ sessions · 🔧 dev mode · ↩ undo; behind ＋ more: ⇪ import · ☀/◐ light/dim all (this view) · ⟳ tidy top level · ✎ auto-rename · ☰ map preferences · ▶☀ manage · 🔠 text size · ⏻ close map influence</td></tr>
+        <tr><td>⋯ other</td><td>two tiers — everyday: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ⟳ tidy map · ◐ dim all outside · ▦ sessions · 🔧 dev mode · ↩ undo; behind ＋ more: ⇪ import · ☀/◐ light/dim all (this view) · ⟳ tidy top level · ✎ auto-rename · ☰ map preferences · ▶☀ manage · 👁 what the agent sees · ⬆ check for updates · 🔠 text size · ⏻ close map influence</td></tr>
         <tr><td>+ session</td><td>new session, three ways: ▶ focus on a topic (pick or create what it talks about), ⑂ fork this view (same focus+lighting), ✳ start fresh (all dimmed) — then optionally open a real Claude Code terminal bound to it. ✕ closes a tab (filings stay); ⟳ re-fits a terminal</td></tr>
         <tr><td>maps</td><td>each map is completely separate — one per repo by default; the name at the top-left switches, creates, or merges maps (irreversible)</td></tr>
         <tr><td colspan="2"><hr><b>Fine print</b> — nodes also carry a category and status under the hood (the agents use them; see and edit both in the node editor — click any node's text).</td></tr>
@@ -3045,6 +3083,18 @@ async function refresh() {
 connect();
 refresh();
 checkMobile();
+// M162 (Mark): the bottom line is STATUS, not pinned information — action
+// feedback ("focus → x") lingering there read as a pinned topic. Every
+// message reverts to the idle text after a beat.
+{
+  const rl = $('round-line');
+  let rlT = null;
+  new MutationObserver(() => {
+    if (rl.textContent === rl.dataset.idle) return;
+    clearTimeout(rlT);
+    rlT = setTimeout(() => { rl.textContent = rl.dataset.idle; }, 8000);
+  }).observe(rl, { childList: true, characterData: true, subtree: true });
+}
 window.TOUR = TOUR; window.tourShow = tourShow; window.tourStop = tourStop; window.__state = () => S; window.__refresh = refresh; window.__md = md2html; // test hooks (ui-smoke)
 </script>
 </body>

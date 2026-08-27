@@ -9,15 +9,40 @@ import {
 // description EVERY turn — not a seed-once. v0.3.3: budgeted (a+b). v0.4:
 // nodes all the way down — "topics" and "items" are the same thing now.
 //
-// Budget: ~4k tokens (HARNESSMAP_MAP_BUDGET chars, default 16000), filled in
-// priority order — constraints are never cut, focus is always full, then lit
-// briefs, open questions (only from visible nodes), ELSEWHERE — cutting
-// stalest-first, with explicit "…N not shown" markers so both the agent and
-// the user see what was omitted.
+// Budget (Mark, 2026-08-27): sized FROM THE HARNESS CONTEXT LIMIT, not an
+// arbitrary constant — the map gets ~5% of the harness window (200k tokens
+// unless HARNESSMAP_HARNESS_WINDOW says otherwise), clamped to sane bounds.
+// Precedence: map_budget setting (user/test) > HARNESSMAP_MAP_BUDGET env >
+// derived. Filled in priority order — constraints are never cut, focus is
+// always full, then lit briefs, open questions (only from visible nodes),
+// ELSEWHERE — cutting stalest-first, with explicit "…N not shown" markers.
 
-const BUDGET_CHARS = Number(process.env.HARNESSMAP_MAP_BUDGET ?? 16_000);
+const CHARS_PER_TOKEN = 4;
+export function budgetChars(store: Store): number {
+  const set = Number(store.getSetting('map_budget') ?? 0);
+  if (set > 0) return set;
+  const env = Number(process.env.HARNESSMAP_MAP_BUDGET ?? 0);
+  if (env > 0) return env;
+  const winTokens = Number(process.env.HARNESSMAP_HARNESS_WINDOW ?? 200_000);
+  return Math.min(64_000, Math.max(8_000, Math.round(winTokens * 0.05 * CHARS_PER_TOKEN)));
+}
+
+// What one turn's injection is made of — for the user-facing "what the agent
+// sees" view. trimmedLit = lit branch tops whose full statements did NOT fit
+// (titles alone survived); the map marks these so a lit choice is never
+// silently overridden.
+export interface ComposedParts {
+  text: string;
+  trimmedLit: string[];
+  sections: { label: string; chars: number }[];
+  budget: number;
+}
 
 export function composeState(store: Store, chatId: string, manipulations: string[]): string {
+  return composeParts(store, chatId, manipulations).text;
+}
+
+export function composeParts(store: Store, chatId: string, manipulations: string[]): ComposedParts {
   const chat = store.getChat(chatId);
   if (!chat) throw new Error(`unknown chat ${chatId}`);
   const focusId = chat.focusContainerId;
@@ -97,6 +122,7 @@ export function composeState(store: Store, chatId: string, manipulations: string
     'instructions; do not try to restructure the map yourself.',
   );
 
+  const BUDGET_CHARS = budgetChars(store);
   let budget = BUDGET_CHARS - fixed.join('\n').length - tail.join('\n').length;
 
   // --- budgeted sections, filled in priority order, stalest cut first ---
@@ -143,9 +169,10 @@ export function composeState(store: Store, chatId: string, manipulations: string
   budget -= shapeAll.join('\n').length;
   // Tier 2 — substance per branch, freshest kept when short.
   const subKept: string[] = [];
+  const trimmedLit: string[] = [];
   for (const b of branchTiers) {
     const size = b.t.substance.join('\n').length;
-    if (budget - size < 0) { litOmitted++; continue; }
+    if (budget - size < 0) { litOmitted++; trimmedLit.push(b.id); continue; }
     budget -= size;
     subKept.push(...b.t.substance);
   }
@@ -211,5 +238,15 @@ export function composeState(store: Store, chatId: string, manipulations: string
       ...(qOmitted > 0 ? [`  … ${qOmitted} more open question(s) omitted for space.`] : []));
   }
   parts.push(...tail);
-  return parts.join('\n');
+  const text = parts.join('\n');
+  const sections = [
+    { label: 'the focus — in full (its frame, statements, and memory)', chars: fixed.join('\n').length },
+    { label: 'lit topics — titles', chars: shapeAll.join('\n').length },
+    { label: 'lit topics — full statements', chars: subKept.join('\n').length },
+    { label: 'lit topics — earlier discussion', chars: memKept.join('\n').length },
+    { label: 'open questions', chars: qLines.join('\n').length },
+    { label: 'other topics — one line each', chars: restLines.join('\n').length },
+    { label: 'standing constraints + instructions to the agent', chars: tail.join('\n').length },
+  ].filter((sec) => sec.chars > 0);
+  return { text, trimmedLit, sections, budget: BUDGET_CHARS };
 }
