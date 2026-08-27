@@ -1,6 +1,6 @@
 {
   "name": "harnessmap",
-  "version": "0.9.22",
+  "version": "0.9.23",
   "private": true,
   "type": "module",
   "description": "A map-based AI harness: chat with an agent while a live map of your goals, decisions, and questions maintains itself.",

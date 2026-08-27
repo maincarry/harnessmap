@@ -238,6 +238,14 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   check('update check hidden in +more (M161)', !!$('update-btn') && $('update-btn')!.closest('#other-more') !== null && /check for updates/.test($('update-btn')!.textContent!));
   {
     const rl = $('round-line')!;
+    // M170: while work is in flight the line breathes and never fades/reverts
+    window.__wsInject?.({ type: 'lag', lag: 1 });
+    await sleep(120);
+    check('in-flight work lights the line (working)', rl.classList.contains('working') && /filing/.test(rl.textContent!));
+    window.__wsInject?.({ type: 'lag', lag: 0 });
+    window.__wsInject?.({ type: 'round', chatId: 'x', summary: 'test', alterations: 1 });
+    await sleep(120);
+    check('work landing stops the breathing', !rl.classList.contains('working'));
     rl.textContent = 'something happened';
     await sleep(80);
     check('status roll lands in accent (fresh) before fading (M163b)', rl.classList.contains('fresh'));

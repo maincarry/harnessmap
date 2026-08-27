@@ -165,6 +165,8 @@
   .nrow.tosort > .ncontent { color: var(--muted); font-weight: 600; }
   #round-line { cursor: pointer; transition: color 1.2s ease; }
   #round-line.fresh { color: var(--accent); transition: none; }
+  #round-line.working { color: var(--accent); animation: rl-breathe 1.6s ease-in-out infinite; }
+  @keyframes rl-breathe { 50% { opacity: .45; } }
   .trimwarn { color: #c62828; font-weight: 900; font-size: 15px; cursor: help; margin: 0 2px; }
   #crumbs .focus-away {
     display: inline-block; max-width: 58%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1790,13 +1792,15 @@ $('clear-chat').onclick = async () => {
 // M39: long-operation status with estimates + over-a-minute warning.
 function opWatch(label, estimateSec) {
   const t0 = Date.now();
-  $('round-line').textContent = `${label}… (estimated ~${estimateSec}s${estimateSec > 60 ? ' — WARNING: likely over a minute' : ''})`;
+  const rl = $('round-line');
+  rl.classList.add('working');
+  rl.textContent = `${label}… (estimated ~${estimateSec}s${estimateSec > 60 ? ' — WARNING: likely over a minute' : ''})`;
   const iv = setInterval(() => {
     const sec = Math.round((Date.now() - t0) / 1000);
-    if (sec >= 60) $('round-line').textContent = `${label}… still running (${sec}s — over a minute; big maps make this slower)`;
-    else if (sec >= estimateSec + 10) $('round-line').textContent = `${label}… taking longer than expected (${sec}s)`;
+    if (sec >= 60) rl.textContent = `${label}… still running (${sec}s — over a minute; big maps make this slower)`;
+    else if (sec >= estimateSec + 10) rl.textContent = `${label}… taking longer than expected (${sec}s)`;
   }, 5000);
-  return () => clearInterval(iv);
+  return () => { clearInterval(iv); rl.classList.remove('working'); };
 }
 
 // M80 (Jacob): auto-light and auto-focus are propose→accept with a feedback
@@ -3222,11 +3226,15 @@ function connect() {
       box.scrollTop = box.scrollHeight;
     } else if (m.type === 'round') {
       lastFiledAt = Date.now(); setBeat('filed');
+      $('round-line').classList.remove('working');
       $('round-line').textContent = `↳ ${m.summary} (${m.alterations} change${m.alterations === 1 ? '' : 's'})`;
     } else if (m.type === 'lag') {
       const el = $('lag');
       el.textContent = m.lag > 0 ? `map is ${m.lag} round${m.lag === 1 ? '' : 's'} behind` : 'map current';
       el.classList.toggle('behind', m.lag > 0);
+      // M170 (Jacob): the line breathes gently while work is in flight —
+      // "something is happening", said lightly — and stops when it lands.
+      $('round-line').classList.toggle('working', m.lag > 0);
       if (m.lag > 0) $('round-line').textContent = 'filing the round onto the map…';
     } else if (m.type === 'host_prompt') {
       setBeat('prompt');
@@ -3269,12 +3277,14 @@ checkMobile();
   new MutationObserver(() => {
     if (rl.textContent === rl.dataset.idle) { rl.classList.remove('fresh'); return; }
     // M163b (Jacob): a rolling message is easy to miss — land in accent color,
-    // fade back to muted, then yield to the idle text.
+    // fade back to muted, then yield to the idle text. While .working
+    // (M170), the breathing carries the signal and nothing fades or reverts.
+    if (rl.classList.contains('working')) { rl.classList.remove('fresh'); clearTimeout(rlF); clearTimeout(rlT); return; }
     rl.classList.add('fresh');
     clearTimeout(rlF);
     rlF = setTimeout(() => rl.classList.remove('fresh'), 2600);
     clearTimeout(rlT);
-    rlT = setTimeout(() => { rl.textContent = rl.dataset.idle; }, 8000);
+    rlT = setTimeout(() => { if (!rl.classList.contains('working')) rl.textContent = rl.dataset.idle; }, 8000);
   }).observe(rl, { childList: true, characterData: true, subtree: true });
 }
 window.TOUR = TOUR; window.tourShow = tourShow; window.tourStop = tourStop; window.__state = () => S; window.__refresh = refresh; window.__md = md2html; window.__setZoom = setZoom; // test hooks (ui-smoke)
