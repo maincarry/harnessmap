@@ -1131,47 +1131,55 @@ $('agent-view-btn').onclick = async () => {
 };
 $('feedback-btn').onclick = () => {
   $('other-menu').hidden = true;
+  // M172c (Jacob: "just design feedback smartly"): two calm stages. Stage 1
+  // asks ONE thing — write and save (always local, always works). Stage 2
+  // offers the optional ways to get it to the developers.
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `
-    <div class="modal" style="width:min(460px,94vw)">
-      <h3>🐞 send feedback</h3>
-      <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">write it here, then pick a channel — nothing is sent until you press send there (GitHub needs an account; email doesn't). The address, if you'd rather do it yourself: <b id="fb-addr" style="user-select:all"></b>. Picking a channel also keeps a local copy of the text on this machine, nowhere else.</div>
-      <textarea id="fb-text" style="width:100%;min-height:110px;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px" placeholder="what happened, or what should be better?"></textarea>
-      <div class="actions">
-        <button id="fb-cancel">cancel</button>
-        <button id="fb-copy" title="copies the whole report + address — paste it into any email or message">⧉ copy</button>
-        <button id="fb-em" class="primary">✉ send by email</button>
-        <button id="fb-gh" class="primary">🐞 open GitHub issue</button>
+    <div class="modal" style="width:min(440px,94vw)">
+      <h3>🐞 feedback</h3>
+      <div id="fb-stage1">
+        <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">a bug, a rough edge, an idea. Saving keeps it on this machine, nowhere else.</div>
+        <textarea id="fb-text" style="width:100%;min-height:110px;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px" placeholder="what happened, or what should be better?"></textarea>
+        <div class="actions">
+          <button id="fb-cancel">cancel</button>
+          <button id="fb-save" class="primary">save</button>
+        </div>
+      </div>
+      <div id="fb-stage2" hidden>
+        <div style="font-size:13px;margin:2px 0 10px">✓ saved on this machine. Also get it to the developers?</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button id="fb-gh" style="text-align:left">🐞 open it as a GitHub issue — pre-filled, you press submit there (needs an account)</button>
+          <button id="fb-copy" style="text-align:left">⧉ copy the report — paste it into an email to <b id="fb-addr" style="user-select:all"></b></button>
+        </div>
+        <div class="actions"><button id="fb-done" class="primary">done</button></div>
       </div>
     </div>`;
   document.body.appendChild(ov);
   ov.querySelector('#fb-addr').textContent = S.feedbackEmail ?? 'yuhinc@sas.upenn.edu';
   ov.querySelector('#fb-cancel').onclick = () => ov.remove();
+  ov.querySelector('#fb-done').onclick = () => ov.remove();
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
-  const take = () => {
+  let saved = null;
+  ov.querySelector('#fb-save').onclick = () => {
     const text = ov.querySelector('#fb-text').value.trim();
-    if (!text) { ov.querySelector('#fb-text').focus(); return null; }
+    if (!text) { ov.querySelector('#fb-text').focus(); return; }
     post('/api/feedback', { text, source: 'feedback-button' }).catch(() => {});
-    return { text, body: `${text}\n\n---\nharnessmap ${S.version ?? ''} · sent from the feedback button (user-initiated)` };
+    saved = { text, body: `${text}\n\n---\nharnessmap ${S.version ?? ''} · sent from the feedback button (user-initiated)` };
+    ov.querySelector('#fb-stage1').hidden = true;
+    ov.querySelector('#fb-stage2').hidden = false;
   };
   ov.querySelector('#fb-gh').onclick = () => {
-    const f = take(); if (!f) return;
-    window.open(`https://github.com/maincarry/harnessmap/issues/new?title=${encodeURIComponent(f.text.slice(0, 70))}&body=${encodeURIComponent(f.body)}`, '_blank');
-    ov.remove(); $('round-line').textContent = '✓ opened a pre-filled issue — nothing is sent until you submit it there';
-  };
-  ov.querySelector('#fb-em').onclick = () => {
-    const f = take(); if (!f) return;
-    // mailto via same-tab navigation — window.open leaves a blank tab and
-    // does NOTHING at all when no default mail app is configured.
-    location.href = `mailto:${S.feedbackEmail ?? 'yuhinc@sas.upenn.edu'}?subject=${encodeURIComponent('[harnessmap] ' + f.text.slice(0, 60))}&body=${encodeURIComponent(f.body)}`;
-    ov.remove(); $('round-line').textContent = '✓ opened a pre-filled email — if no mail app appeared, use ⧉ copy instead';
+    if (!saved) return;
+    window.open(`https://github.com/maincarry/harnessmap/issues/new?title=${encodeURIComponent(saved.text.slice(0, 70))}&body=${encodeURIComponent(saved.body)}`, '_blank');
+    $('round-line').textContent = '✓ opened a pre-filled issue — nothing is sent until you submit it there';
   };
   ov.querySelector('#fb-copy').onclick = async () => {
-    const f = take(); if (!f) return;
+    if (!saved) return;
     const addr = S.feedbackEmail ?? 'yuhinc@sas.upenn.edu';
-    try { await navigator.clipboard.writeText(`To: ${addr}\nSubject: [harnessmap] feedback\n\n${f.body}`); } catch {}
-    ov.remove(); $('round-line').textContent = `✓ report copied — paste it into any email to ${addr}`;
+    try { await navigator.clipboard.writeText(`To: ${addr}\nSubject: [harnessmap] feedback\n\n${saved.body}`); } catch {}
+    $('round-line').textContent = `✓ report copied — paste it into any email to ${addr}`;
   };
 };
 $('update-btn').onclick = async () => {

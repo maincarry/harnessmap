@@ -395,8 +395,13 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   await click($('feedback-btn'), '🐞 send feedback opens');
   {
     const ov = [...document.querySelectorAll('.overlay')].pop();
-    check('feedback modal: text + three channels (gh/email/copy)', !!ov && !!ov.querySelector('#fb-text') && !!ov.querySelector('#fb-gh') && !!ov.querySelector('#fb-em') && !!ov.querySelector('#fb-copy'));
-    (ov?.querySelector('#fb-cancel') as any)?.click(); await sleep(60);
+    check('feedback stage 1: one ask — write and save', !!ov && !!ov.querySelector('#fb-text') && !!ov.querySelector('#fb-save') && ov.querySelector('#fb-stage2')!.hasAttribute('hidden'));
+    (ov!.querySelector('#fb-text') as any).value = 'local-only note from smoke';
+    (ov!.querySelector('#fb-save') as any).click(); await sleep(250);
+    check('stage 2: saved locally, optional channels appear', !ov!.querySelector('#fb-stage2')!.hasAttribute('hidden') && !!ov!.querySelector('#fb-gh') && !!ov!.querySelector('#fb-copy'));
+    const logged = await (await fetch(BASE + '/api/feedback')).json();
+    check('save lands in the local list', (logged.entries ?? logged).some((e: any) => e.text === 'local-only note from smoke'));
+    (ov!.querySelector('#fb-done') as any).click(); await sleep(60);
   }
 
   await viaMore('update-btn', '⬆ check for updates opens its note box');
