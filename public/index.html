@@ -1140,6 +1140,7 @@ $('feedback-btn').onclick = () => {
       <textarea id="fb-text" style="width:100%;min-height:110px;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px" placeholder="what happened, or what should be better?"></textarea>
       <div class="actions">
         <button id="fb-cancel">cancel</button>
+        <button id="fb-copy" title="copies the whole report + address — paste it into any email or message">⧉ copy</button>
         <button id="fb-em" class="primary">✉ send by email</button>
         <button id="fb-gh" class="primary">🐞 open GitHub issue</button>
       </div>
@@ -1160,8 +1161,16 @@ $('feedback-btn').onclick = () => {
   };
   ov.querySelector('#fb-em').onclick = () => {
     const f = take(); if (!f) return;
-    window.open(`mailto:${S.feedbackEmail ?? 'yuhinc@sas.upenn.edu'}?subject=${encodeURIComponent('[harnessmap] ' + f.text.slice(0, 60))}&body=${encodeURIComponent(f.body)}`, '_blank');
-    ov.remove(); $('round-line').textContent = '✓ opened a pre-filled email — nothing is sent until you press send there';
+    // mailto via same-tab navigation — window.open leaves a blank tab and
+    // does NOTHING at all when no default mail app is configured.
+    location.href = `mailto:${S.feedbackEmail ?? 'yuhinc@sas.upenn.edu'}?subject=${encodeURIComponent('[harnessmap] ' + f.text.slice(0, 60))}&body=${encodeURIComponent(f.body)}`;
+    ov.remove(); $('round-line').textContent = '✓ opened a pre-filled email — if no mail app appeared, use ⧉ copy instead';
+  };
+  ov.querySelector('#fb-copy').onclick = async () => {
+    const f = take(); if (!f) return;
+    const addr = S.feedbackEmail ?? 'yuhinc@sas.upenn.edu';
+    try { await navigator.clipboard.writeText(`To: ${addr}\nSubject: [harnessmap] feedback\n\n${f.body}`); } catch {}
+    ov.remove(); $('round-line').textContent = `✓ report copied — paste it into any email to ${addr}`;
   };
 };
 $('update-btn').onclick = async () => {

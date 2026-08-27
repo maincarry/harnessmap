@@ -382,7 +382,7 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   await click($('feedback-btn'), '🐞 send feedback opens');
   {
     const ov = [...document.querySelectorAll('.overlay')].pop();
-    check('feedback modal: text + both channels', !!ov && !!ov.querySelector('#fb-text') && !!ov.querySelector('#fb-gh') && !!ov.querySelector('#fb-em'));
+    check('feedback modal: text + three channels (gh/email/copy)', !!ov && !!ov.querySelector('#fb-text') && !!ov.querySelector('#fb-gh') && !!ov.querySelector('#fb-em') && !!ov.querySelector('#fb-copy'));
     (ov?.querySelector('#fb-cancel') as any)?.click(); await sleep(60);
   }
 
