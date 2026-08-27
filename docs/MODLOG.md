@@ -644,3 +644,15 @@ Jacob: "you sure the user/user agent can't understand the architecture? they can
 
 ## M164 — ★ FAVORITES: a pinned shortcuts tray (Jacob, 2026-08-27)
 "Besides to sort, add a pinned file called favorites, that stores the favorite nodes, just that you cannot access the parents of these favorite nodes from the folder… no duplicate nodes just something like 快捷方式." Design described back, Jacob chose option A (flat one-line shortcuts). Built: a second pinned tray at the very bottom of the tree — ★ FAVORITES divider + one dashed row per favorited node. Each row is a true shortcut: click = jump (zoom) to the real node; ▶ and ☀ act directly on the real node (same id — there is no second node, so lighting/focus/memory need no reconciliation); ✕ = remove from favorites only, clearly labeled, never touches the node. No caret, no parents, no map machinery (dots/move/merge) on shortcut rows. Hidden entirely when no favorites. Data layer unchanged — favorites were already node-id pins (★ in search); this is pure rendering. Presentation-only: no effect on the agent's context. Smoke +6 (170): tray render, real-node ☀, jump, unfavorite-hides-tray-node-survives.
+
+## M164b — Favorites is a FOLDER inside the pinned band (Jacob, 2026-08-27)
+"No! I mean alongside tosort, inside the pinned. …also it should be a folder." Moved: the ★ favorites folder now lives under the ——— PINNED ——— divider alongside to-sort — a collapsible folder row (★ favorites · N inside) opening to the flat shortcut rows. The band now rides in EVERY view (whole map and zoomed); the to-sort part stays zoom-only as before.
+
+## M165 — ⟳ to tidy: suggestions move from row dots to a pinned folder (Jacob, 2026-08-27)
+"When you use the tidy map function, instead of red dots, put shortcuts in another pinned folder alongside to sort and favorite, call it to tidy." Done: per-row ● suggestion dots are gone; every node with a pending suggestion (restructure or placement) appears as a shortcut in a ⟳ to tidy folder in the pinned band — click one and the same before/after preview opens; nothing applies without the user. One row per node, count badge on the folder. README + to-sort explainer updated.
+
+## M165b — Folders don't auto-expand (Jacob, 2026-08-27)
+"When I refresh, don't automatically expand the favorites." Both folders (favorites, to tidy) start CLOSED and remember the user's open/closed choice in the browser (localStorage), surviving refresh.
+
+## M165c — Agent view: exact text broken down section by section (Jacob, 2026-08-27)
+"Can you make a fuller break down possible in the 'exact text'?" The exact-text fold now opens to one sub-fold per section — color swatch matching the bar, label, size — each with just its own text. composeParts sections carry their text; /api/agent-view returns it. Smoke 179.

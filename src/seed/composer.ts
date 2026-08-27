@@ -34,7 +34,7 @@ export function budgetChars(store: Store): number {
 export interface ComposedParts {
   text: string;
   trimmedLit: string[];
-  sections: { label: string; chars: number }[];
+  sections: { label: string; chars: number; text: string }[];
   budget: number;
 }
 
@@ -240,13 +240,13 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   parts.push(...tail);
   const text = parts.join('\n');
   const sections = [
-    { label: 'the focus — in full (its frame, statements, and memory)', chars: fixed.join('\n').length },
-    { label: 'lit topics — titles', chars: shapeAll.join('\n').length },
-    { label: 'lit topics — full statements', chars: subKept.join('\n').length },
-    { label: 'lit topics — earlier discussion', chars: memKept.join('\n').length },
-    { label: 'open questions', chars: qLines.join('\n').length },
-    { label: 'other topics — one line each', chars: restLines.join('\n').length },
-    { label: 'standing constraints + instructions to the agent', chars: tail.join('\n').length },
-  ].filter((sec) => sec.chars > 0);
+    { label: 'the focus — in full (its frame, statements, and memory)', text: fixed.join('\n') },
+    { label: 'lit topics — titles', text: shapeAll.join('\n') },
+    { label: 'lit topics — full statements', text: subKept.join('\n') },
+    { label: 'lit topics — earlier discussion', text: memKept.join('\n') },
+    { label: 'open questions', text: qLines.join('\n') },
+    { label: 'other topics — one line each', text: restLines.join('\n') },
+    { label: 'standing constraints + instructions to the agent', text: tail.join('\n') },
+  ].map((sec) => ({ ...sec, chars: sec.text.length })).filter((sec) => sec.chars > 0);
   return { text, trimmedLit, sections, budget: BUDGET_CHARS };
 }

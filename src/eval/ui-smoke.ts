@@ -248,25 +248,53 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   {
     const ov = document.querySelector('.overlay');
     check('agent view modal: composition bar + legend', !!ov && !!ov.querySelector('.avbar') && ov.querySelectorAll('.avrow').length >= 2);
-    check('agent view modal: exact text behind a fold', !!ov && !!ov.querySelector('details pre') && ov.querySelector('details pre')!.textContent!.includes('[map state'));
+    check('agent view modal: exact text behind a fold, section by section', !!ov && ov.querySelectorAll('details details').length >= 2 && ov.querySelector('details details pre')!.textContent!.includes('[map state'));
     (ov!.querySelector('#av-close') as any).click(); await sleep(60);
     check('agent view modal closes', !document.querySelector('.overlay'));
   }
 
-  // M164 (Jacob, option A): favorites shortcut tray — flat 快捷方式 rows.
+  // M164/M164b (Jacob): ★ favorites FOLDER inside the zoomed PINNED band —
+  // flat 快捷方式 rows, alongside to-sort.
   await post(`/api/nodes/${trip}/favorite`, { on: true });
   await pump();
+  check('favorites folder present in whole-map view too (band rides everywhere)', !!document.querySelector('.favhead'));
+  check('folder starts CLOSED — no auto-expand on load (M165b)', !document.querySelector('.srow.sind'));
+  window.__setZoom?.(flights) ?? (document.querySelector(`[data-zoomin="${flights}"]`) as any)?.click();
+  await sleep(300);
   {
-    const tray = document.querySelector('.srow');
-    check('favorites tray renders a shortcut row', !!tray && tray.textContent!.includes('trip planning'));
-    check('shortcut has ▶ ☀ and unfavorite, no caret/parents', !!tray!.querySelector('[data-focus]') && !!tray!.querySelector('[data-lit]') && !!tray!.querySelector('[data-fav]') && !tray!.querySelector('.caret'));
-    (tray!.querySelector('[data-lit]') as any).click(); await sleep(400); await pump();
-    check('shortcut ☀ acts on the REAL node (no duplicate)', !!document.querySelector('.srow [data-lit][data-on]'));
-    (document.querySelector('.srow') as any).click(); await sleep(250);
-    check('shortcut click jumps to the node (zoom view)', !!S() && window.document.querySelector('#crumbs')!.textContent!.includes('trip planning'));
+    const head = document.querySelector('.favhead');
+    check('zoomed: ★ favorites folder in the pinned band', !!head && head.textContent!.includes('favorites'));
+    (head as any).click(); await sleep(150); // open the folder (persists via localStorage)
+    check('opening persists', window.localStorage.getItem('hm-favs-open') === '1');
+    const row = document.querySelector('.srow.sind');
+    check('folder holds the shortcut row', !!row && row.textContent!.includes('trip planning'));
+    check('shortcut has ▶ ☀ ✕, no parents', !!row!.querySelector('[data-focus]') && !!row!.querySelector('[data-lit]') && !!row!.querySelector('[data-fav]'));
+    (document.querySelector('.favhead') as any).click(); await sleep(150);
+    check('folder folds', !document.querySelector('.srow.sind'));
+    (document.querySelector('.favhead') as any).click(); await sleep(150);
+    (document.querySelector('.srow.sind [data-lit]') as any).click(); await sleep(400); await pump();
+    check('shortcut ☀ acts on the REAL node', !!document.querySelector('.srow.sind [data-lit][data-on]'));
+    (document.querySelector('.srow.sind') as any).click(); await sleep(250);
+    check('shortcut click jumps to the node', window.document.querySelector('#crumbs')!.textContent!.includes('trip planning'));
     await click($('home-btn'), 'back to whole map after jump', 200);
-    (document.querySelector('.srow [data-fav]') as any)?.click(); await sleep(400); await pump();
-    check('✕ unfavorites — tray hides, node survives on the map', !document.querySelector('.srow') && !!S()!.nodes.find((n: any) => n.content === 'trip planning'));
+    window.__setZoom?.(flights) ?? (document.querySelector(`[data-zoomin="${flights}"]`) as any)?.click();
+    await sleep(300);
+    (document.querySelector('.srow.sind [data-fav]') as any)?.click(); await sleep(400); await pump();
+    check('✕ unfavorites — folder hides, node survives', !document.querySelector('.favhead') && !!S()!.nodes.find((n: any) => n.content === 'trip planning'));
+    await click($('home-btn'), 'back to whole map', 200);
+  }
+  // M165: ⟳ to tidy folder — suggestions live in the pinned band, not row dots
+  {
+    S()!.suggestions.push({ id: 'sg-fake', nodeId: flights, kind: 'restructure' });
+    window.__setZoom?.(null); await sleep(200);
+    const heads = [...document.querySelectorAll('.favhead')];
+    const tidy = heads.find((h: any) => h.textContent.includes('to tidy'));
+    check('to-tidy folder renders for pending suggestions', !!tidy);
+    check('to-tidy starts closed; rows have no dots anymore', !document.querySelector('[data-tidyfold] ~ .srow[data-sug]') && !document.querySelector('.nrow .sdot'));
+    (tidy as any)?.click(); await sleep(150);
+    check('to-tidy opens to shortcut rows', !!document.querySelector('.srow.sind[data-sug]'));
+    S()!.suggestions.pop();
+    (tidy as any)?.click(); await sleep(100);
   }
 
   await viaMore('update-btn', '⬆ check for updates opens its note box');

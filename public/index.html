@@ -254,6 +254,9 @@
   .srow .sstar { color: var(--warn); flex: none; }
   .srow .scontent { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .srow .sops { margin-left: auto; display: flex; gap: 4px; flex: none; }
+  .srow.favhead { border-style: solid; gap: 6px; }
+  .srow.favhead .fold-count { margin-left: 4px; }
+  .srow.sind { margin-left: 22px; }
   .fold-count { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--hair); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
   .fold-count:hover { color: var(--ink); background: var(--hair); }
   .home-ico { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; vertical-align: -1px; }
@@ -468,6 +471,8 @@ const DEAD = ['rejected','dropped','retracted','reversed','mooted'];
 let S = { nodes: [], chats: [], recency: {}, suggestions: [], mainChatId: null };
 let zoomId = localStorage.getItem('hm-zoom') || null;
 let folded = new Set(), userFolded = new Set(), userUnfolded = new Set();
+let favsOpen = localStorage.getItem('hm-favs-open') === '1'; // ★ favorites folder — closed unless the user opened it (persists)
+let tidyOpen = localStorage.getItem('hm-tidy-open') === '1';  // ⟳ to tidy folder — same rule
 
 const $ = (id) => document.getElementById(id);
 const HOME_ICO = '<svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg>';
@@ -598,7 +603,6 @@ function renderTree() {
       <span class="ncontent" data-edit="${n.id}" title="${esc(n.title && n.title !== n.content ? n.content : 'click to edit')}">${esc(disp(n))}</span>
       ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
       ${recChip(n.id)}
-      ${sugFor(n.id) ? `<span class="sdot ${sugFor(n.id).kind === 'relight' ? 'relight' : ''}" data-sug="${n.id}" title="${sugFor(n.id).kind === 'relight' ? 'placement suggestion: the map knows where this belongs — click to approve the move' : 'the map suggests a restructure here — click to see'}">●</span>` : ''}
       <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
       <span class="rowops">
         ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes)">◱</button>`}
@@ -647,34 +651,66 @@ function renderTree() {
     html = row(z, 0) + (folded.has(zoomId) ? '' : walk(zoomId, 1).join(''));
     // M47: "to sort" stays visible even when zoomed — off-scope arrivals are
     // never invisible.
-    const toSort = S.nodes.find(n => n.parentId === null && n.status !== 'removed' && (n.title || n.content).startsWith('to sort'));
-    // M162b (Mark): the separator must read as SYSTEM text, not a map point —
-    // and an EMPTY to-sort has nothing to keep visible, so it stays out of
-    // zoomed views entirely.
-    if (toSort && toSort.id !== zoomId && !pathOf(zoomId).some(x => x.id === toSort.id)
-        && kidsOf(toSort.id).length > 0) {
-      html += `<div class="pin-divider" title="the to-sort bucket rides along wherever you zoom — things filed outside this view are never invisible">pinned</div>` + row(toSort, 0) + (folded.has(toSort.id) ? '' : walk(toSort.id, 1).join(''));
-    }
   } else {
     html = walkRoot(0).join('');
   }
-  html += `<button id="add-root" title="add an unnamed node and focus the conversation there — the map names it from what you talk about next">+ add node${zoomId ? ' here' : ''}</button>`;
-  const favs = (S.favorites || []).map((id) => node(id)).filter((n) => n && n.status !== 'removed');
-  if (favs.length) {
-    html += `<div class="pin-divider" title="shortcuts to your ★ favorite nodes — each is the real node, living where it lives on the map; click one to view it">★ favorites</div>`;
-    for (const n of favs) {
+  // The PINNED band (M162b/M164b/M165 — Jacob): rides at the bottom in every
+  // view. Zoomed: the to-sort bucket (arrivals never invisible) + folders.
+  // Always: ★ favorites (shortcuts, 快捷方式 — the real nodes, never copies)
+  // and ⟳ to tidy (shortcuts to every node the map suggests changing —
+  // replaces the per-row dots).
+  {
+    const toSort = S.nodes.find(n => n.parentId === null && n.status !== 'removed' && (n.title || n.content).startsWith('to sort'));
+    const showToSort = !!(zoomId && node(zoomId) && toSort && toSort.id !== zoomId
+      && !pathOf(zoomId).some(x => x.id === toSort.id) && kidsOf(toSort.id).length > 0);
+    const favs = (S.favorites || []).map((id) => node(id)).filter((n) => n && n.status !== 'removed');
+    const sugRows = [];
+    const seenSug = new Set();
+    for (const sg of (S.suggestions || [])) {
+      const n = node(sg.nodeId);
+      if (!n || n.status === 'removed' || seenSug.has(n.id)) continue;
+      seenSug.add(n.id);
+      sugRows.push({ n, kind: sg.kind });
+    }
+    if (showToSort || favs.length || sugRows.length) {
+      html += `<div class="pin-divider" title="rides along in every view: the to-sort bucket (arrivals are never invisible), your ★ favorites, and ⟳ to tidy (the map's pending suggestions)">pinned</div>`;
+    }
+    if (showToSort) html += row(toSort, 0) + (folded.has(toSort.id) ? '' : walk(toSort.id, 1).join(''));
+    if (favs.length) {
       html += `
-      <div class="srow" data-jump="${n.id}" title="shortcut — click to view this node where it lives">
-        <span class="sstar">★</span>
-        <span class="scontent">${esc(disp(n))}</span>
-        <span class="sops">
-          <button class="rowbtn ${n.id === chat()?.focusContainerId ? 'on' : ''}" data-focus="${n.id}" title="focus: talk about this">▶</button>
-          <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? 'dim: remove from the chat agent\u2019s background' : 'light as background (incl. everything under it)'}">☀</button>
-          <button class="rowbtn" data-fav="${n.id}" title="remove from favorites — the node itself stays on the map">✕</button>
-        </span>
+      <div class="srow favhead" data-favfold="1" title="shortcuts to your ★ favorite nodes — each is the real node living where it lives; no parents shown here">
+        <span class="caret">${favsOpen ? '▾' : '▸'}</span><span class="sstar">★</span><b>favorites</b>
+        <span class="fold-count">${favs.length} inside</span>
       </div>`;
+      if (favsOpen) for (const n of favs) {
+        html += `
+        <div class="srow sind" data-jump="${n.id}" title="shortcut — click to view this node where it lives">
+          <span class="sstar">★</span>
+          <span class="scontent">${esc(disp(n))}</span>
+          <span class="sops">
+            <button class="rowbtn ${n.id === chat()?.focusContainerId ? 'on' : ''}" data-focus="${n.id}" title="focus: talk about this">▶</button>
+            <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? 'dim: remove from the chat agent\u2019s background' : 'light as background (incl. everything under it)'}">☀</button>
+            <button class="rowbtn" data-fav="${n.id}" title="remove from favorites — the node itself stays on the map">✕</button>
+          </span>
+        </div>`;
+      }
+    }
+    if (sugRows.length) {
+      html += `
+      <div class="srow favhead" data-tidyfold="1" title="every node the map suggests changing — click one to see its before/after; nothing applies without you">
+        <span class="caret">${tidyOpen ? '▾' : '▸'}</span><span class="sstar" style="color:var(--danger)">⟳</span><b>to tidy</b>
+        <span class="fold-count">${sugRows.length} inside</span>
+      </div>`;
+      if (tidyOpen) for (const { n, kind } of sugRows) {
+        html += `
+        <div class="srow sind" data-sug="${n.id}" title="${kind === 'relight' ? 'placement suggestion: the map knows where this belongs — click to approve the move' : 'the map suggests a restructure here — click to see the before/after'}">
+          <span class="sstar" style="color:var(--danger)">⟳</span>
+          <span class="scontent">${esc(disp(n))}</span>
+        </div>`;
+      }
     }
   }
+  html += `<button id="add-root" title="add an unnamed node and focus the conversation there — the map names it from what you talk about next">+ add node${zoomId ? ' here' : ''}</button>`;
   tree.innerHTML = html || '<div class="empty">no map yet — press “+ add node” to begin</div>';
   const f = node(focus);
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
@@ -1031,8 +1067,11 @@ $('agent-view-btn').onclick = async () => {
       <div style="font-size:12px;color:var(--muted);margin:-4px 0 4px">the map's contribution to every turn — refreshed each time you talk. Room used: ${(av.total / 1000).toFixed(1)}k of ${(av.budget / 1000).toFixed(1)}k characters.${av.trimmedLit.length ? ` <b style="color:#c62828">❗ ${av.trimmedLit.length} lit topic(s) did not fit</b> — only their titles went in; dim something to make room.` : ''}</div>
       <div class="avbar">${segs}</div>
       ${rows}
-      <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px">the exact text</summary>
-        <pre style="max-height:44vh;overflow:auto;font-size:11px;background:var(--bg);border:1px solid var(--hair);border-radius:8px;padding:10px;white-space:pre-wrap">${esc(av.text)}</pre></details>
+      <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px">the exact text — section by section</summary>
+        ${av.sections.map((sec, i) => `
+          <details style="margin:6px 0 0 10px"><summary style="cursor:pointer;font-size:12px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${colors[i % colors.length]};margin-right:6px"></span>${esc(sec.label)} — ${(sec.chars / 1000).toFixed(1)}k</summary>
+          <pre style="max-height:34vh;overflow:auto;font-size:11px;background:var(--bg);border:1px solid var(--hair);border-radius:8px;padding:10px;white-space:pre-wrap">${esc(sec.text)}</pre></details>`).join('')}
+      </details>
       <div class="actions"><button id="av-close" class="primary">close</button></div>
     </div>`;
   document.body.appendChild(ov);
@@ -1416,6 +1455,8 @@ $('tree').addEventListener('click', async (e) => {
     }
     return;
   }
+  if (t.closest('[data-favfold]')) { favsOpen = !favsOpen; localStorage.setItem('hm-favs-open', favsOpen ? '1' : ''); renderTree(); return; }
+  if (t.closest('[data-tidyfold]')) { tidyOpen = !tidyOpen; localStorage.setItem('hm-tidy-open', tidyOpen ? '1' : ''); renderTree(); return; }
   const jumpRow = t.closest('[data-jump]');
   if (jumpRow && !t.closest('.rowbtn')) { setZoom(jumpRow.dataset.jump); return; }
   const favId = t.closest('[data-fav]')?.dataset.fav;
@@ -1583,7 +1624,7 @@ function openNodeDetail(id) {
     const ov = document.createElement('div');
     ov.className = 'overlay';
     ov.innerHTML = `<div class="modal"><h3>to sort</h3>
-      <p style="font-size:13px">System folder — the map's holding pen. Anything the filer can't place lands here, carrying a note of where it arrived from. ● dots on its items are placement suggestions: one click approves the move.</p>
+      <p style="font-size:13px">System folder — the map's holding pen. Anything the filer can't place lands here, carrying a note of where it arrived from. Items the map knows where to place appear in the ⟳ to tidy folder (pinned, bottom of the map): one click approves the move.</p>
       <p style="font-size:12px;color:var(--muted)">To move something out: click its ● dot and approve the suggested move (one click). Or ↖ on the item to pick a parent yourself, ⇧ to promote it to a topic — or light its destination and the map files it home on the next round. ⟳ tidy on this folder proposes a full cleanup.</p>
       <div class="actions"><button id="nd-cancel" class="primary" title="close this panel">close</button></div></div>`;
     document.body.appendChild(ov);
@@ -3163,7 +3204,7 @@ checkMobile();
     rlT = setTimeout(() => { rl.textContent = rl.dataset.idle; }, 8000);
   }).observe(rl, { childList: true, characterData: true, subtree: true });
 }
-window.TOUR = TOUR; window.tourShow = tourShow; window.tourStop = tourStop; window.__state = () => S; window.__refresh = refresh; window.__md = md2html; // test hooks (ui-smoke)
+window.TOUR = TOUR; window.tourShow = tourShow; window.tourStop = tourStop; window.__state = () => S; window.__refresh = refresh; window.__md = md2html; window.__setZoom = setZoom; // test hooks (ui-smoke)
 </script>
 </body>
 </html>

@@ -39,7 +39,7 @@ Open the map page and press **?** for the guided tutorial. The short version:
 
 - **▶ focus** — the one node the conversation is aimed at. The focus path is protected; you can't accidentally cut the agent off from its topic.
 - **☀ light / dim** — the agent only sees lit branches. Dimmed stays visible to *you*, invisible to *it*.
-- **● dots** — the map's own suggestions (cleanups, placements). Click to see a before/after; nothing applies without you.
+- **⟳ to tidy** — a pinned folder at the bottom collecting the map's own suggestions (cleanups, placements). Click one to see a before/after; nothing applies without you.
 - **⟳ tidy / ⟳ tidy top level** — ask for a cleanup proposal of any subtree, or of the top level itself.
 - **↩ undo** — delete, merge, tidy, move: all reversible (Ctrl/Cmd+Z).
 - **🔧 dev mode** — see every agent call and injected context, verbatim.
