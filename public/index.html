@@ -260,8 +260,6 @@
   .srow.favhead { border-style: solid; gap: 6px; }
   .srow.favhead .fold-count { margin-left: 4px; }
   .srow.sind { margin-left: 22px; }
-  .srow.sempty { cursor: default; color: var(--muted); font-size: 12.5px; border-style: dotted; }
-  .srow.sempty:hover { border-color: var(--hair); }
   .uidlg .uimsg { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
   .modal .actions button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
   .fold-count { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--hair); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
@@ -722,12 +720,11 @@ function renderTree() {
     if (showToSort) html += row(toSort, 0) + (folded.has(toSort.id) ? '' : walk(toSort.id, 1).join(''));
     {
       html += `
-      <div class="srow favhead" data-favfold="1" title="shortcuts to your ★ favorite nodes — each is the real node living where it lives; no parents shown here">
-        <span class="caret" title="${favsOpen ? 'close this folder' : 'open this folder'}">${favsOpen ? '▾' : '▸'}</span><span class="sstar">★</span><b>favorites</b>
+      <div class="srow favhead" ${favs.length ? 'data-favfold="1"' : ''} title="${favs.length ? 'shortcuts to your ★ favorite nodes — each is the real node living where it lives; no parents shown here' : 'no favorites yet — press ★ on any node to put a shortcut here'}">
+        <span class="caret" title="${favs.length ? (favsOpen ? 'close this folder' : 'open this folder') : 'nothing inside yet'}">${favs.length ? (favsOpen ? '▾' : '▸') : '·'}</span><span class="sstar">★</span><b>favorites</b>
         <span class="fold-count">${favs.length ? `${favs.length} inside` : 'empty'}</span>
       </div>`;
-      if (favsOpen && !favs.length) html += `<div class="srow sind sempty">no favorites yet — press ★ on any node to put a shortcut here</div>`;
-      if (favsOpen) for (const n of favs) {
+      if (favsOpen && favs.length) for (const n of favs) {
         html += `
         <div class="srow sind" data-jump="${n.id}" title="shortcut — click to view this node where it lives">
           <span class="sstar">★</span>
@@ -742,12 +739,11 @@ function renderTree() {
     }
     {
       html += `
-      <div class="srow favhead" data-tidyfold="1" title="every node the map suggests changing — click one to see its before/after; nothing applies without you">
-        <span class="caret" title="${tidyOpen ? 'close this folder' : 'open this folder'}">${tidyOpen ? '▾' : '▸'}</span><span class="sstar" style="color:var(--danger)">⟳</span><b>to tidy</b>
+      <div class="srow favhead" ${sugRows.length ? 'data-tidyfold="1"' : ''} title="${sugRows.length ? 'every node the map suggests changing — click one to see its before/after; nothing applies without you' : 'nothing to tidy right now — suggestions appear here as you talk (and the map reviews itself every 10 rounds)'}">
+        <span class="caret" title="${sugRows.length ? (tidyOpen ? 'close this folder' : 'open this folder') : 'nothing inside yet'}">${sugRows.length ? (tidyOpen ? '▾' : '▸') : '·'}</span><span class="sstar" style="color:${sugRows.length ? 'var(--danger)' : 'var(--muted)'}">⟳</span><b>to tidy</b>
         <span class="fold-count">${sugRows.length ? `${sugRows.length} inside` : 'empty'}</span>
       </div>`;
-      if (tidyOpen && !sugRows.length) html += `<div class="srow sind sempty">nothing to tidy right now — suggestions appear here as you talk (and the map reviews itself every 10 rounds)</div>`;
-      if (tidyOpen) for (const { n, kind } of sugRows) {
+      if (tidyOpen && sugRows.length) for (const { n, kind } of sugRows) {
         html += `
         <div class="srow sind" data-sug="${n.id}" title="${kind === 'relight' ? 'placement suggestion: the map knows where this belongs — click to approve the move' : 'the map suggests a restructure here — click to see the before/after'}">
           <span class="sstar" style="color:var(--danger)">⟳</span>

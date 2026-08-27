@@ -272,7 +272,11 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   await post(`/api/nodes/${trip}/favorite`, { on: true });
   await pump();
   check('favorites folder present in whole-map view too (band rides everywhere)', !!document.querySelector('.favhead'));
-  check('folders start CLOSED — no auto-expand on load (M165b)', !document.querySelector('.srow.sind:not(.sempty)'));
+  check('folders start CLOSED — no auto-expand on load (M165b)', !document.querySelector('.srow.sind'));
+  {
+    const tidyH = [...document.querySelectorAll('.favhead')].find((h: any) => h.textContent.includes('to tidy'));
+    check('empty folder shows · like empty to-sort, no expander (M167d)', !!tidyH && tidyH.querySelector('.caret')!.textContent === '·' && !tidyH.hasAttribute('data-tidyfold'));
+  }
   window.__setZoom?.(flights) ?? (document.querySelector(`[data-zoomin="${flights}"]`) as any)?.click();
   await sleep(300);
   {
