@@ -632,3 +632,6 @@ Correction to my M162 point-3 reading: Mark meant the literal "— pinned —" l
 
 ## M163c — Update-check answer gets its own note box (Jacob, 2026-08-27)
 "The checkup date should give a separate note box, not merely a update in idle." Right — with the status line now fading, the answer would vanish. ⬆ check for updates now opens a small modal: latest-or-upgrade verdict, the exact command to run, and the restart note; failure states included. Smoke: note-box open/close, 2 checks (164 total).
+
+## M163d — Talk-to-map, second pass (Jacob, 2026-08-27)
+"talk to map button still bad." The gradient pill went — likely offenders were the gloss and the 🗨 emoji (platform-inconsistent rendering; same reason home became an SVG in M128). Now: flat accent, crisp inline-SVG speech bubble, 6px radius matching the toolbar row, darkens slightly on hover. Reads as the row's one primary button without shouting. The 🗨 glyph stays everywhere else as vocabulary.

@@ -22,14 +22,13 @@
          display: grid; grid-template-columns: var(--split, 40%) 6px 1fr; height: 100vh; }
   #splitter { cursor: col-resize; background: var(--hair); position: relative; }
   #zoom-tools #map-chat, #map-chat {
-    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 86%, #fff), var(--accent));
-    border: 1px solid color-mix(in srgb, var(--accent) 75%, #000);
-    color: #fff; font-weight: 600; padding: 6px 18px; border-radius: 999px;
-    box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 40%, transparent);
-    transition: box-shadow .12s ease, transform .12s ease, filter .12s ease;
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--accent); border: 1px solid var(--accent);
+    color: #fff; font-weight: 600; padding: 6px 14px; border-radius: 6px;
+    transition: background .12s ease;
   }
-  #zoom-tools #map-chat:hover { filter: brightness(1.08); box-shadow: 0 3px 9px color-mix(in srgb, var(--accent) 45%, transparent); transform: translateY(-1px); }
-  #zoom-tools #map-chat:active { transform: translateY(0); box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 40%, transparent); }
+  #zoom-tools #map-chat:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+  #map-chat .chat-ico { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
   /* M133 (Jacob): mobile — one pane at a time, bottom switcher. body.mobile
      is set by JS from viewport width so tests can drive it deterministically. */
   body.mobile { grid-template-columns: 1fr; grid-template-rows: 1fr 52px; }
@@ -399,7 +398,7 @@
     </header>
     <div id="crumbs"></div>
     <div id="zoom-tools">
-      <button id="map-chat" title="confused, or want anything done? Ask in plain words — the map guide explains and proposes; you approve">🗨 talk to map</button>
+      <button id="map-chat" title="confused, or want anything done? Ask in plain words — the map guide explains and proposes; you approve"><svg class="chat-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v7.5h-6l-3 2.5v-2.5h-2z"/></svg>talk to map</button>
       <button id="home-btn" title="zoom to the home page (the whole map unless you set a node as home on its row)"><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</button>
       <button id="zoom-out" title="zoom out one level, to the parent node">↑ zoom out</button>
       <button id="search-btn" title="find a node (Ctrl/Cmd+K) — confirm it with its parents and children, then light, zoom, or focus it">🔍 search</button>
