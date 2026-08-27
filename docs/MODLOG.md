@@ -680,3 +680,6 @@ Jacob reversed the empty-hides rule after tracing its attribution ("then your ru
 
 ## M168d — Reference card explains every ⋯ function; the tutorial never does (Jacob, 2026-08-27)
 "the reference card should explain the functions in the ...others… the tutorial should not explain ...others, the reference card should." Division of labor made explicit: the TOUR only says "everything else hides under ⋯" (unchanged, 7 beats); the REFERENCE CARD now carries one row per ⋯ function — 19 rows under three quiet tier headers (everyday / first ＋more / second ＋more), each with its plain-words explanation. The old single cramped listing row is gone.
+
+## M168e — Card drops the narrow-screens row (Jacob, 2026-08-27)
+"the 'narrow screen' is a mobile reference which is irrelevant now." Removed from the reference card (mobile support itself stays as-is, parked since M135b — this is documentation only).
