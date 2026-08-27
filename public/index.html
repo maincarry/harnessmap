@@ -1890,7 +1890,7 @@ $('map-check').onclick = async () => {
     const r = await post('/api/mapcheck', {});
     stop();
     $('round-line').textContent = r.count > 0
-      ? `map check: ${r.count} node(s) flagged — see the red dot(s). ${r.summary}`
+      ? `map check: ${r.count} node(s) flagged — see the ⟳ to tidy folder (pinned, bottom of the map). ${r.summary}`
       : `well done — your map is clean! ${r.summary}`;
   } catch (err) { stop(); $('round-line').textContent = `map check failed: ${err.message}`; }
 };
