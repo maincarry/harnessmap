@@ -263,6 +263,9 @@
   .srow.favhead .fold-count { margin-left: 4px; }
   .srow.sind { margin-left: 22px; }
   .uidlg .uimsg { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
+  .msg-mapchat { background: var(--accent); border: 1px solid var(--accent); color: #fff; font-weight: 600;
+    font-size: 12.5px; padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+  .msg-mapchat:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
   .modal .actions button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
   .fold-count { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--hair); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
   .fold-count:hover { color: var(--ink); background: var(--hair); }
@@ -1403,11 +1406,18 @@ function md2html(t) {
 }
 function msgHtml(role, content) {
   if (role === 'system') return `<div class="msg system">— ${esc(content)} —</div>`;
-  if (role === 'assistant') return `<div class="msg assistant" data-raw="${esc(content)}">${md2html(content)}<button class="mcopy" title="copy this message">⧉</button></div>`;
+  if (role === 'assistant') {
+    // M171 (Jacob): when the reply points the user at the map guide — or
+    // talks about set-aside/folded/dimmed areas the guide could bring back —
+    // put the button right there, no hunting in the map panel.
+    const refersGuide = /talk to map|set aside|folded away|folded[^a-z]|dimmed|relight|light (?:it|that|this|them) (?:back )?up|bring (?:it|that|this|them) back/i.test(content);
+    return `<div class="msg assistant" data-raw="${esc(content)}">${md2html(content)}<button class="mcopy" title="copy this message">⧉</button>${refersGuide ? '<div style="margin-top:8px"><button class="msg-mapchat" title="ask the map guide — it explains and proposes; you approve">🗨 talk to map</button></div>' : ''}</div>`;
+  }
   return `<div class="msg ${role}">${esc(content)}</div>`;
 }
 
 $('messages').addEventListener('click', async (e) => {
+  if (e.target.closest('.msg-mapchat')) { openMapChat(); return; }
   const b = e.target.closest?.('.mcopy');
   if (!b) return;
   const raw = b.closest('.msg')?.dataset.raw ?? '';
@@ -3287,7 +3297,7 @@ checkMobile();
     rlT = setTimeout(() => { if (!rl.classList.contains('working')) rl.textContent = rl.dataset.idle; }, 8000);
   }).observe(rl, { childList: true, characterData: true, subtree: true });
 }
-window.TOUR = TOUR; window.tourShow = tourShow; window.tourStop = tourStop; window.__state = () => S; window.__refresh = refresh; window.__md = md2html; window.__setZoom = setZoom; // test hooks (ui-smoke)
+window.TOUR = TOUR; window.tourShow = tourShow; window.tourStop = tourStop; window.__state = () => S; window.__refresh = refresh; window.__md = md2html; window.__setZoom = setZoom; window.__msgHtml = msgHtml; // test hooks (ui-smoke)
 </script>
 </body>
 </html>

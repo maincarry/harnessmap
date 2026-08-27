@@ -689,3 +689,6 @@ Jacob reversed the empty-hides rule after tracing its attribution ("then your ru
 
 ## M170 — The status line breathes while work is in flight (Jacob, 2026-08-27)
 "the idle should lightup whenever it is changing, right? to let user know something is happening in a light way." Built: whenever the map is actually working — a round being filed (lag > 0) or a user-triggered agent run (tidy, review, auto-anything via opWatch) — the bottom line turns accent and breathes gently (opacity pulse) until the work lands; then the result message does the normal fresh-flash-and-fade. While breathing, nothing fades or reverts, so long rounds keep their signal. Smoke 193.
+
+## M171 — 🗨 appears inside the reply that needs it (Jacob, 2026-08-27)
+"this seems to be where a talk to map button should appear at the end of this message right? … In fact, it should already appear under this message." When a chat reply refers the user to the map guide OR talks about set-aside/folded/dimmed areas (the composer's own vocabulary: "set aside", "folded away", "dimmed", "relight", "light it up", "bring it back"), a 🗨 talk to map button renders inline at the end of that message — one click opens the guide, no hunting in the map panel. Mechanical text detection, mode-A chat + mirror both. Smoke 196.

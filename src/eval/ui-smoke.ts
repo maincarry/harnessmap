@@ -267,6 +267,21 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     (window as any).__autoDialog = 'ok';
   }
 
+  // M171: replies that point at the guide carry the button inline
+  {
+    const box = $('messages')!;
+    box.insertAdjacentHTML('beforeend', (window as any).eval ? '' : '');
+    box.innerHTML += (window as any).__md ? '' : '';
+  }
+  {
+    const html = (window as any).__msgHtml?.('assistant', 'Hit the 🗨 talk to map button and ask the map agent.') ?? '';
+    check('guide-referring reply embeds a 🗨 button (M171)', /msg-mapchat/.test(html));
+    const folded = (window as any).__msgHtml?.('assistant', "That's folded away right now — the home network setup area. Want me to help anyway?") ?? '';
+    check('set-aside/folded replies embed it too', /msg-mapchat/.test(folded));
+    const plain = (window as any).__msgHtml?.('assistant', 'Just a normal answer.') ?? '';
+    check('ordinary replies carry no inline button', !/msg-mapchat/.test(plain));
+  }
+
   check('agent view hidden in +more (M162)', !!$('agent-view-btn') && $('agent-view-btn')!.closest('#other-more') !== null && /what the agent sees/.test($('agent-view-btn')!.textContent!));
 
   await viaMore('agent-view-btn', '👁 what the agent sees opens');
