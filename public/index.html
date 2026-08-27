@@ -2650,7 +2650,27 @@ function openLegend() {
         <tr><td colspan="2"><hr><b>Toolbar &amp; sessions</b></td></tr>
         <tr><td>🔍 search</td><td>Ctrl/Cmd+K — find a node, confirm it with parents and children, then light / zoom / focus it</td></tr>
         <tr><td>🗨 talk to map</td><td>ask the map guide anything, or ask for changes in plain words — it proposes, you approve; complex asks become step-by-step plans</td></tr>
-        <tr><td>⋯ other</td><td>three tiers — everyday: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ◐ dim all outside · ⇪ import · ↩ undo · 🔠 text size; first ＋ more (housekeeping): ⟳ tidy map · ⟳ tidy top level · ✎ auto-rename · ☀/◐ light/dim all (this view) · ☰ map preferences · ▶☀ manage; second ＋ more (rare): 👁 what the agent sees · ▦ sessions · ⬆ check for updates · ⏻ close map influence · 🔧 dev mode</td></tr>
+        <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">⋯ other — everyday</td></tr>
+        <tr><td>▶ auto-focus</td><td>the focus agent suggests what to talk about next — you confirm</td></tr>
+        <tr><td>☀ auto-light</td><td>the lighting agent picks which nodes belong in the background for the current focus — shown as a proposal you approve</td></tr>
+        <tr><td>◱ auto-zoom</td><td>the zoom agent suggests which branch to view alone — you confirm; your lighting is untouched</td></tr>
+        <tr><td>◐ dim all outside</td><td>dim everything outside the zoomed branch in one press — the chat agent stops seeing all of it (zoom in first, so "outside" means something)</td></tr>
+        <tr><td>⇪ import</td><td>bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes one organized subtree you approve</td></tr>
+        <tr><td>↩ undo</td><td>undo the last destructive action — delete, merge, tidy, move (Ctrl/Cmd+Z works anywhere)</td></tr>
+        <tr><td>🔠 text size</td><td>whole-page text size — cycles Small / Normal / Large / Extra large, remembered per browser</td></tr>
+        <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">⋯ other — first ＋ more (housekeeping)</td></tr>
+        <tr><td>⟳ tidy map</td><td>review the whole map right now — findings land in the ⟳ to tidy folder, or you get a clean bill (the map also reviews itself every 10 rounds)</td></tr>
+        <tr><td>⟳ tidy top level</td><td>group and clean the top level — the one place the tidy agent may propose domain containers and move top-level threads under them; you approve</td></tr>
+        <tr><td>✎ auto-rename</td><td>give every long-named node a short display name (max 6 words) — applies directly, no proposal</td></tr>
+        <tr><td>☀ light all / ◐ dim all (this view)</td><td>light or dim every node in the current view at once — the bulk versions of ☀</td></tr>
+        <tr><td>☰ map preferences</td><td>standing instructions every map agent follows for this map — how to group, name, clean, what never to touch; edit anytime, or tell the guide a lasting preference and it offers to save it here</td></tr>
+        <tr><td>▶☀ manage</td><td>focus and background for the whole map in one list — see and change everything from one panel</td></tr>
+        <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">⋯ other — second ＋ more (rare)</td></tr>
+        <tr><td>👁 what the agent sees</td><td>the map's contribution to every turn: a composition bar (what fills the space, what's free), the ❗ list if lit topics didn't fit, and the exact text section by section</td></tr>
+        <tr><td>▦ sessions</td><td>all sessions on this map in one list, each with its topic and summary — pin the ones you live in, close the rest</td></tr>
+        <tr><td>⬆ check for updates</td><td>asks whether a newer harnessmap exists and shows the command to update — updating itself always happens in Claude Code, never automatically</td></tr>
+        <tr><td>⏻ close map influence</td><td>your Claude sessions get NO map context and the map is never mentioned — while the map keeps quietly filing; reopen anytime, same place</td></tr>
+        <tr><td>🔧 dev mode</td><td>for the developers — records every agent call and injection verbatim (password-gated)</td></tr>
         <tr><td>+ session</td><td>new session, three ways: ▶ focus on a topic (pick or create what it talks about), ⑂ fork this view (same focus+lighting), ✳ start fresh (all dimmed) — then optionally open a real Claude Code terminal bound to it. ✕ closes a tab (filings stay); ⟳ re-fits a terminal</td></tr>
         <tr><td>maps</td><td>each map is completely separate — one per repo by default; the name at the top-left switches, creates, or merges maps (irreversible)</td></tr>
         <tr><td colspan="2"><hr><b>Fine print</b> — nodes also carry a category and status under the hood (the agents use them; see and edit both in the node editor — click any node's text).</td></tr>

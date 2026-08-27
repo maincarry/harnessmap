@@ -677,3 +677,6 @@ Jacob reversed the empty-hides rule after tracing its attribution ("then your ru
 
 ## M168c — Tier amendment: dim-all-outside + import are everyday (Jacob, 2026-08-27)
 "dim all outside is a everyday operating. So is import." Both promoted to tier 1 (now 7: ▶ auto-focus · ☀ auto-light · ◱ auto-zoom · ◐ dim all outside · ⇪ import · ↩ undo · 🔠 text size); housekeeping tier is 6. Reference card updated.
+
+## M168d — Reference card explains every ⋯ function; the tutorial never does (Jacob, 2026-08-27)
+"the reference card should explain the functions in the ...others… the tutorial should not explain ...others, the reference card should." Division of labor made explicit: the TOUR only says "everything else hides under ⋯" (unchanged, 7 beats); the REFERENCE CARD now carries one row per ⋯ function — 19 rows under three quiet tier headers (everyday / first ＋more / second ＋more), each with its plain-words explanation. The old single cramped listing row is gone.
