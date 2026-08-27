@@ -99,7 +99,7 @@ check('page script ran to completion (hooks exposed)', typeof window.__state ===
 check('boot produced no async errors', errors.length === 0, errors[0]);
 check('state loaded into the page', !!S()?.nodes?.length);
 check('tree rendered rows', document.querySelectorAll('.nrow').length >= 2);
-check('to-sort tray rendered', !!document.querySelector('.nrow.tosort'));
+check('empty to-sort is hidden — same rule as every pinned folder', !document.querySelector('.nrow.tosort'));
 check('home button present (SVG icon)', !!$('home-btn')?.querySelector('svg'));
 
 const click = async (el: any, name: string, settle = 250) => {

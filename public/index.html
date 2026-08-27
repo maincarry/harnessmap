@@ -661,9 +661,11 @@ function renderTree() {
   {
     const toSort = S.nodes.find(n => n.parentId === null && n.status !== 'removed' && (n.title || n.content).startsWith('to sort'));
     const zoomed = !!(zoomId && node(zoomId));
-    const showToSort = !!(toSort && (!zoomed
-      ? true // whole map: the holding tray is always present in the band
-      : toSort.id !== zoomId && !pathOf(zoomId).some(x => x.id === toSort.id) && kidsOf(toSort.id).length > 0));
+    // Empty means invisible (Jacob — same rule as to-tidy and favorites):
+    // the tray exists only when something is in it; it reappears the moment
+    // an arrival lands. The store-level permanence guard is untouched.
+    const showToSort = !!(toSort && kidsOf(toSort.id).length > 0
+      && (!zoomed || (toSort.id !== zoomId && !pathOf(zoomId).some(x => x.id === toSort.id))));
     const favs = (S.favorites || []).map((id) => node(id)).filter((n) => n && n.status !== 'removed');
     const sugRows = [];
     const seenSug = new Set();
