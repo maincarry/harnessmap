@@ -100,7 +100,7 @@ check('page script ran to completion (hooks exposed)', typeof window.__state ===
 check('boot produced no async errors', errors.length === 0, errors[0]);
 check('state loaded into the page', !!S()?.nodes?.length);
 check('tree rendered rows', document.querySelectorAll('.nrow').length >= 2);
-check('empty to-sort is hidden — same rule as every pinned folder', !document.querySelector('.nrow.tosort'));
+check('to-sort visible even when empty (M167b)', !!document.querySelector('.nrow.tosort'));
 check('home button present (SVG icon)', !!$('home-btn')?.querySelector('svg'));
 
 const click = async (el: any, name: string, settle = 250) => {
@@ -272,7 +272,7 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   await post(`/api/nodes/${trip}/favorite`, { on: true });
   await pump();
   check('favorites folder present in whole-map view too (band rides everywhere)', !!document.querySelector('.favhead'));
-  check('folder starts CLOSED — no auto-expand on load (M165b)', !document.querySelector('.srow.sind'));
+  check('folders start CLOSED — no auto-expand on load (M165b)', !document.querySelector('.srow.sind:not(.sempty)'));
   window.__setZoom?.(flights) ?? (document.querySelector(`[data-zoomin="${flights}"]`) as any)?.click();
   await sleep(300);
   {
@@ -294,7 +294,8 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     window.__setZoom?.(flights) ?? (document.querySelector(`[data-zoomin="${flights}"]`) as any)?.click();
     await sleep(300);
     (document.querySelector('.srow.sind [data-fav]') as any)?.click(); await sleep(400); await pump();
-    check('✕ unfavorites — folder hides, node survives', !document.querySelector('.favhead') && !!S()!.nodes.find((n: any) => n.content === 'trip planning'));
+    const favHead = [...document.querySelectorAll('.favhead')].find((h: any) => h.textContent.includes('favorites'));
+    check('✕ unfavorites — folder STAYS with empty state, node survives', !!favHead && favHead.textContent!.includes('empty') && !!S()!.nodes.find((n: any) => n.content === 'trip planning'));
     await click($('home-btn'), 'back to whole map', 200);
   }
   // M165: ⟳ to tidy folder — suggestions live in the pinned band, not row dots
@@ -303,8 +304,8 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     window.__setZoom?.(null); await sleep(200);
     const heads = [...document.querySelectorAll('.favhead')];
     const tidy = heads.find((h: any) => h.textContent.includes('to tidy'));
-    check('to-tidy folder renders for pending suggestions', !!tidy);
-    check('to-tidy starts closed; rows have no dots anymore', !document.querySelector('[data-tidyfold] ~ .srow[data-sug]') && !document.querySelector('.nrow .sdot'));
+    check('to-tidy folder shows its count', !!tidy && tidy.textContent!.includes('1 inside'));
+    check('to-tidy starts closed; rows have no dots anymore', !document.querySelector('.srow.sind[data-sug]') && !document.querySelector('.nrow .sdot'));
     (tidy as any)?.click(); await sleep(150);
     check('to-tidy opens to shortcut rows', !!document.querySelector('.srow.sind[data-sug]'));
     S()!.suggestions.pop();

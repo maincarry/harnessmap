@@ -257,6 +257,8 @@
   .srow.favhead { border-style: solid; gap: 6px; }
   .srow.favhead .fold-count { margin-left: 4px; }
   .srow.sind { margin-left: 22px; }
+  .srow.sempty { cursor: default; color: var(--muted); font-size: 12.5px; border-style: dotted; }
+  .srow.sempty:hover { border-color: var(--hair); }
   .uidlg .uimsg { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
   .modal .actions button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
   .fold-count { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--hair); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
@@ -699,10 +701,10 @@ function renderTree() {
   {
     const toSort = S.nodes.find(n => n.parentId === null && n.status !== 'removed' && (n.title || n.content).startsWith('to sort'));
     const zoomed = !!(zoomId && node(zoomId));
-    // Empty means invisible (Jacob — same rule as to-tidy and favorites):
-    // the tray exists only when something is in it; it reappears the moment
-    // an arrival lands. The store-level permanence guard is untouched.
-    const showToSort = !!(toSort && kidsOf(toSort.id).length > 0
+    // M167b (Jacob, reversing the earlier empty-hides rule): the three pinned
+    // folders are ALWAYS visible, empty or not — the mechanism stays
+    // discoverable (Mark's model). Empty folders open to a plain-words hint.
+    const showToSort = !!(toSort
       && (!zoomed || (toSort.id !== zoomId && !pathOf(zoomId).some(x => x.id === toSort.id))));
     const favs = (S.favorites || []).map((id) => node(id)).filter((n) => n && n.status !== 'removed');
     const sugRows = [];
@@ -713,16 +715,15 @@ function renderTree() {
       seenSug.add(n.id);
       sugRows.push({ n, kind: sg.kind });
     }
-    if (showToSort || favs.length || sugRows.length) {
-      html += `<div class="pin-divider" title="rides along in every view: the to-sort bucket (arrivals are never invisible), your ★ favorites, and ⟳ to tidy (the map's pending suggestions)">pinned</div>`;
-    }
+    html += `<div class="pin-divider" title="rides along in every view: the to-sort bucket (arrivals are never invisible), your ★ favorites, and ⟳ to tidy (the map's pending suggestions)">pinned</div>`;
     if (showToSort) html += row(toSort, 0) + (folded.has(toSort.id) ? '' : walk(toSort.id, 1).join(''));
-    if (favs.length) {
+    {
       html += `
       <div class="srow favhead" data-favfold="1" title="shortcuts to your ★ favorite nodes — each is the real node living where it lives; no parents shown here">
-        <span class="caret">${favsOpen ? '▾' : '▸'}</span><span class="sstar">★</span><b>favorites</b>
-        <span class="fold-count">${favs.length} inside</span>
+        <span class="caret" title="${favsOpen ? 'close this folder' : 'open this folder'}">${favsOpen ? '▾' : '▸'}</span><span class="sstar">★</span><b>favorites</b>
+        <span class="fold-count">${favs.length ? `${favs.length} inside` : 'empty'}</span>
       </div>`;
+      if (favsOpen && !favs.length) html += `<div class="srow sind sempty">no favorites yet — press ★ on any node to put a shortcut here</div>`;
       if (favsOpen) for (const n of favs) {
         html += `
         <div class="srow sind" data-jump="${n.id}" title="shortcut — click to view this node where it lives">
@@ -736,12 +737,13 @@ function renderTree() {
         </div>`;
       }
     }
-    if (sugRows.length) {
+    {
       html += `
       <div class="srow favhead" data-tidyfold="1" title="every node the map suggests changing — click one to see its before/after; nothing applies without you">
-        <span class="caret">${tidyOpen ? '▾' : '▸'}</span><span class="sstar" style="color:var(--danger)">⟳</span><b>to tidy</b>
-        <span class="fold-count">${sugRows.length} inside</span>
+        <span class="caret" title="${tidyOpen ? 'close this folder' : 'open this folder'}">${tidyOpen ? '▾' : '▸'}</span><span class="sstar" style="color:var(--danger)">⟳</span><b>to tidy</b>
+        <span class="fold-count">${sugRows.length ? `${sugRows.length} inside` : 'empty'}</span>
       </div>`;
+      if (tidyOpen && !sugRows.length) html += `<div class="srow sind sempty">nothing to tidy right now — suggestions appear here as you talk (and the map reviews itself every 10 rounds)</div>`;
       if (tidyOpen) for (const { n, kind } of sugRows) {
         html += `
         <div class="srow sind" data-sug="${n.id}" title="${kind === 'relight' ? 'placement suggestion: the map knows where this belongs — click to approve the move' : 'the map suggests a restructure here — click to see the before/after'}">
@@ -2876,9 +2878,9 @@ const TOUR = [
   { find: () => document.querySelector('.nrow.focused') ?? document.querySelector('.nrow'), title: '▶ Focus — talk about this', body: 'One node is what the conversation is about right now. Press ▶ on any row and Claude talks about that instead.' },
   { find: () => document.querySelector('.nrow'), title: '☀ Light — keep it in mind', body: 'Claude only sees what\u2019s lit ☀. Dim a branch and Claude forgets it — you still see everything. You decide what it knows.' },
   { find: () => document.querySelector('.nrow'), title: '◱ Zoom — view only this', body: '◱ shows just one branch on your screen. It changes what YOU see, never what Claude sees.' },
-  { sel: '#other-btn', title: 'Everything else is in here', body: 'All other functions hide under ⋯ (and under each row\u2019s ⋯) until you want them. Or skip the buttons entirely: 🗨 talk to map does anything in plain words — and everything is undoable (Ctrl/Cmd+Z).' },
+  { find: () => document.querySelector('.pin-divider'), title: 'Pinned folders', body: 'This band travels with you: \u201cto sort\u201d holds things the map couldn\u2019t place yet \u00b7 ★ favorites keeps shortcuts to nodes you starred \u00b7 ⟳ to tidy collects the map\u2019s cleanup suggestions (you approve each one). Empty folders just wait.' },
   { sel: '#tabbar', title: 'Sessions', body: 'Each tab is a session on this same map — a real Claude Code terminal or a clean chat, your pick at ＋ session.' },
-  { sel: '#legend-btn', title: 'That\u2019s it', body: 'A map that files itself, and three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (view only this). The rest follows. Details: the reference card (next); questions: 🗨.' },
+  { sel: '#legend-btn', title: 'That\u2019s it', body: 'Three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (view only this). Everything else hides under ⋯ · 🗨 talk to map does anything in plain words · Ctrl/Cmd+Z undoes. Details: the reference card (next).' },
 ];
 let tourAt = -1;
 function tourStop() {
