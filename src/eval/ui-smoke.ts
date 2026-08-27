@@ -286,7 +286,20 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
       check('inline referral seeds the guide with context (M171b)', !!seeded);
       (ov?.querySelector('#mc-close') as any)?.click(); await sleep(80);
     }
-    // M171c: a CC-style verbal referral (arriving as a mirrored turn) seeds
+    // thinking bubble survives the user's echoed turn, dies on assistant content
+  {
+    const box = $('messages')!;
+    box.insertAdjacentHTML('beforeend', '<div class="msg assistant pending">thinking…</div>');
+    window.__wsInject?.({ type: 'turn', chatId: S()!.mainChatId, role: 'user', content: 'echo of my own message' });
+    await sleep(120);
+    check('thinking bubble survives the user echo', !!document.querySelector('.msg.pending'));
+    window.__wsInject?.({ type: 'chat_delta', chatId: S()!.mainChatId, text: 'first block' });
+    await sleep(120);
+    check('first streamed block clears the thinking bubble', !document.querySelector('.msg.pending'));
+    document.querySelector('.msg.streaming')?.remove();
+  }
+
+  // M171c: a CC-style verbal referral (arriving as a mirrored turn) seeds
     // the TOOLBAR button too — but only for one round
     window.__wsInject?.({ type: 'turn', chatId: S()!.mainChatId, role: 'user', content: 'wifi off?' });
     window.__wsInject?.({ type: 'turn', chatId: S()!.mainChatId, role: 'assistant', content: 'That area is set aside — use talk to map to bring it back.' });
