@@ -626,3 +626,9 @@ Correction to my M162 point-3 reading: Mark meant the literal "— pinned —" l
 
 ## M163 — Restyle: talk-to-map + focus chip (Jacob, 2026-08-27)
 "The art style of the talk to map and focus (top right) button is bad, try to enhance them, although their functions are right." Functions untouched; both redrawn in the page's soft language: 🗨 talk to map = rounded gradient pill with gentle depth (hover lift, active press); ▶ focus chip = quiet accent-tinted chip (10% tint + hairline border) instead of the loud solid pill — one line, ellipsized, hover shows the full name; amber-tinted variant when the focus is outside the current view (class, no more inline override). Verified at narrow and full width via real-render screenshots.
+
+## M163b — Status roll lands in color, then fades (Jacob, 2026-08-27)
+"The idle moving is hard to see. When it rolls make sure the text change color and fade after a while." When a message rolls into the bottom status line it now lands in accent color instantly, fades back to muted over ~1.2s (starting after 2.6s), and yields to the idle text at 8s as before. Idle text is never colored. Smoke: fresh-class mechanics, 2 checks.
+
+## M163c — Update-check answer gets its own note box (Jacob, 2026-08-27)
+"The checkup date should give a separate note box, not merely a update in idle." Right — with the status line now fading, the answer would vanish. ⬆ check for updates now opens a small modal: latest-or-upgrade verdict, the exact command to run, and the restart note; failure states included. Smoke: note-box open/close, 2 checks (164 total).

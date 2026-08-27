@@ -161,7 +161,8 @@
                  background: color-mix(in srgb, var(--panel) 60%, var(--bg)); padding-top: 3px; padding-bottom: 3px; }
   .nrow.tosort > .ncontent::before { content: '📥 '; }
   .nrow.tosort > .ncontent { color: var(--muted); font-weight: 600; }
-  #round-line { cursor: pointer; }
+  #round-line { cursor: pointer; transition: color 1.2s ease; }
+  #round-line.fresh { color: var(--accent); transition: none; }
   .trimwarn { color: #c62828; font-weight: 900; font-size: 15px; cursor: help; margin: 0 2px; }
   #crumbs .focus-away {
     display: inline-block; max-width: 58%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1019,12 +1020,25 @@ $('agent-view-btn').onclick = async () => {
 };
 $('update-btn').onclick = async () => {
   $('other-menu').hidden = true;
-  try {
-    const r = await post('/api/update-check', {});
-    $('round-line').textContent = r.updateAvailable
-      ? `⬆ upgrade available (v${r.updateAvailable}) — in Claude Code run: /plugin marketplace update harnessmap`
-      : `you're on the latest (v${r.current})`;
-  } catch (err) { $('round-line').textContent = `update check failed: ${err.message}`; }
+  // M163c (Jacob): the answer gets its own note box — not a line in the
+  // (now fading) status strip.
+  let r = null;
+  try { r = await post('/api/update-check', {}); } catch {}
+  const body = !r ? 'could not reach the update check — try again later.'
+    : r.updateAvailable
+      ? `<b>upgrade available: v${esc(r.updateAvailable)}</b> (you have v${esc(r.current)}).<br><br>In Claude Code run:<br><code>/plugin marketplace update harnessmap</code><br><br>then restart Claude Code — the map server picks up the new version on its own.`
+      : `you're on the latest (v${esc(r.current)}). Checked against the public repo just now.`;
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(420px,94vw)">
+      <h3>⬆ check for updates</h3>
+      <div style="font-size:13px;line-height:1.55">${body}</div>
+      <div class="actions"><button id="up-close" class="primary">close</button></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#up-close').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
 };
 // M146 (Mark, from a pilot user): the sessions overview — the scribe was
 // already on staff (focus = each session's topic, rolling summary = what it
@@ -3114,9 +3128,14 @@ checkMobile();
 // message reverts to the idle text after a beat.
 {
   const rl = $('round-line');
-  let rlT = null;
+  let rlT = null, rlF = null;
   new MutationObserver(() => {
-    if (rl.textContent === rl.dataset.idle) return;
+    if (rl.textContent === rl.dataset.idle) { rl.classList.remove('fresh'); return; }
+    // M163b (Jacob): a rolling message is easy to miss — land in accent color,
+    // fade back to muted, then yield to the idle text.
+    rl.classList.add('fresh');
+    clearTimeout(rlF);
+    rlF = setTimeout(() => rl.classList.remove('fresh'), 2600);
     clearTimeout(rlT);
     rlT = setTimeout(() => { rl.textContent = rl.dataset.idle; }, 8000);
   }).observe(rl, { childList: true, characterData: true, subtree: true });

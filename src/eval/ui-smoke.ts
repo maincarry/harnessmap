@@ -231,6 +231,16 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
 // ---------- text size (M144) ----------
 {
   check('update check hidden in +more (M161)', !!$('update-btn') && $('update-btn')!.closest('#other-more') !== null && /check for updates/.test($('update-btn')!.textContent!));
+  {
+    const rl = $('round-line')!;
+    rl.textContent = 'something happened';
+    await sleep(80);
+    check('status roll lands in accent (fresh) before fading (M163b)', rl.classList.contains('fresh'));
+    rl.textContent = rl.getAttribute('data-idle')!;
+    await sleep(80);
+    check('idle text is never marked fresh', !rl.classList.contains('fresh'));
+  }
+
   check('agent view hidden in +more (M162)', !!$('agent-view-btn') && $('agent-view-btn')!.closest('#other-more') !== null && /what the agent sees/.test($('agent-view-btn')!.textContent!));
 
   await viaMore('agent-view-btn', '👁 what the agent sees opens');
@@ -241,6 +251,14 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     check('agent view modal: exact text behind a fold', !!ov && !!ov.querySelector('details pre') && ov.querySelector('details pre')!.textContent!.includes('[map state'));
     (ov!.querySelector('#av-close') as any).click(); await sleep(60);
     check('agent view modal closes', !document.querySelector('.overlay'));
+  }
+
+  await viaMore('update-btn', '⬆ check for updates opens its note box');
+  await sleep(600);
+  {
+    const ov = [...document.querySelectorAll('.overlay')].pop();
+    check('update answer is a note box, not a status line (M163c)', !!ov && /check for updates/.test(ov.querySelector('h3')?.textContent ?? ''));
+    (ov?.querySelector('#up-close') as any)?.click(); await sleep(60);
   }
 
   await viaMore('font-btn', '🔠 text size cycles');
