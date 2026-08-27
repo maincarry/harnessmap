@@ -711,3 +711,6 @@ M173: "the chat agent is currently not showing thinking" — root cause: the tur
 
 ## M175 — "No tools here" points at ＋ session (Jacob, 2026-08-27)
 "when this happens, the chat agent should recommend add a session and make websearch available in claude code right?" Two halves: (1) the injection now tells the chat agent plainly — you have NO tools in this chat; when the user needs web search/files/commands, say so in one line and point at ＋ session, where a real Claude Code terminal on this same map has them and inherits the context; (2) replies that mention missing tools carry an inline "＋ session (has the tools)" button (same art as the other inline button) that opens the new-session modal directly. Smoke 208.
+
+## M172d — Feedback stage 2: consistent art + gratitude (Jacob, 2026-08-27)
+"the feedback is now good, but the art style is inconsistent. Also we should thank them for feedback and say that the developers are 'almost' always available." Stage-2 options restyled as proper hairline option cards (app language: hairline border, accent on hover) replacing default-chrome buttons; copy now reads: "✓ saved on this machine — thank you! feedback is what shapes the map, and the developers are almost always available."
