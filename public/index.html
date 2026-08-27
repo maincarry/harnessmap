@@ -635,8 +635,7 @@ function renderTree() {
   });
   };
   const isToSort = (n) => (n.title || n.content).startsWith('to sort');
-  const walkRoot = (depth) => S.nodes.filter(n => n.parentId === null && n.status !== 'removed')
-    .sort((a, b) => (isToSort(a) ? 1 : 0) - (isToSort(b) ? 1 : 0))
+  const walkRoot = (depth) => S.nodes.filter(n => n.parentId === null && n.status !== 'removed' && !isToSort(n))
     .map(n => {
     const head = row(n, depth);
     if (kidsOf(n.id).length && folded.has(n.id)) return head;
@@ -661,8 +660,10 @@ function renderTree() {
   // replaces the per-row dots).
   {
     const toSort = S.nodes.find(n => n.parentId === null && n.status !== 'removed' && (n.title || n.content).startsWith('to sort'));
-    const showToSort = !!(zoomId && node(zoomId) && toSort && toSort.id !== zoomId
-      && !pathOf(zoomId).some(x => x.id === toSort.id) && kidsOf(toSort.id).length > 0);
+    const zoomed = !!(zoomId && node(zoomId));
+    const showToSort = !!(toSort && (!zoomed
+      ? true // whole map: the holding tray is always present in the band
+      : toSort.id !== zoomId && !pathOf(zoomId).some(x => x.id === toSort.id) && kidsOf(toSort.id).length > 0));
     const favs = (S.favorites || []).map((id) => node(id)).filter((n) => n && n.status !== 'removed');
     const sugRows = [];
     const seenSug = new Set();
