@@ -21,8 +21,15 @@
   body { margin: 0; font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink);
          display: grid; grid-template-columns: var(--split, 40%) 6px 1fr; height: 100vh; }
   #splitter { cursor: col-resize; background: var(--hair); position: relative; }
-  #zoom-tools #map-chat, #map-chat { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; padding: 6px 16px; }
-  #zoom-tools #map-chat:hover { filter: brightness(1.12); }
+  #zoom-tools #map-chat, #map-chat {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 86%, #fff), var(--accent));
+    border: 1px solid color-mix(in srgb, var(--accent) 75%, #000);
+    color: #fff; font-weight: 600; padding: 6px 18px; border-radius: 999px;
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 40%, transparent);
+    transition: box-shadow .12s ease, transform .12s ease, filter .12s ease;
+  }
+  #zoom-tools #map-chat:hover { filter: brightness(1.08); box-shadow: 0 3px 9px color-mix(in srgb, var(--accent) 45%, transparent); transform: translateY(-1px); }
+  #zoom-tools #map-chat:active { transform: translateY(0); box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 40%, transparent); }
   /* M133 (Jacob): mobile — one pane at a time, bottom switcher. body.mobile
      is set by JS from viewport width so tests can drive it deterministically. */
   body.mobile { grid-template-columns: 1fr; grid-template-rows: 1fr 52px; }
@@ -156,8 +163,20 @@
   .nrow.tosort > .ncontent { color: var(--muted); font-weight: 600; }
   #round-line { cursor: pointer; }
   .trimwarn { color: #c62828; font-weight: 900; font-size: 15px; cursor: help; margin: 0 2px; }
-  #crumbs .focus-away { background: var(--accent); color: #fff; padding: 2px 10px; border-radius: 999px; font-weight: 600; }
-  #crumbs .focus-away:hover { filter: brightness(1.1); }
+  #crumbs .focus-away {
+    display: inline-block; max-width: 58%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    color: var(--accent); font-weight: 600; font-size: 12px;
+    padding: 3px 12px; border-radius: 999px;
+    transition: background .15s ease, box-shadow .15s ease;
+  }
+  #crumbs .focus-away:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+  #crumbs .focus-away.away {
+    background: color-mix(in srgb, var(--warn) 12%, transparent);
+    border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+    color: var(--warn);
+  }
   .avbar { display: flex; height: 18px; border-radius: 6px; overflow: hidden; border: 1px solid var(--hair); margin: 8px 0; }
   .avseg { min-width: 2px; }
   .avrow { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
@@ -494,7 +513,7 @@ function renderCrumbs() {
   let focusChip = '';
   if (f && node(f)) {
     const away = zoomId ? !pathOf(f).some(n => n.id === zoomId) && f !== zoomId : false;
-    focusChip = `<span class="focus-away" style="${away ? 'background:var(--warn)' : ''}" data-jump-focus="${f}" title="${away ? 'the focus is outside this view — click to zoom to it' : 'click to jump to the focus (offers auto-zoom)'}">▶ focus: ${esc(disp(node(f)))}</span>`;
+    focusChip = `<span class="focus-away${away ? ' away' : ''}" data-jump-focus="${f}" title="${away ? 'the focus is outside this view — click to zoom to it' : 'click to jump to the focus (offers auto-zoom)'}">▶ focus: ${esc(disp(node(f)))}</span>`;
   }
   el.innerHTML = parts.join('') + focusChip;
 }
