@@ -226,6 +226,9 @@
   .rowbtn.on { visibility: visible; color: var(--accent); border-color: var(--accent); font-weight: 600; }
   .rowbtn[data-fav].on { color: var(--warn); border-color: var(--warn); }
   .folded-line { color: var(--muted); font-size: 12px; font-style: italic; }
+  .pin-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px; color: var(--muted);
+    font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; cursor: help; }
+  .pin-divider::before, .pin-divider::after { content: ''; flex: 1; border-top: 1px solid var(--hair); }
   .fold-count { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--hair); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
   .fold-count:hover { color: var(--ink); background: var(--hair); }
   .home-ico { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; vertical-align: -1px; }
@@ -620,8 +623,12 @@ function renderTree() {
     // M47: "to sort" stays visible even when zoomed — off-scope arrivals are
     // never invisible.
     const toSort = S.nodes.find(n => n.parentId === null && n.status !== 'removed' && (n.title || n.content).startsWith('to sort'));
-    if (toSort && toSort.id !== zoomId && !pathOf(zoomId).some(x => x.id === toSort.id)) {
-      html += `<div class="folded-line" style="margin-top:8px">— pinned —</div>` + row(toSort, 0) + (folded.has(toSort.id) ? '' : walk(toSort.id, 1).join(''));
+    // M162b (Mark): the separator must read as SYSTEM text, not a map point —
+    // and an EMPTY to-sort has nothing to keep visible, so it stays out of
+    // zoomed views entirely.
+    if (toSort && toSort.id !== zoomId && !pathOf(zoomId).some(x => x.id === toSort.id)
+        && kidsOf(toSort.id).length > 0) {
+      html += `<div class="pin-divider" title="the to-sort bucket rides along wherever you zoom — things filed outside this view are never invisible">pinned</div>` + row(toSort, 0) + (folded.has(toSort.id) ? '' : walk(toSort.id, 1).join(''));
     }
   } else {
     html = walkRoot(0).join('');
