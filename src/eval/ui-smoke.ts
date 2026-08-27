@@ -376,6 +376,16 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     (tidy as any)?.click(); await sleep(100);
   }
 
+  // M172: direct feedback button, tier 1
+  await click($('other-btn'), '⋯ open (feedback)', 80);
+  check('feedback button lives in tier 1', !!$('feedback-btn') && $('feedback-btn')!.closest('#other-menu') !== null && !$('feedback-btn')!.closest('#other-more'));
+  await click($('feedback-btn'), '🐞 send feedback opens');
+  {
+    const ov = [...document.querySelectorAll('.overlay')].pop();
+    check('feedback modal: text + both channels', !!ov && !!ov.querySelector('#fb-text') && !!ov.querySelector('#fb-gh') && !!ov.querySelector('#fb-em'));
+    (ov?.querySelector('#fb-cancel') as any)?.click(); await sleep(60);
+  }
+
   await viaMore('update-btn', '⬆ check for updates opens its note box');
   await sleep(600);
   {

@@ -431,6 +431,7 @@
           <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
           <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes an organized subtree you approve">⇪ import</button>
           <button id="undo-btn" title="undo the last destructive action — delete, merge, tidy, or move (Ctrl/Cmd+Z works too)">↩ undo</button>
+          <button id="feedback-btn" title="tell the developers about a bug or an idea — you review before anything is sent (GitHub issue or your own email)">🐞 send feedback</button>
           <button id="font-btn" title="text size for the whole page — cycles Small / Normal / Large / Extra large">🔠 text size: normal</button>
           <button id="other-more-btn" title="map housekeeping: tidy, bulk lighting, import, preferences">＋ more…<span class="nudge-dot" hidden>●</span></button>
           <div id="other-more" hidden>
@@ -1127,6 +1128,41 @@ $('agent-view-btn').onclick = async () => {
   document.body.appendChild(ov);
   ov.querySelector('#av-close').onclick = () => ov.remove();
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+};
+$('feedback-btn').onclick = () => {
+  $('other-menu').hidden = true;
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(460px,94vw)">
+      <h3>🐞 send feedback</h3>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">write it here, then pick a channel — nothing is sent until you press send there (GitHub needs an account; email doesn't).</div>
+      <textarea id="fb-text" style="width:100%;min-height:110px;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px" placeholder="what happened, or what should be better?"></textarea>
+      <div class="actions">
+        <button id="fb-cancel">cancel</button>
+        <button id="fb-em" class="primary">✉ send by email</button>
+        <button id="fb-gh" class="primary">🐞 open GitHub issue</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#fb-cancel').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  const take = () => {
+    const text = ov.querySelector('#fb-text').value.trim();
+    if (!text) { ov.querySelector('#fb-text').focus(); return null; }
+    post('/api/feedback', { text, source: 'feedback-button' }).catch(() => {});
+    return { text, body: `${text}\n\n---\nharnessmap ${S.version ?? ''} · sent from the feedback button (user-initiated)` };
+  };
+  ov.querySelector('#fb-gh').onclick = () => {
+    const f = take(); if (!f) return;
+    window.open(`https://github.com/maincarry/harnessmap/issues/new?title=${encodeURIComponent(f.text.slice(0, 70))}&body=${encodeURIComponent(f.body)}`, '_blank');
+    ov.remove(); $('round-line').textContent = '✓ opened a pre-filled issue — nothing is sent until you submit it there';
+  };
+  ov.querySelector('#fb-em').onclick = () => {
+    const f = take(); if (!f) return;
+    window.open(`mailto:${S.feedbackEmail ?? 'yuhinc@sas.upenn.edu'}?subject=${encodeURIComponent('[harnessmap] ' + f.text.slice(0, 60))}&body=${encodeURIComponent(f.body)}`, '_blank');
+    ov.remove(); $('round-line').textContent = '✓ opened a pre-filled email — nothing is sent until you press send there';
+  };
 };
 $('update-btn').onclick = async () => {
   $('other-menu').hidden = true;
@@ -2709,6 +2745,7 @@ function openLegend() {
         <tr><td>◐ dim all outside</td><td>dim everything outside the zoomed branch in one press — the chat agent stops seeing all of it (zoom in first, so "outside" means something)</td></tr>
         <tr><td>⇪ import</td><td>bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes one organized subtree you approve</td></tr>
         <tr><td>↩ undo</td><td>undo the last destructive action — delete, merge, tidy, move (Ctrl/Cmd+Z works anywhere)</td></tr>
+        <tr><td>🐞 send feedback</td><td>tell the developers about a bug or an idea — write it once, then open it as a pre-filled GitHub issue or email; nothing is sent until you press send there</td></tr>
         <tr><td>🔠 text size</td><td>whole-page text size — cycles Small / Normal / Large / Extra large, remembered per browser</td></tr>
         <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">⋯ other — first ＋ more (housekeeping)</td></tr>
         <tr><td>⟳ tidy map</td><td>review the whole map right now — findings land in the ⟳ to tidy folder, or you get a clean bill (the map also reviews itself every 10 rounds)</td></tr>
