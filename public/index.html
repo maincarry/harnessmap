@@ -1460,6 +1460,7 @@ function md2html(t) {
   return x;
 }
 const REFERS_GUIDE = /talk to map|set aside|folded away|folded[^a-z]|dimmed|relight|light (?:it|that|this|them) (?:back )?up|bring (?:it|that|this|them) back/i;
+const NEEDS_TOOLS = /no (?:web ?search|tools|internet)|don'?t have (?:web ?search|tools|internet|access)|can'?t (?:search|browse)|web ?search (?:is )?(?:not|un)available|no tools are active/i;
 // M171b/c (Jacob): the latest referral is remembered briefly — ONE round —
 // so opening the guide right after (from the button, or the toolbar after a
 // Claude Code session referred verbally) starts with the context in hand.
@@ -1476,12 +1477,16 @@ function msgHtml(role, content) {
     // talks about set-aside/folded/dimmed areas the guide could bring back —
     // put the button right there, no hunting in the map panel.
     const refersGuide = REFERS_GUIDE.test(content);
-    return `<div class="msg assistant" data-raw="${esc(content)}">${md2html(content)}<button class="mcopy" title="copy this message">⧉</button>${refersGuide ? '<div style="margin-top:8px"><button class="msg-mapchat" title="ask the map guide — it explains and proposes; you approve"><svg class="chat-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v7.5h-6l-3 2.5v-2.5h-2z"/></svg>talk to map</button></div>' : ''}</div>`;
+    // M175 (Jacob): "no tools here" replies carry the way out — open a real
+    // Claude Code session on this same map.
+    const needsTools = !refersGuide && NEEDS_TOOLS.test(content);
+    return `<div class="msg assistant" data-raw="${esc(content)}">${md2html(content)}<button class="mcopy" title="copy this message">⧉</button>${refersGuide ? '<div style="margin-top:8px"><button class="msg-mapchat" title="ask the map guide — it explains and proposes; you approve"><svg class="chat-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v7.5h-6l-3 2.5v-2.5h-2z"/></svg>talk to map</button></div>' : ''}${needsTools ? '<div style="margin-top:8px"><button class="msg-mapchat msg-addsession" title="open a real Claude Code session on this same map — web search, files, and commands work there">＋ session (has the tools)</button></div>' : ''}</div>`;
   }
   return `<div class="msg ${role}">${esc(content)}</div>`;
 }
 
 $('messages').addEventListener('click', async (e) => {
+  if (e.target.closest('.msg-addsession')) { $('tab-add').click(); return; }
   if (e.target.closest('.msg-mapchat')) {
     const m = e.target.closest('.msg');
     let prev = m?.previousElementSibling;

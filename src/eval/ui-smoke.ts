@@ -324,6 +324,8 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     }
     const folded = (window as any).__msgHtml?.('assistant', "That's folded away right now — the home network setup area. Want me to help anyway?") ?? '';
     check('set-aside/folded replies embed it too', /msg-mapchat/.test(folded));
+    const noTools = (window as any).__msgHtml?.('assistant', "I don't have web search available to me in this context — no tools are active here.") ?? '';
+    check('no-tools replies carry a ＋ session button (M175)', /msg-addsession/.test(noTools));
     const plain = (window as any).__msgHtml?.('assistant', 'Just a normal answer.') ?? '';
     check('ordinary replies carry no inline button', !/msg-mapchat/.test(plain));
   }
