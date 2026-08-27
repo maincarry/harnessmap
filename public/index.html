@@ -248,6 +248,12 @@
   .pin-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px; color: var(--muted);
     font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; cursor: help; }
   .pin-divider::before, .pin-divider::after { content: ''; flex: 1; border-top: 1px solid var(--hair); }
+  .srow { display: flex; align-items: center; gap: 8px; padding: 5px 10px; margin: 2px 0; border: 1px dashed var(--hair);
+    border-radius: 8px; cursor: pointer; font-size: 13.5px; background: var(--panel); }
+  .srow:hover { border-color: var(--warn); }
+  .srow .sstar { color: var(--warn); flex: none; }
+  .srow .scontent { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .srow .sops { margin-left: auto; display: flex; gap: 4px; flex: none; }
   .fold-count { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--hair); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
   .fold-count:hover { color: var(--ink); background: var(--hair); }
   .home-ico { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; vertical-align: -1px; }
@@ -653,6 +659,22 @@ function renderTree() {
     html = walkRoot(0).join('');
   }
   html += `<button id="add-root" title="add an unnamed node and focus the conversation there — the map names it from what you talk about next">+ add node${zoomId ? ' here' : ''}</button>`;
+  const favs = (S.favorites || []).map((id) => node(id)).filter((n) => n && n.status !== 'removed');
+  if (favs.length) {
+    html += `<div class="pin-divider" title="shortcuts to your ★ favorite nodes — each is the real node, living where it lives on the map; click one to view it">★ favorites</div>`;
+    for (const n of favs) {
+      html += `
+      <div class="srow" data-jump="${n.id}" title="shortcut — click to view this node where it lives">
+        <span class="sstar">★</span>
+        <span class="scontent">${esc(disp(n))}</span>
+        <span class="sops">
+          <button class="rowbtn ${n.id === chat()?.focusContainerId ? 'on' : ''}" data-focus="${n.id}" title="focus: talk about this">▶</button>
+          <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? 'dim: remove from the chat agent\u2019s background' : 'light as background (incl. everything under it)'}">☀</button>
+          <button class="rowbtn" data-fav="${n.id}" title="remove from favorites — the node itself stays on the map">✕</button>
+        </span>
+      </div>`;
+    }
+  }
   tree.innerHTML = html || '<div class="empty">no map yet — press “+ add node” to begin</div>';
   const f = node(focus);
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
@@ -1394,6 +1416,8 @@ $('tree').addEventListener('click', async (e) => {
     }
     return;
   }
+  const jumpRow = t.closest('[data-jump]');
+  if (jumpRow && !t.closest('.rowbtn')) { setZoom(jumpRow.dataset.jump); return; }
   const favId = t.closest('[data-fav]')?.dataset.fav;
   if (favId) {
     const on = !(S.favorites || []).includes(favId);

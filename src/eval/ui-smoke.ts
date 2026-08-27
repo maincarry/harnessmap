@@ -253,6 +253,22 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     check('agent view modal closes', !document.querySelector('.overlay'));
   }
 
+  // M164 (Jacob, option A): favorites shortcut tray — flat 快捷方式 rows.
+  await post(`/api/nodes/${trip}/favorite`, { on: true });
+  await pump();
+  {
+    const tray = document.querySelector('.srow');
+    check('favorites tray renders a shortcut row', !!tray && tray.textContent!.includes('trip planning'));
+    check('shortcut has ▶ ☀ and unfavorite, no caret/parents', !!tray!.querySelector('[data-focus]') && !!tray!.querySelector('[data-lit]') && !!tray!.querySelector('[data-fav]') && !tray!.querySelector('.caret'));
+    (tray!.querySelector('[data-lit]') as any).click(); await sleep(400); await pump();
+    check('shortcut ☀ acts on the REAL node (no duplicate)', !!document.querySelector('.srow [data-lit][data-on]'));
+    (document.querySelector('.srow') as any).click(); await sleep(250);
+    check('shortcut click jumps to the node (zoom view)', !!S() && window.document.querySelector('#crumbs')!.textContent!.includes('trip planning'));
+    await click($('home-btn'), 'back to whole map after jump', 200);
+    (document.querySelector('.srow [data-fav]') as any)?.click(); await sleep(400); await pump();
+    check('✕ unfavorites — tray hides, node survives on the map', !document.querySelector('.srow') && !!S()!.nodes.find((n: any) => n.content === 'trip planning'));
+  }
+
   await viaMore('update-btn', '⬆ check for updates opens its note box');
   await sleep(600);
   {
