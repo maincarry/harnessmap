@@ -1195,7 +1195,7 @@ $('update-btn').onclick = async () => {
   try { r = await post('/api/update-check', {}); } catch {}
   const body = !r ? 'could not reach the update check — try again later.'
     : r.updateAvailable
-      ? `<b>upgrade available: v${esc(r.updateAvailable)}</b> (you have v${esc(r.current)}).<br><br>In Claude Code run:<br><code>/plugin marketplace update harnessmap</code><br><br>then restart Claude Code — the map server picks up the new version on its own.`
+      ? `<b>upgrade available: v${esc(r.updateAvailable)}</b> (you have v${esc(r.current)}).<br><br>In Claude Code run:<br><code>/plugin update map@harnessmap</code><br><br>then restart Claude Code — the map server picks up the new version on its own.`
       : `you're on the latest (v${esc(r.current)}). Checked against the public repo just now.`;
   const ov = document.createElement('div');
   ov.className = 'overlay';

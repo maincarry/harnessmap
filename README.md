@@ -98,8 +98,10 @@ Uninstalling the plugin stops the integration; your data stays in
 The plugin and server version-handshake on session start: after you update the
 plugin, the server restarts itself on the new code and tells you what changed
 in one line. Note: Claude Code disables auto-update for third-party
-marketplaces by default — update with `/plugin` → marketplace update (or
-reinstall) when you want the latest.
+marketplaces by default — when you want the latest, run
+`/plugin update map@harnessmap` and restart Claude Code. (`/plugin marketplace
+update harnessmap` only refreshes the catalog — it does not upgrade the
+installed plugin.)
 
 ## Developing / running from source
 

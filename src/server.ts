@@ -1640,7 +1640,7 @@ const server = Bun.serve({
       const today = new Date().toISOString().slice(0, 10);
       if (uv && store.getSetting('update_nudged') !== today && !influenceOff((body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId)) {
         store.setSetting('update_nudged', today);
-        announce = [announce, `[harnessmap] upgrade available (v${uv}): run /plugin marketplace update harnessmap to upgrade. Tell the user in one short line.`].filter(Boolean).join('\n');
+        announce = [announce, `[harnessmap] upgrade available (v${uv}): run /plugin update map@harnessmap (then restart) to upgrade. Tell the user in one short line.`].filter(Boolean).join('\n');
       }
       const pid2 = (body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId;
       const claimed = body.cwd ? claimChat(body.cwd) : null;

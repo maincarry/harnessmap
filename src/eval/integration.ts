@@ -951,7 +951,7 @@ console.log('\n== 34. update visibility (M161) ==');
   check('menu check returns latest vs current', uc.status === 200 && uc.body.updateAvailable === '99.0.0' && typeof uc.body.current === 'string');
   await post('/api/dev/setting', { key: 'update_nudged', value: '' }); // earlier sections consumed today's nudge
   const s1 = await post('/api/harness/session-start', { session_id: 's-upd', cwd: CWD_DEF });
-  check('startup announce carries ONE concise upgrade line', /upgrade available \(v99\.0\.0\).*marketplace update harnessmap/.test(s1.body.announce ?? ''));
+  check('startup announce carries ONE concise upgrade line (correct command)', /upgrade available \(v99\.0\.0\).*\/plugin update map@harnessmap/.test(s1.body.announce ?? ''));
   const s2 = await post('/api/harness/session-start', { session_id: 's-upd2', cwd: CWD_DEF });
   check('same-day second start: no repeat (no bombardment)', !/upgrade available/.test(s2.body.announce ?? ''));
   await post('/api/dev/setting', { key: 'latest_ver', value: '0.0.1' });
