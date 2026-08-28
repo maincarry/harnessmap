@@ -1,1 +1,1 @@
-first map teaches by example; auth failures name their fix; update command corrected everywhere
+sign in without a terminal: a link and a code, right from the map page

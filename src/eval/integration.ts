@@ -7,7 +7,7 @@
 //
 // Run: HARNESSMAP_INFERENCE=api bun run src/eval/integration.ts
 
-import { rmSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { rmSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PORT = 8793;
@@ -50,8 +50,17 @@ const activeChat = (s: any) => (s.chats ?? []).find((c: any) => c.id === s.mainC
 rmSync(TMP, { recursive: true, force: true });
 mkdirSync(CWD_BETA, { recursive: true });
 mkdirSync(CWD_DEF, { recursive: true });
+// M180 stub: behaves like `claude setup-token` — URL out, code in, token out.
+writeFileSync(join(TMP, 'fake-setup-token.ts'), `
+console.log('Visit https://example.com/oauth/authorize?fake=1 to sign in, then paste the code below.');
+process.stdout.write('Code: ');
+for await (const line of console) {
+  if (String(line).trim() === 'CODE42') { console.log('Your token: sk-ant-oat01-FAKE1234567890abcdefFAKE1234567890'); }
+  else console.log('Invalid code.');
+}
+`);
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
-  env: { ...process.env, HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0', HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_AUTH_PROBE: '0',
+  env: { ...process.env, HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0', HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_AUTH_PROBE: '0', HARNESSMAP_SETUPTOKEN_CMD: `bun ${join(TMP, 'fake-setup-token.ts')}`, HARNESSMAP_HOME: join(TMP, 'hm-home'),
     HOME: join(TMP, 'home'), HARNESSMAP_IMPORT_MODEL: 'claude-haiku-4-5' /* tests pin cheap; prod default is the fancy model */ },
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
 });
@@ -976,6 +985,18 @@ console.log('\n== 35. context visibility (M162) ==');
   check('titles still present for trimmed branches (tiered, not vanished)', av2.text.includes('titles:'));
   await post('/api/dev/setting', { key: 'map_budget', value: '' });
   check('budget seam resets clean', (await (await fetch(`${BASE}/api/agent-view`)).json()).budget === 40_000);
+}
+
+console.log('\n== 36. in-page sign-in flow (M180, stubbed) ==');
+{
+  const st1 = await post('/api/auth-login/start', {});
+  check('login start hands back the sign-in URL', st1.status === 200 && /example\.com\/oauth/.test(st1.body.url ?? ''));
+  const bad = await post('/api/auth-login/code', { code: 'WRONG' });
+  check('a wrong code is rejected, flow stays open', bad.status === 200 && bad.body.ok === false);
+  const good = await post('/api/auth-login/code', { code: 'CODE42' });
+  check('the right code completes the flow', good.status === 200 && good.body.ok === true);
+  check('token stored 0600 in the harnessmap home', existsSync(join(TMP, 'hm-home', 'oauth-token'))
+    && readFileSync(join(TMP, 'hm-home', 'oauth-token'), 'utf8').startsWith('sk-ant-oat01-'));
 }
 
 console.log('\n== 13. audit ==');

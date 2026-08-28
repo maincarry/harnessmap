@@ -102,6 +102,17 @@ async function subCall(opts: CallOpts, model: string): Promise<any> {
     for (const [k, v] of Object.entries(process.env)) {
       if (v !== undefined && k !== 'ANTHROPIC_API_KEY' && k !== 'ANTHROPIC_AUTH_TOKEN') cleanEnv[k] = v;
     }
+    // M180: a token minted by the in-chat login flow authenticates the SDK
+    // child when the CLI has no login of its own.
+    if (!cleanEnv.CLAUDE_CODE_OAUTH_TOKEN) {
+      try {
+        const { readFileSync } = await import('node:fs');
+        const { join } = await import('node:path');
+        const { homedir } = await import('node:os');
+        const tok = readFileSync(join(process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap'), 'oauth-token'), 'utf8').trim();
+        if (tok) cleanEnv.CLAUDE_CODE_OAUTH_TOKEN = tok;
+      } catch { /* no stored token — normal */ }
+    }
     const q = query({
       prompt,
       options: {

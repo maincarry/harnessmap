@@ -113,6 +113,34 @@ export function createTerm(id: string, cwd: string, cols = 120, rows = 32): Term
   return t;
 }
 
+// M180: one-off PTY for the in-chat login flow ONLY — argv is fixed by the
+// caller (claude setup-token, or a test stub), never user input.
+export function spawnLoginPty(argv: string[], onData: (s: string) => void):
+  { write: (d: string) => void; kill: () => void } | { error: string } {
+  try {
+    if (hasBunPty) {
+      const dec = new TextDecoder();
+      const bt = new (Bun as any).Terminal({ cols: 120, rows: 32, data: (_t: any, c: any) => onData(dec.decode(c)) });
+      const p = Bun.spawn(argv, { terminal: bt, env: { ...process.env, TERM: 'xterm-256color' } });
+      p.exited.then(() => { try { bt.close(); } catch {} });
+      return { write: (d) => { try { bt.write(d); } catch {} }, kill: () => { try { p.kill(); } catch {} try { bt.close(); } catch {} } };
+    }
+    const wrapped = process.platform === 'darwin'
+      ? ['script', '-q', '/dev/null', ...argv]
+      : ['script', '-qfec', argv.join(' '), '/dev/null'];
+    const p = Bun.spawn(wrapped, {
+      stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
+      env: { ...process.env, TERM: 'xterm-256color', COLUMNS: '120', LINES: '32' },
+    });
+    (async () => { const dec = new TextDecoder(); for await (const c of p.stdout as any) onData(dec.decode(c)); })().catch(() => {});
+    (async () => { const dec = new TextDecoder(); for await (const c of p.stderr as any) onData(dec.decode(c)); })().catch(() => {});
+    const w = (p.stdin as any);
+    return { write: (d) => { try { w.write(d); w.flush?.(); } catch {} }, kill: () => { try { p.kill(); } catch {} } };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export const getTerm = (id: string) => sessions.get(id);
 export const listTerms = () => [...sessions.values()].map((t) => ({ id: t.id, cwd: t.cwd, alive: t.alive, createdAt: t.createdAt }));
 export function killTerm(id: string): boolean {

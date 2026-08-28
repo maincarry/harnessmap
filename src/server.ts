@@ -16,7 +16,7 @@ import { proposeAutolit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion } from './translator/mapchat.js';
-import { createTerm, getTerm, listTerms, killTerm, ptyBackend } from './term.js';
+import { createTerm, getTerm, listTerms, killTerm, ptyBackend, spawnLoginPty } from './term.js';
 import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
@@ -145,6 +145,26 @@ async function probeAuth(): Promise<boolean | null> {
   return authBroken;
 }
 probeAuth().catch(() => {});
+// M180 (Jacob picked B): sign in WITHOUT a terminal. The server drives
+// `claude setup-token` on a PTY: hand the user the login URL, take the code
+// back, capture the long-lived token, store it 0600 in the harnessmap home,
+// and pass it to every SDK child as CLAUDE_CODE_OAUTH_TOKEN.
+const HOMEDIR_HM = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
+const TOKEN_FILE = join(HOMEDIR_HM, 'oauth-token');
+let loginFlow: { pty: { write: (d: string) => void; kill: () => void }; out: string; url: string | null; token: string | null } | null = null;
+const stripAnsi = (x: string) => x.replace(/\u001b\[[0-9;?]*[A-Za-z]/g, '').replace(/\u001b\][^\u0007]*\u0007/g, '');
+function loginWatch(chunk: string) {
+  if (!loginFlow) return;
+  loginFlow.out += stripAnsi(chunk);
+  if (!loginFlow.url) loginFlow.url = loginFlow.out.match(/https:\/\/\S+/)?.[0] ?? null;
+  const tok = loginFlow.out.match(/sk-ant-[A-Za-z0-9_\-]{24,}/)?.[0];
+  if (tok && !loginFlow.token) {
+    loginFlow.token = tok;
+    try { writeFileSync(TOKEN_FILE, tok, { mode: 0o600 }); } catch {}
+    store.setSetting('auth_ok', '');
+    probeAuth().then(() => broadcast({ type: 'map', ...state() })).catch(() => {});
+  }
+}
 const AUTH_FIX_LINE = "[harnessmap] SETUP NEEDED before the map can file: the map's agents make model calls through the Claude Code command line, which has its own login. Walk the user through it in plain words: open a terminal, run `claude`, type /login, approve in the browser — two minutes, once ever. Everything else (this conversation included) works meanwhile.";
 checkLatest().catch(() => {});
 
@@ -1427,6 +1447,26 @@ const server = Bun.serve({
     if (path === '/api/agent-view' && req.method === 'GET') {
       const { text, trimmedLit, sections, budget } = composeParts(store, mainChatId, []);
       return json({ sections, trimmedLit, budget, total: text.length, text });
+    }
+
+    // M180: in-chat login flow.
+    if (path === '/api/auth-login/start' && req.method === 'POST') {
+      loginFlow?.pty.kill();
+      const argv = process.env.HARNESSMAP_SETUPTOKEN_CMD?.split(' ') ?? ['claude', 'setup-token'];
+      const pty = spawnLoginPty(argv, loginWatch);
+      if ('error' in pty) return json({ error: pty.error }, 500);
+      loginFlow = { pty, out: '', url: null, token: null };
+      for (let i = 0; i < 60 && !loginFlow.url && !loginFlow.token; i++) await new Promise((r) => setTimeout(r, 250));
+      return json({ url: loginFlow.url, done: !!loginFlow.token });
+    }
+    if (path === '/api/auth-login/code' && req.method === 'POST') {
+      if (!loginFlow) return json({ error: 'no login in progress' }, 400);
+      const { code } = (await req.json()) as { code: string };
+      loginFlow.pty.write(code.trim() + '\r');
+      for (let i = 0; i < 80 && !loginFlow.token; i++) await new Promise((r) => setTimeout(r, 250));
+      const ok = !!loginFlow.token;
+      if (ok) { loginFlow.pty.kill(); loginFlow = null; }
+      return json({ ok });
     }
 
     // M179b: banner "check again" — re-probe on demand.
