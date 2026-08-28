@@ -50,6 +50,9 @@ export interface CallOpts {
 // prompts/responses when dev mode is on. One choke point = total coverage.
 type TraceFn = (t: { kind: string; task: string; model: string; backend: string; ms: number; ok: boolean; system?: string; user?: string; response?: string }) => void;
 let traceSink: TraceFn | null = null;
+// M179: the most recent failed call, for plain-words error surfacing (the
+// "Invalid API key" class of failure was nearly silent — Jacob's install).
+export let lastCallError: { msg: string; at: number } | null = null;
 export function setTraceSink(fn: TraceFn | null): void { traceSink = fn; }
 
 export async function call(opts: CallOpts): Promise<any> {
@@ -63,6 +66,7 @@ export async function call(opts: CallOpts): Promise<any> {
     return out;
   } catch (err) {
     opts.audit?.('inference', { task: opts.task, backend, model, ms: Date.now() - t0, ok: false, error: String(err).slice(0, 200) });
+    lastCallError = { msg: String(err).slice(0, 300), at: Date.now() };
     try { traceSink?.({ kind: 'call', task: opts.task, model, backend, ms: Date.now() - t0, ok: false, system: opts.system, user: opts.user, response: String(err).slice(0, 500) }); } catch {}
     throw err;
   }

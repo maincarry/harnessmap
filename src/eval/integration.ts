@@ -64,9 +64,9 @@ console.log('\n== 1. boot & migration-fresh ==');
 {
   const s = await state();
   check('fresh DB boots one default project', s.projects.length === 1 && s.projects[0].name === 'default');
-  check('bootstrap created root node + system to-sort (M123)', s.nodes.length === 2 && s.nodes.some((n: any) => n.content === 'workspace') && s.nodes.some((n: any) => n.content === 'to sort' && n.parentId === null));
+  check('bootstrap created tutorial topic + system to-sort (M123/M178)', s.nodes.length === 5 && s.nodes.some((n: any) => n.content === 'getting started') && s.nodes.some((n: any) => n.content === 'to sort' && n.parentId === null));
   check('bootstrap created one chat, active + in list', s.chats.length === 1 && s.chats[0].id === s.mainChatId);
-  check('root is lit', litOfActive(s).includes(s.nodes.find((n: any) => n.content === 'workspace').id));
+  check('root is lit', litOfActive(s).includes(s.nodes.find((n: any) => n.content === 'getting started').id));
 }
 
 console.log('\n== 1.5 binding: adoption, announcements, subtree (M91) ==');
@@ -163,7 +163,7 @@ let pricingId = '', childId = '';
   check('focus endpoint re-aims chat', activeChat(s)?.focusContainerId === pricingId);
   // M111: pricing is now ON the focus path — refocus the root so the classic
   // dim toggle below isn't hitting the protection (that's tested in sec 19).
-  const rootId0 = s.nodes.find((n: any) => n.parentId === null && n.content === 'workspace').id;
+  const rootId0 = s.nodes.find((n: any) => n.parentId === null && n.content === 'getting started').id;
   await post(`/api/chats/${CH}/focus`, { nodeId: rootId0 });
   await post(`/api/chats/${CH}/lit`, { nodeId: pricingId, on: false });
   s = await state();
@@ -171,7 +171,7 @@ let pricingId = '', childId = '';
   await post(`/api/chats/${CH}/lit`, { nodeId: pricingId, on: true });
   s = await state();
   check('relight toggles node + descendants', litOfActive(s).includes(pricingId) && litOfActive(s).includes(childId));
-  const rootId = s.nodes.find((n: any) => n.parentId === null && n.content === 'workspace').id;
+  const rootId = s.nodes.find((n: any) => n.parentId === null && n.content === 'getting started').id;
   await post(`/api/chats/${CH}/zoomin`, { nodeId: pricingId, focus: false });
   s = await state();
   check('zoom is view-only — lighting untouched (M105)', litOfActive(s).includes(rootId) && litOfActive(s).includes(pricingId));
@@ -210,7 +210,7 @@ console.log('\n== 5. chats: fork / fresh / topic input ==');
   r = await post('/api/chats', { mode: 'fresh' });
   s = await state();
   check('fresh: only root lit', litOfActive(s).length === 1);
-  const rootId = s.nodes.find((n: any) => n.parentId === null && n.content === 'workspace').id;
+  const rootId = s.nodes.find((n: any) => n.parentId === null && n.content === 'getting started').id;
   check('fresh: focus on root', activeChat(s)?.focusContainerId === rootId);
 
   r = await post('/api/chats', { mode: 'fresh', focusTopic: 'pricing' });
@@ -251,7 +251,7 @@ console.log('\n== 7. nudges: drift streak + directive gate (model) ==');
   // and no drift is detectable — that's not drift, that's a roomy map.
   {
     const st = await state();
-    const rootId = st.nodes.find((x: any) => x.parentId === null && x.content === 'workspace').id;
+    const rootId = st.nodes.find((x: any) => x.parentId === null && x.content === 'getting started').id;
     await post(`/api/chats/${st.mainChatId}/lit`, { nodeId: rootId, on: false });
     await post(`/api/chats/${st.mainChatId}/lit`, { nodeId: pricingId, on: true });
     await post(`/api/chats/${st.mainChatId}/focus`, { nodeId: pricingId });
@@ -267,7 +267,7 @@ console.log('\n== 7. nudges: drift streak + directive gate (model) ==');
   // design (the gate requires target ≠ focus), so give it somewhere to go.
   {
     const st = await state();
-    const rootId = st.nodes.find((x: any) => x.parentId === null && x.content === 'workspace').id;
+    const rootId = st.nodes.find((x: any) => x.parentId === null && x.content === 'getting started').id;
     await post(`/api/chats/${st.mainChatId}/focus`, { nodeId: rootId });
   }
   await observe('s-def', 'ok lets focus on the pricing strategy work now', 'Back to pricing strategy. We had the enterprise tier question open - want to start there?');
@@ -364,7 +364,7 @@ console.log('\n== 11. talk-to-map: action + plan (model) ==');
   check('named ask → focus action on the right node', act?.kind === 'focus' && /enterprise|pricing/i.test(act?.nodeName ?? ''), JSON.stringify(act));
   { // same no-op trap: make sure the plan's focus target isn't already the focus
     const st = await state();
-    const rootId = st.nodes.find((x: any) => x.parentId === null && x.content === 'workspace').id;
+    const rootId = st.nodes.find((x: any) => x.parentId === null && x.content === 'getting started').id;
     await post(`/api/chats/${st.mainChatId}/focus`, { nodeId: rootId });
   }
   let plan = await post('/api/map-chat', { question: 'focus on the pricing strategy and dim the dragonfruit farming stuff' });

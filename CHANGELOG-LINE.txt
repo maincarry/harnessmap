@@ -1,1 +1,1 @@
-referrals carry their context: talk-to-map opens already knowing what the conversation needs, from chat or Claude Code, for one round
+first map teaches by example; auth failures name their fix; update command corrected everywhere

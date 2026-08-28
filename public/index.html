@@ -3364,7 +3364,7 @@ function connect() {
     } else if (m.type === 'chat_cleared' && m.chatId === S.mainChatId) {
       loadTurns();
     } else if (m.type === 'translator_error') {
-      $('round-line').textContent = 'translator error — map may lag (chat unaffected)';
+      $('round-line').textContent = m.message || 'translator error — map may lag (chat unaffected)';
     }
   };
   ws.onclose = () => setTimeout(connect, 1500);

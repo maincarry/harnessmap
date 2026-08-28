@@ -22,7 +22,7 @@ import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, extractTranscript } from './translator/importer.js';
-import { setTraceSink } from './inference.js';
+import { setTraceSink, lastCallError } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync } from 'node:fs';
@@ -76,12 +76,31 @@ function bootstrapProject(pid: string): string {
   const existing = store.getChats(pid);
   if (existing.length > 0) return existing[existing.length - 1].id;
   const rootId = randomUUID();
-  store.applyAlterations(pid, [
-    { op: 'create_node', id: rootId, parentId: null, content: 'workspace', status: 'live', author: 'user' },
-  ], { kind: 'system' });
+  // M178 (Jacob): the FIRST map ever teaches by example instead of seeding a
+  // bare "workspace" — a real, ordinary topic, deletable and undoable,
+  // outgrown the moment real work arrives. Later maps (the user knows the
+  // product by then) start with one root named after the map. Tutorial nodes
+  // carry author 'system' so project adoption still sees a pristine map.
+  const first = store.listProjects().length <= 1;
+  const seedIds = [rootId];
+  if (first) {
+    const k1 = randomUUID(), k2 = randomUUID(), k3 = randomUUID();
+    seedIds.push(k1, k2, k3);
+    store.applyAlterations(pid, [
+      { op: 'create_node', id: rootId, parentId: null, content: 'getting started', status: 'live', author: 'system' },
+      { op: 'create_node', id: k1, parentId: rootId, content: 'this map takes notes for you — talk to Claude and topics file themselves here', status: 'live', author: 'system' },
+      { op: 'create_node', id: k2, parentId: rootId, content: 'try it: press ▶ on a node to talk about it, ☀ to keep it in Claude\u2019s background, ◱ to view only that branch', status: 'live', author: 'system' },
+      { op: 'create_node', id: k3, parentId: rootId, content: 'when real work shows up, delete this topic (✕) — everything is undoable (Ctrl/Cmd+Z)', status: 'live', author: 'system' },
+    ], { kind: 'system' });
+  } else {
+    const pname = store.listProjects().find((x) => x.id === pid)?.name ?? 'workspace';
+    store.applyAlterations(pid, [
+      { op: 'create_node', id: rootId, parentId: null, content: pname, status: 'live', author: 'user' },
+    ], { kind: 'system' });
+  }
   const chatId = randomUUID();
   store.createChat({ id: chatId, projectId: pid, focusContainerId: rootId, sdkSessionId: null });
-  store.setLit(chatId, rootId, true);
+  for (const id of seedIds) store.setLit(chatId, id, true);
   return chatId;
 }
 // M161 (Mark): update visibility without bombardment. A tiny daily check
@@ -546,7 +565,12 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
       const removals = pendingRemovals; pendingRemovals = [];
       if (maxIdx - WINDOW >= 0) foldTurns(store, roundPid, params.chatId, maxIdx - WINDOW, removals);
     } else {
-      broadcast({ type: 'translator_error', chatId: params.chatId });
+      // M179: name the failure when we can — an auth failure has a fix the
+      // user can actually perform; "translator error" does not.
+      const authy = lastCallError && Date.now() - lastCallError.at < 120_000
+        && /invalid api key|please run \/login|not logged in|authentication|401/i.test(lastCallError.msg);
+      broadcast({ type: 'translator_error', chatId: params.chatId,
+        ...(authy ? { message: "the map's agents can't sign in — one-time fix: open a terminal, run `claude`, type /login and approve. Filing resumes on your next message." } : {}) });
     }
   });
 }
@@ -675,7 +699,10 @@ const server = Bun.serve({
         })
         .catch((err) => {
           console.error('[chat] turn failed:', err);
-          broadcast({ type: 'turn', chatId, role: 'system', content: `agent error: ${String(err).slice(0, 200)}` });
+          const emsg = String(err);
+          broadcast({ type: 'turn', chatId, role: 'system', content: /invalid api key|\/login|exited with code 1/i.test(emsg)
+            ? `agent error: ${emsg.slice(0, 120)} — likely the Claude Code login: open a terminal, run \`claude\`, type /login and approve (one time), then send your message again.`
+            : `agent error: ${emsg.slice(0, 200)}` });
         });
       return json({ ok: true }, 202);
     }
@@ -1618,7 +1645,8 @@ const server = Bun.serve({
           const all = store.listProjects();
           const adoptable = all.length === 1 && all[0].name === 'default'
             && store.getNodes(all[0].id).filter((n) => n.status !== 'removed'
-              && !((n.title ?? n.content) ?? '').startsWith('to sort')).length <= 1; // system tray doesn't count as content (M123)
+              && n.author !== 'system' // tutorial seeds + tray are furniture, not content (M123/M178)
+              && !((n.title ?? n.content) ?? '').startsWith('to sort')).length <= 1;
           if (adoptable) { pid = all[0].id; store.renameProject(pid, pname); }
           else { pid = store.createProject(pname); bootstrapProject(pid); }
           store.bindCwd(body.cwd, pid);
