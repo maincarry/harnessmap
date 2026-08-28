@@ -627,7 +627,11 @@ const server = Bun.serve({
       return new Response(f);
     }
     if (path === '/' || path === '/index.html') {
-      return new Response(Bun.file(join(here, '..', 'public', 'index.html')));
+      // M177b: the page must never be served stale from browser cache — a
+      // user who just updated would otherwise keep seeing the old UI.
+      return new Response(Bun.file(join(here, '..', 'public', 'index.html')), {
+        headers: { 'cache-control': 'no-cache' },
+      });
     }
 
     if (path === '/api/state' && req.method === 'GET') return json(state());
