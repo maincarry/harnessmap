@@ -22,7 +22,7 @@ import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, extractTranscript } from './translator/importer.js';
-import { setTraceSink, lastCallError } from './inference.js';
+import { setTraceSink, lastCallError, call } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync } from 'node:fs';
@@ -125,6 +125,27 @@ const newer = (a: string, b: string) => { // is a newer than b (x.y.z)
   return false;
 };
 const updateAvailable = () => (latestKnown && newer(latestKnown, VERSION) ? latestKnown : null);
+
+// M179b (Jacob: "the user should not be required to figure these out"): the
+// server proves it can make a model call BEFORE the user wonders why nothing
+// files. One tiny probe, cached forever once it succeeds; on auth-shaped
+// failure the intro + a map banner give the one-time /login walkthrough.
+// HARNESSMAP_AUTH_PROBE=0 disables (suites).
+let authBroken: boolean | null = null;
+async function probeAuth(): Promise<boolean | null> {
+  if (process.env.HARNESSMAP_AUTH_PROBE === '0') return null;
+  if (store.getSetting('auth_ok') === '1') { authBroken = false; return false; }
+  try {
+    await call({ task: 'memory', system: 'Reply with the word ok.', user: 'ok', maxTokens: 4, timeoutMs: 15_000 });
+    authBroken = false;
+    store.setSetting('auth_ok', '1');
+  } catch (err) {
+    if (/invalid api key|please run \/login|not logged in|authentication|401|exited with code 1/i.test(String(err))) authBroken = true;
+  }
+  return authBroken;
+}
+probeAuth().catch(() => {});
+const AUTH_FIX_LINE = "[harnessmap] SETUP NEEDED before the map can file: the map's agents make model calls through the Claude Code command line, which has its own login. Walk the user through it in plain words: open a terminal, run `claude`, type /login, approve in the browser — two minutes, once ever. Everything else (this conversation included) works meanwhile.";
 checkLatest().catch(() => {});
 
 let projectId = store.getSetting('active_project') ?? store.ensureProject('default');
@@ -471,6 +492,7 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
     lag -= 1;
     broadcast({ type: 'lag', lag });
     if (out) {
+      if (authBroken !== false) { authBroken = false; store.setSetting('auth_ok', '1'); }
       lightNewNodes(out.result.alterations as any[], params.chatId);
       for (const a of out.result.alterations as any[]) {
         if (a.op === 'create_node' && a.id) store.markFresh(a.id, 'new');
@@ -600,6 +622,7 @@ function state() {
     home: (() => { const h = store.getSetting(`home:${projectId}`); return h && store.getNode(h)?.status !== 'removed' ? h : null; })(),
     influenceOff: influenceOff(projectId),
     updateAvailable: updateAvailable(),
+    authBroken,
     feedbackEmail: process.env.HARNESSMAP_FEEDBACK_EMAIL ?? 'yuhinc@sas.upenn.edu',
     version: VERSION,
     storage: DB_PATH,
@@ -1406,6 +1429,14 @@ const server = Bun.serve({
       return json({ sections, trimmedLit, budget, total: text.length, text });
     }
 
+    // M179b: banner "check again" — re-probe on demand.
+    if (path === '/api/auth-probe' && req.method === 'POST') {
+      store.setSetting('auth_ok', '');
+      const r = await probeAuth();
+      broadcast({ type: 'map', ...state() });
+      return json({ authBroken: r });
+    }
+
     // M161: menu-triggered update check.
     if (path === '/api/update-check' && req.method === 'POST') {
       await checkLatest(true);
@@ -1668,6 +1699,10 @@ const server = Bun.serve({
       // M161: one concise upgrade line, on session start only, at most once
       // a day — never per prompt, never repeated (Mark: no bombardment).
       checkLatest().catch(() => {});
+      if (authBroken === null && store.getSetting('auth_ok') !== '1') {
+        await Promise.race([probeAuth(), new Promise((r) => setTimeout(r, 4500))]).catch(() => {});
+      }
+      if (authBroken) announce = [announce, AUTH_FIX_LINE].filter(Boolean).join('\n');
       const uv = updateAvailable();
       const today = new Date().toISOString().slice(0, 10);
       if (uv && store.getSetting('update_nudged') !== today && !influenceOff((body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId)) {

@@ -36,6 +36,7 @@ const HOOK_ENV: Record<string, string | undefined> = {
   ANTHROPIC_API_KEY: undefined,      // fresh machines have no key; nothing may require one
   ANTHROPIC_AUTH_TOKEN: undefined,
   HARNESSMAP_INFERENCE: undefined,
+  HARNESSMAP_AUTH_PROBE: '0',           // no model calls from suite servers
 };
 
 async function runHook(file: string, input: unknown): Promise<{ code: number; out: string }> {

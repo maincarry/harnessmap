@@ -420,6 +420,11 @@
       <span id="beat" title="the turn lifecycle: message seen → agent replying → filed onto the map" style="margin-left:auto;font-weight:400;font-size:12px;color:var(--muted)">waiting for activity</span>
       <span class="lag" id="lag" style="margin-left:10px">map current</span>
     </header>
+    <div id="auth-banner" hidden style="padding:8px 12px;background:color-mix(in srgb, var(--warn) 12%, var(--panel));border-bottom:1px solid color-mix(in srgb, var(--warn) 45%, transparent);font-size:12.5px;line-height:1.5">
+      <b>one-time setup:</b> the map's agents need the Claude command-line login before anything can file.
+      Open a terminal → run <code>claude</code> → type <code>/login</code> → approve. Everything else works meanwhile.
+      <button id="auth-retry" style="margin-left:8px;border:1px solid var(--hair);border-radius:6px;padding:2px 10px;cursor:pointer;background:var(--bg);color:var(--ink)" title="press after logging in — checks again">I did it — check</button>
+    </div>
     <div id="crumbs"></div>
     <div id="zoom-tools">
       <button id="map-chat" title="confused, or want anything done? Ask in plain words — the map guide explains and proposes; you approve"><svg class="chat-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v7.5h-6l-3 2.5v-2.5h-2z"/></svg>talk to map</button>
@@ -771,7 +776,8 @@ function renderTree() {
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
 }
 
-function renderAll() { applyAutoFold(); renderCrumbs(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); }
+function renderAll() {
+  const ab = $('auth-banner'); if (ab) ab.hidden = S.authBroken !== true; applyAutoFold(); renderCrumbs(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); }
 // M88: one server, many projects (each its own map) and many chats (views).
 function renderSwitchers() {
   const ps = $('proj-sel');
@@ -1186,6 +1192,12 @@ $('feedback-btn').onclick = () => {
     try { await navigator.clipboard.writeText(`To: ${addr}\nSubject: [harnessmap] feedback\n\n${saved.body}`); } catch {}
     $('round-line').textContent = `✓ report copied — paste it into any email to ${addr}`;
   };
+};
+$('auth-retry').onclick = async () => {
+  $('auth-retry').textContent = 'checking…';
+  try { const r = await post('/api/auth-probe', {}); if (r.authBroken === false) $('round-line').textContent = '✓ signed in — the map files from your next message'; }
+  catch {}
+  $('auth-retry').textContent = 'I did it — check';
 };
 $('update-btn').onclick = async () => {
   $('other-menu').hidden = true;

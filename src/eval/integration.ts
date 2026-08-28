@@ -51,7 +51,7 @@ rmSync(TMP, { recursive: true, force: true });
 mkdirSync(CWD_BETA, { recursive: true });
 mkdirSync(CWD_DEF, { recursive: true });
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
-  env: { ...process.env, HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0', HARNESSMAP_AUTOTIDY_ROUNDS: '0',
+  env: { ...process.env, HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0', HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_AUTH_PROBE: '0',
     HOME: join(TMP, 'home'), HARNESSMAP_IMPORT_MODEL: 'claude-haiku-4-5' /* tests pin cheap; prod default is the fancy model */ },
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
 });
