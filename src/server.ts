@@ -630,6 +630,22 @@ const server = Bun.serve({
   async fetch(req, srv) {
     const url = new URL(req.url);
     const path = url.pathname;
+    // M181 (security review finding): loopback binding alone is NOT a browser
+    // trust boundary — CORS never applies to WebSockets, and DNS rebinding
+    // defeats same-origin for plain fetches. So on the loopback bind: the
+    // Host header must be local (kills rebinding) and a present Origin must
+    // be local too (kills cross-origin WS + CSRF). Non-browser clients (our
+    // hooks, curl) send no Origin and pass. Authed network mode is exempt —
+    // its trust boundary is the credential.
+    if (!authEnabled) {
+      const host = (req.headers.get('host') ?? '').toLowerCase();
+      const origin = req.headers.get('origin');
+      const LOCAL_RE = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+      if (!LOCAL_RE.test(host)) return new Response('forbidden (host)', { status: 403 });
+      if (origin && !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(origin)) {
+        return new Response('forbidden (origin)', { status: 403 });
+      }
+    }
 
     // Auth gate — covers every route including the WS upgrade handshake.
     // Browsers replay the page's Basic credentials on same-origin WS handshakes,

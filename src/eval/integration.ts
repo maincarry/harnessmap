@@ -978,6 +978,18 @@ console.log('\n== 35. context visibility (M162) ==');
   check('budget seam resets clean', (await (await fetch(`${BASE}/api/agent-view`)).json()).budget === 40_000);
 }
 
+console.log('\n== 37. browser trust boundary (M181) ==');
+{
+  const evil = await fetch(`${BASE}/api/state`, { headers: { origin: 'https://evil.example' } });
+  check('cross-origin request refused (WS/CSRF class)', evil.status === 403);
+  const rebind = await fetch(`${BASE}/api/state`, { headers: { host: 'attacker.example' } });
+  check('foreign Host refused (DNS rebinding)', rebind.status === 403);
+  const local = await fetch(`${BASE}/api/state`, { headers: { origin: `http://localhost:${PORT}` } });
+  check('local-origin browser requests pass', local.status === 200);
+  const noOrigin = await fetch(`${BASE}/api/state`);
+  check('originless clients (hooks, curl) pass', noOrigin.status === 200);
+}
+
 console.log('\n== 13. audit ==');
 {
   const a = await get('/api/audit?limit=10');
