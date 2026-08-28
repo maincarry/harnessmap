@@ -714,3 +714,6 @@ M173: "the chat agent is currently not showing thinking" — root cause: the tur
 
 ## M172d — Feedback stage 2: consistent art + gratitude (Jacob, 2026-08-27)
 "the feedback is now good, but the art style is inconsistent. Also we should thank them for feedback and say that the developers are 'almost' always available." Stage-2 options restyled as proper hairline option cards (app language: hairline border, accent on hover) replacing default-chrome buttons; copy now reads: "✓ saved on this machine — thank you! feedback is what shapes the map, and the developers are almost always available."
+
+## M166b — Auto-review: 10 rounds OR 30 minutes (Jacob, 2026-08-28)
+"change to propose tidy rule to 10 rounds or 30 minutes." The reviewer now also fires when 30+ minutes have passed since the last review, checked at round completion — so slow-paced conversations get tidying without waiting for 10 rounds (an idle map still reviews nothing: no rounds, no check). Whichever trigger comes first wins; both reset together. Knobs: HARNESSMAP_AUTOTIDY_ROUNDS / HARNESSMAP_AUTOTIDY_MINUTES; all other rules unchanged (first review at round 5, propose-only, holds while suggestions pending, runs under influence-off).

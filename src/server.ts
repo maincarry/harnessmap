@@ -506,17 +506,24 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
       // (no piling); fires on the next round after the user clears them.
       {
         const AUTOTIDY = Number(process.env.HARNESSMAP_AUTOTIDY_ROUNDS ?? 10);
+        const AUTOTIDY_MS = Number(process.env.HARNESSMAP_AUTOTIDY_MINUTES ?? 30) * 60_000;
         const tk = `tidy_ct:${roundPid}`;
-        // A fresh map gets its first review early (round 5) — early mess is
-        // cheapest to fix; thereafter every 10 rounds. Keeps running under
-        // influence-off (Jacob: the switch means "stay out of my
-        // conversations", not "stop maintaining yourself").
+        const ta = `tidy_last_at:${roundPid}`;
+        // M166b (Jacob): review every 10 rounds OR every 30 minutes of
+        // activity, whichever comes first — slow-paced conversations get
+        // tidying too. Checked at round completion (an idle map has nothing
+        // new to review). A fresh map's first review still lands early
+        // (round 5). Keeps running under influence-off (the switch means
+        // "stay out of my conversations", not "stop maintaining yourself").
         const threshold = store.getSetting(`tidy_first:${roundPid}`) === '1' ? AUTOTIDY : Math.min(5, AUTOTIDY);
         const tct = Number(store.getSetting(tk) ?? 0) + 1;
-        if (AUTOTIDY > 0 && tct >= threshold && store.getOpenSuggestions(roundPid).length === 0) {
+        if (!store.getSetting(ta)) store.setSetting(ta, String(Date.now()));
+        const overdue = Date.now() - Number(store.getSetting(ta)) >= AUTOTIDY_MS;
+        if (AUTOTIDY > 0 && (tct >= threshold || overdue) && store.getOpenSuggestions(roundPid).length === 0) {
           store.setSetting(tk, '0');
+          store.setSetting(ta, String(Date.now()));
           store.setSetting(`tidy_first:${roundPid}`, '1');
-          store.audit('auto_mapcheck', { after: tct });
+          store.audit('auto_mapcheck', { after: tct, overdue });
           checkMap(store, roundPid, chat.focusContainerId ?? null)
             .then(() => broadcast({ type: 'map', ...state() }))
             .catch(() => {});
