@@ -145,6 +145,27 @@ console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');
   check("SessionStart source='compact' re-anchors to a FULL injection", cf.kind === 'full');
 }
 
+console.log('\n== 8. tunnel guard: a foreign server is never adopted (M176) ==');
+{
+  // Restart the server claiming to be another machine — as if the port were
+  // an SSH tunnel to someone else's harnessmap.
+  await fetch(`${BASE}/api/shutdown`, { method: 'POST' }).catch(() => {});
+  await sleep(600);
+  const foreign = Bun.spawn(['bun', 'run', 'src/server.ts'], {
+    env: { ...HOOK_ENV, HARNESSMAP_DB: join(HOME, 'map.sqlite'), PORT: String(PORT), HARNESSMAP_MACHINE_LABEL: 'someone-elses-laptop' } as any,
+    stdout: 'ignore', stderr: 'ignore',
+  });
+  let up2 = false;
+  for (let i = 0; i < 20; i++) { try { await fetch(`${BASE}/api/state`); up2 = true; break; } catch { await sleep(300); } }
+  check('foreign-labeled server is up', up2);
+  const r = await runHook('session-start.ts', { session_id: 'tunnel-1', cwd: PROJ });
+  check('hook exits clean, does not adopt it', r.code === 0);
+  const ctx = ctxOf(r.out);
+  check('user is warned about the tunneled server', /another machine/.test(ctx) && ctx.includes('someone-elses-laptop'));
+  foreign.kill();
+  await sleep(400);
+}
+
 await fetch(`${BASE}/api/shutdown`, { method: 'POST' }).catch(() => {});
 console.log(`\n================ install smoke: ${pass} passed, ${fail} failed ================`);
 if (failures.length) console.log('failures:\n  - ' + failures.join('\n  - '));

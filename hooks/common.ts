@@ -29,12 +29,19 @@ function changeLine(): string {
   try { return readFileSync(join(APP_ROOT, 'CHANGELOG-LINE.txt'), 'utf8').trim(); } catch { return ''; }
 }
 
-async function health(): Promise<{ up: boolean; version?: string }> {
+async function health(): Promise<{ up: boolean; version?: string; foreign?: string }> {
   try {
     const r = await fetch(`${BASE}/api/state`, { signal: AbortSignal.timeout(1500) });
     const j = await r.json() as any;
     // Identity check: only OUR server answers with a map-state shape.
-    if (j && 'nodes' in j && 'projectId' in j) return { up: true, version: j.version };
+    if (j && 'nodes' in j && 'projectId' in j) {
+      // M176: a healthy harnessmap answering from ANOTHER machine means the
+      // port is an SSH tunnel (or forward) to someone else's server — binding
+      // to it would file this machine's conversations onto that map.
+      const { hostname } = await import('node:os');
+      if (j.machine && j.machine !== hostname()) return { up: true, version: j.version, foreign: j.machine };
+      return { up: true, version: j.version };
+    }
   } catch {}
   return { up: false };
 }
@@ -69,6 +76,9 @@ async function waitUp(tries = 12): Promise<boolean> {
 // restart happened (surfaced to the user via the agent — Mark's Q3), else ''.
 export async function ensureServer(): Promise<{ up: boolean; updateNote: string }> {
   const h = await health();
+  if (h.up && h.foreign) {
+    return { up: false, updateNote: `[harnessmap] NOT connected: the map port is forwarded to a server on another machine ("${h.foreign}" — an SSH tunnel?). Close the tunnel or move it to a different local port, then start a new session. Tell the user this in one short line.` };
+  }
   if (!h.up) { spawnServer(); return { up: await waitUp(), updateNote: '' }; }
   const want = pluginVersion();
   if (h.version && want !== '0.0.0' && h.version !== want) {

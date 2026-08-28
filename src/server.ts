@@ -4,7 +4,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { join, dirname } from 'node:path';
-import { homedir } from 'node:os';
+import { homedir, hostname as osHostname } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { Store } from './store/db.js';
 import { Translator } from './translator/translator.js';
@@ -579,6 +579,7 @@ function state() {
     feedbackEmail: process.env.HARNESSMAP_FEEDBACK_EMAIL ?? 'yuhinc@sas.upenn.edu',
     version: VERSION,
     storage: DB_PATH,
+    machine: process.env.HARNESSMAP_MACHINE_LABEL ?? osHostname(), // M176: lets hooks refuse a tunneled foreign server (env = test seam)
     nodes: map.nodes.filter((n) => n.status !== 'removed'), // user-deleted stays out of the UI
     recency: recency(),
     chats: (() => {

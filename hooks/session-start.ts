@@ -7,7 +7,16 @@ import { BASE, readHookInput, ensureServer } from './common.ts';
 
 const input = await readHookInput();
 const { up, updateNote } = await ensureServer();
-if (!up) process.exit(0);
+if (!up) {
+  // M176: a warning may still need to reach the user (e.g. the port is a
+  // tunnel to a foreign server) — say it, then stay unbound.
+  if (updateNote) {
+    console.log(JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: updateNote },
+    }));
+  }
+  process.exit(0);
+}
 
 // Both Claude Code and Codex report WHY the session started; a 'compact'
 // source means the context was just compacted — tell the server so the next
