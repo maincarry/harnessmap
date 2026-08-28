@@ -50,9 +50,6 @@ export interface CallOpts {
 // prompts/responses when dev mode is on. One choke point = total coverage.
 type TraceFn = (t: { kind: string; task: string; model: string; backend: string; ms: number; ok: boolean; system?: string; user?: string; response?: string }) => void;
 let traceSink: TraceFn | null = null;
-// M179: the most recent failed call, for plain-words error surfacing (the
-// "Invalid API key" class of failure was nearly silent — Jacob's install).
-export let lastCallError: { msg: string; at: number } | null = null;
 export function setTraceSink(fn: TraceFn | null): void { traceSink = fn; }
 
 export async function call(opts: CallOpts): Promise<any> {
@@ -66,7 +63,6 @@ export async function call(opts: CallOpts): Promise<any> {
     return out;
   } catch (err) {
     opts.audit?.('inference', { task: opts.task, backend, model, ms: Date.now() - t0, ok: false, error: String(err).slice(0, 200) });
-    lastCallError = { msg: String(err).slice(0, 300), at: Date.now() };
     try { traceSink?.({ kind: 'call', task: opts.task, model, backend, ms: Date.now() - t0, ok: false, system: opts.system, user: opts.user, response: String(err).slice(0, 500) }); } catch {}
     throw err;
   }
@@ -101,17 +97,6 @@ async function subCall(opts: CallOpts, model: string): Promise<any> {
     const cleanEnv: Record<string, string> = {};
     for (const [k, v] of Object.entries(process.env)) {
       if (v !== undefined && k !== 'ANTHROPIC_API_KEY' && k !== 'ANTHROPIC_AUTH_TOKEN') cleanEnv[k] = v;
-    }
-    // M180: a token minted by the in-chat login flow authenticates the SDK
-    // child when the CLI has no login of its own.
-    if (!cleanEnv.CLAUDE_CODE_OAUTH_TOKEN) {
-      try {
-        const { readFileSync } = await import('node:fs');
-        const { join } = await import('node:path');
-        const { homedir } = await import('node:os');
-        const tok = readFileSync(join(process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap'), 'oauth-token'), 'utf8').trim();
-        if (tok) cleanEnv.CLAUDE_CODE_OAUTH_TOKEN = tok;
-      } catch { /* no stored token — normal */ }
     }
     const q = query({
       prompt,

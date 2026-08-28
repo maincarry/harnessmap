@@ -16,13 +16,13 @@ import { proposeAutolit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion } from './translator/mapchat.js';
-import { createTerm, getTerm, listTerms, killTerm, ptyBackend, spawnLoginPty } from './term.js';
+import { createTerm, getTerm, listTerms, killTerm, ptyBackend } from './term.js';
 import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, extractTranscript } from './translator/importer.js';
-import { setTraceSink, lastCallError, call } from './inference.js';
+import { setTraceSink } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync } from 'node:fs';
@@ -125,47 +125,6 @@ const newer = (a: string, b: string) => { // is a newer than b (x.y.z)
   return false;
 };
 const updateAvailable = () => (latestKnown && newer(latestKnown, VERSION) ? latestKnown : null);
-
-// M179b (Jacob: "the user should not be required to figure these out"): the
-// server proves it can make a model call BEFORE the user wonders why nothing
-// files. One tiny probe, cached forever once it succeeds; on auth-shaped
-// failure the intro + a map banner give the one-time /login walkthrough.
-// HARNESSMAP_AUTH_PROBE=0 disables (suites).
-let authBroken: boolean | null = null;
-async function probeAuth(): Promise<boolean | null> {
-  if (process.env.HARNESSMAP_AUTH_PROBE === '0') return null;
-  if (store.getSetting('auth_ok') === '1') { authBroken = false; return false; }
-  try {
-    await call({ task: 'memory', system: 'Reply with the word ok.', user: 'ok', maxTokens: 4, timeoutMs: 15_000 });
-    authBroken = false;
-    store.setSetting('auth_ok', '1');
-  } catch (err) {
-    if (/invalid api key|please run \/login|not logged in|authentication|401|exited with code 1/i.test(String(err))) authBroken = true;
-  }
-  return authBroken;
-}
-probeAuth().catch(() => {});
-// M180 (Jacob picked B): sign in WITHOUT a terminal. The server drives
-// `claude setup-token` on a PTY: hand the user the login URL, take the code
-// back, capture the long-lived token, store it 0600 in the harnessmap home,
-// and pass it to every SDK child as CLAUDE_CODE_OAUTH_TOKEN.
-const HOMEDIR_HM = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
-const TOKEN_FILE = join(HOMEDIR_HM, 'oauth-token');
-let loginFlow: { pty: { write: (d: string) => void; kill: () => void }; out: string; url: string | null; token: string | null } | null = null;
-const stripAnsi = (x: string) => x.replace(/\u001b\[[0-9;?]*[A-Za-z]/g, '').replace(/\u001b\][^\u0007]*\u0007/g, '');
-function loginWatch(chunk: string) {
-  if (!loginFlow) return;
-  loginFlow.out += stripAnsi(chunk);
-  if (!loginFlow.url) loginFlow.url = loginFlow.out.match(/https:\/\/\S+/)?.[0] ?? null;
-  const tok = loginFlow.out.match(/sk-ant-[A-Za-z0-9_\-]{24,}/)?.[0];
-  if (tok && !loginFlow.token) {
-    loginFlow.token = tok;
-    try { writeFileSync(TOKEN_FILE, tok, { mode: 0o600 }); } catch {}
-    store.setSetting('auth_ok', '');
-    probeAuth().then(() => broadcast({ type: 'map', ...state() })).catch(() => {});
-  }
-}
-const AUTH_FIX_LINE = "[harnessmap] SETUP NEEDED before the map can file: the map's agents make model calls through the Claude Code command line, which has its own login. Walk the user through it in plain words: open a terminal, run `claude`, type /login, approve in the browser — two minutes, once ever. Everything else (this conversation included) works meanwhile.";
 checkLatest().catch(() => {});
 
 let projectId = store.getSetting('active_project') ?? store.ensureProject('default');
@@ -512,7 +471,6 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
     lag -= 1;
     broadcast({ type: 'lag', lag });
     if (out) {
-      if (authBroken !== false) { authBroken = false; store.setSetting('auth_ok', '1'); }
       lightNewNodes(out.result.alterations as any[], params.chatId);
       for (const a of out.result.alterations as any[]) {
         if (a.op === 'create_node' && a.id) store.markFresh(a.id, 'new');
@@ -607,12 +565,7 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
       const removals = pendingRemovals; pendingRemovals = [];
       if (maxIdx - WINDOW >= 0) foldTurns(store, roundPid, params.chatId, maxIdx - WINDOW, removals);
     } else {
-      // M179: name the failure when we can — an auth failure has a fix the
-      // user can actually perform; "translator error" does not.
-      const authy = lastCallError && Date.now() - lastCallError.at < 120_000
-        && /invalid api key|please run \/login|not logged in|authentication|401/i.test(lastCallError.msg);
-      broadcast({ type: 'translator_error', chatId: params.chatId,
-        ...(authy ? { message: "the map's agents can't sign in — one-time fix: open a terminal, run `claude`, type /login and approve. Filing resumes on your next message." } : {}) });
+      broadcast({ type: 'translator_error', chatId: params.chatId });
     }
   });
 }
@@ -642,7 +595,6 @@ function state() {
     home: (() => { const h = store.getSetting(`home:${projectId}`); return h && store.getNode(h)?.status !== 'removed' ? h : null; })(),
     influenceOff: influenceOff(projectId),
     updateAvailable: updateAvailable(),
-    authBroken,
     feedbackEmail: process.env.HARNESSMAP_FEEDBACK_EMAIL ?? 'yuhinc@sas.upenn.edu',
     version: VERSION,
     storage: DB_PATH,
@@ -742,10 +694,7 @@ const server = Bun.serve({
         })
         .catch((err) => {
           console.error('[chat] turn failed:', err);
-          const emsg = String(err);
-          broadcast({ type: 'turn', chatId, role: 'system', content: /invalid api key|\/login|exited with code 1/i.test(emsg)
-            ? `agent error: ${emsg.slice(0, 120)} — likely the Claude Code login: open a terminal, run \`claude\`, type /login and approve (one time), then send your message again.`
-            : `agent error: ${emsg.slice(0, 200)}` });
+          broadcast({ type: 'turn', chatId, role: 'system', content: `agent error: ${String(err).slice(0, 200)}` });
         });
       return json({ ok: true }, 202);
     }
@@ -1449,34 +1398,6 @@ const server = Bun.serve({
       return json({ sections, trimmedLit, budget, total: text.length, text });
     }
 
-    // M180: in-chat login flow.
-    if (path === '/api/auth-login/start' && req.method === 'POST') {
-      loginFlow?.pty.kill();
-      const argv = process.env.HARNESSMAP_SETUPTOKEN_CMD?.split(' ') ?? ['claude', 'setup-token'];
-      const pty = spawnLoginPty(argv, loginWatch);
-      if ('error' in pty) return json({ error: pty.error }, 500);
-      loginFlow = { pty, out: '', url: null, token: null };
-      for (let i = 0; i < 60 && !loginFlow.url && !loginFlow.token; i++) await new Promise((r) => setTimeout(r, 250));
-      return json({ url: loginFlow.url, done: !!loginFlow.token });
-    }
-    if (path === '/api/auth-login/code' && req.method === 'POST') {
-      if (!loginFlow) return json({ error: 'no login in progress' }, 400);
-      const { code } = (await req.json()) as { code: string };
-      loginFlow.pty.write(code.trim() + '\r');
-      for (let i = 0; i < 80 && !loginFlow.token; i++) await new Promise((r) => setTimeout(r, 250));
-      const ok = !!loginFlow.token;
-      if (ok) { loginFlow.pty.kill(); loginFlow = null; }
-      return json({ ok });
-    }
-
-    // M179b: banner "check again" — re-probe on demand.
-    if (path === '/api/auth-probe' && req.method === 'POST') {
-      store.setSetting('auth_ok', '');
-      const r = await probeAuth();
-      broadcast({ type: 'map', ...state() });
-      return json({ authBroken: r });
-    }
-
     // M161: menu-triggered update check.
     if (path === '/api/update-check' && req.method === 'POST') {
       await checkLatest(true);
@@ -1739,10 +1660,6 @@ const server = Bun.serve({
       // M161: one concise upgrade line, on session start only, at most once
       // a day — never per prompt, never repeated (Mark: no bombardment).
       checkLatest().catch(() => {});
-      if (authBroken === null && store.getSetting('auth_ok') !== '1') {
-        await Promise.race([probeAuth(), new Promise((r) => setTimeout(r, 4500))]).catch(() => {});
-      }
-      if (authBroken) announce = [announce, AUTH_FIX_LINE].filter(Boolean).join('\n');
       const uv = updateAvailable();
       const today = new Date().toISOString().slice(0, 10);
       if (uv && store.getSetting('update_nudged') !== today && !influenceOff((body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId)) {

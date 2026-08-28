@@ -32,7 +32,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ---------- scratch server with a small seeded map ----------
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
-  env: { ...process.env, HARNESSMAP_DB: join(TMP, 'ui.sqlite'), PORT: String(PORT), HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_AUTH_PROBE: '0' },
+  env: { ...process.env, HARNESSMAP_DB: join(TMP, 'ui.sqlite'), PORT: String(PORT), HARNESSMAP_TERM_CMD: 'bash' },
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
 });
 process.on('exit', () => server.kill());
@@ -390,15 +390,6 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     S()!.suggestions.pop();
     (tidy as any)?.click(); await sleep(100);
   }
-
-  // M179b: auth banner appears only when the server reports broken auth
-  check('auth banner hidden by default', $('auth-banner')!.hasAttribute('hidden'));
-  window.__wsInject?.({ type: 'map', ...S(), authBroken: true });
-  await sleep(150);
-  check('auth banner shows the one-time /login walkthrough', !$('auth-banner')!.hasAttribute('hidden') && /\/login/.test($('auth-banner')!.textContent!));
-  window.__wsInject?.({ type: 'map', ...S(), authBroken: null });
-  await sleep(150);
-  check('auth banner clears when auth recovers', $('auth-banner')!.hasAttribute('hidden'));
 
   // M172: direct feedback button, tier 1
   await click($('other-btn'), '⋯ open (feedback)', 80);
