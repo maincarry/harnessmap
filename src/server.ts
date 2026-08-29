@@ -1203,6 +1203,11 @@ const server = Bun.serve({
       store.applyAlterations(projectId, alterations, { kind: 'reorganize' });
       store.pushUndo(projectId, `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))`, tidyInverse, tidyMeta);
       lightNewNodes(alterations, mainChatId);
+      // M182: renames/creates from a tidy can carry long content — heal their
+      // SHORT display titles right away, not on the next round (guards, not
+      // prompts: the naming rule now also lives in the reorganizer prompt,
+      // but the display layer enforces it mechanically).
+      healTitles(12, projectId).catch(() => {});
       touch(alterations.map((a: any) => a.id ?? a.nodeId ?? a.containerId).filter(Boolean));
       // M122: a root-scope tidy can insert a container ABOVE the focus path —
       // re-run applyFocus so the ancestor chain stays lit (M111 invariant).
