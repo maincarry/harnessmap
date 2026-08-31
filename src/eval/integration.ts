@@ -7,7 +7,7 @@
 //
 // Run: HARNESSMAP_INFERENCE=api bun run src/eval/integration.ts
 
-import { rmSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { rmSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PORT = 8793;
@@ -50,6 +50,15 @@ const activeChat = (s: any) => (s.chats ?? []).find((c: any) => c.id === s.mainC
 rmSync(TMP, { recursive: true, force: true });
 mkdirSync(CWD_BETA, { recursive: true });
 mkdirSync(CWD_DEF, { recursive: true });
+// M185c: the suite pins HOME to a scratch dir — give it the real SUBSCRIPTION
+// credentials so children authenticate the way production does. (For weeks the
+// SDK children silently rode a leaked ANTHROPIC_API_KEY instead — the M185
+// scrub ended that, and this makes the suite honestly subscription-authed.)
+mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
+try {
+  const creds = readFileSync(join(process.env.HOME ?? '', '.claude', '.credentials.json'));
+  writeFileSync(join(TMP, 'home', '.claude', '.credentials.json'), creds, { mode: 0o600 });
+} catch { console.warn('no subscription credentials to copy — model sections will fail'); }
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
   env: { ...process.env, ANTHROPIC_API_KEY: 'sk-test-fake-must-be-scrubbed', HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0', HARNESSMAP_AUTOTIDY_ROUNDS: '0',
     HOME: join(TMP, 'home'), HARNESSMAP_IMPORT_MODEL: 'claude-haiku-4-5' /* tests pin cheap; prod default is the fancy model */ },
