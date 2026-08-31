@@ -18,6 +18,20 @@ export type Task =
   | 'filer' | 'memory' | 'relations' | 'title' | 'summary' | 'autolit' | 'recommend' | 'place' | 'mapchat'
   | 'tidy' | 'mapcheck' | 'import';
 
+// M185 (Mark got billed): the M103 promise — the subscription path NEVER
+// bills an API key — was enforced only at the specialist spawn site, while
+// the built-in chat SDK session and embedded terminals inherited the full
+// env (and bun auto-loads .env, so a repo-local key rode along invisibly).
+// Mechanical fix at the choke point: unless the user EXPLICITLY chose the
+// api backend, the key is scrubbed from this process at import time — every
+// child (SDK chat, terminals, specialists) inherits a keyless env. The api
+// backend keeps working from the stashed copy.
+const STASHED_API_KEY = process.env.ANTHROPIC_API_KEY;
+if (process.env.HARNESSMAP_INFERENCE !== 'api') {
+  delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_AUTH_TOKEN;
+}
+
 const CHEAP = process.env.HARNESSMAP_TRANSLATOR_MODEL ?? 'claude-haiku-4-5';
 const SMART = process.env.HARNESSMAP_SMART_MODEL ?? 'claude-sonnet-4-6';
 // M142 (Jacob): import is the first-impression reorganization — it gets the
@@ -74,7 +88,7 @@ export async function call(opts: CallOpts): Promise<any> {
 }
 
 async function apiCall(opts: CallOpts, model: string): Promise<any> {
-  const client = new Anthropic({ timeout: opts.timeoutMs ?? 60_000, maxRetries: 1 });
+  const client = new Anthropic({ apiKey: STASHED_API_KEY, timeout: opts.timeoutMs ?? 60_000, maxRetries: 1 });
   const response = await client.messages.create({
     model,
     max_tokens: opts.maxTokens,

@@ -1462,7 +1462,9 @@ const server = Bun.serve({
 
     // M113: dev mode — toggle + traces.
     if (path === '/api/dev' && req.method === 'GET') {
-      return json({ on: store.getSetting('dev_mode') === '1' });
+      // keyScrubbed: M185 invariant — on the subscription path no child of
+      // this server can ever see an API key.
+      return json({ on: store.getSetting('dev_mode') === '1', keyScrubbed: !process.env.ANTHROPIC_API_KEY });
     }
     // dev/test seam: poke a settings key (localhost-only server; used by suites).
     if (path === '/api/dev/setting' && req.method === 'POST') {

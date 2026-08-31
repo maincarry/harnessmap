@@ -51,7 +51,7 @@ rmSync(TMP, { recursive: true, force: true });
 mkdirSync(CWD_BETA, { recursive: true });
 mkdirSync(CWD_DEF, { recursive: true });
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
-  env: { ...process.env, HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0', HARNESSMAP_AUTOTIDY_ROUNDS: '0',
+  env: { ...process.env, ANTHROPIC_API_KEY: 'sk-test-fake-must-be-scrubbed', HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0', HARNESSMAP_AUTOTIDY_ROUNDS: '0',
     HOME: join(TMP, 'home'), HARNESSMAP_IMPORT_MODEL: 'claude-haiku-4-5' /* tests pin cheap; prod default is the fancy model */ },
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
 });
@@ -1000,6 +1000,12 @@ console.log('\n== 38. local metrics + cost (M184) ==');
   check('injections record cost', (kinds['cost.injection']?.total ?? 0) > 0);
   check('memory storage recorded', (kinds['memory.stored']?.total ?? 0) > 0);
   check('summary computes map vs chat', m.mapTokens > 0 && m.chatTokens > 0 && (m.pct === null || typeof m.pct === 'number'));
+}
+
+console.log('\n== 39. no child ever sees an API key (M185) ==');
+{
+  const d = await (await fetch(`${BASE}/api/dev`)).json();
+  check('server scrubbed the API key at boot (spawned WITH one)', d.keyScrubbed === true);
 }
 
 console.log('\n== 13. audit ==');
