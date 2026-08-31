@@ -28,8 +28,13 @@ export type Task =
 // backend keeps working from the stashed copy.
 const STASHED_API_KEY = process.env.ANTHROPIC_API_KEY;
 if (process.env.HARNESSMAP_INFERENCE !== 'api') {
+  if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) {
+    console.warn('⚠  ANTHROPIC_API_KEY found in the environment, but harnessmap runs on your Claude subscription — the key has been scrubbed and will NOT be billed. If you INTEND to bill the API, set HARNESSMAP_INFERENCE=api explicitly.');
+  }
   delete process.env.ANTHROPIC_API_KEY;
   delete process.env.ANTHROPIC_AUTH_TOKEN;
+} else {
+  console.warn('⚠  HARNESSMAP_INFERENCE=api — model calls will bill ANTHROPIC_API_KEY, not your subscription.');
 }
 
 const CHEAP = process.env.HARNESSMAP_TRANSLATOR_MODEL ?? 'claude-haiku-4-5';
