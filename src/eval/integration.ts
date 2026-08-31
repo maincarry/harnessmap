@@ -1008,6 +1008,15 @@ console.log('\n== 39. no child ever sees an API key (M185) ==');
   check('server scrubbed the API key at boot (spawned WITH one)', d.keyScrubbed === true);
 }
 
+console.log('\n== 40. sign-in & billing transparency (M186) ==');
+{
+  const a = await (await fetch(`${BASE}/api/auth-info`)).json();
+  check('backend + billing stated plainly', a.backend === 'subscription' && /subscription/.test(a.billing));
+  check('key scrub visible (fake key was scrubbed)', a.keyScrubbed === true);
+  check('source presence booleans, never secrets', typeof a.sources.envToken === 'boolean' && !JSON.stringify(a).includes('sk-'));
+  check('call health carried', 'lastOkAt' in a && 'lastErrAt' in a);
+}
+
 console.log('\n== 13. audit ==');
 {
   const a = await get('/api/audit?limit=10');

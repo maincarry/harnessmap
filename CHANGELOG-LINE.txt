@@ -1,1 +1,1 @@
-local metrics: your interactions, memory growth, and what the map spends of your quota — counted on your machine, sent nowhere
+sign-in and billing, fully transparent: who pays, where sign-in lives, whether calls work — plus a cost meter and local metrics

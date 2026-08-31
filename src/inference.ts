@@ -72,6 +72,9 @@ let traceSink: TraceFn | null = null;
 // M184 (Mark): cost metrics — every successful call reports its approximate
 // token load (chars/4; exact usage isn't exposed on the subscription path).
 let metricsSink: ((m: { task: string; model: string; approxTokens: number }) => void) | null = null;
+// M186 (Mark): auth transparency — the page shows when calls last worked or
+// failed. Timestamps + a short error tail only; no flows, no secrets.
+export const callHealth: { lastOkAt: number | null; lastErrAt: number | null; lastErr: string | null } = { lastOkAt: null, lastErrAt: null, lastErr: null };
 export function setMetricsSink(fn: typeof metricsSink): void { metricsSink = fn; }
 export function setTraceSink(fn: TraceFn | null): void { traceSink = fn; }
 
@@ -83,10 +86,13 @@ export async function call(opts: CallOpts): Promise<any> {
     const out = backend === 'api' ? await apiCall(opts, model) : await subCall(opts, model);
     opts.audit?.('inference', { task: opts.task, backend, model, ms: Date.now() - t0, ok: true });
     try { traceSink?.({ kind: 'call', task: opts.task, model, backend, ms: Date.now() - t0, ok: true, system: opts.system, user: opts.user, response: typeof out === 'string' ? out : JSON.stringify(out, null, 1) }); } catch {}
+    callHealth.lastOkAt = Date.now();
     try { metricsSink?.({ task: opts.task, model, approxTokens: Math.ceil((opts.system.length + opts.user.length + (typeof out === 'string' ? out.length : JSON.stringify(out).length)) / 4) }); } catch {}
     return out;
   } catch (err) {
     opts.audit?.('inference', { task: opts.task, backend, model, ms: Date.now() - t0, ok: false, error: String(err).slice(0, 200) });
+    callHealth.lastErrAt = Date.now();
+    callHealth.lastErr = String(err).slice(0, 160);
     try { traceSink?.({ kind: 'call', task: opts.task, model, backend, ms: Date.now() - t0, ok: false, system: opts.system, user: opts.user, response: String(err).slice(0, 500) }); } catch {}
     throw err;
   }

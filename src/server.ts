@@ -22,10 +22,10 @@ import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, extractTranscript } from './translator/importer.js';
-import { setTraceSink, setMetricsSink } from './inference.js';
+import { setTraceSink, setMetricsSink, callHealth } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
-import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync } from 'node:fs';
 import { basename } from 'node:path';
 import { authUser, authEnabled, unauthorized } from './auth.js';
 
@@ -1427,6 +1427,32 @@ const server = Bun.serve({
     if (path === '/api/agent-view' && req.method === 'GET') {
       const { text, trimmedLit, sections, budget } = composeParts(store, mainChatId, []);
       return json({ sections, trimmedLit, budget, total: text.length, text });
+    }
+
+    // M186 (Mark): full transparency about how the map's agents sign in and
+    // who gets billed. Presence booleans only — never the secrets themselves.
+    if (path === '/api/auth-info' && req.method === 'GET') {
+      const backend = process.env.HARNESSMAP_INFERENCE === 'api' ? 'api' : 'subscription';
+      const home = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
+      let keychain: boolean | null = null;
+      if (process.platform === 'darwin') {
+        try { keychain = Bun.spawnSync(['security', 'find-generic-password', '-s', 'Claude Code-credentials'], { stdout: 'ignore', stderr: 'ignore' }).exitCode === 0; }
+        catch { keychain = null; }
+      }
+      return json({
+        backend,
+        billing: backend === 'api' ? 'your ANTHROPIC_API_KEY (you set HARNESSMAP_INFERENCE=api)' : 'your Claude subscription — an API key is never billed',
+        keyScrubbed: !process.env.ANTHROPIC_API_KEY,
+        sources: {
+          envToken: !!process.env.CLAUDE_CODE_OAUTH_TOKEN,
+          harnessmapToken: existsSync(join(home, 'oauth-token')),
+          cliCredentialsFile: existsSync(join(homedir(), '.claude', '.credentials.json')),
+          keychain,
+        },
+        lastOkAt: callHealth.lastOkAt,
+        lastErrAt: callHealth.lastErrAt,
+        lastErr: callHealth.lastErr,
+      });
     }
 
     // M184 (Mark): local metrics summary — interactions, memory, cost.

@@ -450,6 +450,7 @@
           <div id="other-settings" hidden>
           <button id="agent-view-btn" title="what the chat agent receives from the map each turn — the context composition, and the exact text if you want it">👁 what the agent sees</button>
           <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
+          <button id="authinfo-btn" title="full transparency: how the map's agents sign in, who gets billed, and whether calls are working">🔑 sign-in &amp; billing</button>
           <button id="update-btn" title="check whether a newer harnessmap exists — updating itself happens in Claude Code, never automatically">⬆ check for updates</button>
           <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
           <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
@@ -1192,6 +1193,36 @@ $('feedback-btn').onclick = () => {
     try { await navigator.clipboard.writeText(`To: ${addr}\nSubject: [harnessmap] feedback\n\n${saved.body}`); } catch {}
     $('round-line').textContent = `✓ report copied — paste it into any email to ${addr}`;
   };
+};
+$('authinfo-btn').onclick = async () => {
+  $('other-menu').hidden = true;
+  let a = null;
+  try { a = await (await fetch('/api/auth-info')).json(); } catch {}
+  const yn = (v) => v === true ? 'present' : v === false ? 'not found' : 'unknown (not macOS)';
+  const when = (t) => t ? new Date(t).toLocaleTimeString() : 'never (this server start)';
+  const body = !a ? 'could not read auth info.' : `
+    <p style="margin:0 0 8px"><b>Who pays:</b> ${esc(a.billing)}.</p>
+    <p style="margin:0 0 8px"><b>API key protection:</b> ${a.keyScrubbed ? 'no API key is visible to this server or anything it starts — if one was in your environment, it was scrubbed at startup.' : 'HARNESSMAP_INFERENCE=api is set, so your API key is in use BY YOUR CHOICE.'}</p>
+    <p style="margin:0 0 4px"><b>Where the map's agents look for sign-in</b> (same order the Claude command line uses):</p>
+    <table style="font-size:12.5px;border-spacing:0 2px">
+      <tr><td style="padding-right:10px">1. CLAUDE_CODE_OAUTH_TOKEN (environment)</td><td>${a.sources.envToken ? 'present' : 'not set'}</td></tr>
+      <tr><td>2. harnessmap token (~/.harnessmap/oauth-token)</td><td>${a.sources.harnessmapToken ? 'present' : 'not found'}</td></tr>
+      <tr><td>3. Claude Code keychain entry (macOS)</td><td>${yn(a.sources.keychain)}</td></tr>
+      <tr><td>4. ~/.claude/.credentials.json</td><td>${a.sources.cliCredentialsFile ? 'present' : 'not found'}</td></tr>
+    </table>
+    <p style="margin:8px 0 0"><b>Are calls working:</b> last success ${when(a.lastOkAt)}${a.lastErrAt ? ` · last failure ${when(a.lastErrAt)} — ${esc(a.lastErr ?? '')}` : ' · no failures this server start'}.</p>
+    <p style="margin:8px 0 0;color:var(--muted);font-size:12px">Your own Claude sessions sign in separately, through the app or terminal you use — this page is only about the map's background agents. Nothing here ever leaves this machine.</p>`;
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(520px,94vw)">
+      <h3>🔑 sign-in &amp; billing</h3>
+      <div style="font-size:13px;line-height:1.5">${body}</div>
+      <div class="actions"><button id="ai-close" class="primary">close</button></div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ai-close').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
 };
 $('update-btn').onclick = async () => {
   $('other-menu').hidden = true;
@@ -2791,6 +2822,7 @@ function openLegend() {
         <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">⋯ other — second ＋ more (rare)</td></tr>
         <tr><td>👁 what the agent sees</td><td>the map's contribution to every turn: a composition bar (what fills the space, what's free), the ❗ list if lit topics didn't fit, and the exact text section by section</td></tr>
         <tr><td>▦ sessions</td><td>all sessions on this map in one list, each with its topic and summary — pin the ones you live in, close the rest</td></tr>
+        <tr><td>🔑 sign-in &amp; billing</td><td>full transparency about the map's background agents: who gets billed (your subscription, unless you explicitly chose API mode), where sign-in is looked for, and whether calls are working — nothing leaves this machine</td></tr>
         <tr><td>⬆ check for updates</td><td>asks whether a newer harnessmap exists and shows the command to update — updating itself always happens in Claude Code, never automatically</td></tr>
         <tr><td>⏻ close map influence</td><td>your Claude sessions get NO map context and the map is never mentioned — while the map keeps quietly filing; reopen anytime, same place</td></tr>
         <tr><td>🔧 dev mode</td><td>for the developers — records every agent call and injection verbatim (password-gated)</td></tr>

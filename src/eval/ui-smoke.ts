@@ -406,6 +406,14 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     (ov!.querySelector('#fb-done') as any).click(); await sleep(60);
   }
 
+  await viaMore('authinfo-btn', '🔑 sign-in & billing opens');
+  await sleep(300);
+  {
+    const ov = [...document.querySelectorAll('.overlay')].pop();
+    check('sign-in & billing modal states who pays', !!ov && /Who pays/.test(ov.textContent!) && /subscription/.test(ov.textContent!));
+    (ov?.querySelector('#ai-close') as any)?.click(); await sleep(60);
+  }
+
   await viaMore('update-btn', '⬆ check for updates opens its note box');
   await sleep(600);
   {
