@@ -122,5 +122,3 @@ bun run src/eval/ui-smoke.ts     # 124 UI checks — boots the real page and cli
 bun run src/eval/install-smoke.ts # fresh-machine install simulation (hooks → spawn → announce)
 bun run eval essay               # the judgment gate: corpus replay, graded
 ```
-
-Design: [`DESIGN.md`](DESIGN.md) · decision log: [`docs/MODLOG.md`](docs/MODLOG.md)

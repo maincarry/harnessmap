@@ -8,3 +8,7 @@ harnessmap.sqlite*
 docs/ontology/ontology-combined.md
 docs/ui-screens.html
 backups/
+
+# M183 (Mark): design rationale stays local — the judgment record is not for the public repo
+/DESIGN.md
+/docs/
