@@ -1,1 +1,1 @@
-first map teaches by example; tunnel guard; update command corrected
+local metrics: your interactions, memory growth, and what the map spends of your quota — counted on your machine, sent nowhere

@@ -50,6 +50,10 @@ export interface CallOpts {
 // prompts/responses when dev mode is on. One choke point = total coverage.
 type TraceFn = (t: { kind: string; task: string; model: string; backend: string; ms: number; ok: boolean; system?: string; user?: string; response?: string }) => void;
 let traceSink: TraceFn | null = null;
+// M184 (Mark): cost metrics — every successful call reports its approximate
+// token load (chars/4; exact usage isn't exposed on the subscription path).
+let metricsSink: ((m: { task: string; model: string; approxTokens: number }) => void) | null = null;
+export function setMetricsSink(fn: typeof metricsSink): void { metricsSink = fn; }
 export function setTraceSink(fn: TraceFn | null): void { traceSink = fn; }
 
 export async function call(opts: CallOpts): Promise<any> {
@@ -60,6 +64,7 @@ export async function call(opts: CallOpts): Promise<any> {
     const out = backend === 'api' ? await apiCall(opts, model) : await subCall(opts, model);
     opts.audit?.('inference', { task: opts.task, backend, model, ms: Date.now() - t0, ok: true });
     try { traceSink?.({ kind: 'call', task: opts.task, model, backend, ms: Date.now() - t0, ok: true, system: opts.system, user: opts.user, response: typeof out === 'string' ? out : JSON.stringify(out, null, 1) }); } catch {}
+    try { metricsSink?.({ task: opts.task, model, approxTokens: Math.ceil((opts.system.length + opts.user.length + (typeof out === 'string' ? out.length : JSON.stringify(out).length)) / 4) }); } catch {}
     return out;
   } catch (err) {
     opts.audit?.('inference', { task: opts.task, backend, model, ms: Date.now() - t0, ok: false, error: String(err).slice(0, 200) });

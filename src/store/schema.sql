@@ -264,3 +264,15 @@ CREATE TABLE IF NOT EXISTS feedback (
   source TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- M184 (Mark): local metrics — user interactions, memory storage, map cost.
+-- Local-only like everything else; the user can read every row.
+CREATE TABLE IF NOT EXISTS metrics (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  project_id TEXT,
+  kind TEXT NOT NULL,
+  n REAL NOT NULL DEFAULT 1,
+  detail TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_metrics_kind ON metrics(kind);

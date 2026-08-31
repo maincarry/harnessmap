@@ -990,6 +990,18 @@ console.log('\n== 37. browser trust boundary (M181) ==');
   check('originless clients (hooks, curl) pass', noOrigin.status === 200);
 }
 
+console.log('\n== 38. local metrics + cost (M184) ==');
+{
+  const m = await (await fetch(`${BASE}/api/metrics/summary`)).json();
+  const kinds = Object.fromEntries(m.rows.map((r: any) => [r.kind, r]));
+  check('interactions recorded (focus/light/zoom exercised earlier)', (kinds['interaction.focus']?.count ?? 0) > 0 && ((kinds['interaction.light']?.count ?? 0) + (kinds['interaction.dim']?.count ?? 0)) > 0);
+  check('rounds record chat tokens', (kinds['chat.tokens']?.total ?? 0) > 0);
+  check('map-agent calls record cost', (kinds['cost.call']?.total ?? 0) > 0);
+  check('injections record cost', (kinds['cost.injection']?.total ?? 0) > 0);
+  check('memory storage recorded', (kinds['memory.stored']?.total ?? 0) > 0);
+  check('summary computes map vs chat', m.mapTokens > 0 && m.chatTokens > 0 && (m.pct === null || typeof m.pct === 'number'));
+}
+
 console.log('\n== 13. audit ==');
 {
   const a = await get('/api/audit?limit=10');

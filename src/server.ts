@@ -22,7 +22,7 @@ import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, extractTranscript } from './translator/importer.js';
-import { setTraceSink } from './inference.js';
+import { setTraceSink, setMetricsSink } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync } from 'node:fs';
@@ -52,6 +52,7 @@ if (process.env.HARNESSMAP_HOME) {
 
 const store = new Store(DB_PATH);
 setTraceSink((t) => { if (store.getSetting('dev_mode') === '1') store.addTrace(t); });
+setMetricsSink((m) => store.metric(projectId, 'cost.call', m.approxTokens, { task: m.task, model: m.model }));
 const translator = new Translator(store);
 const chats = new ChatSessionManager(store);
 
@@ -471,6 +472,8 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
     lag -= 1;
     broadcast({ type: 'lag', lag });
     if (out) {
+      store.metric(roundPid, 'chat.tokens', Math.ceil((params.userText.length + params.assistantText.length) / 4));
+      store.metric(roundPid, 'round.filed', out.result.alterations.length);
       lightNewNodes(out.result.alterations as any[], params.chatId);
       for (const a of out.result.alterations as any[]) {
         if (a.op === 'create_node' && a.id) store.markFresh(a.id, 'new');
@@ -764,6 +767,7 @@ const server = Bun.serve({
       for (const id of ids) {
         if (!body.on && path.has(id)) { kept++; continue; }
         store.setLit(litMatch[1], id, body.on);
+      store.metric(projectId, body.on ? 'interaction.light' : 'interaction.dim');
       }
       const n = store.getNode(nodeId);
       chats.noteMapChange(litMatch[1], body.on
@@ -1007,9 +1011,11 @@ const server = Bun.serve({
       const nodeId = (body.nodeId ?? body.containerId)!;
       const n = store.getNode(nodeId);
       if (!n) return json({ error: 'unknown node' }, 404);
+      store.metric(projectId, 'interaction.zoom');
       clearNudges();
       store.clearMark(nodeId);
       applyFocus(focusMatch[1], nodeId);
+      store.metric(projectId, 'interaction.focus');
       chats.noteMapChange(focusMatch[1], `moved FOCUS to: "${nodeName(n)}"`);
       appendMarker(`focus moved to "${nodeName(n)}"`); // durable transcript marker
       broadcast({ type: 'map', ...state() });
@@ -1169,6 +1175,7 @@ const server = Bun.serve({
 
     // v0.2 reorganize (a)+(i): propose → preview → user applies or cancels.
     if (path === '/api/reorganize/preview' && req.method === 'POST') {
+      store.metric(projectId, 'interaction.tidy_preview');
       const body = await req.json() as { nodeId?: string; containerId?: string; hint?: string; feedback?: string; priorSummary?: string; suggestionId?: string };
       // M71: dot-initiated previews serve the precomputed proposal instantly
       // when the subtree hasn't changed since compute (feedback loops always
@@ -1202,6 +1209,7 @@ const server = Bun.serve({
       const tidyMeta = captureFocusLit(alterations.map((a: any) => a.id).filter(Boolean));
       store.applyAlterations(projectId, alterations, { kind: 'reorganize' });
       store.pushUndo(projectId, `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))`, tidyInverse, tidyMeta);
+      store.metric(projectId, 'interaction.tidy_apply', alterations.length);
       lightNewNodes(alterations, mainChatId);
       // M182: renames/creates from a tidy can carry long content — heal their
       // SHORT display titles right away, not on the next round (guards, not
@@ -1230,6 +1238,7 @@ const server = Bun.serve({
     // for anything that needs restructuring, or report a clean bill.
     // M77 (Jacob): direct line to the map agent — advisory, never edits.
     if (path === '/api/map-chat' && req.method === 'POST') {
+      store.metric(projectId, 'interaction.guide_ask');
       const body = await req.json() as { question?: string; history?: { q: string; a: string }[] };
       if (!body.question?.trim()) return json({ error: 'empty question' }, 400);
       const r = await answerMapQuestion(store, projectId, mainChatId, body.question, body.history ?? []);
@@ -1357,6 +1366,7 @@ const server = Bun.serve({
 
     // M136: undo — pop the latest destructive action and apply its inverse.
     if (path === '/api/undo' && req.method === 'POST') {
+      store.metric(projectId, 'interaction.undo');
       const entry = store.popUndo(projectId);
       if (!entry) return json({ error: 'nothing to undo' }, 404);
       applyUndo(entry);
@@ -1419,6 +1429,18 @@ const server = Bun.serve({
       return json({ sections, trimmedLit, budget, total: text.length, text });
     }
 
+    // M184 (Mark): local metrics summary — interactions, memory, cost.
+    if (path === '/api/metrics/summary' && req.method === 'GET') {
+      const rows = store.metricsSummary(projectId);
+      const get = (k: string) => rows.find((r) => r.kind === k)?.total ?? 0;
+      const mapTokens = Math.round(get('cost.call') + get('cost.injection'));
+      const chatTokens = Math.round(get('chat.tokens'));
+      return json({
+        rows, mapTokens, chatTokens,
+        pct: chatTokens > 0 ? Math.round((mapTokens / chatTokens) * 100) : null,
+      });
+    }
+
     // M161: menu-triggered update check.
     if (path === '/api/update-check' && req.method === 'POST') {
       await checkLatest(true);
@@ -1427,6 +1449,7 @@ const server = Bun.serve({
 
     // M159b: feedback log — local record of what the user chose to report.
     if (path === '/api/feedback' && req.method === 'POST') {
+      store.metric(projectId, 'interaction.feedback');
       const b = await req.json() as { text?: string; source?: string };
       if (!b.text?.trim()) return json({ error: 'empty' }, 400);
       store.addFeedback(b.text.trim(), (b.source ?? 'guide').slice(0, 30));
@@ -1688,6 +1711,7 @@ const server = Bun.serve({
         announce = [announce, `[harnessmap] upgrade available (v${uv}): run /plugin update map@harnessmap (then restart) to upgrade. Tell the user in one short line.`].filter(Boolean).join('\n');
       }
       const pid2 = (body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId;
+      store.metric(pid2, 'session.start');
       const claimed = body.cwd ? claimChat(body.cwd) : null;
       const chatId = claimed ?? activeChatOf(pid2);
       const chat = store.getChat(chatId);
@@ -1774,6 +1798,7 @@ const server = Bun.serve({
         setFullAnchor(store, sessionId, seq);
         store.audit('inject_full', { session: sessionId.slice(0, 8), chars: context.length });
         if (store.getSetting('dev_mode') === '1') store.addTrace({ kind: 'inject', task: 'inject_full', user: `session ${sessionId.slice(0, 8)}`, response: context });
+        store.metric(projectId, 'cost.injection', Math.ceil(context.length / 4), { kind: 'full' });
         return json({ context, kind: 'full' });
       }
       const delta = renderDelta(store, ctxPid, anchor);
@@ -1789,6 +1814,7 @@ const server = Bun.serve({
         store.audit('inject_delta', { session: sessionId.slice(0, 8), chars: ctx.length });
         if (store.getSetting('dev_mode') === '1') store.addTrace({ kind: 'inject', task: 'inject_delta', user: `session ${sessionId.slice(0, 8)}`, response: ctx });
       }
+      if (ctx) store.metric(projectId, 'cost.injection', Math.ceil(ctx.length / 4), { kind: 'delta' });
       return json({ context: ctx, kind: 'delta' });
     }
     // PostCompact: the host squashed its history (our old injections with

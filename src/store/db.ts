@@ -312,6 +312,21 @@ export class Store {
     return (rows as any[]).map((r) => ({ ts: r.ts, kind: r.kind, detail: JSON.parse(r.detail) }));
   }
 
+  // ---- local metrics (M184, Mark): interactions, memory storage, cost ----
+  metric(projectId: string | null, kind: string, n = 1, detail?: Record<string, unknown>): void {
+    try {
+      this.db.prepare('INSERT INTO metrics (project_id, kind, n, detail) VALUES (?, ?, ?, ?)')
+        .run(projectId, kind, n, detail ? JSON.stringify(detail) : null);
+    } catch { /* metrics must never break anything */ }
+  }
+
+  metricsSummary(projectId?: string): { kind: string; count: number; total: number }[] {
+    const rows = projectId
+      ? this.db.prepare('SELECT kind, COUNT(*) c, SUM(n) t FROM metrics WHERE project_id = ? OR project_id IS NULL GROUP BY kind').all(projectId)
+      : this.db.prepare('SELECT kind, COUNT(*) c, SUM(n) t FROM metrics GROUP BY kind').all();
+    return (rows as any[]).map((r) => ({ kind: r.kind, count: r.c, total: r.t ?? 0 }));
+  }
+
   // ---- restructure suggestions (v0.3.5, Jacob's red dot) ----
   upsertSuggestion(projectId: string, nodeId: string, note: string, kind = 'restructure'): void {
     const open = this.db.prepare("SELECT id FROM suggestions WHERE project_id = ? AND container_id = ? AND status = 'open' AND kind = ?").get(projectId, nodeId, kind) as any;

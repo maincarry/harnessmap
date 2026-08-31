@@ -91,7 +91,10 @@ EXISTING MEMORY: ${ex || '(none yet)'}`;
 
 export function setNodeMemory(store: Store, nodeId: string, text: string): void {
   const db = (store as any).db;
-  if (text) db.prepare("INSERT OR REPLACE INTO node_memory (node_id, text, updated_at) VALUES (?, ?, datetime('now'))").run(nodeId, text);
+  if (text) {
+    db.prepare("INSERT OR REPLACE INTO node_memory (node_id, text, updated_at) VALUES (?, ?, datetime('now'))").run(nodeId, text);
+    store.metric(store.getNode(nodeId)?.projectId ?? null, 'memory.stored', text.length);
+  }
 }
 
 export function clearNodeMemory(store: Store, nodeId: string): void {

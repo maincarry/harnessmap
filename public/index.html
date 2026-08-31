@@ -1114,6 +1114,11 @@ $('agent-view-btn').onclick = async () => {
     + `<div class="avseg" style="width:${pct(free)}%;background:var(--hair)" title="free space"></div>`;
   const rows = av.sections.map((sec, i) => `<div class="avrow"><span class="sw" style="background:${colors[i % colors.length]}"></span>${esc(sec.label)}<span class="sz">${(sec.chars / 1000).toFixed(1)}k</span></div>`).join('')
     + `<div class="avrow"><span class="sw" style="background:var(--hair)"></span>free space<span class="sz">${(free / 1000).toFixed(1)}k</span></div>`;
+  let cost = null;
+  try { cost = await (await fetch('/api/metrics/summary')).json(); } catch {}
+  const costLine = cost && cost.mapTokens > 0
+    ? `<div style="font-size:12px;color:var(--muted);margin:4px 0 0">the map's own spend so far: ~${(cost.mapTokens / 1000).toFixed(1)}k tokens${cost.pct !== null ? ` ≈ ${cost.pct}% of your conversation volume` : ''} — approximate, counted locally, sent nowhere.</div>`
+    : '';
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `
@@ -1122,6 +1127,7 @@ $('agent-view-btn').onclick = async () => {
       <div style="font-size:12px;color:var(--muted);margin:-4px 0 4px">the map's contribution to every turn — refreshed each time you talk. Room used: ${(av.total / 1000).toFixed(1)}k of ${(av.budget / 1000).toFixed(1)}k characters.${av.trimmedLit.length ? ` <b style="color:#c62828">❗ ${av.trimmedLit.length} lit topic(s) did not fit</b> — only their titles went in; dim something to make room.` : ''}</div>
       <div class="avbar">${segs}</div>
       ${rows}
+      ${costLine}
       <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px">the exact text — section by section</summary>
         ${av.sections.map((sec, i) => `
           <details style="margin:6px 0 0 10px"><summary style="cursor:pointer;font-size:12px"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${colors[i % colors.length]};margin-right:6px"></span>${esc(sec.label)} — ${(sec.chars / 1000).toFixed(1)}k</summary>
