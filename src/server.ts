@@ -21,7 +21,7 @@ import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
-import { proposeImport, extractTranscript } from './translator/importer.js';
+import { proposeImport, proposeImportLarge, extractTranscript } from './translator/importer.js';
 import { setTraceSink, setMetricsSink, callHealth } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
@@ -55,6 +55,8 @@ setTraceSink((t) => { if (store.getSetting('dev_mode') === '1') store.addTrace(t
 setMetricsSink((m) => store.metric(projectId, 'cost.call', m.approxTokens, { task: m.task, model: m.model }));
 const translator = new Translator(store);
 const chats = new ChatSessionManager(store);
+// M187: background large-import jobs (proposal held server-side until applied)
+const importJobs = new Map<string, { status: 'running' | 'done' | 'error'; label: string; startedAt: number; proposal?: any; error?: string }>();
 
 // M88 (Mark): MULTI-PROJECT — each project is its own map, nothing shared.
 // The server keeps an ACTIVE pair (projectId, mainChatId) that the UI views
@@ -1204,13 +1206,21 @@ const server = Bun.serve({
       return json(proposal);
     }
     if (path === '/api/reorganize/apply' && req.method === 'POST') {
-      const { alterations, chatId, containerName, suggestionId } = await req.json() as { alterations: any[]; chatId?: string; containerName?: string; suggestionId?: string };
+      const { alterations, chatId, containerName, suggestionId, memories } = await req.json() as { alterations: any[]; chatId?: string; containerName?: string; suggestionId?: string; memories?: Record<string, string> };
       const tidyInverse = inverseOfAlterations(alterations);
       const tidyMeta = captureFocusLit(alterations.map((a: any) => a.id).filter(Boolean));
       store.applyAlterations(projectId, alterations, { kind: 'reorganize' });
       store.pushUndo(projectId, `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))`, tidyInverse, tidyMeta);
       store.metric(projectId, 'interaction.tidy_apply', alterations.length);
       lightNewNodes(alterations, mainChatId);
+      // M187: imported depth lands in the memory layer (tiered attention
+      // serves it from here on).
+      if (memories) {
+        for (const [nid, mem] of Object.entries(memories)) {
+          if (store.getNode(nid) && typeof mem === 'string' && mem) setNodeMemory(store, nid, mem.slice(0, 1500));
+        }
+        store.metric(projectId, 'memory.stored', Object.values(memories).join('').length, { source: 'import' });
+      }
       // M182: renames/creates from a tidy can carry long content — heal their
       // SHORT display titles right away, not on the next round (guards, not
       // prompts: the naming rule now also lives in the reorganizer prompt,
@@ -1329,6 +1339,51 @@ const server = Bun.serve({
       sessions.sort((a, b) => b.mtime.localeCompare(a.mtime));
       return json({ files: files.slice(0, 20), sessions: sessions.slice(0, 15), memories: memories.slice(0, 20) });
     }
+    // M187: LARGE import — chunked background job with progress broadcasts.
+    if (path === '/api/import/large' && req.method === 'POST') {
+      const b = await req.json() as { kind?: string; text?: string; path?: string; sessionFile?: string };
+      let text = '', label = '';
+      if (b.kind === 'text') { text = (b.text ?? '').trim(); label = 'pasted notes'; }
+      else if (b.kind === 'file' && b.path) {
+        const dirs = store.cwdsForProject(projectId);
+        if (!dirs.some((d) => b.path!.startsWith(d + '/')) || !/\.(md|txt)$/i.test(b.path)) return json({ error: 'file outside the project folders' }, 400);
+        try { text = readFileSync(b.path, 'utf8'); } catch { return json({ error: 'could not read the file' }, 400); }
+        label = `document: ${basename(b.path)}`;
+      } else if (b.kind === 'session' && b.sessionFile) {
+        const base = basename(b.sessionFile);
+        let raw = '';
+        for (const d of store.cwdsForProject(projectId)) {
+          try { raw = readFileSync(join(homedir(), '.claude', 'projects', d.replace(/\//g, '-'), base), 'utf8'); break; } catch {}
+        }
+        if (!raw) return json({ error: 'session transcript not found for this project' }, 400);
+        text = extractTranscript(raw);
+        label = `past session: ${base.slice(0, 12)}…`;
+      }
+      if (!text || text.length < 20) return json({ error: 'nothing to import — the source is empty' }, 400);
+      const jobId = randomUUID();
+      importJobs.set(jobId, { status: 'running', label, startedAt: Date.now() });
+      const jobPid = projectId;
+      proposeImportLarge(store, jobPid, label, text, (prog) => {
+        broadcast({ type: 'import_progress', jobId, ...prog });
+      }).then((r) => {
+        if ('error' in r) { importJobs.set(jobId, { status: 'error', label, startedAt: Date.now(), error: r.error }); broadcast({ type: 'import_ready', jobId, error: r.error }); }
+        else { importJobs.set(jobId, { status: 'done', label, startedAt: Date.now(), proposal: r }); broadcast({ type: 'import_ready', jobId, summary: r.summary, count: r.alterations.length }); }
+      }).catch((err) => {
+        importJobs.set(jobId, { status: 'error', label, startedAt: Date.now(), error: String(err).slice(0, 200) });
+        broadcast({ type: 'import_ready', jobId, error: String(err).slice(0, 200) });
+      });
+      return json({ jobId, chars: text.length });
+    }
+    const jobMatch = path.match(/^\/api\/import\/job\/([\w-]+)$/);
+    if (jobMatch && req.method === 'GET') {
+      const j = importJobs.get(jobMatch[1]);
+      if (!j) return json({ error: 'unknown job' }, 404);
+      if (j.status !== 'done') return json({ status: j.status, label: j.label, error: j.error });
+      const p = j.proposal;
+      const preview = store.previewAlterations(projectId, p.alterations, () => p.rootId ? renderSubtreeFull(store, p.rootId) : '');
+      return json({ status: 'done', label: j.label, summary: p.summary, alterations: p.alterations, rootId: p.rootId, memories: p.memories, chunks: p.chunks, preview });
+    }
+
     if (path === '/api/import/preview' && req.method === 'POST') {
       const b = await req.json() as { kind?: string; text?: string; path?: string; sessionFile?: string; feedback?: string; priorSummary?: string };
       let text = '', label = '';

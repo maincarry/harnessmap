@@ -89,3 +89,173 @@ export function extractTranscript(jsonl: string): string {
   }
   return out.join('\n\n');
 }
+
+// ---------------------------------------------------------------------------
+// M187 (Jacob's redesign, "lets just go for it"): LARGE IMPORT — filing at
+// scale. Chunked with continuity (each call EXTENDS the subtree grown so
+// far), node count scales with source density (the old 15-40 preference was
+// a builder calibration, never a ruling), and DEPTH lives in the memory
+// layer: every substantive node carries source detail + provenance, served
+// later by tiered attention. One finish pass settles names and placement —
+// renames and moves only; removal is structurally impossible there.
+
+const v2 = (op: string, props: Record<string, unknown>, required: string[], optional: Record<string, unknown> = {}) => ({
+  type: 'object' as const,
+  properties: { op: { type: 'string' as const, enum: [op] }, ...props, ...optional },
+  required: ['op', ...required],
+  additionalProperties: false,
+});
+const s2 = { type: 'string' as const };
+
+const IMPORT_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    summary: { type: 'string' as const },
+    alterations: {
+      type: 'array' as const,
+      items: {
+        anyOf: [
+          v2('create_node', { id: s2, content: s2, status: s2, author: { type: 'string' as const, enum: ['user', 'agent'] } },
+            ['id', 'content', 'status', 'author'], { parentId: s2, type: s2, title: s2, memory: s2 }),
+        ],
+      },
+    },
+  },
+  required: ['summary', 'alterations'],
+  additionalProperties: false,
+};
+
+const FINISH_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    summary: { type: 'string' as const },
+    alterations: {
+      type: 'array' as const,
+      items: {
+        anyOf: [
+          v2('update_node', { id: s2 }, ['id'], { content: s2, title: s2 }),
+          v2('move_node', { id: s2, parentId: s2 }, ['id', 'parentId']),
+        ],
+      },
+    },
+  },
+  required: ['summary', 'alterations'],
+  additionalProperties: false,
+};
+
+const EXTEND_SYSTEM = `You are the IMPORT agent for a goal map, processing a LARGE source in chunks. You see (a) the imported subtree AS BUILT SO FAR from earlier chunks (nodes with [ids]) and (b) the next chunk of the source. Your job: EXTEND the subtree with THIS chunk's material.
+
+RULES:
+- create_node operations ONLY. Attach new nodes under existing [ids] where the material belongs there; create new branch nodes when the material opens a genuinely new thread. NEVER duplicate a node that already exists in the subtree — if this chunk revisits a topic, add the NEW information under the existing node.
+- DENSITY: roughly one node per coherent point in the source. Do not compress a rich chunk into a handful of lines; do not pad a thin one. A 50k-character chunk of dense material may well deserve 20-40 nodes.
+- NAMES: topic/heading nodes 2-5 words; statement nodes one tight sentence. Depth does NOT go in the name.
+- MEMORY — the important part: every node carrying real substance MUST include a "memory" field with the underlying detail from the source — specifics, numbers, quotes worth keeping, and a provenance tag naming where in the source it came from (a heading, a date, an entry id). Up to ~1200 characters. The map shows the tight statement; the memory is what the agent recalls when the user focuses this node. Trivial connector nodes may omit it.
+- Types where they fit (claim, question, option, decision, constraint, evidence, task), statuses honestly; short random strings for new ids; parentId must reference an existing [id] or an id created earlier in THIS list. Do not reference anything outside the import subtree.`;
+
+const FINISH_SYSTEM = `You are finishing a chunked import into a goal map. You see the complete imported subtree (every node with [id], name, and statement). Earlier chunks were filed without seeing later ones, so: (1) MERGE near-duplicates by renaming one node to carry both statements and moving the other's meaning into it — you may ONLY rename (update_node content/title) and re-parent (move_node); you cannot delete, so make duplicates harmless by renaming them into genuinely distinct aspects or moving them under the node they duplicate; (2) fix names that break the rule (topics 2-5 words, statements one tight sentence); (3) move nodes that clearly sit in the wrong branch. Propose NOTHING where the tree is already right — a small correct pass beats an ambitious rewrite. Ops may reference ONLY the [ids] shown.`;
+
+export interface LargeProgress { phase: 'chunk' | 'finish'; done: number; total: number }
+export interface LargeProposal extends ImportProposal { memories: Record<string, string>; chunks: number }
+
+function splitChunks(text: string, target = 50_000): string[] {
+  const lines = text.split('\n');
+  const chunks: string[] = [];
+  let cur: string[] = []; let size = 0;
+  const isBoundary = (l: string) => /^#{1,3} |^== |^## |^USER: |^\[?20\d\d-/.test(l);
+  for (const line of lines) {
+    if (size > target * 0.7 && (isBoundary(line) || size > target * 1.2)) {
+      chunks.push(cur.join('\n')); cur = []; size = 0;
+    }
+    cur.push(line); size += line.length + 1;
+  }
+  if (cur.length) chunks.push(cur.join('\n'));
+  return chunks.filter((c) => c.trim().length > 0);
+}
+
+export async function proposeImportLarge(
+  store: Store, projectId: string, sourceLabel: string, text: string,
+  onProgress?: (p: LargeProgress) => void,
+): Promise<LargeProposal | { error: string }> {
+  const map = loadMap(store, projectId);
+  const chunks = splitChunks(text);
+  const accum: { id: string; parentId: string | null; content: string; title?: string }[] = [];
+  const memories: Record<string, string> = {};
+  const alterations: any[] = [];
+  let rootId: string | null = null;
+  let summary = `imported: ${sourceLabel}`;
+
+  const renderAccum = (): string => {
+    const kids = new Map<string | null, typeof accum>();
+    for (const n of accum) { const k = kids.get(n.parentId) ?? []; k.push(n); kids.set(n.parentId, k); }
+    const out: string[] = [];
+    const walk = (pid: string | null, depth: number) => {
+      for (const n of kids.get(pid) ?? []) {
+        out.push(`${'  '.repeat(depth)}- [${n.id.slice(0, 8)}] ${(n.title || n.content).slice(0, 90)}`);
+        walk(n.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return out.join('\n').slice(0, 16_000);
+  };
+
+  try {
+    for (let i = 0; i < chunks.length; i++) {
+      onProgress?.({ phase: 'chunk', done: i, total: chunks.length });
+      const parsed = await call({
+        task: 'import', system: EXTEND_SYSTEM + systemCard(store, projectId, 'the IMPORT agent'),
+        maxTokens: 8000, schema: IMPORT_SCHEMA as any, timeoutMs: 300_000,
+        audit: (k, d) => store.audit(k, d),
+        user: [
+          i === 0 ? `THE MAP THIS LANDS IN (read-only, for tone):\n${renderTree(map, { ids: false }).slice(0, 4000) || '(empty map)'}` : '',
+          `THE IMPORTED SUBTREE SO FAR (${accum.length} nodes):\n${renderAccum() || '(nothing yet — this is the first chunk; your first node becomes the ROOT container for the whole import, named 2-4 words for what the source IS)'}`,
+          `SOURCE: ${sourceLabel} — CHUNK ${i + 1} of ${chunks.length}`,
+          `MATERIAL:\n${chunks[i]}`,
+          'Extend the subtree with this chunk.',
+        ].filter(Boolean).join('\n\n'),
+      });
+      if (i === 0 && parsed.summary) summary = parsed.summary;
+      const synthetic = { ...map, nodes: [...map.nodes, ...accum.map((n) => ({ ...n, status: 'live' }))] } as any;
+      const alts = normalizeIds((parsed.alterations ?? []) as any[], synthetic).filter((a: any) => a.op === 'create_node');
+      const batchIds = new Set(alts.map((a: any) => a.id));
+      const accumIds = new Set(accum.map((n) => n.id));
+      for (const a of alts as any[]) {
+        if (!rootId && !a.parentId) rootId = a.id;
+        else if (!a.parentId && a.id !== rootId) a.parentId = rootId;
+        if (a.parentId && !batchIds.has(a.parentId) && !accumIds.has(a.parentId)) a.parentId = rootId;
+        if (a.memory) { memories[a.id] = String(a.memory).slice(0, 1500); delete a.memory; }
+        accum.push({ id: a.id, parentId: a.parentId ?? null, content: a.content, title: a.title });
+        alterations.push(a);
+      }
+    }
+    if (!alterations.length) return { error: 'the import agent produced no nodes' };
+
+    // Finish pass: names + placement only (schema makes removal impossible).
+    onProgress?.({ phase: 'finish', done: chunks.length, total: chunks.length });
+    try {
+      const fin = await call({
+        task: 'import', system: FINISH_SYSTEM, maxTokens: 6000,
+        schema: FINISH_SCHEMA as any, timeoutMs: 300_000,
+        audit: (k, d) => store.audit(k, d),
+        user: `THE IMPORTED SUBTREE (complete):\n${renderAccum()}\n\nStatements in full:\n${accum.map((n) => `[${n.id.slice(0, 8)}] ${n.content.slice(0, 200)}`).join('\n').slice(0, 30_000)}\n\nPropose the finishing corrections.`,
+      });
+      const accumIds = new Set(accum.map((n) => n.id));
+      const short = new Map(accum.map((n) => [n.id.slice(0, 8), n.id]));
+      for (const a of (fin.alterations ?? []) as any[]) {
+        const id = short.get(String(a.id).replace(/[\[\]]/g, '')) ?? a.id;
+        if (!accumIds.has(id)) continue;
+        if (a.op === 'move_node') {
+          const pid = short.get(String(a.parentId).replace(/[\[\]]/g, '')) ?? a.parentId;
+          if (!accumIds.has(pid) || pid === id) continue;
+          alterations.push({ op: 'move_node', id, parentId: pid });
+        } else if (a.op === 'update_node' && (a.content || a.title)) {
+          alterations.push({ op: 'update_node', id, ...(a.content ? { content: a.content } : {}), ...(a.title ? { title: a.title } : {}) });
+        }
+      }
+    } catch (err) { console.error('[import] finish pass skipped:', err); }
+
+    return { summary, alterations, rootId, memories, chunks: chunks.length };
+  } catch (err) {
+    console.error('[import-large] failed:', err);
+    return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
+  }
+}

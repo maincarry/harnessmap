@@ -1346,7 +1346,24 @@ function openImport() {
     ov.querySelector('#im-apply').hidden = true;
     ov.querySelector('#im-busy').hidden = false;
     try {
-      const r = await post('/api/import/preview', req);
+      let r;
+      // M187: big sources take the chunked road — a background job with live
+      // progress; small ones keep the instant single call.
+      if ((req.sizeKB ?? 0) > 60 && (req.kind === 'file' || req.kind === 'session')) {
+        const start = await post('/api/import/large', req);
+        if (start.error) throw new Error(start.error);
+        const busy = ov.querySelector('#im-busy');
+        for (;;) {
+          await new Promise((res) => setTimeout(res, 4000));
+          const j = await (await fetch(`/api/import/job/${start.jobId}`)).json();
+          if (j.status === 'error') throw new Error(j.error ?? 'import failed');
+          if (j.status === 'done') { r = j; break; }
+          if (!document.body.contains(ov)) return; // modal closed — job continues server-side
+          if (window.__importProg) busy.textContent = `filing the source… chunk ${window.__importProg.done + 1} of ${window.__importProg.total}${window.__importProg.phase === 'finish' ? ' — finishing pass' : ''}`;
+        }
+      } else {
+        r = await post('/api/import/preview', req);
+      }
       current = r;
       ov.querySelector('#im-busy').hidden = true;
       ov.querySelector('#im-prop').hidden = false;
@@ -1373,7 +1390,7 @@ function openImport() {
   ov.querySelector('#im-apply').onclick = async () => {
     if (!current) return;
     try {
-      const r = await post('/api/reorganize/apply', { alterations: current.alterations, chatId: S.mainChatId, containerName: current.label });
+      const r = await post('/api/reorganize/apply', { alterations: current.alterations, chatId: S.mainChatId, containerName: current.label, memories: current.memories });
       ov.remove();
       undoToast(r.undo);
     } catch (err) { $('round-line').textContent = `import apply failed: ${err.message}`; }
@@ -1395,7 +1412,7 @@ function openImport() {
         const d = document.createElement('div');
         d.className = 'sr-row';
         d.innerHTML = `<span>${esc(f.name)}</span><span class="sr-path">${f.sizeKB} KB</span>`;
-        d.onclick = () => propose({ kind: 'file', path: f.path });
+        d.onclick = () => propose({ kind: 'file', path: f.path, sizeKB: f.sizeKB });
         files.appendChild(d);
       }
       sess.innerHTML = (src.sessions ?? []).length ? '' : '<span style="color:var(--muted);font-size:12px">no past sessions found for this map\'s folder</span>';
@@ -1403,7 +1420,7 @@ function openImport() {
         const d = document.createElement('div');
         d.className = 'sr-row';
         d.innerHTML = `<span>${esc(new Date(x.mtime).toLocaleString())}</span><span class="sr-path">${x.sizeKB} KB</span>`;
-        d.onclick = () => propose({ kind: 'session', sessionFile: x.file });
+        d.onclick = () => propose({ kind: 'session', sessionFile: x.file, sizeKB: x.sizeKB });
         sess.appendChild(d);
       }
     } catch {}
@@ -3401,6 +3418,14 @@ function connect() {
       $('round-line').textContent = 'host session active — agent replying…';
     } else if (m.type === 'chat_cleared' && m.chatId === S.mainChatId) {
       loadTurns();
+    } else if (m.type === 'import_progress') {
+      window.__importProg = m;
+      $('round-line').classList.add('working');
+      $('round-line').textContent = `import: chunk ${m.done + 1} of ${m.total}${m.phase === 'finish' ? ' — finishing pass' : ''}`;
+    } else if (m.type === 'import_ready') {
+      window.__importProg = null;
+      $('round-line').classList.remove('working');
+      $('round-line').textContent = m.error ? `import failed: ${m.error}` : `import ready: ${m.count} node(s) proposed — open ⇪ import to review`;
     } else if (m.type === 'translator_error') {
       $('round-line').textContent = 'translator error — map may lag (chat unaffected)';
     }

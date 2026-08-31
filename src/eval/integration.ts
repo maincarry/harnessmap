@@ -1026,6 +1026,33 @@ console.log('\n== 40. sign-in & billing transparency (M186) ==');
   check('call health carried', 'lastOkAt' in a && 'lastErrAt' in a);
 }
 
+console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
+{
+  // A synthetic 3-chunk document with distinct sections and concrete details.
+  const bigDoc = Array.from({ length: 3 }, (_, c) => `## Part ${c + 1}: ${['fermentation basics', 'equipment choices', 'first-batch log'][c]}\n` +
+    Array.from({ length: 60 }, (_, i) => `Entry ${c * 60 + i}: ${['starter ratio is 1:5:5 flour to water', 'the crock costs 24 dollars at the market', 'day-three brine tastes right at 2 percent salt'][i % 3]} — detail line ${i} with enough words to carry real substance about the ${['sourdough starter', 'fermentation crock', 'brine schedule'][i % 3]}.`).join('\n')).join('\n\n');
+  writeFileSync(join(CWD_DEF, 'big-notes.md'), bigDoc.slice(0, 145_000));
+  const start = await post('/api/import/large', { kind: 'file', path: join(CWD_DEF, 'big-notes.md') });
+  check('large import starts a job', start.status === 200 && !!start.body.jobId);
+  let job: any = null;
+  for (let i = 0; i < 60; i++) {
+    await sleep(5000);
+    job = await (await fetch(`${BASE}/api/import/job/${start.body.jobId}`)).json();
+    if (job.status === 'done' || job.status === 'error') break;
+  }
+  check('job completes', job?.status === 'done', job?.error ?? job?.status);
+  const creates = (job?.alterations ?? []).filter((a: any) => a.op === 'create_node');
+  check('node count scales past the old cap regime', creates.length >= 10, `${creates.length} creates`);
+  check('depth landed in memories with provenance', Object.keys(job?.memories ?? {}).length >= 3);
+  const ids = new Set(creates.map((a: any) => a.id));
+  check('every parent resolves inside the import', creates.every((a: any) => !a.parentId || ids.has(a.parentId)));
+  const ap = await post('/api/reorganize/apply', { alterations: job.alterations, chatId: (await state()).mainChatId, containerName: 'big notes', memories: job.memories });
+  check('apply lands with memories', ap.status === 200);
+  const memId = Object.keys(job.memories)[0];
+  const mem = await (await fetch(`${BASE}/api/nodes/${memId}/memory`)).json();
+  check('imported node memory readable through the normal channel', typeof mem.text === 'string' && mem.text.length > 20);
+}
+
 console.log('\n== 13. audit ==');
 {
   const a = await get('/api/audit?limit=10');
