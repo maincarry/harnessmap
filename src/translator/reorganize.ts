@@ -4,6 +4,7 @@ import { Store } from '../store/db.js';
 import { call, modelFor } from '../inference.js';
 import { loadMap, descendantNodes, renderSubtreeFull } from '../map/render.js';
 import { SCHEMA, normalizeIds } from './translator.js';
+import { getNodeMemory } from './memory.js';
 
 // Reorganize (v0.2, Jacob's #8, resolved (a)+(i)): conservative cleanup of one
 // chosen subtree, returned as a PROPOSAL with a before/after preview — nothing
@@ -36,6 +37,67 @@ export interface ReorganizeProposal {
   alterations: Alteration[];
   before: string;
   after: string;
+}
+
+// M189 (Jacob: "deep discussions only survive as names in someone's chat
+// history") — file a node's earlier discussion ONTO the map: propose child
+// nodes carrying the substance currently buried in its memory. Same contract
+// as every proposal lane: propose → preview → user applies; apply rides
+// /api/reorganize/apply (undo, title healing, born-lit — all free).
+const EXPAND_SYSTEM = `You are the tidy agent for a goal map made of NODES (one kind of thing: every line has content, an optional type, a status, and children). One node's EARLIER DISCUSSION (its remembered conversation) holds substance that never made it onto the tree. Your job: put that substance INTO the tree as child nodes.
+
+RULES:
+- create_node operations ONLY, every one nested under the target node [id given] or under a child you create in this list. Never touch, move, or remove anything that exists.
+- NODES STATE FACTS, NEVER NARRATE THE DIALOGUE: each child is a standalone statement of a fact, decision, question, option, constraint, or piece of evidence from the discussion — never "user asked X / agent said Y".
+- BUILD THE LAYERS: where the discussion had structure (a claim with its support, an option with its tradeoffs, a decision with its reasons), nest accordingly — evidence under the claim it supports, objections under the option they attack.
+- DON'T DUPLICATE: the target's existing children are shown; if the discussion refines one of them, the new detail belongs UNDER that existing child (parentId = its id) — never as a sibling restating it.
+- Use the fixed type set where a type fits (claim, question, option, decision, constraint, evidence, task); statuses honestly ('decided' only for things the discussion actually settled). NAMES STAY SHORT: statement nodes one tight sentence; any grouping node 2-4 words.
+- Only what the discussion supports — never invent, never pad. A few solid nodes beat a transcript. If the memory holds nothing worth filing, return zero alterations and say so in the summary.
+- Short random strings for new ids; parentId chains must reference the target's [id] or ids created earlier in this list.
+
+Return: summary (one sentence) + alterations.`;
+
+export async function proposeExpand(store: Store, projectId: string, nodeId: string, feedback?: string, priorSummary?: string): Promise<ReorganizeProposal | { error: string } | null> {
+  const map = loadMap(store, projectId);
+  const target = store.getNode(nodeId);
+  if (!target || target.status === 'removed') return null;
+  const memory = getNodeMemory(store, nodeId);
+  if (!memory) return { error: 'this node has no earlier discussion yet' };
+  const before = renderSubtreeFull(store, nodeId);
+  const kids = store.childrenOf(nodeId).filter((k) => k.status !== 'removed');
+  try {
+    const parsed = await call({
+      task: 'tidy', modelOverride: modelFor('tidy'),
+      system: EXPAND_SYSTEM + systemCard(store, projectId, 'the TIDY agent'),
+      maxTokens: 3000, schema: SCHEMA, timeoutMs: 120_000,
+      audit: (k, d) => store.audit(k, d),
+      user: [
+        `THE TARGET NODE: ${target.type ? `${target.type}: ` : ''}${target.content} [${nodeId.slice(0, 8)}] (${target.status})`,
+        kids.length
+          ? `ITS EXISTING CHILDREN (nest refinements under these — never restate them):\n${kids.map((k) => `- ${k.content} [${k.id.slice(0, 8)}]`).join('\n')}`
+          : 'IT HAS NO CHILDREN YET.',
+        `ITS EARLIER DISCUSSION (the substance to file):\n${memory}`,
+        ...(priorSummary ? [`YOUR PREVIOUS PROPOSAL (the user saw it and wants something different): ${priorSummary}`] : []),
+        ...(feedback ? [`THE USER'S DIRECTION — this OVERRIDES your own instincts; build the proposal the user is asking for: ${feedback}`] : []),
+        'Propose the child nodes that put this discussion onto the tree.',
+      ].join('\n\n'),
+    });
+    let alterations = normalizeIds(parsed.alterations ?? [], map);
+    // Guard (mechanical, not prompt): creates only, rooted in the target's
+    // subtree — the target itself, its live descendants, or ids from this batch.
+    const inScope = new Set([nodeId, ...descendantNodes(store, nodeId)]);
+    alterations = alterations.filter((a: any) => {
+      if (a.op !== 'create_node') return false;
+      if (!inScope.has(a.parentId)) return false;
+      inScope.add(a.id);
+      return true;
+    });
+    const after = store.previewAlterations(projectId, alterations, () => renderSubtreeFull(store, nodeId));
+    return { summary: parsed.summary ?? '', alterations, before, after };
+  } catch (err) {
+    console.error('[expand] proposal failed:', err);
+    return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
+  }
 }
 
 export async function proposeReorganize(store: Store, projectId: string, nodeId: string | null, hint?: string, feedback?: string, priorSummary?: string): Promise<ReorganizeProposal | { error: string } | null> {

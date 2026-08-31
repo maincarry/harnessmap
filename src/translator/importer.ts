@@ -21,7 +21,8 @@ Produce:
 
 STRUCTURE RULES:
 - ONE new top-level container holds the whole import: create it first (parentId null) with a short, recognizable name for what this material IS (title: 2-4 words). Everything else nests under it.
-- ORGANIZE, don't transcribe: group the material into a few clear branches (topics → their decisions/questions/claims/evidence/tasks). A reader should grasp the whole import from the first two levels. Prefer 15-40 nodes; merge trivia into parent statements rather than emitting noise.
+- ORGANIZE, don't transcribe: group the material into a few clear branches (topics → their decisions/questions/claims/evidence/tasks). A reader should grasp the whole import from the first two levels. Node count follows source density — one node per coherent point; merge trivia into parent statements rather than emitting noise.
+- DEPTH: where the material itself has layers — a claim with its supporting facts, an option with its tradeoffs, a decision with the reasons and the rejected alternative — build those layers as CHILD NODES (evidence under the claim, objections under the option, reasons under the decision), three or four levels deep where the material earns it. A discussion filed as a flat list of names has lost its substance; the tree, not the node's prose, carries the argument.
 - Each node: content = a standalone statement of the fact/decision/question (NEVER "user asked X / assistant said Y" narration); use the FIXED TYPE SET (claim, question, option, decision, constraint, evidence, task) where a type fits, plain topic nodes otherwise; statuses honestly (decided things 'decided', open questions 'open', tentative material 'exploratory').
 - From CONVERSATION transcripts: capture what the exchange ESTABLISHED — decisions made, questions opened or answered, constraints stated, options weighed, facts learned. Drop pleasantries, tool noise, and dead ends unless the dead end itself was informative.
 - From DOCUMENTS: capture the document's actual structure and claims, not its formatting.
@@ -94,10 +95,11 @@ export function extractTranscript(jsonl: string): string {
 // M187 (Jacob's redesign, "lets just go for it"): LARGE IMPORT — filing at
 // scale. Chunked with continuity (each call EXTENDS the subtree grown so
 // far), node count scales with source density (the old 15-40 preference was
-// a builder calibration, never a ruling), and DEPTH lives in the memory
-// layer: every substantive node carries source detail + provenance, served
-// later by tiered attention. One finish pass settles names and placement —
-// renames and moves only; removal is structurally impossible there.
+// a builder calibration, never a ruling). One finish pass settles names and
+// placement — renames and moves only; removal is structurally impossible
+// there. M189 (Jacob: "v2 is too flat"): depth moved from the memory layer
+// into the TREE — layered discussions file as child nodes; memory holds
+// provenance and quotes, not the substance.
 
 const v2 = (op: string, props: Record<string, unknown>, required: string[], optional: Record<string, unknown> = {}) => ({
   type: 'object' as const,
@@ -148,8 +150,9 @@ const EXTEND_SYSTEM = `You are the IMPORT agent for a goal map, processing a LAR
 RULES:
 - create_node operations ONLY. Attach new nodes under existing [ids] where the material belongs there; create new branch nodes when the material opens a genuinely new thread. NEVER duplicate a node that already exists in the subtree — if this chunk revisits a topic, add the NEW information under the existing node.
 - DENSITY: roughly one node per coherent point in the source. Do not compress a rich chunk into a handful of lines; do not pad a thin one. A 50k-character chunk of dense material may well deserve 20-40 nodes.
+- DEPTH — the structure carries the substance: where the source has layers (a claim with its supporting facts, an option with its tradeoffs, a decision with its reasons and the rejected alternative, a correction superseding an earlier state), file those layers as CHILD NODES — evidence under the claim, objections under the option, reasons under the decision — three or four levels deep where the material earns it. Never flatten a layered discussion into a list of siblings whose detail hides in memory fields: a reader of the TREE alone should be able to follow the argument.
 - NAMES: topic/heading nodes 2-5 words; statement nodes one tight sentence. Depth does NOT go in the name.
-- MEMORY — the important part: every node carrying real substance MUST include a "memory" field with the underlying detail from the source — specifics, numbers, quotes worth keeping, and a provenance tag naming where in the source it came from (a heading, a date, an entry id). Up to ~1200 characters. The map shows the tight statement; the memory is what the agent recalls when the user focuses this node. Trivial connector nodes may omit it.
+- MEMORY: nodes carrying source detail worth quoting SHOULD include a "memory" field — specifics, numbers, exact quotes, and a provenance tag naming where in the source it came from (a heading, a date, an entry id). Up to ~1200 characters. Memory is for provenance and texture; it is NOT the home of substance — anything a future reader needs in order to follow the discussion belongs in nodes.
 - Types where they fit (claim, question, option, decision, constraint, evidence, task), statuses honestly; short random strings for new ids; parentId must reference an existing [id] or an id created earlier in THIS list. Do not reference anything outside the import subtree.`;
 
 const FINISH_SYSTEM = `You are finishing a chunked import into a goal map. You see the complete imported subtree (every node with [id], name, and statement). Earlier chunks were filed without seeing later ones, so: (1) MERGE near-duplicates by renaming one node to carry both statements and moving the other's meaning into it — you may ONLY rename (update_node content/title) and re-parent (move_node); you cannot delete, so make duplicates harmless by renaming them into genuinely distinct aspects or moving them under the node they duplicate; (2) fix names that break the rule (topics 2-5 words, statements one tight sentence); (3) move nodes that clearly sit in the wrong branch. Propose NOTHING where the tree is already right — a small correct pass beats an ambitious rewrite. Ops may reference ONLY the [ids] shown.`;

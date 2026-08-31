@@ -176,23 +176,30 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   let litOmitted = 0;
   const shapeAll = branchTiers.flatMap((b) => b.t.shape);
   budget -= shapeAll.join('\n').length;
-  // Tier 2 — substance per branch, freshest kept when short.
+  // Tier 2 — substance, node by node (freshest branch first). A branch
+  // larger than the remaining budget contributes what fits instead of
+  // nothing — whole-branch drops left most of the budget unused whenever
+  // one big lit branch (an at-scale import, say) exceeded it.
   const subKept: string[] = [];
   const trimmedLit: string[] = [];
   for (const b of branchTiers) {
-    const size = b.t.substance.join('\n').length;
-    if (budget - size < 0) { litOmitted++; trimmedLit.push(b.id); continue; }
-    budget -= size;
-    subKept.push(...b.t.substance);
+    let cut = false;
+    for (const line of b.t.substance) {
+      if (budget - line.length < 0) { cut = true; continue; }
+      budget -= line.length;
+      subKept.push(line);
+    }
+    if (cut) { litOmitted++; trimmedLit.push(b.id); }
   }
-  // Tier 3 — remembered discussions, first to go under pressure.
+  // Tier 3 — remembered discussions, first to go under pressure; same
+  // node-by-node fill.
   const memKept: string[] = [];
   for (const b of branchTiers) {
-    if (!b.t.memory.length) continue;
-    const size = b.t.memory.join('\n').length;
-    if (budget - size < 0) continue;
-    budget -= size;
-    memKept.push(...b.t.memory);
+    for (const line of b.t.memory) {
+      if (budget - line.length < 0) continue;
+      budget -= line.length;
+      memKept.push(line);
+    }
   }
   if (shapeAll.length) {
     // Plain existing words only (Jacob: no new terminology) — titles,

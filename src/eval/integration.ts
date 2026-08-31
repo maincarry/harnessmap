@@ -1051,6 +1051,33 @@ console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
   const memId = Object.keys(job.memories)[0];
   const mem = await (await fetch(`${BASE}/api/nodes/${memId}/memory`)).json();
   check('imported node memory readable through the normal channel', typeof mem.text === 'string' && mem.text.length > 20);
+
+  // == 42. M189: file a node's earlier discussion onto the map ==
+  console.log('\n== 42. expand: earlier discussion → child nodes ==');
+  await post('/api/nodes', { content: 'a brand-new node with no discussion yet' });
+  const fresh = (await state()).nodes.find((n: any) => n.content === 'a brand-new node with no discussion yet');
+  if (fresh) {
+    const miss = await post('/api/expand/preview', { nodeId: fresh.id });
+    check('expand without a discussion refuses plainly', miss.status === 502 && /no earlier discussion/.test(miss.body?.error ?? ''));
+  }
+  const xp = await post('/api/expand/preview', { nodeId: memId });
+  check('expand preview answers', xp.status === 200, xp.body?.error);
+  const xalts = xp.body?.alterations ?? [];
+  check('expand proposes creates only', xalts.every((a: any) => a.op === 'create_node'), JSON.stringify(xalts.map((a: any) => a.op)));
+  if (xalts.length) {
+    const xids = new Set(xalts.map((a: any) => a.id));
+    const all = (await state()).nodes as any[];
+    const parentOf = new Map(all.map((n: any) => [n.id, n.parentId]));
+    const inTarget = (id: string) => { let p: string | null | undefined = id; while (p) { if (p === memId) return true; p = parentOf.get(p); } return false; };
+    // parent must be the target, one of its descendants, or an in-batch id
+    check('expand creations root in the target subtree', xalts.every((a: any) => xids.has(a.parentId) || inTarget(a.parentId)));
+    const ap2 = await post('/api/reorganize/apply', { alterations: xalts, chatId: (await state()).mainChatId, containerName: 'expand test' });
+    check('expand apply lands', ap2.status === 200);
+    const after = await state();
+    check('expanded children exist on the map', xalts.some((a: any) => after.nodes.some((n: any) => n.id === a.id)));
+  } else {
+    check('expand may honestly propose nothing (summary says so)', typeof xp.body?.summary === 'string');
+  }
 }
 
 console.log('\n== 13. audit ==');

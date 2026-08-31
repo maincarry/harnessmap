@@ -11,7 +11,7 @@ import { Translator } from './translator/translator.js';
 import { ChatSessionManager } from './agent/chat-session.js';
 import { composeParts } from './seed/composer.js';
 import { loadMap, descendantNodes, renderSubtreeFull } from './map/render.js';
-import { proposeReorganize } from './translator/reorganize.js';
+import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
 import { proposeAutolit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
@@ -632,6 +632,11 @@ function json(data: unknown, status = 200): Response {
 const server = Bun.serve({
   port: PORT,
   hostname: HOST,
+  // Bun's default idleTimeout (10s) kills any model-backed request mid-call —
+  // tidy/import/expand previews legitimately run 10-90s+ (the playground log
+  // shows the literal "request timed out after 10 seconds" error in live use).
+  // 255 is Bun's maximum; the long import path is a background job anyway.
+  idleTimeout: 255,
   async fetch(req, srv) {
     const url = new URL(req.url);
     const path = url.pathname;
@@ -1201,6 +1206,17 @@ const server = Bun.serve({
         store.setSuggestionProposal(body.suggestionId, JSON.stringify(proposal), subtreeHash(projectId, tidReq, body.hint));
         store.audit('proposal_cache_refresh', { suggestion: body.suggestionId.slice(0, 8) });
       }
+      if (!proposal) return json({ error: 'unknown node' }, 404);
+      if ('error' in proposal) return json({ error: proposal.error }, 502);
+      return json(proposal);
+    }
+    // M189: file a node's earlier discussion onto the map — propose child
+    // nodes from its memory; apply rides /api/reorganize/apply unchanged.
+    if (path === '/api/expand/preview' && req.method === 'POST') {
+      store.metric(projectId, 'interaction.expand_preview');
+      const body = await req.json() as { nodeId?: string; feedback?: string; priorSummary?: string };
+      if (!body.nodeId) return json({ error: 'nodeId required' }, 400);
+      const proposal = await proposeExpand(store, projectId, body.nodeId, body.feedback, body.priorSummary);
       if (!proposal) return json({ error: 'unknown node' }, 404);
       if ('error' in proposal) return json({ error: proposal.error }, 502);
       return json(proposal);
