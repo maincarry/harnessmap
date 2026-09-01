@@ -411,4 +411,4 @@ clean up, lighting/focus mechanics — refer them to the map panel's
 instructions; do not try to restructure the map yourself.
 ```
 
-_updated 2026-09-01T16:48:54.552Z_
+_updated 2026-09-01T17:08:49.387Z_

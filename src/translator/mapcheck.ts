@@ -1,6 +1,7 @@
 import { Store } from '../store/db.js';
 import { systemCard } from './cast.js';
 import { call } from '../inference.js';
+import { statusConsult } from './mapstatus.js';
 import { loadMap, renderTree } from '../map/render.js';
 
 // On-demand map check (v0.3.5, Jacob): "can you add a button where I can
@@ -48,7 +49,7 @@ export async function checkMap(store: Store, projectId: string, focusId: string 
     const parsed = await call({
       task: 'mapcheck', system: SYSTEM + systemCard(store, projectId, 'the map REVIEWER (the tidy agent in review mode)'), maxTokens: 1500, schema: SCHEMA as any, timeoutMs: 90_000,
       audit: (k, d) => store.audit(k, d),
-      user: `MAP (ids in [brackets]):\n${tree}\n\nReview the structure.`,
+      user: `MAP (ids in [brackets]):\n${tree}\n\nReview the structure.` + statusConsult(store, projectId),
     });
     const suggestions = (parsed.suggestions ?? [])
       .map((s: any) => {

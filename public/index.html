@@ -451,6 +451,7 @@
           <button id="agent-view-btn" title="what the chat agent receives from the map each turn — the context composition, and the exact text if you want it">👁 what the agent sees</button>
           <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
           <button id="authinfo-btn" title="full transparency: how the map's agents sign in, who gets billed, and whether calls are working">🔑 sign-in &amp; billing</button>
+          <button id="mapstatus-btn" title="the map status specialist's professional structural review — balance, depth, one-topic-one-subtree; the tidy and review agents consult it">🩺 map status</button>
           <button id="update-btn" title="check whether a newer harnessmap exists — updating itself happens in Claude Code, never automatically">⬆ check for updates</button>
           <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
           <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
@@ -1194,6 +1195,47 @@ $('feedback-btn').onclick = () => {
     $('round-line').textContent = `✓ report copied — paste it into any email to ${addr}`;
   };
 };
+
+// M192 (Jacob): map status — rare tier. Shows the standing review; run asks
+// the structural specialist for a fresh one. Advice only.
+async function openMapStatus() {
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  const render = (s, running) => `
+    <div class="modal">
+      <h3>🩺 map status</h3>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 10px">the structural specialist's professional review — advice only; changes still go through ⟳ tidy and your approval. The tidy and review agents consult this standing opinion.</div>
+      ${s ? `
+        <div style="font-size:14px;margin-bottom:8px"><b>${esc(s.health)}</b></div>
+        ${s.findings.length ? s.findings.map(f => `<div style="padding:5px 0;border-top:1px solid var(--hair)"><div>• ${esc(f.what)}</div><div style="color:var(--muted);font-size:12px;margin-left:12px">fix: ${esc(f.fix)}</div></div>`).join('') : '<div style="color:var(--muted);font-size:13px">no structural findings.</div>'}
+        <details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">what the working agents are told</summary><pre style="white-space:pre-wrap;font-size:12px">${esc(s.opinion)}</pre></details>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">reviewed ${new Date(s.ts).toLocaleString()} · ${s.instruments?.nodes ?? '?'} nodes measured</div>
+      ` : '<div style="color:var(--muted);font-size:13px">no review yet — run the first one.</div>'}
+      <div class="actions">
+        <button id="ms-close" title="close">close</button>
+        <button id="ms-run" class="primary" ${running ? 'disabled' : ''} title="ask the structural specialist for a fresh review of the whole map">${running ? 'reviewing…' : '▶ run review'}</button>
+      </div>
+    </div>`;
+  let cur = null;
+  try { cur = (await (await fetch('/api/map-status')).json()).status; } catch {}
+  ov.innerHTML = render(cur, false);
+  document.body.appendChild(ov);
+  const wire = () => {
+    ov.querySelector('#ms-close').onclick = () => ov.remove();
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+    ov.querySelector('#ms-run').onclick = async () => {
+      ov.innerHTML = render(cur, true); wire();
+      try {
+        const r = await post('/api/map-status', {});
+        cur = r.status;
+      } catch (err) { $('round-line').textContent = `map status failed: ${err.message}`; }
+      ov.innerHTML = render(cur, false); wire();
+    };
+  };
+  wire();
+}
+
+$('mapstatus-btn').onclick = openMapStatus;
 $('authinfo-btn').onclick = async () => {
   $('other-menu').hidden = true;
   let a = null;
@@ -1839,8 +1881,12 @@ function openNodeDetail(id) {
       <textarea id="nd-desc" rows="4" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical">${esc(n.content)}</textarea>
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">How it fits (parents above, children below — updates as they change)</label>
       <div id="nd-rel" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">working out how this fits…</div>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">In one line (what the agents see first)</label>
+      <div id="nd-min" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Chat memory (what was discussed while this was the focus)</label>
       <div id="nd-mem" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Remembered details (dated; struck through = superseded)</label>
+      <div id="nd-det" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
       <button id="nd-expand" class="hbtn" style="display:none;margin-top:6px" title="the tidy agent proposes child nodes from this discussion — preview first, nothing changes until you apply">⟳ file this discussion onto the map</button>
       <div class="actions">
         <button id="nd-cancel" title="close without saving changes">cancel</button>
@@ -1860,6 +1906,21 @@ function openNodeDetail(id) {
     if (el) {
       el.textContent = r.text ?? 'nothing yet — this fills in as you talk while focused here';
       if (r.text) { el.style.fontStyle = 'normal'; el.style.color = 'var(--ink)'; }
+    }
+    // M192b: the one-line view + the dated details, superseded marked.
+    const mn = ov.querySelector('#nd-min');
+    if (mn) {
+      mn.textContent = r.minimal ?? 'nothing yet — written as the map digests discussion here';
+      if (r.minimal) { mn.style.fontStyle = 'normal'; mn.style.color = 'var(--ink)'; }
+    }
+    const dt = ov.querySelector('#nd-det');
+    if (dt) {
+      const ds = r.details ?? [];
+      if (!ds.length) dt.textContent = 'none yet';
+      else {
+        dt.style.fontStyle = 'normal'; dt.style.color = 'var(--ink)';
+        dt.innerHTML = ds.map(d => `<div style="${d.status === 'superseded' ? 'text-decoration:line-through;color:var(--muted);' : ''}padding:1px 0">• ${esc(d.text)}${d.date ? ` <span style="color:var(--muted);font-size:11px">(${esc(d.date)})</span>` : ''}${(d.prov && (d.prov.paths?.length || d.prov.urls?.length || d.prov.tool_use_ids?.length)) ? ' <span title="carries source links (files/tools/urls) — the agent can resolve them via recall" style="font-size:11px">🔗</span>' : ''}</div>`).join('');
+      }
     }
     // M189: when there IS a discussion here, offer to file it onto the tree.
     const xb = ov.querySelector('#nd-expand');
@@ -2849,6 +2910,7 @@ function openLegend() {
         <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">⋯ other — second ＋ more (rare)</td></tr>
         <tr><td>👁 what the agent sees</td><td>the map's contribution to every turn: a composition bar (what fills the space, what's free), the ❗ list if lit topics didn't fit, and the exact text section by section</td></tr>
         <tr><td>▦ sessions</td><td>all sessions on this map in one list, each with its topic and summary — pin the ones you live in, close the rest</td></tr>
+        <tr><td>🩺 map status</td><td>a professional structural review of the whole map — balance, depth, whether each topic's story lives in one place; run on demand; the tidy and review agents consult its standing opinion</td></tr>
         <tr><td>🔑 sign-in &amp; billing</td><td>full transparency about the map's background agents: who gets billed (your subscription, unless you explicitly chose API mode), where sign-in is looked for, and whether calls are working — nothing leaves this machine</td></tr>
         <tr><td>⬆ check for updates</td><td>asks whether a newer harnessmap exists and shows the command to update — updating itself always happens in Claude Code, never automatically</td></tr>
         <tr><td>⏻ close map influence</td><td>your Claude sessions get NO map context and the map is never mentioned — while the map keeps quietly filing; reopen anytime, same place</td></tr>

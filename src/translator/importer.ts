@@ -9,6 +9,7 @@
 
 import { Store } from '../store/db.js';
 import { call, modelFor } from '../inference.js';
+import { statusConsult } from './mapstatus.js';
 import { loadMap, renderTree } from '../map/render.js';
 import { SCHEMA, normalizeIds } from './translator.js';
 import { systemCard } from './cast.js';
@@ -277,7 +278,7 @@ export async function proposeImportLarge(
         task: 'import', system: FINISH_SYSTEM, maxTokens: 6000,
         schema: FINISH_SCHEMA as any, timeoutMs: 300_000,
         audit: (k, d) => store.audit(k, d),
-        user: `THE IMPORTED SUBTREE (complete):\n${renderAccum()}\n\nStatements in full:\n${accum.map((n) => `[${n.id.slice(0, 8)}] ${n.content.slice(0, 200)}`).join('\n').slice(0, 30_000)}\n\nPropose the finishing corrections.`,
+        user: `THE IMPORTED SUBTREE (complete):\n${renderAccum()}\n\nStatements in full:\n${accum.map((n) => `[${n.id.slice(0, 8)}] ${n.content.slice(0, 200)}`).join('\n').slice(0, 30_000)}\n\nPropose the finishing corrections.` + statusConsult(store, projectId),
       });
       const accumIds = new Set(accum.map((n) => n.id));
       const short = new Map(accum.map((n) => [n.id.slice(0, 8), n.id]));

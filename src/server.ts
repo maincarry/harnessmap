@@ -10,8 +10,9 @@ import { Store } from './store/db.js';
 import { Translator } from './translator/translator.js';
 import { ChatSessionManager } from './agent/chat-session.js';
 import { composeParts } from './seed/composer.js';
-import { loadMap, descendantNodes, renderSubtreeFull } from './map/render.js';
+import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/render.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
+import { runMapStatus, getMapStatus } from './translator/mapstatus.js';
 import { proposeAutolit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
@@ -1229,6 +1230,20 @@ const server = Bun.serve({
       if ('error' in proposal) return json({ error: proposal.error }, 502);
       return json(proposal);
     }
+    // M192 (Jacob): map status — the professional structural review, on
+    // demand (rare tier). GET returns the standing review; POST runs a new
+    // one. The stored opinion is what tidy/reviewer/import-finish consult.
+    if (path === '/api/map-status' && req.method === 'GET') {
+      return json({ status: getMapStatus(store, projectId) });
+    }
+    if (path === '/api/map-status' && req.method === 'POST') {
+      store.metric(projectId, 'interaction.map_status');
+      const outline = renderTree(loadMap(store, projectId), { ids: false }).slice(0, 20_000);
+      const r = await runMapStatus(store, projectId, outline);
+      if ('error' in r) return json({ error: r.error }, 502);
+      broadcast({ type: 'map_status' });
+      return json({ status: r });
+    }
     // M191: RECALL — the pull channel. The host agent fetches a node's card
     // (minimal view + current details), its neighborhood, or resolved evidence, on
     // demand instead of pre-paid in the injection. Server-guarded: obeys the
@@ -1833,7 +1848,13 @@ const server = Bun.serve({
     // Per-node chat memory (M41): read-only view for the detail panel.
     const memMatch = path.match(/^\/api\/nodes\/([\w-]+)\/memory$/);
     if (memMatch && req.method === 'GET') {
-      return json({ text: getNodeMemory(store, memMatch[1]) });
+      // M192b (Jacob: "all the information available when they click the
+      // node?"): the panel shows every layer the agents can see — the
+      // one-line view, the summary, and the dated remembered details
+      // (superseded ones included, marked). What the agent sees, the user
+      // sees (M20).
+      const card = getNodeCard(store, memMatch[1]);
+      return json({ text: card.medium, minimal: card.minimal, details: card.details });
     }
 
     // Suggested minimal title (M40): the detail panel offers it; user adopts.

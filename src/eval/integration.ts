@@ -1128,6 +1128,29 @@ console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
     check('legacy opt-out restores kind-tier serving', !/GGG/.test(av43b.text ?? '') || /titles:/.test(av43b.text ?? ''));
     await post('/api/dev/setting', { key: 'memory_serving', value: '' });
   }
+
+  // == 44. M192: map status — the structural specialist ==
+  console.log('\n== 44. map status (M192) ==');
+  {
+    const empty = await get('/api/map-status');
+    check('map status starts empty or carries a prior review', 'status' in empty);
+    const run = await post('/api/map-status', {});
+    check('map status review runs', run.status === 200 && !!run.body?.status?.health, run.body?.error);
+    const ms = run.body?.status;
+    check('review measured the map', (ms?.instruments?.nodes ?? 0) > 0);
+    check('review carries a standing opinion for the working agents', typeof ms?.opinion === 'string' && ms.opinion.length > 20);
+    check('review persists', !!(await get('/api/map-status')).status?.ts);
+    // the standing opinion reaches the tidy specialist — via dev traces
+    await post('/api/dev/toggle', {});
+    const s44 = await state();
+    const target44 = s44.nodes.find((n: any) => n.parentId === null && !(n.title === 'to sort' || n.content.startsWith('to sort')));
+    if (target44) {
+      await post('/api/reorganize/preview', { nodeId: target44.id });
+      const tr44 = (await get('/api/dev/traces?task=tidy')).traces?.[0];
+      check('tidy consults the structural opinion', !!tr44 && (tr44.user ?? '').includes('STRUCTURAL OPINION'));
+    }
+    await post('/api/dev/toggle', {});
+  }
 }
 
 console.log('\n== 13. audit ==');
