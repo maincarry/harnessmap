@@ -167,7 +167,7 @@ CREATE TABLE IF NOT EXISTS relations (
 -- separate table so rebuildProjection never wipes it.
 CREATE TABLE IF NOT EXISTS node_memory (
   node_id TEXT PRIMARY KEY,
-  text TEXT NOT NULL,
+  medium TEXT NOT NULL DEFAULT '',           -- the ≤150-word medium resolution (M41's digest)
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 -- (M191 adds a 'minimal' column via guarded ALTER in db.ts — the one-sentence

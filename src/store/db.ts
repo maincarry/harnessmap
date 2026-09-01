@@ -49,6 +49,8 @@ export class Store {
     const mcols = (this.db.prepare('PRAGMA table_info(node_memory)').all() as any[]).map((r) => r.name);
     if (mcols.length && mcols.includes('gist')) this.db.exec('ALTER TABLE node_memory RENAME COLUMN gist TO minimal');
     else if (mcols.length && !mcols.includes('minimal')) this.db.exec('ALTER TABLE node_memory ADD COLUMN minimal TEXT');
+    // Jacob's resolutions are minimal / medium / long — the old 'text' column IS the medium resolution.
+    if (mcols.length && mcols.includes('text')) this.db.exec('ALTER TABLE node_memory RENAME COLUMN text TO medium');
     const oldFacts = (this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='memory_facts'").get() as any);
     const newDetails = (this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='memory_details'").get() as any);
     if (oldFacts && !newDetails) this.db.exec('ALTER TABLE memory_facts RENAME TO memory_details');

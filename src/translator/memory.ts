@@ -14,7 +14,7 @@ import { call } from '../inference.js';
 // same call that folds in the new exchange).
 
 export interface MemoryDetail { id: number; text: string; date: string | null; status: string; prov: any }
-export interface NodeCard { minimal: string | null; details: MemoryDetail[]; summary: string | null }
+export interface NodeCard { minimal: string | null; details: MemoryDetail[]; medium: string | null }
 export interface RoundProv { session?: string | null; tool_use_ids?: string[]; paths?: string[]; urls?: string[] }
 
 const MINIMAL_CAP = 300; // Q2 (Mark): store-enforced hard cap, like title length.
@@ -47,12 +47,12 @@ function detailsFor(db: any, nodeId: string): MemoryDetail[] {
 }
 
 function renderExisting(db: any, nodeId: string): { text: string; currentIds: number[] } {
-  const row = (db.prepare('SELECT text, minimal FROM node_memory WHERE node_id = ?').get(nodeId) as any);
+  const row = (db.prepare('SELECT medium, minimal FROM node_memory WHERE node_id = ?').get(nodeId) as any);
   const details = detailsFor(db, nodeId).filter((f) => f.status === 'current');
   const lines = [
     `EXISTING MINIMAL VIEW: ${row?.minimal || '(none yet)'}`,
     details.length ? `EXISTING DETAILS:\n${details.map((f, i) => `  ${i + 1}. ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n')}` : 'EXISTING DETAILS: (none yet)',
-    `LEGACY MEMORY: ${row?.text || '(none yet)'}`,
+    `LEGACY MEMORY: ${row?.medium || '(none yet)'}`,
   ];
   return { text: lines.join('\n'), currentIds: details.map((f) => f.id) };
 }
@@ -62,8 +62,8 @@ function writeStructured(store: Store, nodeId: string, u: { memory?: string; min
   const blob = String(u.memory ?? '').trim();
   const minimal = String(u.minimal ?? '').trim().slice(0, MINIMAL_CAP);
   if (blob || minimal) {
-    db.prepare(`INSERT INTO node_memory (node_id, text, minimal, updated_at) VALUES (?, ?, ?, datetime('now'))
-                ON CONFLICT(node_id) DO UPDATE SET text = CASE WHEN excluded.text != '' THEN excluded.text ELSE node_memory.text END,
+    db.prepare(`INSERT INTO node_memory (node_id, medium, minimal, updated_at) VALUES (?, ?, ?, datetime('now'))
+                ON CONFLICT(node_id) DO UPDATE SET medium = CASE WHEN excluded.medium != '' THEN excluded.medium ELSE node_memory.medium END,
                                                    minimal = CASE WHEN excluded.minimal != '' THEN excluded.minimal ELSE node_memory.minimal END,
                                                    updated_at = datetime('now')`).run(nodeId, blob, minimal);
   }
@@ -116,20 +116,20 @@ export async function updateTouchedMemories(store: Store, nodeIds: string[], use
 // ---- readers ----
 
 export function getNodeMemory(store: Store, nodeId: string): string | null {
-  const r = ((store as any).db.prepare('SELECT text FROM node_memory WHERE node_id = ?').get(nodeId) as any);
-  return r?.text ?? null;
+  const r = ((store as any).db.prepare('SELECT medium FROM node_memory WHERE node_id = ?').get(nodeId) as any);
+  return r?.medium ?? null;
 }
 
 export function getNodeCard(store: Store, nodeId: string): NodeCard {
   const db = (store as any).db;
-  const row = (db.prepare('SELECT text, minimal FROM node_memory WHERE node_id = ?').get(nodeId) as any);
-  return { minimal: row?.minimal ?? null, details: detailsFor(db, nodeId), summary: row?.text ?? null };
+  const row = (db.prepare('SELECT medium, minimal FROM node_memory WHERE node_id = ?').get(nodeId) as any);
+  return { minimal: row?.minimal ?? null, details: detailsFor(db, nodeId), medium: row?.medium ?? null };
 }
 
 // Bulk forms for the composer's hot path (M190d: one query, never per-node).
 export function getAllNodeMemories(store: Store): Map<string, string> {
-  const rows = ((store as any).db.prepare('SELECT node_id, text FROM node_memory').all() as any[]);
-  return new Map(rows.map((r) => [r.node_id, r.text]));
+  const rows = ((store as any).db.prepare('SELECT node_id, medium FROM node_memory').all() as any[]);
+  return new Map(rows.map((r) => [r.node_id, r.medium]));
 }
 
 export function getAllMinimals(store: Store): Map<string, string> {
@@ -159,8 +159,8 @@ There is no new exchange — work purely from the existing memory. supersede is 
 export async function convertMemories(store: Store, batch = 20, nodeIds?: string[]): Promise<number> {
   const db = (store as any).db;
   const rows = nodeIds
-    ? nodeIds.map((id) => ({ node_id: id })).filter((r) => { const m = db.prepare("SELECT minimal FROM node_memory WHERE node_id = ? AND text != ''").get(r.node_id) as any; return m && !m.minimal; }).slice(0, batch)
-    : (db.prepare("SELECT node_id FROM node_memory WHERE (minimal IS NULL OR minimal = '') AND text != '' ORDER BY updated_at DESC LIMIT ?").all(batch) as any[]);
+    ? nodeIds.map((id) => ({ node_id: id })).filter((r) => { const m = db.prepare("SELECT minimal FROM node_memory WHERE node_id = ? AND medium != ''").get(r.node_id) as any; return m && !m.minimal; }).slice(0, batch)
+    : (db.prepare("SELECT node_id FROM node_memory WHERE (minimal IS NULL OR minimal = '') AND medium != '' ORDER BY updated_at DESC LIMIT ?").all(batch) as any[]);
   const nodes = rows.map((r) => store.getNode(r.node_id)).filter((n): n is NonNullable<typeof n> => !!n && n.status !== 'removed');
   if (!nodes.length) return 0;
   try {
@@ -168,7 +168,7 @@ export async function convertMemories(store: Store, batch = 20, nodeIds?: string
       task: 'memory', system: CONVERT_SYSTEM, maxTokens: 3000, schema: BATCH_SCHEMA as any, timeoutMs: 120_000,
       audit: (k, d) => store.audit(k, d),
       user: [
-        ...nodes.map((n) => `NODE [${n.id}]: ${n.type ? `${n.type}: ` : ''}${n.content}\nEXISTING MEMORY: ${(db.prepare('SELECT text FROM node_memory WHERE node_id = ?').get(n.id) as any)?.text ?? ''}`),
+        ...nodes.map((n) => `NODE [${n.id}]: ${n.type ? `${n.type}: ` : ''}${n.content}\nEXISTING MEMORY: ${(db.prepare('SELECT medium FROM node_memory WHERE node_id = ?').get(n.id) as any)?.medium ?? ''}`),
         'Restructure each.',
       ].join('\n\n'),
     });
@@ -192,8 +192,8 @@ export async function convertMemories(store: Store, batch = 20, nodeIds?: string
 export function setNodeMemory(store: Store, nodeId: string, text: string): void {
   const db = (store as any).db;
   if (text) {
-    db.prepare(`INSERT INTO node_memory (node_id, text, updated_at) VALUES (?, ?, datetime('now'))
-                ON CONFLICT(node_id) DO UPDATE SET text = excluded.text, updated_at = datetime('now')`).run(nodeId, text);
+    db.prepare(`INSERT INTO node_memory (node_id, medium, updated_at) VALUES (?, ?, datetime('now'))
+                ON CONFLICT(node_id) DO UPDATE SET medium = excluded.medium, updated_at = datetime('now')`).run(nodeId, text);
     store.metric(store.getNode(nodeId)?.projectId ?? null, 'memory.stored', text.length);
   }
 }

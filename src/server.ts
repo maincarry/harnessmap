@@ -1700,7 +1700,7 @@ const server = Bun.serve({
       if (!store.getNode(b2.nodeId)) return json({ error: 'unknown node' }, 404);
       const db2 = (store as any).db;
       if (b2.minimal !== undefined) {
-        db2.prepare(`INSERT INTO node_memory (node_id, text, minimal, updated_at) VALUES (?, '', ?, datetime('now'))
+        db2.prepare(`INSERT INTO node_memory (node_id, medium, minimal, updated_at) VALUES (?, '', ?, datetime('now'))
                      ON CONFLICT(node_id) DO UPDATE SET minimal = excluded.minimal, updated_at = datetime('now')`).run(b2.nodeId, String(b2.minimal).slice(0, 300));
       }
       for (const f of b2.details ?? []) {
