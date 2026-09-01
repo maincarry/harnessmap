@@ -8,76 +8,76 @@ import { call } from '../inference.js';
 // M191 (Mark): memory is STRUCTURED — a GIST (the required-current condensed
 // view of the topic) plus FACTS (dated, provenance-linked, individually
 // supersedable). The legacy blob stays dual-written until Stage 4; the
-// composer serves gists broadly and facts warmly. Every write path returns
+// composer serves minimal views broadly and details warmly. Every write path returns
 // all three; conversion of old blob-only memories happens lazily right here
 // (the existing blob is shown to the model, which restructures it in the
 // same call that folds in the new exchange).
 
-export interface MemoryFact { id: number; text: string; date: string | null; status: string; prov: any }
-export interface NodeCard { gist: string | null; facts: MemoryFact[]; blob: string | null }
+export interface MemoryDetail { id: number; text: string; date: string | null; status: string; prov: any }
+export interface NodeCard { minimal: string | null; details: MemoryDetail[]; summary: string | null }
 export interface RoundProv { session?: string | null; tool_use_ids?: string[]; paths?: string[]; urls?: string[] }
 
-const GIST_CAP = 300; // Q2 provisional: store-enforced, like title length.
+const MINIMAL_CAP = 300; // Q2 (Mark): store-enforced hard cap, like title length.
 
 const STRUCTURE_RULES = `Maintain THREE layers per node:
-- gist: 1-2 sentences (hard cap ~300 chars) stating the topic's CURRENT standing — the latest ruling wins; if a decision was reversed, the gist says what stands NOW. A gist describing an overturned state as live is a defect.
-- facts: durable specifics this exchange established about THIS node — a decision and its why, a number, an exact command, a quoted ruling. 0-3 per node per round, one tight sentence each, only what is worth recalling later. Never restate the gist; never file dialogue narration.
-- supersede: the numbers of EXISTING facts (as numbered in the input) that this exchange overturned or made obsolete.
+- minimal: 1-2 sentences (hard cap ~300 chars) stating the topic's CURRENT standing — the latest ruling wins; if a decision was reversed, it says what stands NOW. A minimal view describing an overturned state as live is a defect.
+- details: durable specifics this exchange established about THIS node — a decision and its why, a number, an exact command, a quoted ruling. 0-3 per node per round, one tight sentence each, only what is worth recalling later. Never restate the minimal view; never file dialogue narration.
+- supersede: the numbers of EXISTING details (as numbered in the input) that this exchange overturned or made obsolete.
 - memory: the legacy running digest of the conversation (what was asked, how it went, reactions) — integrate, don't append; ≤120 words; plain language.`;
 
-const BATCH_SYSTEM = `You maintain the memories of SEVERAL nodes on a goal map. You get the newest exchange and each node with its existing gist, numbered existing facts, and legacy memory. For each node, fold in ONLY what this exchange says about that node — different nodes take different things from the same exchange. If the exchange adds nothing for a node, return its layers unchanged (empty facts, empty supersede).
+const BATCH_SYSTEM = `You maintain the memories of SEVERAL nodes on a goal map. You get the newest exchange and each node with its existing minimal view, numbered existing details, and legacy memory. For each node, fold in ONLY what this exchange says about that node — different nodes take different things from the same exchange. If the exchange adds nothing for a node, return its layers unchanged (empty details, empty supersede).
 
 ${STRUCTURE_RULES}`;
 
 const BATCH_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['updates'],
   properties: { updates: { type: 'array', items: {
-    type: 'object', additionalProperties: false, required: ['id', 'memory', 'gist'],
+    type: 'object', additionalProperties: false, required: ['id', 'memory', 'minimal'],
     properties: {
-      id: { type: 'string' }, memory: { type: 'string' }, gist: { type: 'string' },
-      facts: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['text'], properties: { text: { type: 'string' }, date: { type: 'string' } } } },
+      id: { type: 'string' }, memory: { type: 'string' }, minimal: { type: 'string' },
+      details: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['text'], properties: { text: { type: 'string' }, date: { type: 'string' } } } },
       supersede: { type: 'array', items: { type: 'integer' } },
     },
   } } },
 } as const;
 
-function factsFor(db: any, nodeId: string): MemoryFact[] {
-  return (db.prepare("SELECT id, text, fact_date, status, prov FROM memory_facts WHERE node_id = ? ORDER BY id").all(nodeId) as any[])
+function detailsFor(db: any, nodeId: string): MemoryDetail[] {
+  return (db.prepare("SELECT id, text, fact_date, status, prov FROM memory_details WHERE node_id = ? ORDER BY id").all(nodeId) as any[])
     .map((r) => ({ id: r.id, text: r.text, date: r.fact_date, status: r.status, prov: JSON.parse(r.prov || '{}') }));
 }
 
 function renderExisting(db: any, nodeId: string): { text: string; currentIds: number[] } {
-  const row = (db.prepare('SELECT text, gist FROM node_memory WHERE node_id = ?').get(nodeId) as any);
-  const facts = factsFor(db, nodeId).filter((f) => f.status === 'current');
+  const row = (db.prepare('SELECT text, minimal FROM node_memory WHERE node_id = ?').get(nodeId) as any);
+  const details = detailsFor(db, nodeId).filter((f) => f.status === 'current');
   const lines = [
-    `EXISTING GIST: ${row?.gist || '(none yet)'}`,
-    facts.length ? `EXISTING FACTS:\n${facts.map((f, i) => `  ${i + 1}. ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n')}` : 'EXISTING FACTS: (none yet)',
+    `EXISTING MINIMAL VIEW: ${row?.minimal || '(none yet)'}`,
+    details.length ? `EXISTING DETAILS:\n${details.map((f, i) => `  ${i + 1}. ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n')}` : 'EXISTING DETAILS: (none yet)',
     `LEGACY MEMORY: ${row?.text || '(none yet)'}`,
   ];
-  return { text: lines.join('\n'), currentIds: facts.map((f) => f.id) };
+  return { text: lines.join('\n'), currentIds: details.map((f) => f.id) };
 }
 
-function writeStructured(store: Store, nodeId: string, u: { memory?: string; gist?: string; facts?: { text: string; date?: string }[]; supersede?: number[] }, shownIds: number[], prov: RoundProv): void {
+function writeStructured(store: Store, nodeId: string, u: { memory?: string; minimal?: string; details?: { text: string; date?: string }[]; supersede?: number[] }, shownIds: number[], prov: RoundProv): void {
   const db = (store as any).db;
   const blob = String(u.memory ?? '').trim();
-  const gist = String(u.gist ?? '').trim().slice(0, GIST_CAP);
-  if (blob || gist) {
-    db.prepare(`INSERT INTO node_memory (node_id, text, gist, updated_at) VALUES (?, ?, ?, datetime('now'))
+  const minimal = String(u.minimal ?? '').trim().slice(0, MINIMAL_CAP);
+  if (blob || minimal) {
+    db.prepare(`INSERT INTO node_memory (node_id, text, minimal, updated_at) VALUES (?, ?, ?, datetime('now'))
                 ON CONFLICT(node_id) DO UPDATE SET text = CASE WHEN excluded.text != '' THEN excluded.text ELSE node_memory.text END,
-                                                   gist = CASE WHEN excluded.gist != '' THEN excluded.gist ELSE node_memory.gist END,
-                                                   updated_at = datetime('now')`).run(nodeId, blob, gist);
+                                                   minimal = CASE WHEN excluded.minimal != '' THEN excluded.minimal ELSE node_memory.minimal END,
+                                                   updated_at = datetime('now')`).run(nodeId, blob, minimal);
   }
   for (const n of u.supersede ?? []) {
     const fid = shownIds[n - 1];
-    if (fid !== undefined) db.prepare("UPDATE memory_facts SET status = 'superseded' WHERE id = ? AND node_id = ?").run(fid, nodeId);
+    if (fid !== undefined) db.prepare("UPDATE memory_details SET status = 'superseded' WHERE id = ? AND node_id = ?").run(fid, nodeId);
   }
   const provJson = JSON.stringify(prov ?? {});
-  for (const f of (u.facts ?? []).slice(0, 3)) {
+  for (const f of (u.details ?? []).slice(0, 3)) {
     const text = String(f.text ?? '').trim();
-    if (text) db.prepare('INSERT INTO memory_facts (node_id, text, fact_date, prov) VALUES (?, ?, ?, ?)').run(nodeId, text.slice(0, 400), f.date ?? null, provJson);
+    if (text) db.prepare('INSERT INTO memory_details (node_id, text, fact_date, prov) VALUES (?, ?, ?, ?)').run(nodeId, text.slice(0, 400), f.date ?? null, provJson);
   }
   const projectId = store.getNode(nodeId)?.projectId ?? null;
-  store.metric(projectId, 'memory.stored', blob.length + gist.length + (u.facts ?? []).reduce((s, f) => s + (f.text?.length ?? 0), 0));
+  store.metric(projectId, 'memory.stored', blob.length + minimal.length + (u.details ?? []).reduce((s, f) => s + (f.text?.length ?? 0), 0));
 }
 
 export async function updateNodeMemory(store: Store, nodeId: string, userText: string, assistantText: string, prov: RoundProv = {}): Promise<void> {
@@ -122,8 +122,8 @@ export function getNodeMemory(store: Store, nodeId: string): string | null {
 
 export function getNodeCard(store: Store, nodeId: string): NodeCard {
   const db = (store as any).db;
-  const row = (db.prepare('SELECT text, gist FROM node_memory WHERE node_id = ?').get(nodeId) as any);
-  return { gist: row?.gist ?? null, facts: factsFor(db, nodeId), blob: row?.text ?? null };
+  const row = (db.prepare('SELECT text, minimal FROM node_memory WHERE node_id = ?').get(nodeId) as any);
+  return { minimal: row?.minimal ?? null, details: detailsFor(db, nodeId), summary: row?.text ?? null };
 }
 
 // Bulk forms for the composer's hot path (M190d: one query, never per-node).
@@ -132,13 +132,13 @@ export function getAllNodeMemories(store: Store): Map<string, string> {
   return new Map(rows.map((r) => [r.node_id, r.text]));
 }
 
-export function getAllGists(store: Store): Map<string, string> {
-  const rows = ((store as any).db.prepare("SELECT node_id, gist FROM node_memory WHERE gist IS NOT NULL AND gist != ''").all() as any[]);
-  return new Map(rows.map((r) => [r.node_id, r.gist]));
+export function getAllMinimals(store: Store): Map<string, string> {
+  const rows = ((store as any).db.prepare("SELECT node_id, minimal FROM node_memory WHERE minimal IS NOT NULL AND minimal != ''").all() as any[]);
+  return new Map(rows.map((r) => [r.node_id, r.minimal]));
 }
 
-export function getAllCurrentFacts(store: Store): Map<string, { text: string; date: string | null }[]> {
-  const rows = ((store as any).db.prepare("SELECT node_id, text, fact_date FROM memory_facts WHERE status = 'current' ORDER BY id").all() as any[]);
+export function getAllCurrentDetails(store: Store): Map<string, { text: string; date: string | null }[]> {
+  const rows = ((store as any).db.prepare("SELECT node_id, text, fact_date FROM memory_details WHERE status = 'current' ORDER BY id").all() as any[]);
   const out = new Map<string, { text: string; date: string | null }[]>();
   for (const r of rows) {
     const a = out.get(r.node_id);
@@ -148,7 +148,7 @@ export function getAllCurrentFacts(store: Store): Map<string, { text: string; da
   return out;
 }
 
-// M191 migration: restructure legacy blob-only memories into gist + facts.
+// M191 migration: restructure legacy blob-only memories into minimal + details.
 // Boot sweep covers the most recently active nodes; everything else converts
 // lazily the next time updateTouchedMemories touches it (the batch call
 // always regenerates the full structure). Off the hot path, batched cheap.
@@ -159,8 +159,8 @@ There is no new exchange — work purely from the existing memory. supersede is 
 export async function convertMemories(store: Store, batch = 20, nodeIds?: string[]): Promise<number> {
   const db = (store as any).db;
   const rows = nodeIds
-    ? nodeIds.map((id) => ({ node_id: id })).filter((r) => { const m = db.prepare("SELECT gist FROM node_memory WHERE node_id = ? AND text != ''").get(r.node_id) as any; return m && !m.gist; }).slice(0, batch)
-    : (db.prepare("SELECT node_id FROM node_memory WHERE (gist IS NULL OR gist = '') AND text != '' ORDER BY updated_at DESC LIMIT ?").all(batch) as any[]);
+    ? nodeIds.map((id) => ({ node_id: id })).filter((r) => { const m = db.prepare("SELECT minimal FROM node_memory WHERE node_id = ? AND text != ''").get(r.node_id) as any; return m && !m.minimal; }).slice(0, batch)
+    : (db.prepare("SELECT node_id FROM node_memory WHERE (minimal IS NULL OR minimal = '') AND text != '' ORDER BY updated_at DESC LIMIT ?").all(batch) as any[]);
   const nodes = rows.map((r) => store.getNode(r.node_id)).filter((n): n is NonNullable<typeof n> => !!n && n.status !== 'removed');
   if (!nodes.length) return 0;
   try {
@@ -200,5 +200,5 @@ export function setNodeMemory(store: Store, nodeId: string, text: string): void 
 
 export function clearNodeMemory(store: Store, nodeId: string): void {
   (store as any).db.prepare('DELETE FROM node_memory WHERE node_id = ?').run(nodeId);
-  (store as any).db.prepare('DELETE FROM memory_facts WHERE node_id = ?').run(nodeId);
+  (store as any).db.prepare('DELETE FROM memory_details WHERE node_id = ?').run(nodeId);
 }

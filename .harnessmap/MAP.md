@@ -13,101 +13,196 @@ HOW THE FOCUS FITS (its place among parents and children):
   This is a complete, standalone goal map—it doesn't contribute to anything larger, and has no sub-goals beneath it. It stands alone as the full structure you're working with.
 
 BACKGROUND (lit by the user as reference):
-  titles:
+  (each topic at the detail the room allows — fuller near your focus)
   - Modification Log
+      (MODLOG.md — 'Modification log — Jacob's design/change requests'. Every modification point Jacob raised, in order, with status. Each new request gets a numbered entry (Mn) when it lands. Requested in M31: 'keep a log of each and all of my modification points.' Source is a large document imported in 5 chunks; this is chunk 1 covering M1-M83 plus standing rules.)
     - v0.2 — 9-point critique
+        (MODLOG.md '## v0.2 era — the 9-point critique (2026-08-13)'. Nine foundational fixes M1-M9, all shipped in v0.2.)
       - Two-way map
+          (M1 — Two-way map: agent must RECEIVE the map every turn, not just write. ✅ v0.2 (composeState every turn).)
       - Capture everything
+          (M2 — Capture everything: no commitment floor; tentative thinking lands as `exploratory`. ✅ v0.2.)
       - Integrate not append
+          (M3 — Integrate, don't append ('fatal' flaw): per-round sticky integration into the goal tree. ✅ v0.2. This principle recurs (see M41 node-memory, M67 filing rules).)
       - Hierarchical lighting
+          (M4 — Hierarchical lit: lighting a parent lights its descendants. ✅ v0.2.)
       - Focus not lit
+          (M5 — Focus ≠ lit: separate controls, separate meanings. ✅ v0.2.)
       - Map legend
+          (M6 — Legend explaining the map's marks. ✅ v0.2 (the `?` button). Later refreshed in M83.)
+      • Map legend: M6: a legend explaining the map's marks — the `?` button. [task, resolved]
       - Auto-fold branches
+          (M7 — Auto-fold non-focus branches. ✅ v0.2.)
       - Tidy flow
+          (M8 — Reorganize/tidy: confirm target → proposal → before/after preview → apply/cancel. ✅ v0.2, resolved (a)+(i). Basis for the whole tidy lane later refined in M69, M70, M72, M76.)
         - M122 — Tidy top level
+            (Jacob 2026-08-23, follow-through on jurisdiction-gap ("agents not capable of achieving proposal they themselves proposed — why?"). Top level now a tidy target. ⟳ tidy top level (in ⋯ other) runs propose→approve with nodeId=null → ROOT SCOPE: tidy agent sees every top-level thread (+2 levels, M72 depth protections intact) and ONLY here holds license to create top-level domain containers (create_node parentId null) and move top-level threads under them. 'to sort' tray = system infrastructure, not writable, ops filtered. Create filter now scope-aware: subtree tidies can't create parentless nodes at all (guards-not-p)
           - M122b — Modal crash fix
+              (Jacob bug report 2026-08-23: "The tidy proposal is not showing any proposal." Real crash: M121's before/after walk called .join('') on a recursive call already returning a string — template IIFE threw, killing whole modal after fetch. Caught by rendering the REAL playground proposal through extracted modal code in a headless harness; fixed (drop stray .join); both subtree and root scopes render. Lesson: parse checks don't execute template IIFEs — render-test UI code paths with real data before shipping. Provenance: MODLOG M122b.)
       - Upward propagation
+          (M9 — Upward propagation: parent names follow their children's drift. ✅ v0.2.)
     - v0.3 — one conversation + zoom
+        (MODLOG.md '## v0.3 era — one conversation + zoom (2026-08-14)'. Covers M10-M28: single conversation, map-as-memory, zoom lane, auto-light, manage panel, agent's view, auto-naming, no-manual-edit ruling, suggestion dots, bug fixes.)
       - One conversation
+          (M10 — One map, one conversation; chat list dissolved; '+' creates nodes. ✅ v0.3.)
       - Map-as-memory
+          (M11 — Map-as-memory (option b): agent context = map + rolling window, no perpetual session. ✅ v0.3. Core architectural anchor — the map is storage, the agent is stateless.)
       - Tidy hang bug
+          (M12 — Bug: tidy hangs silently at 'preparing…'. ✅ v0.3 (90s timeout + visible error).)
       - Focus button bug
+          (M13 — Bug: focus buttons ineffective, no confirmation stage. ✅ v0.3 (confirm + optimistic UI + server restart).)
       - Zoom lane
+          (Zoom introduced across M14-M16 (Z1/Z2/Z3) in v0.3.1, later brought to full consistency in M82. Zoom dims everything outside the subtree; zoomed view shows only the subtree; focus shift only SUGGESTED, not forced.)
         - Dedicated zoom button
+            (M14 — Z1 (ii): dedicated zoom button, not name-click; tidy up clumsy row buttons. ✅ v0.3.1.)
         - Zoom operational
+            (M15 — Z2: zoom is operational — dims everything outside the subtree; *correction:* focus shift only SUGGESTED. ✅ v0.3.1. A basis for the suggest-then-confirm standing rule.)
         - Zoom shows subtree
+            (M16 — Z3 (i): zoomed view shows only the subtree. ✅ v0.3.1.)
         - Zoom out
+            (M30b — Zoom OUT to the immediate parent node. ✅ v0.4.1 (↑ zoom out).)
       - Auto-light
+          (M17 — Map agent recommends and implements lighting (auto-light). ✅ v0.3.1.)
       - Manage panel
+          (M18 — Manage panel governs focus AND lit. ✅ v0.3.1.)
       - Auto-focus and auto-zoom
+          (M19 — Auto-light in manage panel; add auto-focus and auto-zoom (confirm before implement). ✅ v0.3.2. Suggest-then-confirm basis for the attention lanes.)
       - Agent's view
+          (M20-M21: transparency of the agent context. M20 added the 'agent's view' button; M21 kept it legible at scale. This is the basis for the standing rule 'what the agent sees, the user can see.')
         - See agent context
+            (M20 — The user should see the full map description the agent gets; add a button. ✅ v0.3.2 ('agent's view').)
         - Structural caps + token budget
+            (M21 — Agent's view gets ugly as the map expands → approved (a) structural caps + (b) token budget. ✅ v0.3.3. Includes a visible-omission rule.)
       - Auto-naming
+          (M22 — Auto-naming: never force naming; name from the conversation like Claude/GPT. ✅ v0.3.4. Refined in M34, M36, M37, M40, M68, M83.)
       - No manual editing
+          (M23 — Scope ruling: NO manual map editing in MVP (no move/rename/wrap-selection) — bare minimum, automated map — 📌 STANDING. The filer suggests (M24), never acts. Users later got limited triage verbs on to-sort children (M52) as an explicit exception.)
       - Filer never restructures
+          (M24 — 'Genuine necessity' ill-defined → filer never restructures; red-dot suggestion, user decides, dot dismissable. ✅ v0.3.5. Suggest-then-confirm anchor.)
       - Demand suggestions button
+          (M25 — How frequent are suggestions? + button to demand suggestions or get 'well done, your map is clean!' ✅ v0.3.6 (● check map, later renamed ● tidy map in M72).)
       - Merge duplicates bug
+          (M26 — Bug: merge leaves duplicates; suggestions don't guarantee solutions. ✅ v0.3.7 (zombie-status root cause + hint-scope + mandatory merge procedure).)
       - No delete button
+          (M27 — Bug: no topic delete button. ✅ v0.3.7.)
       - Duplicate delete buttons
+          (M28 — Two identical delete buttons → fix inconsistency. ✅ v0.3.7b (then dissolved entirely by v0.4's single node `del`).)
     - Nodes all the way down
+        (MODLOG.md '## v0.4 era — nodes all the way down (2026-08-14)'. Covers M29-M48. The 'major major flaw' fix: no topic/item split, only nodes and sub-nodes, zoom on anything. Event-sourced migration. Then rich node state (title/content/fit/memory), tree guide lines, and the light-is-the-law arc.)
       - Everything is a node
+          (M29 — 'Major major flaw': no topic/item split — only nodes and sub-nodes; zoom on anything. N1: node = type + ancestors + children (+ artifacts later); statuses stay non-fixed; artifacts deferred. ✅ v0.4 (true rewrite, event-sourced migration). Foundational — 'everything is a node' becomes a standing rule.)
       - Clean-chat button
+          (M30a — Clean-chat button in the chat screen. ✅ v0.4.1. Clean-chat later ruled a VIEW function (M42/W2).)
       - Row buttons
+          (M32-M35 cleaned up node-row buttons. Final row ops after M33: zoom · ▶ · ☀ · + · tidy · del. Manual status buttons (✓ ‖ ✗) dropped entirely — statuses are the automated map's job.)
         - Idle buttons
+            (M32 — Clean up node row buttons — some are idle. ✅ v0.4.1 (first pass: contextual hiding).)
         - Drop manual status
+            (M33 — (1) ▶ should LIGHT UP on the focused node (always visible, accent), not disappear; (2) drop ✓ ‖ ✗ manual status buttons — statuses are the automated map's job (consistent with M23/M24); say it in conversation instead. ✅ v0.4.1 (row ops: zoom · ▶ · ☀ · + · tidy · del).)
         - Instant node creation
+            (M34 — '+' still asks for a name → auto-naming not felt. ✅ v0.4.1 (name prompt removed: + creates the node instantly; the map names it, click its text to rename manually).)
         - Add ≠ zoom
+            (M35 — Add node ≠ zoom in. ✅ v0.4.1 (adding never changes the view; the one confirm is about focus only; zoom stays its own gesture).)
       - Rich node state
+          (M36-M44 built up node state: title vs content split (M36), simpler auto-titles + detail modal (M37), relational 'how it fits' (M38), self-contained descriptions + op-time estimates (M39), auto-naming bug fixes (M40), node chat MEMORY (M41), second-place conversation memory harness (M42), machine-memories read-only ruling (M43), conversation-shaped focus summary (M44).)
         - Title vs content
+            (M36 — Node titles too long — separate title from description. ✅ v0.4.2 (nodes carry `title` = short display label + `content` = full statement; map shows titles, agent reads full content; filer titles every new node and refreshes stale ones; existing long nodes backfilled).)
         - Minimal titles + detail modal
+            (M37 — (1) auto-naming aims at MINIMUM simple wording (2-4 plain words, 'how you'd say it out loud', drop nuance rather than cram); (2) descriptions must be visible — click a node to see and edit title + description. ✅ v0.4.2 (detail modal; whole map retitled).)
         - How it fits
+            (M38 — Relational description per node: how it fits its surroundings, auto-updated as they change; scope 2 up / 2 down (Jacob); agent receives it in context; guides reorganization. ✅ v0.4.3 (lazy + neighborhood-hash cache — scales at any size; 'How it fits' in detail panel; HOW THE FOCUS FITS in agent context, warmed async ≤1 round behind; tidy gets relational notes as misplacement clues).)
         - Richer descriptions + opWatch
+            (M39 — (1) descriptions self-contained (numbers, names, reasons, WHY); (2) 'how it fits' 1-3 tight sentences, no filler; principle: informative first, compact second, never ugly at scale; (3) ops likely to exceed 1 minute warn beforehand with estimated time. ✅ v0.4.4 (prompt updates + opWatch: every model-backed button shows size-based estimate, pre-warns when >60s, escalates the status line past a minute).)
         - Auto-naming fixes
+            (M40 — (1) bug: auto-naming gives full description or stays blank → untitled duty sets BOTH informative content AND minimal title, whole-map untitled sweep every round; (2) clicking a node offers a suggested auto-rename with 'use this' adopt button; (3) bug: highlights invisible → recency was in-memory, reset on restart; now derived from persisted updated_at stamps; (4) category editable in node panel. ✅ v0.4.5. Also: M39's richer-description rule regressed the translator gate to 9/13 (park-all session-mood bug); anti-park-all check moved into per-round instruction → gate back to 11/13, 0 errors.)
         - Node chat memory
+            (M41 — Node state = THREE descriptions: description, fit, and chat MEMORY (a record of conversation conducted while the node was focus). ✅ v0.4.6 (node_memory table; merged async after each round by a digest model, ≤150 words, integrate-don't-append; shown read-only in the node panel; fed to agent as FOCUS MEMORY when focused — per-node memory deeper than the rolling turn window).)
         - Two-memory harness
+            (M42 — Small-talk problem: two memories — map memory is guide, conversational memory second-place, harness-style (not a schematized extractor; Jacob), because the SDK's own compaction can't be steered. Window 10→20 verbatim turns + rolling ~150-word summary of scrolled-out turns. P1 write-time dedupe (map-covered material excluded), P2 removals die in the summary (removal notices fed to the folder), P3 read-time subordination ('on any conflict the map wins'). Clean-chat is a VIEW function (Jacob's W2 ruling): the summary survives cleans and absorbs the turns a clean cuts. ✅ v0.4.7.)
         - Memories read-only
+            (M43 — User should not be allowed to edit the focus summary. ✅ already true (all machine-maintained memories — node chat memory, 'how it fits', the second-place conversation summary — are display-only; the harness is their only writer. User-editable: title, description, category). 📌 recorded as a standing ruling.)
         - Conversation summary structure
+            (M44 — Focus/chat summary should be a CONVERSATION summary, not content-only: what the user asked, how the agent responded, how the user seemed to take it — content as the spine. ✅ v0.4.8 (node-memory digest prompt rewritten around the dialogue shape + reaction trail).)
       - Tree guide lines
+          (M45 — UI hierarchy unclear → grilled with samples; Jacob chose A: tree guide lines. ✅ v0.4.9 (vertical guides connect children to parents at every depth, file-explorer style).)
       - Lit privilege ladder
+          (M46 — Lit should mean more now nodes are enriched: a lit node's background payload = full DESCRIPTION (no fit — Jacob; no chat memory — focus-only privilege). Privilege ladder: focus = everything · lit = knowledge minus conversation · elsewhere = one line · dark = nothing. Lit families render indented under their parent. ✅ v0.4.10.)
     - Keep this log
+        (M31 — Keep a log of each and all modification points. ✅ v0.4.1 (this file, MODLOG.md). The origin of the modification log itself.)
     - Light is the law
+        (M47 conceptual anchor (Jacob): the map is storage, the map agent is a stateless worker; the user's light is the floor, the agent manages its reading above it. Covers M47-M56: the light-as-law arc, to-sort folder, triage verbs, agent-assisted placement. v0.5 era, 2026-08-15/16.)
       - Light bounds writes
+          (M47 — Zoom scope arc → 'the light is the law' (v0.5): no creation outside the light; map agent's reading = chat agent's floor (dim = top-level one-liners) + expansion-on-demand (≤3 branches, one re-run, READ-only); writes bounded by the user's light via server-side guard (out-of-light creations → top-level 'to sort' with provenance + amber re-light suggestion; root creations count as out-of-light; dim updates dropped); re-light is fit-checking, separate from moving; 'to sort' pinned in zoomed view; tools (tidy/check/auto-*) unaffected. ✅ v0.5, gate 12/13 (best), e2e 12/12.)
       - Test-drive fixes
+          (M48 — (1) node references in chat markers use TITLES not descriptions (Jacob); (2) fold caret enlarged; (3) overlong auto-titles (>64 chars) rejected at the store — previous good title kept; (4) orphaned-focus bug (tidy-apply deletions had no focus rescue) → focus validates on every state build; (5) relight notes without a created node get one synthesized into 'to sort'; (6) to-sort integration reliable: deterministic server-side PENDING INTEGRATION injection fires when a suggested home becomes writable, amber notes auto-close when node finds a home. ✅ v0.5.1.)
       - No harness narration
+          (M49 — Bug (Jacob's 'What on earth???'): chat agent refused a breakfast question ('not really my lane') and narrated harness mechanics ('the map's focus is on a new node you just created…') — composed instructions said 'advance the FOCUS' with nothing licensing normal conversation. Fixed: the map guides WORK priorities, never refuses casual/personal asks, never redirects to the map, never narrates harness state (no meta-speak about focus/nodes/context blocks). ✅ v0.5.2, verified.)
       - No dignity threshold
+          (M50 — Jacob overruled the work/small-talk boundary: the map has NO topic dignity threshold. Whatever the user is deliberating IS map material (breakfast = question + options + choice, same as a thesis); only pure dialogue mechanics (greetings, acks, pleasantries, harness meta-talk) produce nothing. ✅ v0.5.3, verified: breakfast becomes a 'breakfast choice' topic in 'to sort' with options; gate 11/13, 0 errors. Later reframed as 'topic map' in M73.)
       - to-sort folder
+          ('to sort' is the system dumpster/parking-garage (Mark's phrase, M61): capture without structural claim, promotion by re-mention/place/promote. Governed by M51 (system folder, uneditable), M52 (exit verbs), M53-M55 (agent-assisted place, cycle guards, subtree-follows), M56 (bottom-pinned).)
         - System folder
+            (M51 — 'to sort' is a system folder: name/description/category not editable (server rejects + info modal instead of the edit panel, which also explains the three ways out). ✅ v0.5.4.)
         - Exit verbs
+            (M52 — To-sort items always have an exit: '↖ place' (pick any destination from a tree picker) and '★ promote' (become a top-level topic) on every to-sort child — user triage verbs, restricted to to-sort children (general manual moving stays out per M23); provenance stripped on the way out; amber notes auto-close. ✅ v0.5.5.)
         - Agent-assisted place
+            (M53 — 'place' is agent-assisted (Jacob: 'the map agent should search and fetch home for it'): picker first shows the map agent's candidate homes with reasons (whole-map search — user-invoked tool, lighting-unaffected); full-map browse collapses to a fallback; promote remains the no-home answer. ✅ v0.5.6.)
         - Place cycle guard
+            (M54 — 'place' destinations exclude the item's own subtree (cycle guard) and anything inside 'to sort' — enforced in server guard, browse picker, and suggest-home filter. ✅ v0.5.7.)
         - One topic one subtree
+            (M55 — 'place all subnodes with it': children ALWAYS follow a place (moving a node carries its subtree). The real gap: the filer scattered one deliberation as to-sort SIBLINGS → new rule: one deliberation = ONE subtree in 'to sort', provenance once on the topic node. ✅ v0.5.8. Reframed 'deliberation'→'topic' in M73.)
         - Bottom-pinned
+            (M56 — 'to sort' always renders at the BOTTOM of the whole-map view (already bottom-pinned in zoomed view). ✅ v0.5.9.)
         - M123 — To-sort permanence
+            (Jacob 2026-08-23 bug batch. TO-SORT VANISHED: tidy apply removed the tray itself (map_events seq 177, source reorganize). Ruling: to-sort always present as pinned system node even if empty. (1) store guard skips any update/move targeting live top-level to-sort from every source; (2) ensureToSort(pid) idempotent at boot + project creation; (3) delete endpoint refuses to-sort with 409; (4) tray row hides ✕ ⇢ ↖ ⟳. Adoption predicate: system tray doesn't count as content for pristine check. FOCUS ORPHANS: delete/reorganize-apply now rescue EVERY chat of project (to parent, else surviving top-level); merge already did)
     - v0.6 — Claude Code plugin
+        (MODLOG.md M57-M62 (M57 spike, M58 real plugin, M59 delta injection, M60 push+pull, M61 playground). Plugin package hooks into native Claude Code: SessionStart, UserPromptSubmit, Stop, PreCompact. Green-lit by both principals Mark + Jacob.)
       - Plugin spike
+          (M57 — Plugin spike, PROVEN end-to-end on native Claude Code, headless: (1) Stop hook → /api/harness/observe → filer filed a real CC round into a clean topic tree; (2) fresh session + UserPromptSubmit additionalContext → full recall including status nuance ('a proposal, not locked in'); (3) dim + focus-shift → new native session honestly lacked branch details (name + count only), constraints floor intact by design. Fixed: ELSEWHERE's folded one-liner leaked full node description → now name-only. Adapter surface: POST /api/harness/observe, GET /api/harness/context, hooks in src/spike/cc-plugin/. ✅ spike, strategy g)
       - Real CC plugin
+          (M58 — The real Claude Code plugin (both principals green-lit): `plugin/` package (.claude-plugin manifest + hooks.json + four hooks: SessionStart = node↔session indexing + map-core auto-start; UserPromptSubmit = per-turn map injection; Stop = observe; PreCompact = map-aware compaction instructions); server adapter hardened — server-side transcript slicing by last-observed uuid (harness-adapter.ts), harness_sessions index, provenance table capturing message uuids + tool_use_ids + file paths + urls per round. Verified with a REAL tool-use round (Read's tool_use_id + exact file path in provenance). Deferred: freshne)
       - Delta injection
+          (M59 — Mark's snapshot-accumulation concern (injections persist in append-only transcript → every turn stacks a full snapshot): fixed with DELTA INJECTION — full map block once per session, then only changes since the anchored map-event seq (often nothing: zero tokens), user-action notices folded in; PostCompact hook re-anchors so the turn after compaction re-injects the full block. Verified: full → null → small delta → full-after-compaction. ✅ v0.6.1.)
       - Push + pull awareness
+          (M60 — PUSH = injections (full block once/session, deltas after) with bounded-reconstruction re-anchor (full re-injected after N=15 accumulated changes); PULL = .harnessmap/MAP.md written into every active host project on map change (same lighting keyhole), pointed at by the full-block header and every delta notice — agent Reads on demand, CC's micro-compaction self-cleans old reads. CLAUDE.md ruled out for state (loaded once per session). Verified: file created on session-start, refreshed on change, delta pointer present, threshold re-anchor fires, real session consulted the file. ✅ v0.6.2.)
       - New-topic guarantee
+          (M61 — Playground feedback (Mark+Jacob live): (1) map UI shows host-session life ('message received — agent is replying…' + 'filing the round onto the map…'); (2) weather-topic miss (filer SAW an unrelated topic and filed nothing) → NEW-TOPIC GUARANTEE: any topic absent from the map leaves ≥1 node, however transient (weather → question[answered] in 'to sort'); only pure mechanics produce nothing; (3) guarantee re-triggered park-all regression (gate 9/13) → MECHANICAL GUARD: >6 same-status-only flips in one round capped at 6. Gate 10/13, 0 errors. Ruling: Mark's 'dumpster/parking garage' = 'to sort'; per-NEW-TOPIC )
     - v0.7 — filer & inference
+        (MODLOG.md M63-M70. Filer design rulings (Mark), inference backend abstraction, seven-type vocabulary, fleet testing, born-lit nodes, Nest bug fixes, title self-heal, conversational tidy, tidy latency. Note: M62 not present in the log (numbering skips 62).)
       - Filer design rulings
+          (M63 — D1: rich assistant-side capture KEPT ('I feel like I have an assistant keeping track of everything'; predefined-type-vocabulary parked — Jacob earlier ruled FOR open vocab, needs reconciling). D2: inference backend abstraction (src/inference.ts): 'subscription' DEFAULT (Agent SDK, tools off, 1 turn — inherits CC auth incl OAuth; strict-JSON prompt + parse + 1 retry) with HARNESSMAP_INFERENCE=api opt-in (direct SDK, enforced json_schema); all 9 model modules routed through it. D3: model tiering — cheap model per-round, HARNESSMAP_SMART_MODEL (sonnet) for tidy + mapcheck. D4: dashboards deferred, audit_log ta)
       - Seven-type vocabulary
+          (M64 — Type vocabulary settled (Mark, reconciling Jacob's open-vocab ruling): FILER labels from a fixed set of seven (claim/question/option/decision/constraint/evidence/task; headings untyped; exploratory musings = claim/question + exploratory) — schema-enum-enforced on api, prompt-enforced + guard-coerced (audited offlist_type) on subscription; USERS retype any node to any word freely. Consistent machine labeling for future fine-tuning; product openness preserved. Gate 10/13, 0 errors. ✅ v0.7.1.)
       - Fleet test
+          (M65 — Filer fleet test (Mark: 20 rounds, own project each, diverse personas): src/eval/fleet.ts — 20 scenarios (PhD/founder/parent/novelist/coach/lawyer/teacher/gamer/retiree/engineer/musician/applicant/landlord/chef/traveler/student/scientist/shopper/self-improver/organizer). Two api runs (37/42, 36/42 ≈ 87%) + subscription spot-checks (~7s/round, guard caught offlist type). REAL BUG: model reusing a short id for two creates minted the same uuid → second node lost (UNIQUE) — normalizeIds re-mints on repeated creates. Weaknesses: (1) exploratory self-doubt capture ~50% flaky (evidence for two-pass filer); (2) cho)
       - Born lit
+          (M66 — New nodes are born LIT (Jacob): every created node (filer rounds, user '+', tidy applies, guard-synthesized to-sort arrivals) auto-lights; the user dims deliberately rather than lighting deliberately. Softens fresh-map UX from the fleet report (to-sort births visible to the agent). ✅ v0.7.3.)
       - Nest bug fixes
+          (M67 — Jacob's Nest bug ('why isn't it generating more nodes under google nest?'): filer (1) compressed the agent's multi-fact answer into one blob, (2) placed it as a SIBLING of the Nest option instead of under it, (3) once created a node narrating the dialogue ('User asked for more detail…'). Two new rules: INFO EXPANSION (a 'tell me more about X' round files each distinct fact as its own child UNDER X, merged with existing children) and NODES STATE FACTS, NEVER NARRATE THE DIALOGUE. Bench: 5 fact-children under the Nest profile, 0 narration nodes. ✅ v0.7.4.)
       - Title self-heal
+          (M68 — Titles ≤6 words, broken names ALWAYS self-heal (Jacob): store rejects titles over 6 words/64 chars (audited); a healer sweep (boot + after every round, ≤5 nodes/sweep, off the hot path) auto-titles any node whose displayed name would run long — including bug leftovers like narration-content nodes. Verified: seeded broken node healed to a 5-word title on boot. ✅ v0.7.5.)
       - Conversational tidy
+          (M69 — Conversational tidy (Jacob): the reorganization proposal modal gains a feedback line — type a different idea ('group by price instead'), ↻ re-propose, and the map agent builds THAT proposal (user direction overrides its instincts; prior proposal passed as context); loop until apply/cancel. Bench: generic cleanup → 'exactly two sub-branches: historical vs institutional' → obeyed. ✅ v0.7.6. This feedback-loop pattern is reused across auto-* lanes (M80).)
       - Tidy latency
+          (M70 — Tidy latency on complex maps (Jacob): input SCOPED (target subtree in full; rest as one-liners — tidy can't touch it anyway per the scope guard) + ADAPTIVE model tier (≤8-node subtrees use cheap model; larger get smart). Real-map timing on slowest path (subscription+sonnet): 10s, from the 30-90s class. Future: pre-compute proposals in background when a red/amber dot is filed, so dot-initiated tidy opens instantly. ✅ v0.7.7. Scoping later tightened by M72.)
       - Precomputed proposals
+          (M71 — Precomputed dot proposals, cost-throttled (Jacob, 2026-08-17): 'Precompute proposals is exactly the right move, but not too often' — clarified as COST trouble. Cost-minimal: when a dot is filed (and at boot), a background sweep computes its proposal ONCE — ever — after a 25s settle debounce, serially (one per sweep), never while the filer queue is busy. Cached on the suggestion row (proposal + proposal_hash = subtree updatedAt-hash). Click serves cache instantly when hash matches (audit proposal_cache_hit); stale or feedback requests always compute live — background NEVER recomputes. Net ≈ one extra call, u)
       - Local-neighborhood tidy
+          (M72 — Tidy reads only the local neighborhood; whole-map read is tidy-map's job (Jacob, 2026-08-17): 'Tidy should only read up 1 ancestor and 1 child… Only the check-map, or rename it tidy map, should read whole thing.' Per-dot/per-node tidy input: parent (one-liner, orientation), target, children, grandchildren. Deeper content hidden behind '+N nested below — do NOT remove or edit' markers; scope guard drops removals/content-edits of nodes with hidden depth (moves-whole allowed). Replaces M70's whole-map-as-one-liners render. UI: '● check map' → '● tidy map' (mapcheck keeps full-map read).)
       - Topic map
+          (M73 — Topic map, not deliberation map (Jacob, 2026-08-17): 'this is not a deliberation map, it is a topic map. Whether the agent had lunch is a clear topic. Drop the talk of deliberation.' Filer was refusing nodes for topics that didn't look like weighing-a-choice. Prompt reframed: THIS IS A TOPIC MAP — whatever gets discussed is a topic, no dignity threshold, no requirement of question/options/decision shape; only pure dialogue mechanics produce nothing. 'ONE DELIBERATION = ONE SUBTREE' → 'ONE TOPIC = ONE SUBTREE'; FILER-DESIGN.md aligned. Gate 12/13 (previous best 10/13).)
       - Attention nudges
+          (M74-M75 built mechanical, zero-model-cost nudges: drift out of focus+light raises red dots on the attention buttons (M74); explicit focus requests raise the auto-focus dot with a remembered target (M75). Any focus/light/zoom action clears the nudge.)
         - Drift nudge dots
+            (M74 — Nudge auto-focus/auto-light with red dots (Jacob, 2026-08-17): v1 is mechanical (zero model cost per M71): when 2+ consecutive rounds land new material in 'to sort', the conversation has drifted outside the current focus+light — both buttons get a pulsing red dot with explanatory tooltip. Any focus/light action (focus change, lit toggle, zoom-in) clears the nudge and resets the streak. Audit kind nudge_raised.)
         - Explicit focus nudge
+            (M75 — Explicit focus requests raise the auto-focus nudge + host notice (Jacob, 2026-08-17): detection piggybacks on the per-round filer (no extra model call): optional focus_request:{id} output field + final-check ('let's focus on X' → the node where X lives; passing mentions are NOT focus requests). Server raises the focus red dot with the named target (tooltip shows it), remembers the target so clicking ▶ auto-focus serves it INSTANTLY without a model call, appends a ONE-SHOT notice to the next injection so the host points the user at the button. Any focus/light action clears. Bench: explicit ask → correct node)
       - Tidy knows its lane
+          (M76 — Tidy never drops for irrelevance; that's focus/light's job (Jacob, 2026-08-17): 'It is not right to propose dropping a node merely because user focused on another node.' Both tidy surfaces carry a KNOW THE SYSTEM'S OWN FUNCTIONS rule: reorganize (never propose removal because the user focused elsewhere / conversation moved on / node seems inactive — removal only for redundancy and debris) and mapcheck (never FLAG for inactivity or distance from current focus — only structural problems), since mapcheck notes become hints reorganize must resolve.)
       - Talk to map
+          (M77-M82 built the talk-to-map lane: '🗨 ask the map' → renamed 'talk to map'. A cheap-tier, user-initiated, strictly ADVISORY mapchat specialist that diagnoses map issues and returns approve-cards routing through the same guarded endpoints the buttons use. Grows to propose focus/light/zoom/tidy, delegate to auto-* specialists, and emit ordered multi-specialist plans.)
         - Ask the map
+            (M77 — Direct line to the map agent (Jacob, 2026-08-17): 'When there are map-related issues, there should be an option for the user to directly talk with the map agent.' New mapchat specialist (cheap tier, user-initiated only — no background cost): knows the system's real controls (focus, light/dim, zoom, to-sort, dots, tidy map, direct edits) and answers with a diagnosis + exact fixing actions. Strictly ADVISORY — cannot edit from this channel, told never to claim it did. UI: '🗨 ask the map' button beside ● tidy map opens a chat modal (session-local history, last 4 exchanges fed back). Chat-agent side: injected )
         - Propose and apply
         - Specialist delegation
         - Propose-accept auto lanes
@@ -115,7 +210,9 @@ BACKGROUND (lit by the user as reference):
         - Zoom consistency
       - Auto-rename button
     - Standing rules
+        (MODLOG.md '## Standing rules distilled from the above'. The invariant principles: user controls flow, automated map no manual restructuring (M23), suggest-then-confirm (M15/M19/M24), everything is a node (M29), what the agent sees the user can see (M20/M21), machine memories read-only (M43), the light is the law (M47), no topic dignity threshold (M50), new-topic guarantee (M61).)
       - Map is the product
+          (Standing rule: 'The user controls the flow tangibly; the map is the product, chat is the interface.')
       - Suggest then confirm
       - Open vocabulary
       - Light is the law
@@ -278,259 +375,10 @@ BACKGROUND (lit by the user as reference):
       - Setup subscription model for test suites
     - M186 — Auth transparency page
       - M186b — Roadmap: wizard
-
-  in full:
-  • Modification Log: Jacob's modification log — every design/change request he raised for the harnessmap goal-map system, numbered in order with status, maintained from M31 onward. [heading, active]
-    • v0.2 — 9-point critique: v0.2 era — the 9-point critique (2026-08-13): the first structural overhaul of the map system. [heading, resolved]
-      • Two-way map: M1: the agent must RECEIVE the map every turn, not just write to it — two-way map. [decision, resolved]
-      • Capture everything: M2: capture everything — no commitment floor; tentative thinking lands as `exploratory`. [decision, resolved]
-      • Integrate not append: M3: integrate, don't append (a 'fatal' flaw) — per-round sticky integration into the goal tree. [decision, resolved]
-      • Hierarchical lighting: M4: hierarchical lighting — lighting a parent lights its descendants. [decision, resolved]
-      • Focus not lit: M5: focus ≠ lit — separate controls, separate meanings. [decision, resolved]
-      • Map legend: M6: a legend explaining the map's marks — the `?` button. [task, resolved]
-      • Auto-fold branches: M7: auto-fold non-focus branches. [decision, resolved]
-      • Tidy flow: M8: reorganize/tidy flow — confirm target → proposal → before/after preview → apply/cancel. [decision, resolved]
-        • M122 — Tidy top level: M122 — Root-scope tidy: "⟳ tidy top level" [decision, done]
-          • M122b — Modal crash fix: M122b — Tidy modal crash fixed [decision, done]
-      • Upward propagation: M9: upward propagation — parent names follow their children's drift. [decision, resolved]
-    • v0.3 — one conversation + zoom: v0.3 era — one conversation + zoom (2026-08-14): dissolved the chat list and built the zoom lane. [heading, resolved]
-      • One conversation: M10: one map, one conversation — chat list dissolved; '+' creates nodes. [decision, resolved]
-      • Map-as-memory: M11: map-as-memory (option b) — agent context = map + rolling window, no perpetual session. [decision, resolved]
-      • Tidy hang bug: M12: bug — tidy hangs silently at 'preparing…'. [task, resolved]
-      • Focus button bug: M13: bug — focus buttons ineffective, no confirmation stage. [task, resolved]
-      • Zoom lane: The zoom lane: a dedicated zoom gesture that dims everything outside a subtree and can suggest a focus shift. [heading, resolved]
-        • Dedicated zoom button: M14 (Z1): dedicated zoom button, not name-click; tidy up clumsy row buttons. [decision, resolved]
-        • Zoom operational: M15 (Z2): zoom is operational — dims everything outside the subtree; focus shift only SUGGESTED. [decision, resolved]
-        • Zoom shows subtree: M16 (Z3): zoomed view shows only the subtree. [decision, resolved]
-        • Zoom out: M30b: zoom OUT to the immediate parent node (↑ zoom out). [task, resolved]
-      • Auto-light: M17: the map agent recommends AND implements lighting (auto-light). [decision, resolved]
-      • Manage panel: M18: the manage panel governs focus AND lit. [decision, resolved]
-      • Auto-focus and auto-zoom: M19: auto-light in the manage panel; add auto-focus and auto-zoom (confirm before implement). [decision, resolved]
-      • Agent's view: Agent's view: the user can see the full map description the agent receives, kept legible as the map grows. [heading, resolved]
-        • See agent context: M20: the user should see the full map description the agent gets — add a button. [decision, resolved]
-        • Structural caps + token budget: M21: agent's view gets ugly as the map expands → structural caps + token budget. [decision, resolved]
-      • Auto-naming: M22: auto-naming — never force naming; name from the conversation like Claude/GPT. [decision, resolved]
-      • No manual editing: M23: scope ruling — NO manual map editing in MVP (no move/rename/wrap-selection); bare minimum, automated map. [constraint, active]
-      • Filer never restructures: M24: 'genuine necessity' is ill-defined → the filer never restructures; red-dot suggestion, user decides, dot dismissable. [decision, resolved]
-      • Demand suggestions button: M25: how frequent are suggestions? + a button to demand suggestions or get 'well done, your map is clean!' [decision, resolved]
-      • Merge duplicates bug: M26: bug — merge leaves duplicates; suggestions don't guarantee solutions. [task, resolved]
-      • No delete button: M27: bug — no topic delete button. [task, resolved]
-      • Duplicate delete buttons: M28: two identical delete buttons → fix inconsistency (later dissolved by v0.4's single node `del`). [task, resolved]
-    • Nodes all the way down: v0.4 era — nodes all the way down (2026-08-14): the true rewrite where everything became a node. [heading, resolved]
-      • Everything is a node: M29 ('major major flaw'): no topic/item split — only nodes and sub-nodes; zoom on anything. A node = type + ancestors + children. [decision, resolved]
-      • Clean-chat button: M30a: clean-chat button in the chat screen. [task, resolved]
-      • Row buttons: Node row buttons: cleaned up and made contextual — row ops became zoom · ▶ · ☀ · + · tidy · del. [heading, resolved]
-        • Idle buttons: M32: clean up node row buttons — some are idle (contextual hiding). [task, resolved]
-        • Drop manual status: M33 (correction to M32): ▶ lights up on the focused node (always visible); drop ✓ ‖ ✗ manual status buttons entirely — statuses are the automated map's job. [decision, resolved]
-        • Instant node creation: M34: '+' still asks for a name → name prompt removed entirely; + creates the node instantly, the map names it. [decision, resolved]
-        • Add ≠ zoom: M35: add node ≠ zoom in — adding never changes the view. [decision, resolved]
-      • Rich node state: Rich node state: each node carries a short title, a full description, a relational 'how it fits', and chat memory. [heading, resolved]
-        • Title vs content: M36: node titles too long — separate title from description (title = short label, content = full statement). [decision, resolved]
-        • Minimal titles + detail modal: M37: titles aim at MINIMUM simple wording (2-4 plain words); descriptions visible/editable via a detail modal. [decision, resolved]
-        • How it fits: M38: relational description per node — how it fits its surroundings, auto-updated, scope 2 up / 2 down. [decision, resolved]
-        • Richer descriptions + opWatch: M39: descriptions more self-contained (numbers, names, reasons, the WHY); 'how it fits' more compact; long ops warn beforehand with an estimate. [decision, resolved]
-        • Auto-naming fixes: M40: four fixes — auto-naming bug (sets both content and minimal title), suggested rename adopt button, persisted recency highlights, editable category; anti-park-all check moved to per-round instruction. [task, resolved]
-        • Node chat memory: M41: node state = THREE descriptions — description (what it is), fit (relations), and chat MEMORY (conversation while focused). [decision, resolved]
-        • Two-memory harness: M42: small-talk problem — two memories: map memory (the guide) + a harness-style conversational memory (second place). [decision, resolved]
-        • Memories read-only: M43: the user cannot edit machine-maintained memories — all are display-only; user edits touch only title/description/category. [constraint, active]
-        • Conversation summary structure: M44: the focus/chat summary should be a CONVERSATION summary — what the user asked, how the agent responded, how the user took it — with content as the spine. [decision, resolved]
-      • Tree guide lines: M45: UI hierarchy unclear (parent vs child) → tree guide lines, file-explorer style. [decision, resolved]
-      • Lit privilege ladder: M46: a lit node's background payload = its full DESCRIPTION (no fit, no chat memory). Privilege ladder: focus = everything, lit = knowledge minus conversation, elsewhere = one line, dark = nothing. [decision, resolved]
-    • Keep this log: M31: keep a log of each and all modification points — this very file. [task, resolved]
-    • Light is the law: 'The light is the law' (v0.5): the user's light bounds both what the chat agent sees and what the map agent may write; reading expands on demand, writing never. [heading, resolved]
-      • Light bounds writes: M47: no creation outside the light; reading may expand on demand (≤3 branches, read-only), writing bounded by a server guard; out-of-light creations go to top-level 'to sort' with provenance + amber re-light suggestion. [decision, resolved]
-      • Test-drive fixes: M48: test-drive round — title-based chat markers, bigger fold caret, overlong-title rejection, orphaned-focus rescue, synthesized relight notes, reliable to-sort integration. [task, resolved]
-      • No harness narration: M49 ('What on earth???'): the chat agent refused a breakfast question and narrated harness mechanics → fixed so the map guides WORK priorities, never refuses casual asks, never narrates harness state. [task, resolved]
-      • No dignity threshold: M50 ('This is a clear topic right???'): NO topic dignity threshold — whatever the user deliberates is map material, however mundane; only pure dialogue mechanics produce nothing. [decision, resolved]
-      • to-sort folder: 'to sort' folder: a system folder where out-of-light and unhomed material lands, with guaranteed exits. [heading, resolved]
-        • System folder: M51: 'to sort' is a system folder — name/description/category not editable (server rejects + info modal). [constraint, resolved]
-        • Exit verbs: M52: to-sort items always have an exit — '↖ place' (tree picker) and '★ promote' (become top-level) on every to-sort child. [decision, resolved]
-        • Agent-assisted place: M53: 'place' is agent-assisted — the picker first shows the map agent's candidate homes with reasons. [decision, resolved]
-        • Place cycle guard: M54: 'place' destinations exclude the item's own subtree (cycle guard) and anything inside 'to sort'. [constraint, resolved]
-        • One topic one subtree: M55: children always follow a place; one deliberation = ONE subtree in 'to sort', provenance once on the topic node. [decision, resolved]
-        • Bottom-pinned: M56: 'to sort' always renders at the BOTTOM of the whole-map view. [decision, resolved]
-        • M123 — To-sort permanence: M123 — To-sort permanence; focus-orphan rescue; genealogy fixes [decision, done]
-    • v0.6 — Claude Code plugin: v0.6 era — the Claude Code plugin: harnessmap as a native CC plugin injecting map awareness into host sessions. [heading, resolved]
-      • Plugin spike: M57: plugin spike (Mark: 'let's test first') — PROVEN end-to-end on native Claude Code, headless. [evidence, resolved]
-      • Real CC plugin: M58: the real Claude Code plugin — `plugin/` package with manifest, hooks.json, and four hooks; server adapter surface hardened. [decision, resolved]
-      • Delta injection: M59: delta injection — full map block once per session, then only changes since the anchored map-event seq; PostCompact re-anchors. [decision, resolved]
-      • Push + pull awareness: M60: push + pull map awareness — PUSH injections with bounded-reconstruction re-anchor (N=15); PULL `.harnessmap/MAP.md` written into every host project. [decision, resolved]
-      • New-topic guarantee: M61: playground feedback — host-session life indicators, NEW-TOPIC GUARANTEE, and a mechanical same-status-flip cap. [decision, resolved]
-    • v0.7 — filer & inference: v0.7 era — filer design, inference backend, type vocabulary, and the tidy/proposal lanes. [heading, resolved]
-      • Filer design rulings: M63: filer design rulings (Mark) — rich assistant-side capture kept, inference backend abstraction (subscription default / api opt-in), model tiering, audit_log table. [decision, resolved]
-      • Seven-type vocabulary: M64: type vocabulary settled — the FILER labels from a fixed seven (claim/question/option/decision/constraint/evidence/task); USERS retype freely. [decision, resolved]
-      • Fleet test: M65: filer fleet test — 20 diverse-persona scenarios, ~87% pass, real id-collision bug fixed, systematic weaknesses identified. [evidence, resolved]
-      • Born lit: M66: new nodes are born LIT — every created node auto-lights; the user dims deliberately rather than lighting deliberately. [decision, resolved]
-      • Nest bug fixes: M67 (Nest bug): filer compressed multi-fact answers, misplaced them, and narrated dialogue → new rules INFO EXPANSION and NODES STATE FACTS, NEVER NARRATE. [task, resolved]
-      • Title self-heal: M68: titles ≤6 words, and broken names ALWAYS self-heal via a background healer sweep. [decision, resolved]
-      • Conversational tidy: M69: conversational tidy — the proposal modal gains a feedback line; type a different idea, re-propose, and the map agent builds THAT proposal. [decision, resolved]
-      • Tidy latency: M70: tidy latency — input SCOPED (target subtree in full, rest as one-liners) + ADAPTIVE model tier; slowest real path down to 10s. [decision, resolved]
-      • Precomputed proposals: M71: precomputed dot proposals, cost-throttled — when a dot is filed, a background sweep computes its proposal ONCE, after a 25s settle debounce, serially, never while the filer queue is busy. [decision, resolved]
-      • Local-neighborhood tidy: M72: tidy reads only the local neighborhood (parent one-liner, target, children, grandchildren); whole-map read is tidy-map's job. Button renamed '● check map' → '● tidy map'. [decision, resolved]
-      • Topic map: M73: topic map, not deliberation map — whatever gets discussed is a topic, no question/options/decision shape required; only pure dialogue mechanics produce nothing. [decision, resolved]
-      • Attention nudges: Attention nudges: red dots on auto-focus / auto-light / auto-zoom buttons when the conversation calls for an attention change. [heading, resolved]
-        • Drift nudge dots: M74: nudge auto-focus / auto-light with red dots — 2+ consecutive rounds landing in 'to sort' means the conversation drifted outside focus+light; both buttons pulse. [decision, resolved]
-        • Explicit focus nudge: M75: explicit focus requests raise the auto-focus nudge + a one-shot host notice; clicking ▶ serves the remembered target instantly with no model call. [decision, resolved]
-      • Tidy knows its lane: M76: tidy never drops for irrelevance — that's focus/light's job; both tidy surfaces carry a KNOW THE SYSTEM'S OWN FUNCTIONS rule. [decision, resolved]
-      • Talk to map: Talk-to-map: a direct advisory channel to a map-specialist agent that diagnoses map issues and proposes focus/light/zoom/tidy revisions the user can approve. [heading, resolved]
-        • Ask the map: M77: direct line to the map agent — '🗨 ask the map' button; a new advisory mapchat specialist diagnoses map issues and names the exact fixing actions. [decision, resolved]
-        • Propose and apply: M78: talk-to-map proposes AND applies focus/light/tidy revisions via approve cards routed through the same button endpoints; renamed 'talk to map'. [decision, resolved]
-        • Specialist delegation: M79: talk-to-map delegates unnamed asks to the auto-focus / auto-light specialists (autofocus, autolight action kinds); UI cleanup. [decision, resolved]
-        • Propose-accept auto lanes: M80: auto-light/auto-focus become propose→accept with a feedback loop, like tidy — a shared specialist-proposal dialog; preview/apply exact lists; new conflict guards. [decision, resolved]
-        • Multi-specialist plans: M81: talk-to-map proposes ORDERED MULTI-SPECIALIST PLANS — up to 4 focus/light/tidy steps run in order through the same guarded endpoints. [decision, resolved]
-        • Zoom consistency: M82: zoom brought into full consistency — ▶ auto-zoom via the shared dialog, talk-to-map 'zoom'/'autozoom' kinds, zoom plan steps, kind-aware clause scoring, and zoom conflict guards. [decision, resolved]
-      • Auto-rename button: M83: ✎ auto-rename button (direct, no proposal) retitles up to 12 long-named nodes per click; legend refreshed to cover the new lanes. [decision, resolved]
-    • Standing rules: Standing rules distilled from all the above requests — the invariants the system holds to. [heading, active]
-      • Map is the product: The user controls the flow tangibly; the map is the product, chat is the interface. [claim, active]
-      • Suggest then confirm: Suggest-then-confirm for anything agent-initiated that re-aims the user (M15, M19, M24). [claim, active]
-      • Open vocabulary: Everything is a node (M29); statuses/types are open vocabulary for users, not schema. [claim, active]
-      • Light is the law: The light is the law (M47): it bounds the chat agent's background and the map agent's writes; reading may expand on demand, writing never; prompts guide, server guards enforce. [claim, active]
-    • M83b — long-name detection: Long-name detection widened [decision, done]
-    • M84 — node search: Node search: confirm view, actions, history, favorites [decision, done]
-      • M84b — row favorite button: ★ favorite button on every row [decision, done]
-      • M93 — shared search state: All search pickers share favorites + history [decision, done]
-    • M85 — dim behavioral rule: Dim rule in injected map block [decision, done]
-    • M86 — stale cache self-heal: Stale proposal caches self-heal [decision, done]
-    • M87 — verification sweep: Live-path verification + focus-request gate [decision, done]
-    • M88 — projects & chats: Multi-project + fork/fresh chats [decision, done]
-      • M92 — focus picker: New-chat focus picker: search + tiny map [decision, done]
-    • M89 — integration suite: Integration suite: 71 checks [evidence, done]
-    • M90 — three merges: Merges: node, chat, project [decision, done]
-      • M94 — merge substance: Node merge merges substance [decision, done]
-      • M95 — chat merge killed: Merge-views removed; recency is lifecycle [decision, done]
-    • M91 — packaging: Packaging & install story [decision, done]
-    • M96 — display polish: Display polish batch [decision, done]
-      • M96b — tooltip audit: Every button explains itself on hover [decision, done]
-    • M97 — embedded terminals: Embedded CC sessions as tabs + root-as-plugin [decision, done]
-      • M97b — Bun native PTY: Dynamic terminal rescale via Bun PTY [decision, done]
-        • M102 — resize fix: Terminal resize: debounce + repaint + refit [decision, done]
-      • M98 — sessions unified: Sessions unified: view = tab = terminal [decision, done]
-        • M99 — prompt stash + close: Round text survives CC format changes; ✕ closes [decision, done]
-    • M100 — node move: Universal node move [decision, done]
-    • M101 — clearable status: Status and category are clearable [decision, done]
-    • M103 — subscription billing: All testing on subscription; sub path can't bill key [decision, done]
-    • M104 — illumination design: Design pass: illumination as visual language [decision, superseded]
-      • M104-REWOUND: M104 rewound — move slowly on design [decision, done]
-    • M105 — zoom/dim split: Zoom is view-only; dim-outside is its own action [decision, done]
-    • M106 — what changed: What changed? — last update made legible [decision, done]
-      • M106b — new/changed chips: Words not colors: new/changed chips [decision, done]
-      • M107 — persistent marks: Marks persist until touched; click-to-clear [decision, done]
-    • M108 — tutorial tour: ? button is a guided tutorial over real UI [decision, done]
-      • M108b — tutorial clarity: Tutorial clarity + reference card current [decision, done]
-    • M109 — to-sort refined: To-sort refined: placement replaces relight [decision, done]
-      • M109d — amber dead: Amber concept dead; tutorial spatial order [decision, done]
-    • M110 — pane resizing: Flexible pane resizing [decision, done]
-    • M111+M112 — focus path: Protected focus path; UX fixes batch [decision, done]
-    • M113 — Dev mode: M113 — Dev mode: agent-trace visibility behind a button [decision, done]
-      • M115 — Timeline as story: M115 — Dev timeline reads as a story: who prompts whom [decision, done]
-    • M114 — Add-node redesign: M114 — Add-node: always unnamed, always focused, named by first round [decision, done]
-    • M116 — Proposal cards: M116 — Auto-proposals redesigned as structured cards [decision, done]
-    • M117 — The cast: M117 — Canonical agent names everywhere + "The cast" [decision, done]
-    • M118 — Tidy leads with changes: M118 — Tidy proposal leads with changes, not tree dumps [decision, done]
-      • M119 — Styled diff trees: M119 — Before/after trees made presentable [decision, done]
-      • M121 — Human-language preview: M121 — Tidy before/after in human language [decision, done]
-      • M182 — No long rename names: M182 — Tidy proposals stop writing paragraph names [task, done]
-    • M120 — Expand immediate only: M120 — Expand shows ONLY immediate children [decision, done]
-    • M124 — Agent coordination: M124 — Coordination: system card, map preferences, typed requests/referrals [decision, done]
-    • M125 — Home node: M125 — Home page node + cyclic-move guard [decision, done]
-      • M126 — Home row button: M126 — Home is a row button; ⌂ always exists; whole map = default home [decision, done]
-      • M128e — Home → anchor: M128e — Home symbol: ⌂ → ⚓ [decision, done]
-      • M128f — Home → ◉: M128f — Home symbol: ◉ ringed dot [decision, done]
-      • M128g — Home SVG house: M128g — Home icon: hand-drawn abstract house SVG [decision, done]
-    • M127 — Tutorial catch-up: M127 — Tutorial + map guide caught up to v0.12 [task, done]
-    • M128 — Tiered menu: M128 — Tiered ⋯ other + refined glyphs [decision, done]
-      • M128b — More button vanishes: M128b — "＋ more…" disappears on expansion [decision, done]
-      • M128c — Glyphs restored: M128c — Light/dim glyphs restored [decision, done]
-      • M128d — ⟳ tidy glyph: M128d — Tidy's concept symbol everywhere [decision, done]
-    • M129 — Session modes: M129 — New-session modal: focus is a MODE [decision, done]
-    • M130 — Zoom root fold: M130 — Zoom root collapses like any node [decision, done]
-    • M131 — UI smoke harness: M131 — Big debug: UI smoke harness; TDZ crash caught [task, done]
-      • M131b — Tooltip coverage: M131b — Tooltip coverage in smoke harness [decision, done]
-    • M132 — Two modes: M132 — Two modes: workspace / companion [decision, done]
-      • M132 — Reversed: M132 REVERSED [decision, done]
-      • M132b — Reinstated: M132b — Two modes REINSTATED [decision, done]
-      • M134 — Toggle dropped: M134 — Two-mode toggle DROPPED; concept parked [decision, done]
-    • M133 — Mobile view: M133 — Mobile view: bottom switcher + row action sheets [decision, done]
-      • M133b — Mobile preview button: M133b — Dev-mode mobile preview [decision, done]
-      • M133c — iPhone frame: M133c — Mobile test = real iPhone frame; polish [decision, done]
-      • M133d — One switch button: M133d — Mobile: finger-sized everything; ONE switch button [decision, done]
-      • M135 — ChatGPT-mobile rebuild: M135 — Mobile rebuilt on ChatGPT-mobile philosophy [decision, done]
-      • M135b — Row is its name: M135b — Mobile de-crowded: a row is its name [decision, done]
-    • M136 — Undo: M136 — UNDO: inverse operations with pre-images [decision, done]
-    • M137–M140 — Mode-A chat: M137–M140 — Mode-A chat: choice, markdown, streaming, copy [decision, complete]
-      • M137 Choice promoted: M137 — '+ session' asks plainly how you'll talk [decision, complete]
-      • M138 Markdown: M138 — markdown via vendored marked v12 + DOMPurify [decision, complete]
-      • M139 Streaming: M139 — streaming live draft bubble via chat_delta [decision, complete]
-      • M140 Copy: M140 — hover ⧉ copy raw markdown on assistant bubbles [decision, complete]
-      • M173 — Thinking bubble fix: M173 — Thinking bubble lives [task, done]
-      • M174 — Greetings not map business: M174 — A hello is a hello [decision, done]
-      • M175 — Point at ＋ session: M175 — 'No tools here' points at ＋ session [decision, done]
-    • M141 — Packaging hardened: M141 — packaging hardened for clean-machine test [task, complete]
-      • install-smoke (21 checks): install-smoke.ts — 21 checks simulating a fresh machine [evidence, complete]
-    • M142 — IMPORT agent: M142 — IMPORT: outside material becomes an organized branch [decision, complete]
-      • Import agent design: Import agent proposes ONE well-organized subtree, create_node only [claim, complete]
-      • Import sources: Import sources: pasted text, project docs, past CC sessions [claim, complete]
-      • Import flow: Import flow: ⋯→⇪ import → propose → preview → add to map [claim, complete]
-      • M157 — Import CC memory: M157 — import Claude's own memory; paste-only mystery explained [decision, complete]
-      • M187 — Import at scale: M187 — Import redesigned: filing at scale [decision, done]
-    • M143 — Close influence: M143 — close map influence: silent, not blind [decision, complete]
-    • Text size control tour seven beats: M144 — text-size control + tour cut to seven beats [decision, complete]
-    • M145 — Reference card cleanup: M145 — reference card: cast removed, formatting pass [decision, complete]
-      • M145b — Guide fallback: M145b — map guide is the comprehension fallback [decision, complete]
-    • M146 — Sessions + pins: M146 — sessions overview + pins [decision, complete]
-    • M147 — Four keys, rest folded: M147 — row buttons: four keys, rest folded (interim) [decision, complete]
-    • Display categories and statuses: M148 — categories + statuses off the rows (display only) [decision, complete]
-    • M149 — Agent's view → dev: M149 — chat agent's view moved to dev mode [decision, complete]
-    • M150 — Import → ＋more: M150 — import demoted to ＋more [decision, complete]
-    • M151 — Plain words: focus: M151 — plain words for focus everywhere [decision, complete]
-      • M151b — Plain words: zoom: M151b — zoom in plain words: 'view only this node' [decision, complete]
-    • M152 — Three-concept doctrine: M152 — the conceptual point canonized (three things) [decision, complete]
-      • M153 — Tour = three moves: M153 — tour teaches the map + its three moves [decision, complete]
-    • M154 — Talk to map primary: M154 — 🗨 talk to map is THE button [decision, complete]
-      • M171 — Inline talk-to-map: M171 — 🗨 inline talk-to-map button [decision, done]
-        • M171b/c — Briefed referrals: M171b/c — Referrals carry context, one-round shelf life [decision, done]
-    • M155 — Focus unmistakable: M155 — focus made unmistakable (▶ mark travels) [decision, complete]
-    • M156 — Node memory 1+3: M156 — node memory, slices 1+3 built [decision, complete]
-      • M156 slice 2: M156 slice 2 — tiered attention, the hierarchy IS the pattern [decision, complete]
-      • M156 complete (2+4): M156 COMPLETE — slice 2 corrected + slice 4 cold-branch resume [decision, complete]
-      • M156b — No new terminology: M156b — no new terminology in injection headers [decision, complete]
-    • M158 — Feedback via guide: M158 — feedback channel via the guide [decision, complete]
-    • M159 — Dev mode reorg: M159 — dev mode reorganized; feedback lives there too [decision, complete]
-      • M159b — Feedback list: M159b — feedback LIST in dev mode; users never need dev mode [decision, complete]
-      • M159c — Dev mode gated: M159c — dev mode gated by password (marco123) [decision, complete]
-    • M160 — Codex support: M160 — Codex support, harness-agnostic (identical hooks) [decision, complete]
-    • M161 — Update visibility: M161 — update visibility without bombardment [decision, complete]
-      • M177 — Correct update command: M177 — The update command we told users was WRONG [task, done]
-    • M162 — Context visibility: M162 — context visibility: the lit choice never silently overridden [decision, complete]
-      • M162 part 1 — trim warning: Budget from harness window + ❗ on lit-but-trimmed rows [claim, complete]
-      • M162 part 2 — agent view: 👁 'what the agent sees' — composition bar modal [claim, complete]
-      • M162 part 3 — focus pill: Transient bottom line + accent focus pill at top [claim, complete]
-        • M162b — Pinned divider: M162b — '— pinned —' divider is system text, not a point [decision, complete]
-      • M165c — Sectioned exact text: M165c — agent view: exact text broken down section by section [decision, complete]
-    • M163 — Restyle: M163 — restyle talk-to-map + focus chip [decision, complete]
-      • M163b — Status color fade: M163b — status roll lands in color, then fades [decision, complete]
-      • M163c — Update note box: M163c — update-check answer gets its own note box [decision, complete]
-      • M163d — Talk-to-map redraw: M163d — talk-to-map second pass: flat accent, SVG bubble [decision, complete]
-    • M163e — Exact text visible: M163e — ruling: exact agent text stays user-visible [decision, complete]
-      • M163f — Leak audit: M163f — verified: what actually leaks onto a user's disk [evidence, complete]
-    • M164 — Favorites tray: M164 — ★ favorites: a pinned shortcuts tray [decision, complete]
-      • M164b — Favorites folder: M164b — favorites is a FOLDER inside the pinned band [decision, complete]
-    • M165 — To-tidy folder: M165 — ⟳ to tidy: suggestions move to a pinned folder [decision, complete]
-      • M165b — No auto-expand: M165b — folders don't auto-expand [decision, complete]
-    • M166 — Auto-review: M166 — Auto-review on a rhythm [decision, done]
-      • M166b — Or 30 minutes: M166b — 10 rounds OR 30 minutes [decision, done]
-    • M167 — Native popups gone: M167 — Our own dialog boxes [decision, done]
-      • M167b — Folders never hide: M167b — Pinned folders always visible [decision, done]
-      • M167c/d — Guide alignment: M167c/d — Indent guides & empty-folder consistency [task, done]
-    • M168 — Three-tier menu: M168 — ⋯ becomes three tiers [decision, done]
-      • M168b — Docs caught up: M168b — Tour + reference card caught up [task, done]
-      • M168c — Tier amendment: M168c — dim-all-outside + import promoted to everyday [decision, done]
-      • M168d — Card carries functions: M168d — Reference card explains every ⋯ function [decision, done]
-      • M168e — Mobile row removed: M168e — Card drops narrow-screens row [task, done]
   … 1 lit topic(s) omitted for space (stalest first).
 
 ELSEWHERE ON THE MAP (folded — set aside by the user; see the rule below):
-  • to sort (folded — 0 nodes inside)
+  … 1 more topic(s) exist but are not shown (stalest first). If something seems missing, ask — the user can light it.
 
 STANDING CONSTRAINTS (respect these):
   • M23: scope ruling — NO manual map editing in MVP (no move/rename/wrap-selection); bare minimum, automated map.
@@ -563,4 +411,4 @@ clean up, lighting/focus mechanics — refer them to the map panel's
 instructions; do not try to restructure the map yourself.
 ```
 
-_updated 2026-09-01T08:57:26.125Z_
+_updated 2026-09-01T16:26:48.573Z_

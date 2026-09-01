@@ -982,7 +982,10 @@ console.log('\n== 35. context visibility (M162) ==');
   check('trimmed ids are real lit branch tops', s2.trimmedLit.every((id: string) => s2.nodes.some((n: any) => n.id === id)));
   const av2 = await (await fetch(`${BASE}/api/agent-view`)).json();
   check('agent view reports the same trims', av2.trimmedLit.length === s2.trimmedLit.length && av2.budget === 1800);
-  check('titles still present for trimmed branches (tiered, not vanished)', av2.text.includes('titles:'));
+  check('titles still present for trimmed branches (tiered, not vanished)', s2.trimmedLit.every((id: string) => {
+    const n = s2.nodes.find((x: any) => x.id === id);
+    return n && av2.text.includes((n.title || n.content.slice(0, 30)));
+  }));
   await post('/api/dev/setting', { key: 'map_budget', value: '' });
   check('budget seam resets clean', (await (await fetch(`${BASE}/api/agent-view`)).json()).budget === 40_000);
 }
@@ -1085,22 +1088,22 @@ console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
     check('expand may honestly propose nothing (summary says so)', typeof xp.body?.summary === 'string');
   }
 
-  // == 43. M191: structured memory (gist + facts) and recall ==
+  // == 43. M191: structured memory (minimal + details) and recall ==
   console.log('\n== 43. structured memory + recall (M191) ==');
   await post('/api/nodes', { content: 'recall guinea pig topic' });
   const rgp = (await state()).nodes.find((n: any) => n.content === 'recall guinea pig topic');
   check('seed node exists', !!rgp);
   if (rgp) {
     const longGist = 'G'.repeat(400);
-    await post('/api/dev/memory', { nodeId: rgp.id, gist: longGist, facts: [
+    await post('/api/dev/memory', { nodeId: rgp.id, minimal: longGist, details: [
       { text: 'the crock was chosen over the jar', date: '2026-08-30' },
       { text: 'the jar was chosen originally', status: 'superseded' },
     ] });
-    // recall card: born-lit node answers; gist capped at 300; only current facts
+    // recall card: born-lit node answers; minimal capped at 300; only current details
     const rc = await post('/api/recall', { nodeId: rgp.id });
     check('recall card answers', rc.status === 200, JSON.stringify(rc.body).slice(0, 120));
-    check('gist hard-capped at 300', (rc.body?.card?.gist ?? '').length === 300);
-    check('superseded facts never served as current', (rc.body?.card?.facts ?? []).length === 1 && /crock/.test(rc.body.card.facts[0].text));
+    check('minimal view hard-capped at 300', (rc.body?.card?.minimal ?? '').length === 300);
+    check('superseded details never served as current', (rc.body?.card?.details ?? []).length === 1 && /crock/.test(rc.body.card.details[0].text));
     // around depth returns the local tree
     const ra = await post('/api/recall', { nodeId: rgp.id, depth: 'around' });
     check('recall around carries ancestors+children arrays', Array.isArray(ra.body?.ancestors) && Array.isArray(ra.body?.children));
@@ -1115,13 +1118,15 @@ console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
     const ri = await post('/api/recall', { nodeId: rgp.id });
     check('recall refused while map influence is closed', ri.status === 403);
     await post('/api/influence/toggle', {});
-    // cards serving: flag on → injection carries "in brief" with the gist
-    await post('/api/dev/setting', { key: 'memory_serving', value: 'cards' });
+    // resolution serving (default ON per Jacob): the lit node's minimal line
+    // carries its one-sentence current view; 'legacy' opts out.
     const av43 = await get('/api/agent-view');
-    check('cards serving shows "in brief" gists in the injection', /in brief:/.test(av43.text ?? '') && /GGG/.test(av43.text ?? ''));
-    await post('/api/dev/setting', { key: 'memory_serving', value: '' });
+    check('resolution serving carries the current view on the lit line', /GGG/.test(av43.text ?? ''));
+    check('graceful ladder header present', /each topic at the detail the room allows/.test(av43.text ?? ''));
+    await post('/api/dev/setting', { key: 'memory_serving', value: 'legacy' });
     const av43b = await get('/api/agent-view');
-    check('flag off restores legacy serving', !/in brief:/.test(av43b.text ?? ''));
+    check('legacy opt-out restores kind-tier serving', !/GGG/.test(av43b.text ?? '') || /titles:/.test(av43b.text ?? ''));
+    await post('/api/dev/setting', { key: 'memory_serving', value: '' });
   }
 }
 

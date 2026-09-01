@@ -43,9 +43,15 @@ export class Store {
     if (hcols.length && !hcols.includes('full_seq')) this.db.exec('ALTER TABLE harness_sessions ADD COLUMN full_seq INTEGER');
     if (hcols.length && !hcols.includes('cwd')) this.db.exec('ALTER TABLE harness_sessions ADD COLUMN cwd TEXT');
     if (hcols.length && !hcols.includes('chat_id')) this.db.exec('ALTER TABLE harness_sessions ADD COLUMN chat_id TEXT');
-    // M191: structured memory — gist column beside the legacy blob.
+    // M191: structured memory — the 'minimal' resolution column beside the
+    // medium-resolution summary ('text'). Early builds named these gist /
+    // memory_facts; Jacob dropped those words — rename if found.
     const mcols = (this.db.prepare('PRAGMA table_info(node_memory)').all() as any[]).map((r) => r.name);
-    if (mcols.length && !mcols.includes('gist')) this.db.exec('ALTER TABLE node_memory ADD COLUMN gist TEXT');
+    if (mcols.length && mcols.includes('gist')) this.db.exec('ALTER TABLE node_memory RENAME COLUMN gist TO minimal');
+    else if (mcols.length && !mcols.includes('minimal')) this.db.exec('ALTER TABLE node_memory ADD COLUMN minimal TEXT');
+    const oldFacts = (this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='memory_facts'").get() as any);
+    const newDetails = (this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='memory_details'").get() as any);
+    if (oldFacts && !newDetails) this.db.exec('ALTER TABLE memory_facts RENAME TO memory_details');
     this.migrateToNodes();
   }
 

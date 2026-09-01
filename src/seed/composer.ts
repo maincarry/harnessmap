@@ -1,5 +1,5 @@
 import { Store } from '../store/db.js';
-import { getNodeMemory, getAllNodeMemories, getAllGists, getAllCurrentFacts } from '../translator/memory.js';
+import { getNodeMemory, getAllNodeMemories, getAllMinimals, getAllCurrentDetails } from '../translator/memory.js';
 import {
   ancestors, descendantNodes, renderNodeBrief,
   renderNodeOneLiner, renderSubtreeFull,
@@ -36,13 +36,16 @@ export interface ComposedParts {
   trimmedLit: string[];
   sections: { label: string; chars: number; text: string }[];
   budget: number;
+  // M191d (Jacob): the map's THINKING — why each topic was shown at the
+  // detail it was, aggregated by reason, for the dev timeline's round story.
+  thinking: string;
 }
 
-export function composeState(store: Store, chatId: string, manipulations: string[]): string {
-  return composeParts(store, chatId, manipulations).text;
+export function composeState(store: Store, chatId: string, manipulations: string[], userText?: string): string {
+  return composeParts(store, chatId, manipulations, userText).text;
 }
 
-export function composeParts(store: Store, chatId: string, manipulations: string[]): ComposedParts {
+export function composeParts(store: Store, chatId: string, manipulations: string[], userText?: string): ComposedParts {
   const chat = store.getChat(chatId);
   if (!chat) throw new Error(`unknown chat ${chatId}`);
   const focusId = chat.focusContainerId;
@@ -219,16 +222,23 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const shapeAll = allEntries.filter((e) => e.depth <= shapeDepthCap)
     .map((e) => hiddenBelow.has(e.id) ? `${e.shape} (+${hiddenBelow.get(e.id)} inside)` : e.shape);
   budget -= shapeAll.join('\n').length;
-  // M191 (flag-gated, Mark's green light — default flip is Jacob's call on
-  // the RCT numbers): gists broadly, facts warmly, warm before cold.
-  const SERVE_CARDS = (store.getSetting('memory_serving') ?? process.env.HARNESSMAP_MEMORY_SERVING ?? '') === 'cards';
+  // M191b (Jacob's ruling): RESOLUTION-TIERED ATTENTION — every lit node
+  // exists at three resolutions (one sentence / ≤150-word summary / full)
+  // and the budget picks each node's ZOOM: all start minimal, warmth
+  // promotes to medium then long (focus proximity first). The budget
+  // degrades gracefully — a topic goes long → medium → minimal, never
+  // something → nothing — and the injection reads in TREE ORDER with each
+  // node appearing exactly once at its resolution.
+  // memory_serving: ON by default; 'legacy' opts back into the kind-tiers.
+  const SERVING = String(store.getSetting('memory_serving') || process.env.HARNESSMAP_MEMORY_SERVING || 'on');
   const subKept: string[] = [];
   const trimmedLit: string[] = [];
   const memKept: string[] = [];
-  const gistKept: string[] = [];
-  if (SERVE_CARDS) {
-    const gistBy = getAllGists(store);
-    const factsBy = getAllCurrentFacts(store);
+  const resolved: string[] = [];
+  const thinkingLines: string[] = [];
+  if (SERVING !== 'legacy') {
+    const minBy = getAllMinimals(store);
+    const detailsBy = getAllCurrentDetails(store);
     const marks = store.getMarks(project);
     // Warmth (M191, Mark: "focus proximity strongest, same tree first"):
     // shares the focus's top-level chapter +2 · filer-touched fresh mark +2 ·
@@ -241,41 +251,123 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     };
     const focusChapter = chapterOf(focusId);
     const dayAgo = new Date(Date.now() - 86_400_000).toISOString().slice(0, 19).replace('T', ' ');
+    // M191c (Jacob): AUTOMATIC FETCH is just promotion — a topic the user's
+    // message names gets pushed to full for this turn, mechanically (agents
+    // measurably never pull on their own: 0 recalls in 18 tries).
+    const msg = (userText ?? '').toLowerCase();
+    const STOP = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'should', 'would', 'about', 'what', 'when', 'how', 'our', 'are', 'was', 'were', 'have', 'has']);
+    const sig = (t: string) => t.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !STOP.has(w));
+    const named = (id: string): boolean => {
+      if (!msg) return false;
+      const n = byIdC.get(id);
+      if (!n) return false;
+      // Title and statement-head match separately — mixing them dilutes a
+      // clean title hit below threshold.
+      for (const toks of [sig(n.title ?? ''), sig(n.content.slice(0, 60))]) {
+        if (toks.length < 2) continue;
+        const hit = toks.filter((w) => msg.includes(w)).length;
+        if (hit >= Math.max(2, Math.ceil(toks.length * 0.6))) return true;
+      }
+      return false;
+    };
     const warmth = (id: string): number =>
-      (chapterOf(id) === focusChapter ? 2 : 0) + ((marks as any)[id] ? 2 : 0) + ((byIdC.get(id)?.updatedAt ?? '') > dayAgo ? 1 : 0);
-    // Gists ride broadly: every visible lit node's current view, one line.
+      (named(id) ? 10 : 0) + (chapterOf(id) === focusChapter ? 2 : 0) + ((marks as any)[id] ? 2 : 0) + ((byIdC.get(id)?.updatedAt ?? '') > dayAgo ? 1 : 0);
+    // The three renders per node. minimal is the never-cut floor (it IS the
+    // shape line, now carrying the one-sentence current view when one exists).
+    const pads = (e: LitEntry) => e.shape.match(/^\s*/)?.[0] ?? '  ';
+    const minimal = (e: LitEntry): string => {
+      const g = minBy.get(e.id);
+      const roll = hiddenBelow.has(e.id) ? ` (+${hiddenBelow.get(e.id)} inside)` : '';
+      return `${e.shape}${roll}${g ? ` — ${g}` : ''}`;
+    };
+    const mediumExtra = (e: LitEntry): string | null => {
+      const blob = memByNode.get(e.id);
+      return blob ? `${pads(e)}    (${blob.slice(0, 620)})` : null;
+    };
+    const longExtra = (e: LitEntry): string | null => {
+      const details = (detailsBy.get(e.id) ?? []).slice(0, 5);
+      const lines = [...e.substance];
+      if (details.length) lines.push(`${pads(e)}  remembered: ${details.map((f) => f.date ? `${f.text} (${f.date})` : f.text).join(' · ')}`.slice(0, 900));
+      return lines.length ? lines.join('\n') : null;
+    };
+    // Floor: every visible node at minimal (tree order, already budgeted via
+    // the shape rollup above — swap shape cost for minimal cost).
+    budget += shapeAll.join('\n').length; // undo the bare-shape charge
+    // Question-promotion PIERCES the rollup: a topic the message names joins
+    // the visible set even from below the depth cap (that is the whole point
+    // of the automatic fetch — the budget hid it, the question needs it).
+    for (const b of branchTiers) for (const e of b.entries) {
+      if (!visibleLit.has(e.id) && named(e.id)) visibleLit.add(e.id);
+    }
     const flat: { b: string; e: LitEntry; w: number }[] = [];
     for (const b of branchTiers) for (const e of b.entries) {
       if (!visibleLit.has(e.id)) continue;
       flat.push({ b: b.id, e, w: warmth(e.id) });
-      const g = gistBy.get(e.id);
-      if (!g) continue;
-      const line = `${e.shape}: ${g}`;
-      if (budget - line.length < 0) continue;
-      budget -= line.length;
-      gistKept.push(line);
     }
-    // Warm nodes serve statement + remembered facts BEFORE cold statements
-    // (open question 1, implemented for the test; inverts an M156 ordering).
-    flat.sort((a, b2) => b2.w - a.w);
-    const cutBranches = new Set<string>();
-    for (const { b, e, w } of flat) {
-      const size = e.substance.join('\n').length;
-      if (budget - size < 0) { cutBranches.add(b); continue; }
-      budget -= size;
-      subKept.push(...e.substance);
-      if (w >= 2) {
-        const facts = (factsBy.get(e.id) ?? []).slice(0, 5);
-        if (facts.length) {
-          const pad = e.shape.match(/^\s*/)?.[0] ?? '  ';
-          const short = e.shape.replace(/^\s*- /, '');
-          const line = `${pad}${short} — remembered: ${facts.map((f) => f.date ? `${f.text} (${f.date})` : f.text).join(' · ')}`.slice(0, 900);
-          if (budget - line.length >= 0) { budget -= line.length; memKept.push(line); }
-        }
-      }
+    const chosen = new Map<string, 0 | 1 | 2>(); // 0 minimal · 1 medium · 2 long
+    for (const f of flat) { chosen.set(f.e.id, 0); budget -= minimal(f.e).length + 1; }
+    // Promote by warmth (stable within tree order): minimal→medium, then →long.
+    const byWarmth = [...flat].sort((a, b2) => b2.w - a.w);
+    for (const f of byWarmth) {
+      const ex = mediumExtra(f.e);
+      if (!ex) continue;
+      if (budget - ex.length - 1 < 0) continue;
+      budget -= ex.length + 1;
+      chosen.set(f.e.id, 1);
     }
+    for (const f of byWarmth) {
+      const ex = longExtra(f.e);
+      if (!ex) continue;
+      if (budget - ex.length - 1 < 0) continue;
+      budget -= ex.length + 1;
+      chosen.set(f.e.id, 2);
+    }
+    // Emit in tree order, each node once at its zoom.
+    const staysMinimal = new Set<string>();
     for (const b of branchTiers) {
-      if (cutBranches.has(b.id) || b.entries.some((e) => !visibleLit.has(e.id))) { litOmitted++; trimmedLit.push(b.id); }
+      for (const e of b.entries) {
+        if (!visibleLit.has(e.id)) continue;
+        const r = chosen.get(e.id) ?? 0;
+        resolved.push(minimal(e));
+        if (r >= 1) { const m = mediumExtra(e); if (m) resolved.push(m); }
+        if (r >= 2) { const l = longExtra(e); if (l) resolved.push(l); }
+        if (r === 0 && (memByNode.get(e.id) || (detailsBy.get(e.id) ?? []).length)) staysMinimal.add(b.id);
+      }
+      // ❗ semantics under graceful degradation: mark a branch when depth was
+      // rolled away or some node with real detail could only serve minimal.
+      if (staysMinimal.has(b.id) || b.entries.some((e) => !visibleLit.has(e.id))) { litOmitted++; trimmedLit.push(b.id); }
+    }
+    // The map's thinking, by reason (dev-mode round story, M191d).
+    {
+      const nameOfT = (id: string) => { const n = byIdC.get(id); return n ? (n.title || n.content.slice(0, 40)) : id.slice(0, 8); };
+      const reasonOf = (id: string): string => named(id) ? 'the question named it'
+        : chapterOf(id) === focusChapter ? 'near your focus'
+        : (marks as any)[id] ? 'freshly filed this session'
+        : (byIdC.get(id)?.updatedAt ?? '') > dayAgo ? 'recently updated' : 'background';
+      const agg = new Map<string, { long: number; medium: number; minimal: number; ex: string[] }>();
+      for (const f of flat) {
+        const r = reasonOf(f.e.id);
+        const a = agg.get(r) ?? { long: 0, medium: 0, minimal: 0, ex: [] };
+        const c = chosen.get(f.e.id) ?? 0;
+        if (c === 2) { a.long++; if (a.ex.length < 3 && r !== 'background') a.ex.push(nameOfT(f.e.id)); }
+        else if (c === 1) a.medium++;
+        else a.minimal++;
+        agg.set(r, a);
+      }
+      const rolledN = allEntries.length - flat.length;
+      const tl: string[] = [];
+      for (const r of ['the question named it', 'near your focus', 'freshly filed this session', 'recently updated', 'background']) {
+        const a = agg.get(r);
+        if (!a) continue;
+        const parts: string[] = [];
+        if (a.long) parts.push(`${a.long} in full`);
+        if (a.medium) parts.push(`${a.medium} with summaries`);
+        if (a.minimal) parts.push(`${a.minimal} at one line`);
+        tl.push(`${r}: ${parts.join(' · ')}${a.ex.length ? ` — ${a.ex.map((x) => `"${x}"`).join(', ')}` : ''}`);
+      }
+      if (rolledN) tl.push(`folded inside parents (no room for their names): ${rolledN}`);
+      if (trimmedLit.length) tl.push(`❗ lit but holding detail there was no room for: ${trimmedLit.slice(0, 3).map(nameOfT).map((x) => `"${x}"`).join(', ')}${trimmedLit.length > 3 ? ` +${trimmedLit.length - 3}` : ''}`);
+      thinkingLines.push(...tl);
     }
   } else {
     // Tier 2 — substance, node by node (freshest branch first). A branch
@@ -303,11 +395,12 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       }
     }
   }
-  if (shapeAll.length) {
-    // Plain existing words only (Jacob: no new terminology) — titles,
-    // in brief, in full, earlier discussion.
+  if (resolved.length) {
+    // Resolution mode: one tree, each topic at the detail the room allows —
+    // plain existing words only (Jacob: no new terminology).
+    litLines.push('  (each topic at the detail the room allows — fuller near your focus)', ...resolved);
+  } else if (shapeAll.length) {
     litLines.push('  titles:', ...shapeAll);
-    if (gistKept.length) litLines.push('', '  in brief:', ...gistKept);
     if (subKept.length) litLines.push('', '  in full:', ...subKept);
     if (memKept.length) litLines.push('', '  earlier discussion:', ...memKept);
   }
@@ -360,13 +453,15 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const text = parts.join('\n');
   const sections = [
     { label: 'the focus — in full (its frame, statements, and memory)', text: fixed.join('\n') },
-    { label: 'lit topics — titles', text: shapeAll.join('\n') },
-    { label: 'lit topics — in brief', text: gistKept.join('\n') },
+    { label: 'lit topics (each at the detail the room allows)', text: resolved.join('\n') },
+    { label: 'lit topics — titles', text: resolved.length ? '' : shapeAll.join('\n') },
     { label: 'lit topics — full statements', text: subKept.join('\n') },
     { label: 'lit topics — earlier discussion', text: memKept.join('\n') },
     { label: 'open questions', text: qLines.join('\n') },
     { label: 'other topics — one line each', text: restLines.join('\n') },
     { label: 'standing constraints + instructions to the agent', text: tail.join('\n') },
   ].map((sec) => ({ ...sec, chars: sec.text.length })).filter((sec) => sec.chars > 0);
-  return { text, trimmedLit, sections, budget: BUDGET_CHARS };
+  const usedChars = BUDGET_CHARS - Math.max(0, budget);
+  const thinking = [`budget: ${BUDGET_CHARS.toLocaleString()} chars — used ~${usedChars.toLocaleString()}`, ...thinkingLines].join('\n');
+  return { text, trimmedLit, sections, budget: BUDGET_CHARS, thinking };
 }

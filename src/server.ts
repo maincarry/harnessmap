@@ -57,6 +57,12 @@ const translator = new Translator(store);
 const chats = new ChatSessionManager(store);
 // M187: background large-import jobs (proposal held server-side until applied)
 const importJobs = new Map<string, { status: 'running' | 'done' | 'error'; label: string; startedAt: number; proposal?: any; error?: string }>();
+// M191e/7: reload held proposals a restart would otherwise have eaten.
+try {
+  for (const r of (store as any).db.prepare('SELECT job_id, label, proposal, created_at FROM pending_proposals').all() as any[]) {
+    importJobs.set(r.job_id, { status: 'done', label: r.label ?? 'restored import', startedAt: Date.parse(r.created_at + 'Z') || Date.now(), proposal: JSON.parse(r.proposal) });
+  }
+} catch { /* fresh db */ }
 
 // M88 (Mark): MULTI-PROJECT — each project is its own map, nothing shared.
 // The server keeps an ACTIVE pair (projectId, mainChatId) that the UI views
@@ -386,7 +392,7 @@ async function healTitles(cap = 5, pid = projectId): Promise<{ renamed: number; 
   return { renamed, remaining: brokenTitles(pid).length };
 }
 setTimeout(healTitles, 5_000); // boot sweep
-// M191: convert the most recently active legacy memories to gist+facts —
+// M191: convert the most recently active legacy memories to minimal+details —
 // three cheap batches on boot, the lazy write path handles the long tail.
 setTimeout(async () => {
   for (let i = 0; i < 3; i++) { if (await convertMemories(store, 20) === 0) break; }
@@ -1224,7 +1230,7 @@ const server = Bun.serve({
       return json(proposal);
     }
     // M191: RECALL — the pull channel. The host agent fetches a node's card
-    // (gist + current facts), its neighborhood, or resolved evidence, on
+    // (minimal view + current details), its neighborhood, or resolved evidence, on
     // demand instead of pre-paid in the injection. Server-guarded: obeys the
     // light (dim → set-aside, no content), refuses when map influence is
     // closed (M143 silence goes both directions), rate-capped, audited.
@@ -1263,19 +1269,19 @@ const server = Bun.serve({
       const card = (id: string) => {
         const n = store.getNode(id)!;
         const c = getNodeCard(store, id);
-        return { id: n.id, name: n.title || n.content, statement: n.content, type: n.type ?? null, status: n.status, gist: c.gist, facts: c.facts.filter((f) => f.status === 'current').map((f) => ({ text: f.text, date: f.date, prov: f.prov })) };
+        return { id: n.id, name: n.title || n.content, statement: n.content, type: n.type ?? null, status: n.status, minimal: c.minimal, details: c.details.filter((f) => f.status === 'current').map((f) => ({ text: f.text, date: f.date, prov: f.prov })) };
       };
       const out: any = { card: card(rn.id) };
       if (depth === 'around') {
         const chain: any[] = [];
         let p = rn.parentId;
-        while (p) { const a = store.getNode(p); if (!a || a.status === 'removed') break; chain.push({ id: a.id, name: a.title || a.content, gist: getNodeCard(store, a.id).gist }); p = a.parentId; }
+        while (p) { const a = store.getNode(p); if (!a || a.status === 'removed') break; chain.push({ id: a.id, name: a.title || a.content, minimal: getNodeCard(store, a.id).minimal }); p = a.parentId; }
         out.ancestors = chain;
         out.children = store.childrenOf(rn.id).filter((k) => k.status !== 'removed').slice(0, 12).map((k) => card(k.id));
       }
       if (depth === 'evidence') {
         const resolved: any = { files: [], urls: [], tools: [] };
-        const provs: any[] = out.card.facts.map((f: any) => f.prov).filter((p: any) => p && Object.keys(p).length);
+        const provs: any[] = out.card.details.map((f: any) => f.prov).filter((p: any) => p && Object.keys(p).length);
         const evRounds = ((store as any).db.prepare(
           "SELECT DISTINCT round_id FROM map_events WHERE project_id = ? AND round_id IS NOT NULL AND alteration LIKE ? ORDER BY seq DESC LIMIT 5",
         ).all(projectId, `%${rn.id}%`) as any[]).map((r) => r.round_id);
@@ -1326,7 +1332,8 @@ const server = Bun.serve({
       return json(proposal);
     }
     if (path === '/api/reorganize/apply' && req.method === 'POST') {
-      const { alterations, chatId, containerName, suggestionId, memories, origin } = await req.json() as { alterations: any[]; chatId?: string; containerName?: string; suggestionId?: string; memories?: Record<string, string>; origin?: string };
+      const { alterations, chatId, containerName, suggestionId, memories, origin, jobId } = await req.json() as { alterations: any[]; chatId?: string; containerName?: string; suggestionId?: string; memories?: Record<string, string>; origin?: string; jobId?: string };
+      if (jobId) { try { (store as any).db.prepare('DELETE FROM pending_proposals WHERE job_id = ?').run(jobId); } catch {} importJobs.delete(jobId); }
       const tidyInverse = inverseOfAlterations(alterations);
       const tidyMeta = captureFocusLit(alterations.map((a: any) => a.id).filter(Boolean));
       store.applyAlterations(projectId, alterations, { kind: 'reorganize' });
@@ -1489,12 +1496,21 @@ const server = Bun.serve({
         broadcast({ type: 'import_progress', jobId, ...prog });
       }).then((r) => {
         if ('error' in r) { importJobs.set(jobId, { status: 'error', label, startedAt: Date.now(), error: r.error }); broadcast({ type: 'import_ready', jobId, error: r.error }); }
-        else { importJobs.set(jobId, { status: 'done', label, startedAt: Date.now(), proposal: r }); broadcast({ type: 'import_ready', jobId, summary: r.summary, count: r.alterations.length }); }
+        else {
+          importJobs.set(jobId, { status: 'done', label, startedAt: Date.now(), proposal: r });
+          // M191e/7 (Jacob): held proposals survive the server.
+          try { (store as any).db.prepare('INSERT OR REPLACE INTO pending_proposals (job_id, project_id, label, proposal) VALUES (?, ?, ?, ?)').run(jobId, jobPid, label, JSON.stringify(r)); } catch {}
+          broadcast({ type: 'import_ready', jobId, summary: r.summary, count: r.alterations.length });
+        }
       }).catch((err) => {
         importJobs.set(jobId, { status: 'error', label, startedAt: Date.now(), error: String(err).slice(0, 200) });
         broadcast({ type: 'import_ready', jobId, error: String(err).slice(0, 200) });
       });
       return json({ jobId, chars: text.length });
+    }
+    if (path === '/api/import/pending' && req.method === 'GET') {
+      const rows = ((store as any).db.prepare('SELECT job_id, project_id, label, created_at FROM pending_proposals ORDER BY created_at DESC').all() as any[]);
+      return json({ pending: rows });
     }
     const jobMatch = path.match(/^\/api\/import\/job\/([\w-]+)$/);
     if (jobMatch && req.method === 'GET') {
@@ -1602,8 +1618,8 @@ const server = Bun.serve({
 
     // M162: user-facing agent view — what one turn's injection is made of.
     if (path === '/api/agent-view' && req.method === 'GET') {
-      const { text, trimmedLit, sections, budget } = composeParts(store, mainChatId, []);
-      return json({ sections, trimmedLit, budget, total: text.length, text });
+      const { text, trimmedLit, sections, budget, thinking } = composeParts(store, mainChatId, []);
+      return json({ sections, trimmedLit, budget, total: text.length, text, thinking });
     }
 
     // M186 (Mark): full transparency about how the map's agents sign in and
@@ -1676,19 +1692,19 @@ const server = Bun.serve({
       if (b2.key === 'latest_ver') latestKnown = b2.value || null;
       return json({ ok: true });
     }
-    // M191 test seam (localhost dev tooling, like /api/dev/setting): write
-    // structured memory deterministically so suites can exercise the cap,
-    // supersession, and serving without a model call.
+    // M191 test seam (localhost dev tooling): write structured memory
+    // deterministically so suites can exercise the cap, supersession, and
+    // serving without a model call.
     if (path === '/api/dev/memory' && req.method === 'POST') {
-      const b2 = (await req.json()) as { nodeId: string; gist?: string; facts?: { text: string; date?: string; status?: string }[] };
+      const b2 = (await req.json()) as { nodeId: string; minimal?: string; details?: { text: string; date?: string; status?: string }[] };
       if (!store.getNode(b2.nodeId)) return json({ error: 'unknown node' }, 404);
       const db2 = (store as any).db;
-      if (b2.gist !== undefined) {
-        db2.prepare(`INSERT INTO node_memory (node_id, text, gist, updated_at) VALUES (?, '', ?, datetime('now'))
-                     ON CONFLICT(node_id) DO UPDATE SET gist = excluded.gist, updated_at = datetime('now')`).run(b2.nodeId, String(b2.gist).slice(0, 300));
+      if (b2.minimal !== undefined) {
+        db2.prepare(`INSERT INTO node_memory (node_id, text, minimal, updated_at) VALUES (?, '', ?, datetime('now'))
+                     ON CONFLICT(node_id) DO UPDATE SET minimal = excluded.minimal, updated_at = datetime('now')`).run(b2.nodeId, String(b2.minimal).slice(0, 300));
       }
-      for (const f of b2.facts ?? []) {
-        db2.prepare('INSERT INTO memory_facts (node_id, text, fact_date, status, prov) VALUES (?, ?, ?, ?, ?)')
+      for (const f of b2.details ?? []) {
+        db2.prepare('INSERT INTO memory_details (node_id, text, fact_date, status, prov) VALUES (?, ?, ?, ?, ?)')
           .run(b2.nodeId, String(f.text).slice(0, 400), f.date ?? null, f.status === 'superseded' ? 'superseded' : 'current', '{}');
       }
       return json({ ok: true });
@@ -1990,6 +2006,7 @@ const server = Bun.serve({
     // The append-only transcript must not accumulate snapshots.
     if (path === '/api/harness/context' && req.method === 'GET') {
       const sessionId = url.searchParams.get('session_id');
+      const promptText = url.searchParams.get('prompt') ?? '';
       // The context fetch IS the "user just sent a message" signal — let the
       // map UI show that the host agent is thinking (M61).
       if (sessionId) { health.promptAt = Date.now(); broadcast({ type: 'host_prompt' }); }
@@ -2004,7 +2021,7 @@ const server = Bun.serve({
         }
         return json({ context: '', kind: 'off' });
       }
-      if (!sessionId) return json({ context: chats.harnessContext(ctxChatId) }); // legacy/full
+      if (!sessionId) return json({ context: chats.harnessContext(ctxChatId, promptText) }); // legacy/full
       const anchor = getInjectionAnchor(store, sessionId);
       const fullAnchor = getFullAnchor(store, sessionId);
       const seq = currentSeq(store, ctxPid);
@@ -2015,7 +2032,7 @@ const server = Bun.serve({
         ? `[harnessmap] The user asked to focus on "${nudgeFocusTarget.name}" — the map's ▶ auto-focus button is now marked with a red dot and will re-aim the map there in one click. Briefly let the user know.`
         : null;
       if (anchor === null || (fullAnchor !== null && seq - fullAnchor > RE_ANCHOR_AFTER)) {
-        let context = chats.harnessContext(ctxChatId);
+        let context = chats.harnessContext(ctxChatId, promptText);
         if (focusNotice) { context = `${context}\n\n${focusNotice}`; nudgeNoticePending = false; }
         setFullAnchor(store, sessionId, seq);
         store.audit('inject_full', { session: sessionId.slice(0, 8), chars: context.length });

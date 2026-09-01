@@ -1390,7 +1390,7 @@ function openImport() {
   ov.querySelector('#im-apply').onclick = async () => {
     if (!current) return;
     try {
-      const r = await post('/api/reorganize/apply', { alterations: current.alterations, chatId: S.mainChatId, containerName: current.label, memories: current.memories, origin: 'import' });
+      const r = await post('/api/reorganize/apply', { alterations: current.alterations, chatId: S.mainChatId, containerName: current.label, memories: current.memories, origin: 'import', jobId: current.jobId });
       ov.remove();
       undoToast(r.undo);
     } catch (err) { $('round-line').textContent = `import apply failed: ${err.message}`; }
@@ -3232,6 +3232,7 @@ let devTimer = null;
 // specialist (kind=call), and the server SLIPPING map context into the chat
 // agent's next turn (kind=inject). The chat agent is never prompted directly.
 const DEV_CAST = {
+  attention:    { who: 'the map’s attention', does: 'why each topic was shown at the detail it was, this turn' },
   filer:        { who: 'server → filer agent', does: 'files your last chat round onto the map' },
   memory:       { who: 'server → memory agent', does: 'updates or combines a node’s memory' },
   relations:    { who: 'server → relations agent', does: 'describes how a node relates to its neighbors' },
@@ -3299,8 +3300,8 @@ async function openDevPanel() {
         <span class="dv-meta">${esc(cast.does)}${t.kind !== 'inject' && t.model ? ` · ${esc(t.model)}` : ''}${t.ms != null ? ` · ${t.ms}ms` : ''} · ${when}</span>
         ${t.ok === 0 ? '<span class="dv-fail">✗ failed</span>' : ''}</summary>`
         + (t.system ? `<div class="dv-sec">the agent’s standing instructions (system prompt)</div><pre>${esc(t.system)}</pre>` : '')
-        + (t.user ? `<div class="dv-sec">${t.kind === 'inject' ? 'which chat session received it' : 'what the server sent it (input)'}</div><pre>${esc(t.user)}</pre>` : '')
-        + (t.response ? `<div class="dv-sec">${t.kind === 'inject' ? 'the exact context slipped into the chat agent’s next turn' : (t.ok === 0 ? 'the error it returned' : 'what it returned (response)')}</div><pre>${esc(t.response)}</pre>` : '');
+        + (t.user ? `<div class="dv-sec">${t.kind === 'inject' ? 'which chat session received it' : t.kind === 'attention' ? 'what prompted this composition' : 'what the server sent it (input)'}</div><pre>${esc(t.user)}</pre>` : '')
+        + (t.response ? `<div class="dv-sec">${t.kind === 'inject' ? 'the exact context slipped into the chat agent’s next turn' : t.kind === 'attention' ? 'how the map chose what to show (by reason)' : (t.ok === 0 ? 'the error it returned' : 'what it returned (response)')}</div><pre>${esc(t.response)}</pre>` : '');
       rows.appendChild(el);
     }
   };

@@ -1,7 +1,7 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../store/db.js';
-import { composeState } from '../seed/composer.js';
+import { composeState, composeParts } from '../seed/composer.js';
 import { getConversationSummary } from './rolling-summary.js';
 
 // v0.3 — THE MAP IS THE MEMORY (Jacob's Q2 = (b)).
@@ -84,8 +84,20 @@ export class ChatSessionManager {
   // Harness-adapter injection payload (spike): the map block for a host
   // harness's turn — consumes pending manipulations (they're delivered now).
   // No verbatim window: the host owns its own transcript.
-  harnessContext(chatId: string): string {
-    return composeState(this.store, chatId, this.consumeManipulations(chatId));
+  harnessContext(chatId: string, userText?: string): string {
+    const parts = composeParts(this.store, chatId, this.consumeManipulations(chatId), userText);
+    this.traceAttention(userText, parts.thinking);
+    return parts.text;
+  }
+
+  // M191d (Jacob): the map's thinking — why each topic was shown at the
+  // detail it was — lands in the dev timeline beside the injection it explains.
+  private traceAttention(userText: string | undefined, thinking: string): void {
+    try {
+      if (this.store.getSetting('dev_mode') === '1' && thinking) {
+        this.store.addTrace({ kind: 'attention', task: 'attention', user: userText ? `the question riding along: ${userText.slice(0, 200)}` : '(no question rode along this turn)', response: thinking });
+      }
+    } catch { /* never block a turn on tracing */ }
   }
 
   // MAP.md body: same keyhole, but never consumes pending notices (those
@@ -154,8 +166,10 @@ export class ChatSessionManager {
     const userTurnId = randomUUID();
     this.store.appendTurn({ id: userTurnId, chatId, role: 'user', content: userText, raw: null });
 
+    const composed = composeParts(this.store, chatId, manipulations, userText);
+    this.traceAttention(userText, composed.thinking);
     const prompt = [
-      composeState(this.store, chatId, manipulations),
+      composed.text,
       this.renderSummaryBlock(chatId),
       windowBlock,
       `${focusDirective}USER'S NEW MESSAGE:\n${userText}`,
