@@ -150,8 +150,20 @@ async function subCall(opts: CallOpts, model: string): Promise<any> {
     try {
       return JSON.parse(stripped);
     } catch (e) {
+      // Mechanical repairs before burning the retry (learned from the v3
+      // import run, where one malformed chunk killed a 21-chunk job): take
+      // the outermost {...} (drops stray prose around the object), then
+      // remove trailing commas. Deterministic guards, not model reliance.
+      const braced = stripped.slice(stripped.indexOf('{'), stripped.lastIndexOf('}') + 1);
+      const repaired = braced.replace(/,\s*([}\]])/g, '$1');
+      try {
+        const out = JSON.parse(repaired);
+        opts.audit?.('parse_repaired', { task: opts.task, attempt });
+        return out;
+      } catch { /* fall through to retry */ }
       lastErr = String(e).slice(0, 120);
-      opts.audit?.('parse_retry', { task: opts.task, attempt, error: lastErr });
+      // Keep the raw head — without it the failing decision is unlearnable.
+      opts.audit?.('parse_retry', { task: opts.task, attempt, error: lastErr, raw: stripped.slice(0, 1500) });
     }
   }
   throw new Error(`subscription backend: invalid JSON after retry (${lastErr})`);

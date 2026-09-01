@@ -158,7 +158,7 @@ RULES:
 const FINISH_SYSTEM = `You are finishing a chunked import into a goal map. You see the complete imported subtree (every node with [id], name, and statement). Earlier chunks were filed without seeing later ones, so: (1) MERGE near-duplicates by renaming one node to carry both statements and moving the other's meaning into it — you may ONLY rename (update_node content/title) and re-parent (move_node); you cannot delete, so make duplicates harmless by renaming them into genuinely distinct aspects or moving them under the node they duplicate; (2) fix names that break the rule (topics 2-5 words, statements one tight sentence); (3) move nodes that clearly sit in the wrong branch. Propose NOTHING where the tree is already right — a small correct pass beats an ambitious rewrite. Ops may reference ONLY the [ids] shown.`;
 
 export interface LargeProgress { phase: 'chunk' | 'finish'; done: number; total: number }
-export interface LargeProposal extends ImportProposal { memories: Record<string, string>; chunks: number }
+export interface LargeProposal extends ImportProposal { memories: Record<string, string>; chunks: number; skipped: { chunk: number; error: string }[] }
 
 function splitChunks(text: string, target = 50_000): string[] {
   const lines = text.split('\n');
@@ -201,10 +201,11 @@ export async function proposeImportLarge(
     return out.join('\n').slice(0, 16_000);
   };
 
+  const skipped: { chunk: number; error: string }[] = [];
   try {
     for (let i = 0; i < chunks.length; i++) {
       onProgress?.({ phase: 'chunk', done: i, total: chunks.length });
-      const parsed = await call({
+      const askChunk = () => call({
         task: 'import', system: EXTEND_SYSTEM + systemCard(store, projectId, 'the IMPORT agent'),
         maxTokens: 8000, schema: IMPORT_SCHEMA as any, timeoutMs: 300_000,
         audit: (k, d) => store.audit(k, d),
@@ -216,6 +217,20 @@ export async function proposeImportLarge(
           'Extend the subtree with this chunk.',
         ].filter(Boolean).join('\n\n'),
       });
+      // One bad chunk must not vaporize the job (learned the hard way: the
+      // first v3 run lost 13 filed chunks to chunk 14's malformed JSON).
+      // Re-ask once fresh; still failing → record the gap and move on.
+      let parsed: any;
+      try { parsed = await askChunk(); }
+      catch (err1) {
+        store.audit('import_chunk_retry', { chunk: i + 1, error: String(err1).slice(0, 200) });
+        try { parsed = await askChunk(); }
+        catch (err2) {
+          skipped.push({ chunk: i + 1, error: String(err2).slice(0, 200) });
+          store.audit('import_chunk_skipped', { chunk: i + 1, error: String(err2).slice(0, 200) });
+          continue;
+        }
+      }
       if (i === 0 && parsed.summary) summary = parsed.summary;
       const synthetic = { ...map, nodes: [...map.nodes, ...accum.map((n) => ({ ...n, status: 'live' }))] } as any;
       const alts = normalizeIds((parsed.alterations ?? []) as any[], synthetic).filter((a: any) => a.op === 'create_node');
@@ -256,7 +271,21 @@ export async function proposeImportLarge(
       }
     } catch (err) { console.error('[import] finish pass skipped:', err); }
 
-    return { summary, alterations, rootId, memories, chunks: chunks.length };
+    // Final invariant sweep (found violated in the v3 run: two mid-run
+    // creates landed parentless as extra top-level containers): an import is
+    // ONE subtree — every create except the root must parent inside it.
+    if (rootId) {
+      const createdIds = new Set(alterations.filter((a) => a.op === 'create_node').map((a: any) => a.id));
+      for (const a of alterations as any[]) {
+        if (a.op !== 'create_node' || a.id === rootId) continue;
+        if (!a.parentId || !createdIds.has(a.parentId)) {
+          store.audit('import_orphan_rehomed', { id: String(a.id).slice(0, 8), badParent: String(a.parentId ?? 'none').slice(0, 8) });
+          a.parentId = rootId;
+        }
+      }
+    }
+    if (skipped.length) summary += ` (${skipped.length} of ${chunks.length} chunks could not be filed and were skipped)`;
+    return { summary, alterations, rootId, memories, chunks: chunks.length, skipped };
   } catch (err) {
     console.error('[import-large] failed:', err);
     return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };

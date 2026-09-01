@@ -150,44 +150,74 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   // discussions. Budget order: the same ranking bottom-up — discussions are
   // dropped first, then substance (stalest branch first), titles last. What
   // is always present in attention is the last dropped.
-  type LitTiers = { shape: string[]; substance: string[]; memory: string[] };
-  const litTiers = (id: string): LitTiers => {
-    const t: LitTiers = { shape: [], substance: [], memory: [] };
+  type LitEntry = { id: string; depth: number; shape: string; substance: string[]; memory: string | null; kids: number };
+  const litEntries = (id: string): LitEntry[] => {
+    const out: LitEntry[] = [];
     const walk = (nid: string, depth: number) => {
       const n = store.getNode(nid);
       if (!n || n.status === 'removed' || !litSet.has(nid)) return;
       const pad = '  '.repeat(depth + 1);
       const short = n.title || (n.content.length > 70 ? n.content.slice(0, 69) + '…' : n.content);
-      t.shape.push(`${pad}- ${short}`);
       const label = n.title && n.title !== n.content ? `${n.title}: ` : '';
-      t.substance.push(`${pad}• ${label}${n.content}${n.type ? ` [${n.type}, ${n.status}]` : ''}`);
+      const substance = [`${pad}• ${label}${n.content}${n.type ? ` [${n.type}, ${n.status}]` : ''}`];
       const rel = depth === 0 ? store.getCachedRelation(nid) : null;
-      if (rel) t.substance.push(`${pad}  (fits: ${rel.split('\n')[0].slice(0, 200)})`);
+      if (rel) substance.push(`${pad}  (fits: ${rel.split('\n')[0].slice(0, 200)})`);
       const mem = getNodeMemory(store, nid);
-      if (mem) t.memory.push(`${pad}${short} — remembered: ${mem.slice(0, 400)}`);
-      for (const kid of store.childrenOf(nid)) walk(kid.id, depth + 1);
+      const kids = store.childrenOf(nid).filter((k) => k.status !== 'removed' && litSet.has(k.id));
+      out.push({ id: nid, depth, shape: `${pad}- ${short}`, substance, memory: mem ? `${pad}${short} — remembered: ${mem.slice(0, 400)}` : null, kids: kids.length });
+      for (const kid of kids) walk(kid.id, depth + 1);
     };
     walk(id, 0);
-    return t;
+    return out;
   };
-  const branchTiers = topLit.map((id) => ({ id, t: litTiers(id) }));
-  // Tier 1 — the shape: always present (titles are cheap; last to ever drop).
+  const branchTiers = topLit.map((id) => ({ id, entries: litEntries(id) }));
+  // Tier 1 — the shape. Titles are the last to ever drop (M156), but at
+  // import scale a thousand lit titles alone can blow the whole budget
+  // (measured: 50k chars of names, zero substance served). So the shape is
+  // budget-aware: it may take up to SHAPE_SHARE of the budget; over that,
+  // the DEEPEST levels roll up into their ancestors' "+N inside" counts —
+  // titles still outrank everything, they just summarize from the bottom.
   const litLines: string[] = [];
   let litOmitted = 0;
-  const shapeAll = branchTiers.flatMap((b) => b.t.shape);
+  const SHAPE_SHARE = 0.4;
+  const allEntries = branchTiers.flatMap((b) => b.entries);
+  let shapeDepthCap = allEntries.length ? Math.max(...allEntries.map((e) => e.depth)) : 0;
+  const shapeSize = (cap: number) => allEntries.filter((e) => e.depth <= cap).reduce((s, e) => s + e.shape.length + 1, 0);
+  while (shapeDepthCap > 0 && shapeSize(shapeDepthCap) > budget * SHAPE_SHARE) shapeDepthCap--;
+  const visibleLit = new Set(allEntries.filter((e) => e.depth <= shapeDepthCap).map((e) => e.id));
+  const hiddenBelow = new Map<string, number>();
+  for (const b of branchTiers) {
+    for (const e of b.entries) {
+      if (e.depth === shapeDepthCap && e.kids > 0) {
+        const hidden = b.entries.filter((x) => x.depth > shapeDepthCap && isUnder(x.id, e.id)).length;
+        if (hidden) hiddenBelow.set(e.id, hidden);
+      }
+    }
+  }
+  function isUnder(id: string, ancestor: string): boolean {
+    let p = store.getNode(id)?.parentId;
+    while (p) { if (p === ancestor) return true; p = store.getNode(p)?.parentId ?? null; }
+    return false;
+  }
+  const shapeAll = allEntries.filter((e) => e.depth <= shapeDepthCap)
+    .map((e) => hiddenBelow.has(e.id) ? `${e.shape} (+${hiddenBelow.get(e.id)} inside)` : e.shape);
   budget -= shapeAll.join('\n').length;
   // Tier 2 — substance, node by node (freshest branch first). A branch
   // larger than the remaining budget contributes what fits instead of
   // nothing — whole-branch drops left most of the budget unused whenever
-  // one big lit branch (an at-scale import, say) exceeded it.
+  // one big lit branch (an at-scale import, say) exceeded it. Substance is
+  // served only for nodes whose titles made the shape — reading order stays
+  // coherent (never a statement for a name the agent hasn't seen).
   const subKept: string[] = [];
   const trimmedLit: string[] = [];
   for (const b of branchTiers) {
     let cut = false;
-    for (const line of b.t.substance) {
-      if (budget - line.length < 0) { cut = true; continue; }
-      budget -= line.length;
-      subKept.push(line);
+    for (const e of b.entries) {
+      if (!visibleLit.has(e.id)) { cut = true; continue; }
+      const size = e.substance.join('\n').length;
+      if (budget - size < 0) { cut = true; continue; }
+      budget -= size;
+      subKept.push(...e.substance);
     }
     if (cut) { litOmitted++; trimmedLit.push(b.id); }
   }
@@ -195,10 +225,11 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   // node-by-node fill.
   const memKept: string[] = [];
   for (const b of branchTiers) {
-    for (const line of b.t.memory) {
-      if (budget - line.length < 0) continue;
-      budget -= line.length;
-      memKept.push(line);
+    for (const e of b.entries) {
+      if (!e.memory || !visibleLit.has(e.id)) continue;
+      if (budget - e.memory.length < 0) continue;
+      budget -= e.memory.length;
+      memKept.push(e.memory);
     }
   }
   if (shapeAll.length) {
