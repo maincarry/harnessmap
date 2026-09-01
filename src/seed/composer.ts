@@ -285,8 +285,12 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       return blob ? `${pads(e)}    (${blob.slice(0, 620)})` : null;
     };
     const longExtra = (e: LitEntry): string | null => {
+      // LONG is the whole node (Jacob): full statement, the medium text, and
+      // the dated specifics together — never a subset.
       const details = (detailsBy.get(e.id) ?? []).slice(0, 5);
       const lines = [...e.substance];
+      const med = memByNode.get(e.id);
+      if (med) lines.push(`${pads(e)}  (${med.slice(0, 700)})`);
       if (details.length) lines.push(`${pads(e)}  remembered: ${details.map((f) => f.date ? `${f.text} (${f.date})` : f.text).join(' · ')}`.slice(0, 900));
       return lines.length ? lines.join('\n') : null;
     };
@@ -329,7 +333,7 @@ export function composeParts(store: Store, chatId: string, manipulations: string
         if (!visibleLit.has(e.id)) continue;
         const r = chosen.get(e.id) ?? 0;
         resolved.push(minimal(e));
-        if (r >= 1) { const m = mediumExtra(e); if (m) resolved.push(m); }
+        if (r === 1) { const m = mediumExtra(e); if (m) resolved.push(m); }
         if (r >= 2) { const l = longExtra(e); if (l) resolved.push(l); }
         if (r === 0 && (memByNode.get(e.id) || (detailsBy.get(e.id) ?? []).length)) staysMinimal.add(b.id);
       }

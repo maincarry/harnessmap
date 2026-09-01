@@ -19,11 +19,11 @@ export interface RoundProv { session?: string | null; tool_use_ids?: string[]; p
 
 const MINIMAL_CAP = 300; // Q2 (Mark): store-enforced hard cap, like title length.
 
-const STRUCTURE_RULES = `Maintain THREE layers per node:
-- minimal: 1-2 sentences (hard cap ~300 chars) stating the topic's CURRENT standing — the latest ruling wins; if a decision was reversed, it says what stands NOW. A minimal view describing an overturned state as live is a defect.
-- details: durable specifics this exchange established about THIS node — a decision and its why, a number, an exact command, a quoted ruling. 0-3 per node per round, one tight sentence each, only what is worth recalling later. Never restate the minimal view; never file dialogue narration.
-- supersede: the numbers of EXISTING details (as numbered in the input) that this exchange overturned or made obsolete.
-- memory: the legacy running digest of the conversation (what was asked, how it went, reactions) — integrate, don't append; ≤120 words; plain language.`;
+const STRUCTURE_RULES = `Maintain the node at THREE LENGTHS (Jacob's rule: each length contains the WHOLE node, compressed to that size — never a subset of its layers):
+- minimal: ONE sentence (hard cap ~300 chars) carrying the whole of it — what this node is, its current standing (the latest ruling wins; a reversed decision reads as reversed), and the single most important specific. Someone reading only this line knows the node.
+- memory: the MEDIUM length — up to 150 words covering everything about this node: what it is, how it stands, what was discussed here (positions, reasons, reactions), and the key specifics. Integrate, don't append; plain language; drop the least consequential first.
+- details: durable specifics this exchange established — a decision and its why, a number, an exact command, a quoted ruling. 0-3 per round, one tight sentence each. These serve at LONG, alongside the full statement and the medium text. Never narrate the dialogue.
+- supersede: the numbers of EXISTING details (as numbered in the input) that this exchange overturned or made obsolete.`;
 
 const BATCH_SYSTEM = `You maintain the memories of SEVERAL nodes on a goal map. You get the newest exchange and each node with its existing minimal view, numbered existing details, and legacy memory. For each node, fold in ONLY what this exchange says about that node — different nodes take different things from the same exchange. If the exchange adds nothing for a node, return its layers unchanged (empty details, empty supersede).
 
@@ -98,7 +98,10 @@ export async function updateTouchedMemories(store: Store, nodeIds: string[], use
       audit: (k, d) => store.audit(k, d),
       user: [
         `NEWEST EXCHANGE:\nUSER: ${userText.slice(0, 1500)}\nAGENT: ${assistantText.slice(0, 1500)}`,
-        ...nodes.map((n) => `NODE [${n.id}]: ${n.type ? `${n.type}: ` : ''}${n.content}\n${shown.get(n.id)!.text}`),
+        ...nodes.map((n) => {
+          const fit = (store as any).getCachedRelation?.(n.id) ?? null;
+          return `NODE [${n.id}]: ${n.type ? `${n.type}: ` : ''}${n.content}${fit ? `\nHOW IT FITS: ${String(fit).split('\n')[0].slice(0, 200)}` : ''}\n${shown.get(n.id)!.text}`;
+        }),
         'Update each node.',
       ].join('\n\n'),
     });
@@ -156,11 +159,13 @@ const CONVERT_SYSTEM = `You restructure the stored memory of nodes on a goal map
 ${STRUCTURE_RULES}
 There is no new exchange — work purely from the existing memory. supersede is always empty. memory: return the existing prose unchanged.`;
 
-export async function convertMemories(store: Store, batch = 20, nodeIds?: string[]): Promise<number> {
+export async function convertMemories(store: Store, batch = 20, nodeIds?: string[], refresh = false): Promise<number> {
   const db = (store as any).db;
   const rows = nodeIds
     ? nodeIds.map((id) => ({ node_id: id })).filter((r) => { const m = db.prepare("SELECT minimal FROM node_memory WHERE node_id = ? AND medium != ''").get(r.node_id) as any; return m && !m.minimal; }).slice(0, batch)
-    : (db.prepare("SELECT node_id FROM node_memory WHERE (minimal IS NULL OR minimal = '') AND medium != '' ORDER BY updated_at DESC LIMIT ?").all(batch) as any[]);
+    : refresh
+      ? (db.prepare("SELECT node_id FROM node_memory WHERE minimal != '' AND medium != '' ORDER BY updated_at ASC LIMIT ?").all(batch) as any[])
+      : (db.prepare("SELECT node_id FROM node_memory WHERE (minimal IS NULL OR minimal = '') AND medium != '' ORDER BY updated_at DESC LIMIT ?").all(batch) as any[]);
   const nodes = rows.map((r) => store.getNode(r.node_id)).filter((n): n is NonNullable<typeof n> => !!n && n.status !== 'removed');
   if (!nodes.length) return 0;
   try {

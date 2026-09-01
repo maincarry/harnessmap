@@ -397,6 +397,9 @@ setTimeout(healTitles, 5_000); // boot sweep
 // three cheap batches on boot, the lazy write path handles the long tail.
 setTimeout(async () => {
   for (let i = 0; i < 3; i++) { if (await convertMemories(store, 20) === 0) break; }
+  // Rolling refresh: the oldest stored compressions regenerate under the
+  // current duty (Jacob's whole-node-at-each-length rule), one batch per boot.
+  await convertMemories(store, 20, undefined, true);
 }, 15_000);
 
 // M62: turn-lifecycle health. The plugin is only alive if rounds keep
