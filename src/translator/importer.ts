@@ -150,7 +150,7 @@ const EXTEND_SYSTEM = `You are the IMPORT agent for a goal map, processing a LAR
 RULES:
 - create_node operations ONLY. Attach new nodes under existing [ids] where the material belongs there; create new branch nodes when the material opens a genuinely new thread. NEVER duplicate a node that already exists in the subtree — if this chunk revisits a topic, add the NEW information under the existing node.
 - ORGANIZE BY TOPIC, NEVER BY CONVERSATION PHASE: one topic = one subtree, wherever in the source its episodes occur. When this chunk continues, corrects, or reverses something already on the subtree, that material goes UNDER the topic's existing home (the reversal of a proposal lives with the proposal) — never into a new chapter for "this part of the conversation". Chapters named after meetings, sessions, or phases are wrong; chapters are subjects. A reader looking up one topic must find its whole story in one place.
-- DENSITY: roughly one node per coherent point in the source. Do not compress a rich chunk into a handful of lines; do not pad a thin one. A 50k-character chunk of dense material may well deserve 20-40 nodes.
+- DENSITY: roughly one node per coherent point in the source. Do not compress a rich chunk into a handful of lines; do not pad a thin one. A chunk holding a few deliberations typically deserves a handful of nodes; a thin connective chunk may deserve one or none.
 - DEPTH — the structure carries the substance: where the source has layers (a claim with its supporting facts, an option with its tradeoffs, a decision with its reasons and the rejected alternative, a correction superseding an earlier state), file those layers as CHILD NODES — evidence under the claim, objections under the option, reasons under the decision — three or four levels deep where the material earns it. Never flatten a layered discussion into a list of siblings whose detail hides in memory fields: a reader of the TREE alone should be able to follow the argument.
 - NAMES: topic/heading nodes 2-5 words; statement nodes one tight sentence. Depth does NOT go in the name.
 - MEMORY: nodes carrying source detail worth quoting SHOULD include a "memory" field — specifics, numbers, exact quotes, and a provenance tag naming where in the source it came from (a heading, a date, an entry id). Up to ~1200 characters. Memory is for provenance and texture; it is NOT the home of substance — anything a future reader needs in order to follow the discussion belongs in nodes.
@@ -181,25 +181,46 @@ export async function proposeImportLarge(
   onProgress?: (p: LargeProgress) => void,
 ): Promise<LargeProposal | { error: string }> {
   const map = loadMap(store, projectId);
-  const chunks = splitChunks(text);
+  // M190c (Jacob: "why not iterative sorting into topics as things import,
+  // just like actual use"): import = the filer's job over history, so the
+  // unit is a few deliberations (~8k), not a 50k time-slice — 50k slices
+  // made the model write time-chapters instead of topics. Units this small
+  // run on the filer's own cheap tier (live-use parity); the reconciling
+  // finish pass keeps the smart model.
+  const chunks = splitChunks(text, 8_000);
   const accum: { id: string; parentId: string | null; content: string; title?: string }[] = [];
   const memories: Record<string, string> = {};
   const alterations: any[] = [];
   let rootId: string | null = null;
   let summary = `imported: ${sourceLabel}`;
 
+  // The tree-so-far view must show EVERY topic home or later chunks cannot
+  // attach to what they cannot see (the v3 run's outline outgrew the old
+  // flat 16k cap mid-run — blindness bred new chapters). Adaptive depth:
+  // full outline while small; beyond the cap, deeper levels roll up into
+  // "+N inside" counts — every subject stays visible, detail summarizes.
   const renderAccum = (): string => {
     const kids = new Map<string | null, typeof accum>();
     for (const n of accum) { const k = kids.get(n.parentId) ?? []; k.push(n); kids.set(n.parentId, k); }
-    const out: string[] = [];
-    const walk = (pid: string | null, depth: number) => {
-      for (const n of kids.get(pid) ?? []) {
-        out.push(`${'  '.repeat(depth)}- [${n.id.slice(0, 8)}] ${(n.title || n.content).slice(0, 90)}`);
-        walk(n.id, depth + 1);
-      }
+    const countBelow = (id: string): number => (kids.get(id) ?? []).reduce((s, k) => s + 1 + countBelow(k.id), 0);
+    const render = (maxDepth: number): string => {
+      const out: string[] = [];
+      const walk = (pid: string | null, depth: number) => {
+        for (const n of kids.get(pid) ?? []) {
+          const below = countBelow(n.id);
+          const rolled = depth >= maxDepth && below > 0;
+          out.push(`${'  '.repeat(depth)}- [${n.id.slice(0, 8)}] ${(n.title || n.content).slice(0, 90)}${rolled ? ` (+${below} inside)` : ''}`);
+          if (!rolled) walk(n.id, depth + 1);
+        }
+      };
+      walk(null, 0);
+      return out.join('\n');
     };
-    walk(null, 0);
-    return out.join('\n').slice(0, 16_000);
+    for (let d = 12; d >= 2; d--) {
+      const s = render(d);
+      if (s.length <= 24_000 || d === 2) return s.slice(0, 30_000);
+    }
+    return '';
   };
 
   const skipped: { chunk: number; error: string }[] = [];
@@ -207,7 +228,8 @@ export async function proposeImportLarge(
     for (let i = 0; i < chunks.length; i++) {
       onProgress?.({ phase: 'chunk', done: i, total: chunks.length });
       const askChunk = () => call({
-        task: 'import', system: EXTEND_SYSTEM + systemCard(store, projectId, 'the IMPORT agent'),
+        task: 'import', modelOverride: modelFor('filer'),
+        system: EXTEND_SYSTEM + systemCard(store, projectId, 'the IMPORT agent'),
         maxTokens: 8000, schema: IMPORT_SCHEMA as any, timeoutMs: 300_000,
         audit: (k, d) => store.audit(k, d),
         user: [

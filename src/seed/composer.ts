@@ -1,5 +1,5 @@
 import { Store } from '../store/db.js';
-import { getNodeMemory } from '../translator/memory.js';
+import { getNodeMemory, getAllNodeMemories } from '../translator/memory.js';
 import {
   ancestors, descendantNodes, renderNodeBrief,
   renderNodeOneLiner, renderSubtreeFull,
@@ -50,12 +50,30 @@ export function composeParts(store: Store, chatId: string, manipulations: string
 
   const nodes = store.getNodes(project).filter((n) => n.status !== 'removed');
 
+  // M190d: the composer walks entirely in memory — per-node SQL lookups made
+  // composeParts quadratic (23s at 2161 nodes; every /api/state and MAP.md
+  // write queued behind it).
+  const byIdC = new Map(nodes.map((n) => [n.id, n]));
+  const kidsOfC = new Map<string, typeof nodes>();
+  for (const n of nodes) {
+    if (!n.parentId) continue;
+    const a = kidsOfC.get(n.parentId);
+    if (a) a.push(n); else kidsOfC.set(n.parentId, [n]);
+  }
+  const memByNode = getAllNodeMemories(store);
+  const descendantsC = (id: string): string[] => {
+    const out: string[] = [];
+    const stack = [...(kidsOfC.get(id) ?? [])];
+    while (stack.length) { const n = stack.pop()!; out.push(n.id); stack.push(...(kidsOfC.get(n.id) ?? [])); }
+    return out;
+  };
+
   // Staleness: a node's last touch = the newest update in its subtree.
   const touch = new Map<string, string>();
   for (const n of nodes) touch.set(n.id, n.updatedAt);
   const subtreeTouch = (id: string): string => {
     let max = touch.get(id) ?? '';
-    for (const d of descendantNodes(store, id)) {
+    for (const d of descendantsC(id)) {
       const t = touch.get(d) ?? '';
       if (t > max) max = t;
     }
@@ -65,7 +83,7 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     [...ids].sort((a, b) => (subtreeTouch(a) < subtreeTouch(b) ? 1 : -1));
 
   // --- always-present sections (never cut) ---
-  const focusSubtree = new Set([focusId, ...descendantNodes(store, focusId)]);
+  const focusSubtree = new Set([focusId, ...descendantsC(focusId)]);
   const frame = ancestors(store, focusId);
   const constraints = nodes.filter((n) => n.type === 'constraint' && ['active', 'hard'].includes(n.status));
 
@@ -154,7 +172,7 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const litEntries = (id: string): LitEntry[] => {
     const out: LitEntry[] = [];
     const walk = (nid: string, depth: number) => {
-      const n = store.getNode(nid);
+      const n = byIdC.get(nid);
       if (!n || n.status === 'removed' || !litSet.has(nid)) return;
       const pad = '  '.repeat(depth + 1);
       const short = n.title || (n.content.length > 70 ? n.content.slice(0, 69) + '…' : n.content);
@@ -162,8 +180,8 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       const substance = [`${pad}• ${label}${n.content}${n.type ? ` [${n.type}, ${n.status}]` : ''}`];
       const rel = depth === 0 ? store.getCachedRelation(nid) : null;
       if (rel) substance.push(`${pad}  (fits: ${rel.split('\n')[0].slice(0, 200)})`);
-      const mem = getNodeMemory(store, nid);
-      const kids = store.childrenOf(nid).filter((k) => k.status !== 'removed' && litSet.has(k.id));
+      const mem = memByNode.get(nid);
+      const kids = (kidsOfC.get(nid) ?? []).filter((k) => k.status !== 'removed' && litSet.has(k.id));
       out.push({ id: nid, depth, shape: `${pad}- ${short}`, substance, memory: mem ? `${pad}${short} — remembered: ${mem.slice(0, 400)}` : null, kids: kids.length });
       for (const kid of kids) walk(kid.id, depth + 1);
     };
@@ -185,19 +203,18 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const shapeSize = (cap: number) => allEntries.filter((e) => e.depth <= cap).reduce((s, e) => s + e.shape.length + 1, 0);
   while (shapeDepthCap > 0 && shapeSize(shapeDepthCap) > budget * SHAPE_SHARE) shapeDepthCap--;
   const visibleLit = new Set(allEntries.filter((e) => e.depth <= shapeDepthCap).map((e) => e.id));
+  // Hidden-descendant counts in one DFS pass per branch (entries are in DFS
+  // order): a rolled-up node's count = entries after it that are deeper,
+  // until the next entry at its depth or above.
   const hiddenBelow = new Map<string, number>();
   for (const b of branchTiers) {
-    for (const e of b.entries) {
-      if (e.depth === shapeDepthCap && e.kids > 0) {
-        const hidden = b.entries.filter((x) => x.depth > shapeDepthCap && isUnder(x.id, e.id)).length;
-        if (hidden) hiddenBelow.set(e.id, hidden);
-      }
+    for (let i = 0; i < b.entries.length; i++) {
+      const e = b.entries[i];
+      if (e.depth !== shapeDepthCap || e.kids === 0) continue;
+      let hidden = 0;
+      for (let j = i + 1; j < b.entries.length && b.entries[j].depth > e.depth; j++) hidden++;
+      if (hidden) hiddenBelow.set(e.id, hidden);
     }
-  }
-  function isUnder(id: string, ancestor: string): boolean {
-    let p = store.getNode(id)?.parentId;
-    while (p) { if (p === ancestor) return true; p = store.getNode(p)?.parentId ?? null; }
-    return false;
   }
   const shapeAll = allEntries.filter((e) => e.depth <= shapeDepthCap)
     .map((e) => hiddenBelow.has(e.id) ? `${e.shape} (+${hiddenBelow.get(e.id)} inside)` : e.shape);

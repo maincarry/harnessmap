@@ -149,6 +149,10 @@ CREATE TABLE IF NOT EXISTS nodes (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_nodes_project ON nodes(project_id, parent_id);
+-- M190d: childrenOf() filters by parent_id alone — the composite above can't
+-- serve it, so every child lookup was a full table scan (composeParts hit
+-- 23s at 2161 nodes: thousands of scans per compose).
+CREATE INDEX IF NOT EXISTS idx_nodes_parent ON nodes(parent_id);
 
 -- v0.4.3 (M38): lazy relational descriptions, keyed by a neighborhood hash
 -- (ids+updatedAt, 2 up / 2 down). Regenerated on read when the hash drifts.

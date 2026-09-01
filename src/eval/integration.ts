@@ -1028,9 +1028,15 @@ console.log('\n== 40. sign-in & billing transparency (M186) ==');
 
 console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
 {
-  // A synthetic 3-chunk document with distinct sections and concrete details.
+  // A synthetic multi-chunk document. Every entry is a DISTINCT fact — the
+  // old fixture repeated three facts sixty times, which the dedup-honest
+  // filer correctly compresses to a handful of nodes (M190c broke the old
+  // ≥10 assertion by being RIGHT); distinct facts make the floor fair.
   const bigDoc = Array.from({ length: 3 }, (_, c) => `## Part ${c + 1}: ${['fermentation basics', 'equipment choices', 'first-batch log'][c]}\n` +
-    Array.from({ length: 60 }, (_, i) => `Entry ${c * 60 + i}: ${['starter ratio is 1:5:5 flour to water', 'the crock costs 24 dollars at the market', 'day-three brine tastes right at 2 percent salt'][i % 3]} — detail line ${i} with enough words to carry real substance about the ${['sourdough starter', 'fermentation crock', 'brine schedule'][i % 3]}.`).join('\n')).join('\n\n');
+    Array.from({ length: 40 }, (_, i) => {
+      const n = c * 40 + i;
+      return `Entry ${n}: on day ${n + 1} the ${['starter', 'crock', 'brine', 'rye blend', 'proofing box'][n % 5]} measured ${n + 2}0 ${['grams', 'dollars', 'percent salinity', 'degrees F', 'hours'][n % 5]} — a distinct decision was made to ${['double the feed', 'move it to the cellar', 'add sea salt', 'switch flour brands', 'extend the rest'][n % 5]} because batch ${n} ${['rose too fast', 'smelled sour', 'stalled overnight', 'crusted early', 'tasted flat'][n % 5]}, and detail line ${n} carries enough words to make this entry its own coherent point about the process.`;
+    }).join('\n')).join('\n\n');
   writeFileSync(join(CWD_DEF, 'big-notes.md'), bigDoc.slice(0, 145_000));
   const start = await post('/api/import/large', { kind: 'file', path: join(CWD_DEF, 'big-notes.md') });
   check('large import starts a job', start.status === 200 && !!start.body.jobId);

@@ -105,3 +105,10 @@ export function getNodeMemory(store: Store, nodeId: string): string | null {
   const r = ((store as any).db.prepare('SELECT text FROM node_memory WHERE node_id = ?').get(nodeId) as any);
   return r?.text ?? null;
 }
+
+// Bulk form for the composer's hot path — one query instead of one per lit
+// node (M190d: per-node lookups made composeParts scale quadratically).
+export function getAllNodeMemories(store: Store): Map<string, string> {
+  const rows = ((store as any).db.prepare('SELECT node_id, text FROM node_memory').all() as any[]);
+  return new Map(rows.map((r) => [r.node_id, r.text]));
+}
