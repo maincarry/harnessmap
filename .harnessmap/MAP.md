@@ -30,7 +30,6 @@ BACKGROUND (lit by the user as reference):
           (M5 — Focus ≠ lit: separate controls, separate meanings. ✅ v0.2.)
       - Map legend
           (M6 — Legend explaining the map's marks. ✅ v0.2 (the `?` button). Later refreshed in M83.)
-      • Map legend: M6: a legend explaining the map's marks — the `?` button. [task, resolved]
       - Auto-fold branches
           (M7 — Auto-fold non-focus branches. ✅ v0.2.)
       - Tidy flow
@@ -378,7 +377,7 @@ BACKGROUND (lit by the user as reference):
   … 1 lit topic(s) omitted for space (stalest first).
 
 ELSEWHERE ON THE MAP (folded — set aside by the user; see the rule below):
-  … 1 more topic(s) exist but are not shown (stalest first). If something seems missing, ask — the user can light it.
+  • to sort (folded — 0 nodes inside)
 
 STANDING CONSTRAINTS (respect these):
   • M23: scope ruling — NO manual map editing in MVP (no move/rename/wrap-selection); bare minimum, automated map.
@@ -411,4 +410,4 @@ clean up, lighting/focus mechanics — refer them to the map panel's
 instructions; do not try to restructure the map yourself.
 ```
 
-_updated 2026-09-01T17:20:43.276Z_
+_updated 2026-09-01T23:38:33.404Z_

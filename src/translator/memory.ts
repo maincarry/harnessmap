@@ -162,7 +162,7 @@ There is no new exchange — work purely from the existing memory. supersede is 
 export async function convertMemories(store: Store, batch = 20, nodeIds?: string[], refresh = false): Promise<number> {
   const db = (store as any).db;
   const rows = nodeIds
-    ? nodeIds.map((id) => ({ node_id: id })).filter((r) => { const m = db.prepare("SELECT minimal FROM node_memory WHERE node_id = ? AND medium != ''").get(r.node_id) as any; return m && !m.minimal; }).slice(0, batch)
+    ? nodeIds.map((id) => ({ node_id: id })).filter((r) => { const m = db.prepare("SELECT minimal FROM node_memory WHERE node_id = ? AND medium != ''").get(r.node_id) as any; return m && (refresh || !m.minimal); }).slice(0, batch)
     : refresh
       ? (db.prepare("SELECT node_id FROM node_memory WHERE minimal != '' AND medium != '' ORDER BY updated_at ASC LIMIT ?").all(batch) as any[])
       : (db.prepare("SELECT node_id FROM node_memory WHERE (minimal IS NULL OR minimal = '') AND medium != '' ORDER BY updated_at DESC LIMIT ?").all(batch) as any[]);
