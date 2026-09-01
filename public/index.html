@@ -1390,7 +1390,7 @@ function openImport() {
   ov.querySelector('#im-apply').onclick = async () => {
     if (!current) return;
     try {
-      const r = await post('/api/reorganize/apply', { alterations: current.alterations, chatId: S.mainChatId, containerName: current.label, memories: current.memories });
+      const r = await post('/api/reorganize/apply', { alterations: current.alterations, chatId: S.mainChatId, containerName: current.label, memories: current.memories, origin: 'import' });
       ov.remove();
       undoToast(r.undo);
     } catch (err) { $('round-line').textContent = `import apply failed: ${err.message}`; }

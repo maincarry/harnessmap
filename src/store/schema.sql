@@ -170,6 +170,22 @@ CREATE TABLE IF NOT EXISTS node_memory (
   text TEXT NOT NULL,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- (M191 adds a 'gist' column via guarded ALTER in db.ts — the required-current
+-- condensed view; 'text' stays as the legacy blob until Stage 4.)
+
+-- M191 (Mark): structured memory — dated, provenance-linked, individually
+-- supersedable facts. Serving takes top-k current facts; superseded facts
+-- stay for history and provenance but are never served as current truth.
+CREATE TABLE IF NOT EXISTS memory_facts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  node_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  fact_date TEXT,                            -- when the fact happened (may differ from created_at)
+  status TEXT NOT NULL DEFAULT 'current',    -- 'current' | 'superseded'
+  prov TEXT NOT NULL DEFAULT '{}',           -- JSON {session, tool_use_ids, paths, urls}
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_memory_facts_node ON memory_facts(node_id, status);
 
 -- v0.4.7 (M42): second-place conversational memory — rolling summary of turns
 -- that scrolled out of the verbatim window. Survives clean-chat (clean is a

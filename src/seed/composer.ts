@@ -1,5 +1,5 @@
 import { Store } from '../store/db.js';
-import { getNodeMemory, getAllNodeMemories } from '../translator/memory.js';
+import { getNodeMemory, getAllNodeMemories, getAllGists, getAllCurrentFacts } from '../translator/memory.js';
 import {
   ancestors, descendantNodes, renderNodeBrief,
   renderNodeOneLiner, renderSubtreeFull,
@@ -219,40 +219,95 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const shapeAll = allEntries.filter((e) => e.depth <= shapeDepthCap)
     .map((e) => hiddenBelow.has(e.id) ? `${e.shape} (+${hiddenBelow.get(e.id)} inside)` : e.shape);
   budget -= shapeAll.join('\n').length;
-  // Tier 2 — substance, node by node (freshest branch first). A branch
-  // larger than the remaining budget contributes what fits instead of
-  // nothing — whole-branch drops left most of the budget unused whenever
-  // one big lit branch (an at-scale import, say) exceeded it. Substance is
-  // served only for nodes whose titles made the shape — reading order stays
-  // coherent (never a statement for a name the agent hasn't seen).
+  // M191 (flag-gated, Mark's green light — default flip is Jacob's call on
+  // the RCT numbers): gists broadly, facts warmly, warm before cold.
+  const SERVE_CARDS = (store.getSetting('memory_serving') ?? process.env.HARNESSMAP_MEMORY_SERVING ?? '') === 'cards';
   const subKept: string[] = [];
   const trimmedLit: string[] = [];
-  for (const b of branchTiers) {
-    let cut = false;
-    for (const e of b.entries) {
-      if (!visibleLit.has(e.id)) { cut = true; continue; }
+  const memKept: string[] = [];
+  const gistKept: string[] = [];
+  if (SERVE_CARDS) {
+    const gistBy = getAllGists(store);
+    const factsBy = getAllCurrentFacts(store);
+    const marks = store.getMarks(project);
+    // Warmth (M191, Mark: "focus proximity strongest, same tree first"):
+    // shares the focus's top-level chapter +2 · filer-touched fresh mark +2 ·
+    // updated in the last day +1.
+    const chapterOf = (id: string): string => {
+      let cur = id;
+      let p = byIdC.get(id)?.parentId;
+      while (p && byIdC.get(p) && byIdC.get(p)!.parentId) { cur = p; p = byIdC.get(p)!.parentId; }
+      return p ? cur : id;
+    };
+    const focusChapter = chapterOf(focusId);
+    const dayAgo = new Date(Date.now() - 86_400_000).toISOString().slice(0, 19).replace('T', ' ');
+    const warmth = (id: string): number =>
+      (chapterOf(id) === focusChapter ? 2 : 0) + ((marks as any)[id] ? 2 : 0) + ((byIdC.get(id)?.updatedAt ?? '') > dayAgo ? 1 : 0);
+    // Gists ride broadly: every visible lit node's current view, one line.
+    const flat: { b: string; e: LitEntry; w: number }[] = [];
+    for (const b of branchTiers) for (const e of b.entries) {
+      if (!visibleLit.has(e.id)) continue;
+      flat.push({ b: b.id, e, w: warmth(e.id) });
+      const g = gistBy.get(e.id);
+      if (!g) continue;
+      const line = `${e.shape}: ${g}`;
+      if (budget - line.length < 0) continue;
+      budget -= line.length;
+      gistKept.push(line);
+    }
+    // Warm nodes serve statement + remembered facts BEFORE cold statements
+    // (open question 1, implemented for the test; inverts an M156 ordering).
+    flat.sort((a, b2) => b2.w - a.w);
+    const cutBranches = new Set<string>();
+    for (const { b, e, w } of flat) {
       const size = e.substance.join('\n').length;
-      if (budget - size < 0) { cut = true; continue; }
+      if (budget - size < 0) { cutBranches.add(b); continue; }
       budget -= size;
       subKept.push(...e.substance);
+      if (w >= 2) {
+        const facts = (factsBy.get(e.id) ?? []).slice(0, 5);
+        if (facts.length) {
+          const pad = e.shape.match(/^\s*/)?.[0] ?? '  ';
+          const short = e.shape.replace(/^\s*- /, '');
+          const line = `${pad}${short} — remembered: ${facts.map((f) => f.date ? `${f.text} (${f.date})` : f.text).join(' · ')}`.slice(0, 900);
+          if (budget - line.length >= 0) { budget -= line.length; memKept.push(line); }
+        }
+      }
     }
-    if (cut) { litOmitted++; trimmedLit.push(b.id); }
-  }
-  // Tier 3 — remembered discussions, first to go under pressure; same
-  // node-by-node fill.
-  const memKept: string[] = [];
-  for (const b of branchTiers) {
-    for (const e of b.entries) {
-      if (!e.memory || !visibleLit.has(e.id)) continue;
-      if (budget - e.memory.length < 0) continue;
-      budget -= e.memory.length;
-      memKept.push(e.memory);
+    for (const b of branchTiers) {
+      if (cutBranches.has(b.id) || b.entries.some((e) => !visibleLit.has(e.id))) { litOmitted++; trimmedLit.push(b.id); }
+    }
+  } else {
+    // Tier 2 — substance, node by node (freshest branch first). A branch
+    // larger than the remaining budget contributes what fits instead of
+    // nothing. Substance is served only for nodes whose titles made the
+    // shape — never a statement for a name the agent hasn't seen.
+    for (const b of branchTiers) {
+      let cut = false;
+      for (const e of b.entries) {
+        if (!visibleLit.has(e.id)) { cut = true; continue; }
+        const size = e.substance.join('\n').length;
+        if (budget - size < 0) { cut = true; continue; }
+        budget -= size;
+        subKept.push(...e.substance);
+      }
+      if (cut) { litOmitted++; trimmedLit.push(b.id); }
+    }
+    // Tier 3 — remembered discussions, first to go under pressure.
+    for (const b of branchTiers) {
+      for (const e of b.entries) {
+        if (!e.memory || !visibleLit.has(e.id)) continue;
+        if (budget - e.memory.length < 0) continue;
+        budget -= e.memory.length;
+        memKept.push(e.memory);
+      }
     }
   }
   if (shapeAll.length) {
     // Plain existing words only (Jacob: no new terminology) — titles,
-    // full statements, earlier discussion.
+    // in brief, in full, earlier discussion.
     litLines.push('  titles:', ...shapeAll);
+    if (gistKept.length) litLines.push('', '  in brief:', ...gistKept);
     if (subKept.length) litLines.push('', '  in full:', ...subKept);
     if (memKept.length) litLines.push('', '  earlier discussion:', ...memKept);
   }
@@ -306,6 +361,7 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const sections = [
     { label: 'the focus — in full (its frame, statements, and memory)', text: fixed.join('\n') },
     { label: 'lit topics — titles', text: shapeAll.join('\n') },
+    { label: 'lit topics — in brief', text: gistKept.join('\n') },
     { label: 'lit topics — full statements', text: subKept.join('\n') },
     { label: 'lit topics — earlier discussion', text: memKept.join('\n') },
     { label: 'open questions', text: qLines.join('\n') },

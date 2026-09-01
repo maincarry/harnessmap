@@ -1084,6 +1084,45 @@ console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
   } else {
     check('expand may honestly propose nothing (summary says so)', typeof xp.body?.summary === 'string');
   }
+
+  // == 43. M191: structured memory (gist + facts) and recall ==
+  console.log('\n== 43. structured memory + recall (M191) ==');
+  await post('/api/nodes', { content: 'recall guinea pig topic' });
+  const rgp = (await state()).nodes.find((n: any) => n.content === 'recall guinea pig topic');
+  check('seed node exists', !!rgp);
+  if (rgp) {
+    const longGist = 'G'.repeat(400);
+    await post('/api/dev/memory', { nodeId: rgp.id, gist: longGist, facts: [
+      { text: 'the crock was chosen over the jar', date: '2026-08-30' },
+      { text: 'the jar was chosen originally', status: 'superseded' },
+    ] });
+    // recall card: born-lit node answers; gist capped at 300; only current facts
+    const rc = await post('/api/recall', { nodeId: rgp.id });
+    check('recall card answers', rc.status === 200, JSON.stringify(rc.body).slice(0, 120));
+    check('gist hard-capped at 300', (rc.body?.card?.gist ?? '').length === 300);
+    check('superseded facts never served as current', (rc.body?.card?.facts ?? []).length === 1 && /crock/.test(rc.body.card.facts[0].text));
+    // around depth returns the local tree
+    const ra = await post('/api/recall', { nodeId: rgp.id, depth: 'around' });
+    check('recall around carries ancestors+children arrays', Array.isArray(ra.body?.ancestors) && Array.isArray(ra.body?.children));
+    // the light is the law: dim it → set-aside, no content
+    const st43 = await state();
+    await post(`/api/chats/${st43.mainChatId}/lit`, { nodeId: rgp.id, on: false });
+    const rd = await post('/api/recall', { nodeId: rgp.id });
+    check('recall on dimmed node refuses with set-aside, no card', rd.body?.setAside === true && !rd.body?.card);
+    await post(`/api/chats/${st43.mainChatId}/lit`, { nodeId: rgp.id, on: true });
+    // closed influence refuses recall entirely
+    await post('/api/influence/toggle', {});
+    const ri = await post('/api/recall', { nodeId: rgp.id });
+    check('recall refused while map influence is closed', ri.status === 403);
+    await post('/api/influence/toggle', {});
+    // cards serving: flag on → injection carries "in brief" with the gist
+    await post('/api/dev/setting', { key: 'memory_serving', value: 'cards' });
+    const av43 = await get('/api/agent-view');
+    check('cards serving shows "in brief" gists in the injection', /in brief:/.test(av43.text ?? '') && /GGG/.test(av43.text ?? ''));
+    await post('/api/dev/setting', { key: 'memory_serving', value: '' });
+    const av43b = await get('/api/agent-view');
+    check('flag off restores legacy serving', !/in brief:/.test(av43b.text ?? ''));
+  }
 }
 
 console.log('\n== 13. audit ==');

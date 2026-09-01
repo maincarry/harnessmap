@@ -19,7 +19,7 @@ import { answerMapQuestion } from './translator/mapchat.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend } from './term.js';
 import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
-import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory } from './translator/memory.js';
+import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript } from './translator/importer.js';
 import { setTraceSink, setMetricsSink, callHealth } from './inference.js';
@@ -386,6 +386,11 @@ async function healTitles(cap = 5, pid = projectId): Promise<{ renamed: number; 
   return { renamed, remaining: brokenTitles(pid).length };
 }
 setTimeout(healTitles, 5_000); // boot sweep
+// M191: convert the most recently active legacy memories to gist+facts —
+// three cheap batches on boot, the lazy write path handles the long tail.
+setTimeout(async () => {
+  for (let i = 0; i < 3; i++) { if (await convertMemories(store, 20) === 0) break; }
+}, 15_000);
 
 // M62: turn-lifecycle health. The plugin is only alive if rounds keep
 // arriving — track the beats so the UI can show them (and show breakage).
@@ -457,6 +462,7 @@ function recency(): Record<string, string> {
 function touch(_ids: string[]) { /* recency is now derived from updated_at */ }
 
 // ---- serial translation queue with visible lag (TD finding 4/6) ----
+const recallRate = new Map<string, number[]>(); // M191 recall loop guard
 let translationChain: Promise<void> = Promise.resolve();
 let lag = 0;
 function enqueueTranslation(params: { chatId: string; turnId: string; userText: string; assistantText: string; provenance?: { sessionId: string | null; slice: RoundSlice } }) {
@@ -516,13 +522,20 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
       // M68: heal any broken display names this round left behind.
       healTitles(5, roundPid).catch(() => {});
       // M41: fold this exchange into the focus node's chat memory (async).
-      updateNodeMemory(store, chat.focusContainerId, params.userText, params.assistantText).catch(() => {});
+      // M191: the round's provenance rides along so new facts carry links.
+      const roundProv = params.provenance ? {
+        session: params.provenance.sessionId,
+        tool_use_ids: (params.provenance.slice.toolRefs ?? []).map((t: any) => t.id).slice(0, 12),
+        paths: (params.provenance.slice.filePaths ?? []).slice(0, 12),
+        urls: (params.provenance.slice.urls ?? []).slice(0, 12),
+      } : {};
+      updateNodeMemory(store, chat.focusContainerId, params.userText, params.assistantText, roundProv).catch(() => {});
       // M156: every node the ROUND touched gets deep too — one batched cheap
       // call over the filer's own relevance list (never "all lit nodes").
       const touchedIds = out.result.alterations
         .map((a: any) => a.id ?? a.nodeId)
         .filter((id: any) => id && id !== chat.focusContainerId);
-      if (touchedIds.length) updateTouchedMemories(store, touchedIds, params.userText, params.assistantText).catch(() => {});
+      if (touchedIds.length) updateTouchedMemories(store, touchedIds, params.userText, params.assistantText, roundProv).catch(() => {});
       // M166 (Jacob): the whole-map review runs itself once in a while —
       // every HARNESSMAP_AUTOTIDY_ROUNDS filed rounds (default 15) — and only
       // PROPOSES: findings land in the ⟳ to tidy folder as suggestions, never
@@ -1210,6 +1223,97 @@ const server = Bun.serve({
       if ('error' in proposal) return json({ error: proposal.error }, 502);
       return json(proposal);
     }
+    // M191: RECALL — the pull channel. The host agent fetches a node's card
+    // (gist + current facts), its neighborhood, or resolved evidence, on
+    // demand instead of pre-paid in the injection. Server-guarded: obeys the
+    // light (dim → set-aside, no content), refuses when map influence is
+    // closed (M143 silence goes both directions), rate-capped, audited.
+    if (path === '/api/recall' && req.method === 'POST') {
+      const b = await req.json() as { nodeId?: string; name?: string; depth?: 'card' | 'evidence' | 'around'; chatId?: string };
+      if (!b.nodeId && !b.name) return json({ error: 'nodeId or name required' }, 400);
+      if (influenceOff(projectId)) return json({ error: 'map influence is closed — recall refused' }, 403);
+      // Agents reference topics by NAME (the injection shows names, not ids):
+      // resolve case-insensitively against titles, then statements.
+      let rn = b.nodeId ? store.getNode(b.nodeId) : undefined;
+      if (!rn && b.name) {
+        const q = b.name.trim().toLowerCase();
+        const cand = store.getNodes(projectId).filter((n) => n.status !== 'removed');
+        rn = cand.find((n) => (n.title ?? '').toLowerCase() === q)
+          ?? cand.find((n) => n.content.toLowerCase() === q)
+          ?? cand.find((n) => (n.title ?? '').toLowerCase().startsWith(q))
+          ?? cand.find((n) => n.content.toLowerCase().includes(q));
+      }
+      if (!rn || rn.status === 'removed' || rn.projectId !== projectId) return json({ error: 'unknown node' }, 404);
+      const rChatId = b.chatId ?? mainChatId;
+      const rChat = store.getChat(rChatId);
+      if (!rChat) return json({ error: 'unknown chat' }, 404);
+      // Rate cap (loop guard): 20 recalls per chat per 10 minutes.
+      const now = Date.now();
+      const rl = (recallRate.get(rChatId) ?? []).filter((t) => now - t < 600_000);
+      if (rl.length >= 20) return json({ error: 'recall rate limit — 20 per 10 minutes' }, 429);
+      rl.push(now); recallRate.set(rChatId, rl);
+      // The light is the law: a node outside focus+lit answers set-aside only.
+      const rFocusSet = new Set([rChat.focusContainerId, ...descendantNodes(store, rChat.focusContainerId)]);
+      const rLit = new Set(store.getLit(rChatId));
+      if (!rFocusSet.has(rn.id) && !rLit.has(rn.id)) {
+        store.audit('recall_setaside', { node: rn.id.slice(0, 8) });
+        return json({ setAside: true, message: 'set aside by the user (dimmed) — do not use its content; you may offer to light it' });
+      }
+      const depth = b.depth ?? 'card';
+      const card = (id: string) => {
+        const n = store.getNode(id)!;
+        const c = getNodeCard(store, id);
+        return { id: n.id, name: n.title || n.content, statement: n.content, type: n.type ?? null, status: n.status, gist: c.gist, facts: c.facts.filter((f) => f.status === 'current').map((f) => ({ text: f.text, date: f.date, prov: f.prov })) };
+      };
+      const out: any = { card: card(rn.id) };
+      if (depth === 'around') {
+        const chain: any[] = [];
+        let p = rn.parentId;
+        while (p) { const a = store.getNode(p); if (!a || a.status === 'removed') break; chain.push({ id: a.id, name: a.title || a.content, gist: getNodeCard(store, a.id).gist }); p = a.parentId; }
+        out.ancestors = chain;
+        out.children = store.childrenOf(rn.id).filter((k) => k.status !== 'removed').slice(0, 12).map((k) => card(k.id));
+      }
+      if (depth === 'evidence') {
+        const resolved: any = { files: [], urls: [], tools: [] };
+        const provs: any[] = out.card.facts.map((f: any) => f.prov).filter((p: any) => p && Object.keys(p).length);
+        const evRounds = ((store as any).db.prepare(
+          "SELECT DISTINCT round_id FROM map_events WHERE project_id = ? AND round_id IS NOT NULL AND alteration LIKE ? ORDER BY seq DESC LIMIT 5",
+        ).all(projectId, `%${rn.id}%`) as any[]).map((r) => r.round_id);
+        for (const rid of evRounds) {
+          const pr = (store as any).db.prepare('SELECT session_id, tool_refs, file_paths, urls FROM provenance WHERE round_id = ?').get(rid) as any;
+          if (pr) provs.push({ session: pr.session_id, tool_use_ids: JSON.parse(pr.tool_refs || '[]').map((t: any) => t.id), paths: JSON.parse(pr.file_paths || '[]'), urls: JSON.parse(pr.urls || '[]') });
+        }
+        const seenPaths = new Set<string>(); const seenUrls = new Set<string>(); const seenTools = new Set<string>();
+        for (const p of provs) {
+          for (const u of p.urls ?? []) if (!seenUrls.has(u)) { seenUrls.add(u); resolved.urls.push(u); }
+          for (const fp of (p.paths ?? []).slice(0, 6)) {
+            if (seenPaths.has(fp) || resolved.files.length >= 3) continue;
+            seenPaths.add(fp);
+            try { resolved.files.push({ path: fp, content: readFileSync(fp, 'utf8').slice(0, 4000), note: 'live re-read — fresh beats stale' }); }
+            catch { resolved.files.push({ path: fp, error: 'no longer readable' }); }
+          }
+          if (p.session && resolved.tools.length < 2) {
+            const hs = (store as any).db.prepare('SELECT transcript_path FROM harness_sessions WHERE session_id = ?').get(p.session) as any;
+            if (hs?.transcript_path) {
+              for (const tid of (p.tool_use_ids ?? []).slice(0, 4)) {
+                if (seenTools.has(tid) || resolved.tools.length >= 2) continue;
+                seenTools.add(tid);
+                try {
+                  const raw = readFileSync(hs.transcript_path, 'utf8');
+                  const at = raw.indexOf(tid);
+                  if (at >= 0) resolved.tools.push({ tool_use_id: tid, excerpt: raw.slice(at, at + 3000) });
+                } catch { /* transcript gone — the digest stands */ }
+              }
+            }
+          }
+        }
+        out.evidence = resolved;
+      }
+      store.metric(projectId, 'cost.recall', JSON.stringify(out).length, { depth });
+      store.audit('recall', { node: rn.id.slice(0, 8), depth });
+      return json(out);
+    }
+
     // M189: file a node's earlier discussion onto the map — propose child
     // nodes from its memory; apply rides /api/reorganize/apply unchanged.
     if (path === '/api/expand/preview' && req.method === 'POST') {
@@ -1222,13 +1326,15 @@ const server = Bun.serve({
       return json(proposal);
     }
     if (path === '/api/reorganize/apply' && req.method === 'POST') {
-      const { alterations, chatId, containerName, suggestionId, memories } = await req.json() as { alterations: any[]; chatId?: string; containerName?: string; suggestionId?: string; memories?: Record<string, string> };
+      const { alterations, chatId, containerName, suggestionId, memories, origin } = await req.json() as { alterations: any[]; chatId?: string; containerName?: string; suggestionId?: string; memories?: Record<string, string>; origin?: string };
       const tidyInverse = inverseOfAlterations(alterations);
       const tidyMeta = captureFocusLit(alterations.map((a: any) => a.id).filter(Boolean));
       store.applyAlterations(projectId, alterations, { kind: 'reorganize' });
       store.pushUndo(projectId, `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))`, tidyInverse, tidyMeta);
       store.metric(projectId, 'interaction.tidy_apply', alterations.length);
-      lightNewNodes(alterations, mainChatId);
+      // M191/Q4 (Mark): an IMPORT lands dim — the user chooses focus and may
+      // auto-light; born-lit (M66) stays for normal per-round filing.
+      if (origin !== 'import') lightNewNodes(alterations, mainChatId);
       // M187: imported depth lands in the memory layer (tiered attention
       // serves it from here on).
       if (memories) {
@@ -1568,6 +1674,23 @@ const server = Bun.serve({
       const b2 = (await req.json()) as { key: string; value: string };
       store.setSetting(b2.key, b2.value);
       if (b2.key === 'latest_ver') latestKnown = b2.value || null;
+      return json({ ok: true });
+    }
+    // M191 test seam (localhost dev tooling, like /api/dev/setting): write
+    // structured memory deterministically so suites can exercise the cap,
+    // supersession, and serving without a model call.
+    if (path === '/api/dev/memory' && req.method === 'POST') {
+      const b2 = (await req.json()) as { nodeId: string; gist?: string; facts?: { text: string; date?: string; status?: string }[] };
+      if (!store.getNode(b2.nodeId)) return json({ error: 'unknown node' }, 404);
+      const db2 = (store as any).db;
+      if (b2.gist !== undefined) {
+        db2.prepare(`INSERT INTO node_memory (node_id, text, gist, updated_at) VALUES (?, '', ?, datetime('now'))
+                     ON CONFLICT(node_id) DO UPDATE SET gist = excluded.gist, updated_at = datetime('now')`).run(b2.nodeId, String(b2.gist).slice(0, 300));
+      }
+      for (const f of b2.facts ?? []) {
+        db2.prepare('INSERT INTO memory_facts (node_id, text, fact_date, status, prov) VALUES (?, ?, ?, ?, ?)')
+          .run(b2.nodeId, String(f.text).slice(0, 400), f.date ?? null, f.status === 'superseded' ? 'superseded' : 'current', '{}');
+      }
       return json({ ok: true });
     }
     if (path === '/api/dev/toggle' && req.method === 'POST') {

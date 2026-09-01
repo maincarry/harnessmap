@@ -3,112 +3,202 @@ import { call } from '../inference.js';
 
 // Per-node chat memory (M41, Jacob): the third layer of a node's state —
 // description (what it is), fit (how it relates), MEMORY (what was discussed
-// while it was the focus). Updated asynchronously after each round, merging
-// the new exchange into the running digest. Read by the composer whenever the
-// node is focused again — memory deeper than the rolling turn window.
+// while it was the focus). Updated asynchronously after each round.
+//
+// M191 (Mark): memory is STRUCTURED — a GIST (the required-current condensed
+// view of the topic) plus FACTS (dated, provenance-linked, individually
+// supersedable). The legacy blob stays dual-written until Stage 4; the
+// composer serves gists broadly and facts warmly. Every write path returns
+// all three; conversion of old blob-only memories happens lazily right here
+// (the existing blob is shown to the model, which restructures it in the
+// same call that folds in the new exchange).
 
-const SYSTEM = `You maintain the conversational memory of one node on a goal map: a running digest of the CONVERSATION that happened while this node was the focus — not a content summary alone.
+export interface MemoryFact { id: number; text: string; date: string | null; status: string; prov: any }
+export interface NodeCard { gist: string | null; facts: MemoryFact[]; blob: string | null }
+export interface RoundProv { session?: string | null; tool_use_ids?: string[]; paths?: string[]; urls?: string[] }
 
-You get the node, its EXISTING MEMORY (may be empty), and the NEWEST EXCHANGE. Merge the exchange into the memory, capturing the shape of the dialogue:
-- WHAT THE USER ASKED or brought up, HOW THE AGENT RESPONDED (its key point or suggestion, briefly), and HOW THE USER SEEMED TO TAKE IT — accepted, pushed back, hesitated, ignored, got frustrated, changed the subject. That reaction trail is what makes resuming feel continuous.
-- Content stays the spine: positions and their reasons, decisions and their why, options weighed, objections, promises, unresolved threads. The dialogue framing serves the content, not the other way around.
-- Integrate, don't append — fold new information into what's there; drop what got superseded.
-- Informative first, compact second: a few sentences up to one short paragraph. Never past ~150 words — compress the oldest, least-consequential material first.
-- Plain language, the conversation's own vocabulary. No headers, no bullets.
+const GIST_CAP = 300; // Q2 provisional: store-enforced, like title length.
 
-Return the updated memory text only.`;
+const STRUCTURE_RULES = `Maintain THREE layers per node:
+- gist: 1-2 sentences (hard cap ~300 chars) stating the topic's CURRENT standing — the latest ruling wins; if a decision was reversed, the gist says what stands NOW. A gist describing an overturned state as live is a defect.
+- facts: durable specifics this exchange established about THIS node — a decision and its why, a number, an exact command, a quoted ruling. 0-3 per node per round, one tight sentence each, only what is worth recalling later. Never restate the gist; never file dialogue narration.
+- supersede: the numbers of EXISTING facts (as numbered in the input) that this exchange overturned or made obsolete.
+- memory: the legacy running digest of the conversation (what was asked, how it went, reactions) — integrate, don't append; ≤120 words; plain language.`;
 
-export async function updateNodeMemory(store: Store, nodeId: string, userText: string, assistantText: string): Promise<void> {
-  const n = store.getNode(nodeId);
-  if (!n) return;
-  const db = (store as any).db;
-  const existing = (db.prepare('SELECT text FROM node_memory WHERE node_id = ?').get(nodeId) as any)?.text ?? '';
-  try {
-    const text0 = await call({
-      task: 'memory', system: SYSTEM, maxTokens: 300, timeoutMs: 90_000,
-      audit: (k, d) => store.audit(k, d),
-      user: [
-          `NODE: ${n.type ? `${n.type}: ` : ''}${n.content}`,
-          `EXISTING MEMORY:\n${existing || '(none yet)'}`,
-          `NEWEST EXCHANGE:\nUSER: ${userText.slice(0, 1500)}\nAGENT: ${assistantText.slice(0, 1500)}`,
-          'Merge.',
-        ].join('\n\n'),
-    });
-    const text = String(text0 ?? '').trim();
-    if (text) {
-      db.prepare("INSERT OR REPLACE INTO node_memory (node_id, text, updated_at) VALUES (?, ?, datetime('now'))").run(nodeId, text);
-    }
-  } catch (err) {
-    console.error('[memory] update failed (will catch up next round):', err);
-  }
-}
+const BATCH_SYSTEM = `You maintain the memories of SEVERAL nodes on a goal map. You get the newest exchange and each node with its existing gist, numbered existing facts, and legacy memory. For each node, fold in ONLY what this exchange says about that node — different nodes take different things from the same exchange. If the exchange adds nothing for a node, return its layers unchanged (empty facts, empty supersede).
 
-// M156 slice 1 (Mark + Jacob): every node the ROUND TOUCHED gets its memory
-// updated — not just the focus, and pointedly NOT "all lit nodes": the filer
-// already identified which nodes this round is about (Jacob's tiered-cost
-// point), so the batch is small (typically 1-5) and relevance-driven. ONE
-// cheap call maintains them all.
-const BATCH_SYSTEM = `You maintain the conversational memories of SEVERAL nodes on a goal map — for each, a running digest of what the conversation established about THAT node (positions and reasons, decisions and their why, open threads, how the user reacted). You get the newest exchange and each node with its existing memory. For each node, fold in ONLY what this exchange says about that node — different nodes take different things from the same exchange. Integrate, don't append; drop superseded material; ≤120 words each; plain language, no headers. If the exchange adds nothing for a node, return its memory unchanged.`;
+${STRUCTURE_RULES}`;
 
 const BATCH_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['updates'],
   properties: { updates: { type: 'array', items: {
-    type: 'object', additionalProperties: false, required: ['id', 'memory'],
-    properties: { id: { type: 'string' }, memory: { type: 'string' } },
+    type: 'object', additionalProperties: false, required: ['id', 'memory', 'gist'],
+    properties: {
+      id: { type: 'string' }, memory: { type: 'string' }, gist: { type: 'string' },
+      facts: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['text'], properties: { text: { type: 'string' }, date: { type: 'string' } } } },
+      supersede: { type: 'array', items: { type: 'integer' } },
+    },
   } } },
 } as const;
 
-export async function updateTouchedMemories(store: Store, nodeIds: string[], userText: string, assistantText: string): Promise<void> {
+function factsFor(db: any, nodeId: string): MemoryFact[] {
+  return (db.prepare("SELECT id, text, fact_date, status, prov FROM memory_facts WHERE node_id = ? ORDER BY id").all(nodeId) as any[])
+    .map((r) => ({ id: r.id, text: r.text, date: r.fact_date, status: r.status, prov: JSON.parse(r.prov || '{}') }));
+}
+
+function renderExisting(db: any, nodeId: string): { text: string; currentIds: number[] } {
+  const row = (db.prepare('SELECT text, gist FROM node_memory WHERE node_id = ?').get(nodeId) as any);
+  const facts = factsFor(db, nodeId).filter((f) => f.status === 'current');
+  const lines = [
+    `EXISTING GIST: ${row?.gist || '(none yet)'}`,
+    facts.length ? `EXISTING FACTS:\n${facts.map((f, i) => `  ${i + 1}. ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n')}` : 'EXISTING FACTS: (none yet)',
+    `LEGACY MEMORY: ${row?.text || '(none yet)'}`,
+  ];
+  return { text: lines.join('\n'), currentIds: facts.map((f) => f.id) };
+}
+
+function writeStructured(store: Store, nodeId: string, u: { memory?: string; gist?: string; facts?: { text: string; date?: string }[]; supersede?: number[] }, shownIds: number[], prov: RoundProv): void {
+  const db = (store as any).db;
+  const blob = String(u.memory ?? '').trim();
+  const gist = String(u.gist ?? '').trim().slice(0, GIST_CAP);
+  if (blob || gist) {
+    db.prepare(`INSERT INTO node_memory (node_id, text, gist, updated_at) VALUES (?, ?, ?, datetime('now'))
+                ON CONFLICT(node_id) DO UPDATE SET text = CASE WHEN excluded.text != '' THEN excluded.text ELSE node_memory.text END,
+                                                   gist = CASE WHEN excluded.gist != '' THEN excluded.gist ELSE node_memory.gist END,
+                                                   updated_at = datetime('now')`).run(nodeId, blob, gist);
+  }
+  for (const n of u.supersede ?? []) {
+    const fid = shownIds[n - 1];
+    if (fid !== undefined) db.prepare("UPDATE memory_facts SET status = 'superseded' WHERE id = ? AND node_id = ?").run(fid, nodeId);
+  }
+  const provJson = JSON.stringify(prov ?? {});
+  for (const f of (u.facts ?? []).slice(0, 3)) {
+    const text = String(f.text ?? '').trim();
+    if (text) db.prepare('INSERT INTO memory_facts (node_id, text, fact_date, prov) VALUES (?, ?, ?, ?)').run(nodeId, text.slice(0, 400), f.date ?? null, provJson);
+  }
+  const projectId = store.getNode(nodeId)?.projectId ?? null;
+  store.metric(projectId, 'memory.stored', blob.length + gist.length + (u.facts ?? []).reduce((s, f) => s + (f.text?.length ?? 0), 0));
+}
+
+export async function updateNodeMemory(store: Store, nodeId: string, userText: string, assistantText: string, prov: RoundProv = {}): Promise<void> {
+  return updateTouchedMemories(store, [nodeId], userText, assistantText, prov);
+}
+
+// M156 slice 1 (Mark + Jacob): every node the ROUND TOUCHED gets its memory
+// updated — the filer already identified which nodes this round is about, so
+// the batch is small (typically 1-5) and relevance-driven. ONE cheap call.
+export async function updateTouchedMemories(store: Store, nodeIds: string[], userText: string, assistantText: string, prov: RoundProv = {}): Promise<void> {
   const db = (store as any).db;
   const nodes = [...new Set(nodeIds)].map((id) => store.getNode(id)).filter((n): n is NonNullable<typeof n> => !!n && n.status !== 'removed').slice(0, 6);
   if (!nodes.length) return;
+  const shown = new Map(nodes.map((n) => [n.id, renderExisting(db, n.id)]));
   try {
     const parsed = await call({
-      task: 'memory', system: BATCH_SYSTEM, maxTokens: 1200, schema: BATCH_SCHEMA as any, timeoutMs: 90_000,
+      task: 'memory', system: BATCH_SYSTEM, maxTokens: 2000, schema: BATCH_SCHEMA as any, timeoutMs: 90_000,
       audit: (k, d) => store.audit(k, d),
       user: [
-        `NEWEST EXCHANGE:
-USER: ${userText.slice(0, 1500)}
-AGENT: ${assistantText.slice(0, 1500)}`,
-        ...nodes.map((n) => {
-          const ex = (db.prepare('SELECT text FROM node_memory WHERE node_id = ?').get(n.id) as any)?.text ?? '';
-          return `NODE [${n.id}]: ${n.type ? `${n.type}: ` : ''}${n.content}
-EXISTING MEMORY: ${ex || '(none yet)'}`;
-        }),
-        'Update each memory.',
+        `NEWEST EXCHANGE:\nUSER: ${userText.slice(0, 1500)}\nAGENT: ${assistantText.slice(0, 1500)}`,
+        ...nodes.map((n) => `NODE [${n.id}]: ${n.type ? `${n.type}: ` : ''}${n.content}\n${shown.get(n.id)!.text}`),
+        'Update each node.',
       ].join('\n\n'),
     });
     for (const u of parsed.updates ?? []) {
       const id = String(u.id ?? '').replace(/[\[\]]/g, '');
-      if (!nodes.some((n) => n.id === id)) continue;
-      const text = String(u.memory ?? '').trim();
-      if (text) db.prepare("INSERT OR REPLACE INTO node_memory (node_id, text, updated_at) VALUES (?, ?, datetime('now'))").run(id, text);
+      const node = nodes.find((n) => n.id === id);
+      if (!node) continue;
+      writeStructured(store, id, u, shown.get(id)!.currentIds, prov);
     }
   } catch (err) {
     console.error('[memory] batch update failed (next round catches up):', err);
   }
 }
 
-export function setNodeMemory(store: Store, nodeId: string, text: string): void {
-  const db = (store as any).db;
-  if (text) {
-    db.prepare("INSERT OR REPLACE INTO node_memory (node_id, text, updated_at) VALUES (?, ?, datetime('now'))").run(nodeId, text);
-    store.metric(store.getNode(nodeId)?.projectId ?? null, 'memory.stored', text.length);
-  }
-}
-
-export function clearNodeMemory(store: Store, nodeId: string): void {
-  (store as any).db.prepare('DELETE FROM node_memory WHERE node_id = ?').run(nodeId);
-}
+// ---- readers ----
 
 export function getNodeMemory(store: Store, nodeId: string): string | null {
   const r = ((store as any).db.prepare('SELECT text FROM node_memory WHERE node_id = ?').get(nodeId) as any);
   return r?.text ?? null;
 }
 
-// Bulk form for the composer's hot path — one query instead of one per lit
-// node (M190d: per-node lookups made composeParts scale quadratically).
+export function getNodeCard(store: Store, nodeId: string): NodeCard {
+  const db = (store as any).db;
+  const row = (db.prepare('SELECT text, gist FROM node_memory WHERE node_id = ?').get(nodeId) as any);
+  return { gist: row?.gist ?? null, facts: factsFor(db, nodeId), blob: row?.text ?? null };
+}
+
+// Bulk forms for the composer's hot path (M190d: one query, never per-node).
 export function getAllNodeMemories(store: Store): Map<string, string> {
   const rows = ((store as any).db.prepare('SELECT node_id, text FROM node_memory').all() as any[]);
   return new Map(rows.map((r) => [r.node_id, r.text]));
+}
+
+export function getAllGists(store: Store): Map<string, string> {
+  const rows = ((store as any).db.prepare("SELECT node_id, gist FROM node_memory WHERE gist IS NOT NULL AND gist != ''").all() as any[]);
+  return new Map(rows.map((r) => [r.node_id, r.gist]));
+}
+
+export function getAllCurrentFacts(store: Store): Map<string, { text: string; date: string | null }[]> {
+  const rows = ((store as any).db.prepare("SELECT node_id, text, fact_date FROM memory_facts WHERE status = 'current' ORDER BY id").all() as any[]);
+  const out = new Map<string, { text: string; date: string | null }[]>();
+  for (const r of rows) {
+    const a = out.get(r.node_id);
+    const f = { text: r.text, date: r.fact_date };
+    if (a) a.push(f); else out.set(r.node_id, [f]);
+  }
+  return out;
+}
+
+// M191 migration: restructure legacy blob-only memories into gist + facts.
+// Boot sweep covers the most recently active nodes; everything else converts
+// lazily the next time updateTouchedMemories touches it (the batch call
+// always regenerates the full structure). Off the hot path, batched cheap.
+const CONVERT_SYSTEM = `You restructure the stored memory of nodes on a goal map. For each node you get its statement and its existing prose memory. Extract:
+${STRUCTURE_RULES}
+There is no new exchange — work purely from the existing memory. supersede is always empty. memory: return the existing prose unchanged.`;
+
+export async function convertMemories(store: Store, batch = 20, nodeIds?: string[]): Promise<number> {
+  const db = (store as any).db;
+  const rows = nodeIds
+    ? nodeIds.map((id) => ({ node_id: id })).filter((r) => { const m = db.prepare("SELECT gist FROM node_memory WHERE node_id = ? AND text != ''").get(r.node_id) as any; return m && !m.gist; }).slice(0, batch)
+    : (db.prepare("SELECT node_id FROM node_memory WHERE (gist IS NULL OR gist = '') AND text != '' ORDER BY updated_at DESC LIMIT ?").all(batch) as any[]);
+  const nodes = rows.map((r) => store.getNode(r.node_id)).filter((n): n is NonNullable<typeof n> => !!n && n.status !== 'removed');
+  if (!nodes.length) return 0;
+  try {
+    const parsed = await call({
+      task: 'memory', system: CONVERT_SYSTEM, maxTokens: 3000, schema: BATCH_SCHEMA as any, timeoutMs: 120_000,
+      audit: (k, d) => store.audit(k, d),
+      user: [
+        ...nodes.map((n) => `NODE [${n.id}]: ${n.type ? `${n.type}: ` : ''}${n.content}\nEXISTING MEMORY: ${(db.prepare('SELECT text FROM node_memory WHERE node_id = ?').get(n.id) as any)?.text ?? ''}`),
+        'Restructure each.',
+      ].join('\n\n'),
+    });
+    let done = 0;
+    for (const u of parsed.updates ?? []) {
+      const id = String(u.id ?? '').replace(/[\[\]]/g, '');
+      if (!nodes.some((n) => n.id === id)) continue;
+      writeStructured(store, id, { ...u, memory: '', supersede: [] }, [], {});
+      done++;
+    }
+    store.audit('memory_converted', { batch: done });
+    return done;
+  } catch (err) {
+    console.error('[memory] conversion batch failed (lazy path catches up):', err);
+    return 0;
+  }
+}
+
+// ---- legacy write paths (import apply, tests) ----
+
+export function setNodeMemory(store: Store, nodeId: string, text: string): void {
+  const db = (store as any).db;
+  if (text) {
+    db.prepare(`INSERT INTO node_memory (node_id, text, updated_at) VALUES (?, ?, datetime('now'))
+                ON CONFLICT(node_id) DO UPDATE SET text = excluded.text, updated_at = datetime('now')`).run(nodeId, text);
+    store.metric(store.getNode(nodeId)?.projectId ?? null, 'memory.stored', text.length);
+  }
+}
+
+export function clearNodeMemory(store: Store, nodeId: string): void {
+  (store as any).db.prepare('DELETE FROM node_memory WHERE node_id = ?').run(nodeId);
+  (store as any).db.prepare('DELETE FROM memory_facts WHERE node_id = ?').run(nodeId);
 }

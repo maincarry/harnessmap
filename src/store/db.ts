@@ -43,6 +43,9 @@ export class Store {
     if (hcols.length && !hcols.includes('full_seq')) this.db.exec('ALTER TABLE harness_sessions ADD COLUMN full_seq INTEGER');
     if (hcols.length && !hcols.includes('cwd')) this.db.exec('ALTER TABLE harness_sessions ADD COLUMN cwd TEXT');
     if (hcols.length && !hcols.includes('chat_id')) this.db.exec('ALTER TABLE harness_sessions ADD COLUMN chat_id TEXT');
+    // M191: structured memory — gist column beside the legacy blob.
+    const mcols = (this.db.prepare('PRAGMA table_info(node_memory)').all() as any[]).map((r) => r.name);
+    if (mcols.length && !mcols.includes('gist')) this.db.exec('ALTER TABLE node_memory ADD COLUMN gist TEXT');
     this.migrateToNodes();
   }
 
