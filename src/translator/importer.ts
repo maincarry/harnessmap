@@ -149,6 +149,7 @@ const EXTEND_SYSTEM = `You are the IMPORT agent for a goal map, processing a LAR
 
 RULES:
 - create_node operations ONLY. Attach new nodes under existing [ids] where the material belongs there; create new branch nodes when the material opens a genuinely new thread. NEVER duplicate a node that already exists in the subtree — if this chunk revisits a topic, add the NEW information under the existing node.
+- ORGANIZE BY TOPIC, NEVER BY CONVERSATION PHASE: one topic = one subtree, wherever in the source its episodes occur. When this chunk continues, corrects, or reverses something already on the subtree, that material goes UNDER the topic's existing home (the reversal of a proposal lives with the proposal) — never into a new chapter for "this part of the conversation". Chapters named after meetings, sessions, or phases are wrong; chapters are subjects. A reader looking up one topic must find its whole story in one place.
 - DENSITY: roughly one node per coherent point in the source. Do not compress a rich chunk into a handful of lines; do not pad a thin one. A 50k-character chunk of dense material may well deserve 20-40 nodes.
 - DEPTH — the structure carries the substance: where the source has layers (a claim with its supporting facts, an option with its tradeoffs, a decision with its reasons and the rejected alternative, a correction superseding an earlier state), file those layers as CHILD NODES — evidence under the claim, objections under the option, reasons under the decision — three or four levels deep where the material earns it. Never flatten a layered discussion into a list of siblings whose detail hides in memory fields: a reader of the TREE alone should be able to follow the argument.
 - NAMES: topic/heading nodes 2-5 words; statement nodes one tight sentence. Depth does NOT go in the name.
@@ -271,6 +272,29 @@ export async function proposeImportLarge(
       }
     } catch (err) { console.error('[import] finish pass skipped:', err); }
 
+    // Chapter-balance check (v3 finding: one "phase" chapter swallowed 73%
+    // of the import, scattering topics): purely detective — audited and
+    // surfaced in the summary; the split itself stays propose→approve.
+    if (rootId) {
+      const childCount = new Map<string, number>();
+      const parentOf = new Map(alterations.filter((a) => a.op === 'create_node').map((a: any) => [a.id, a.parentId]));
+      for (const a of alterations as any[]) {
+        if (a.op !== 'create_node') continue;
+        let p = a.parentId;
+        while (p && parentOf.has(p)) {
+          if (parentOf.get(p) === rootId) { childCount.set(p, (childCount.get(p) ?? 0) + 1); break; }
+          p = parentOf.get(p);
+        }
+      }
+      const total = alterations.filter((a) => a.op === 'create_node').length;
+      for (const [cid, n] of childCount) {
+        if (n > total * 0.4 && total > 50) {
+          const c: any = alterations.find((a: any) => a.op === 'create_node' && a.id === cid);
+          store.audit('import_chapter_imbalance', { chapter: (c?.title || c?.content || '').slice(0, 40), share: Math.round(100 * n / total) });
+          summary += ` — note: the "${(c?.title || c?.content || 'one').slice(0, 30)}" branch holds ${Math.round(100 * n / total)}% of the import; consider a ⟳ tidy split`;
+        }
+      }
+    }
     // Final invariant sweep (found violated in the v3 run: two mid-run
     // creates landed parentless as extra top-level containers): an import is
     // ONE subtree — every create except the root must parent inside it.
