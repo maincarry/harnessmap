@@ -231,6 +231,44 @@ function reAnchorSessions(pid: string, why: string): number {
 function reAnchorPanes(pid: string): void {
   for (const c of store.getChats(pid)) store.setSetting(`paneblock:${c.id}`, '');
 }
+// M195f (Jacob): "It should be automatic and it's the filer's click not my"
+// — the user approves an import ONCE, at landing; meeting the verification
+// standard afterwards is the machinery's job. Map-side verification findings
+// drive an automatic tidy of the IMPORTED SUBTREE ONLY (the mandate that one
+// approval granted; anything outside it stays propose→approve), then the
+// cycle re-judges. One round per trigger; it keeps trying on every later
+// cycle until the verdict flips.
+async function importAutoFinish(pid: string): Promise<void> {
+  try {
+    const check = getImportCheck(store, pid);
+    if (!check || check.similar) return;
+    const mapSide = check.discrepancies.filter((d) => d.side === 'map');
+    if (!mapSide.length) return;
+    const rootId = store.getSetting(`importroot:${pid}`) ?? '';
+    if (!rootId || !store.getNode(rootId)) return;
+    const hint = `Import verification found the finished map does not yet show what the source holds. Fix WITHIN this subtree only: ${mapSide.map((d) => `${d.what} (fix: ${d.fix})`).join(' · ').slice(0, 1500)}`;
+    const prop = await proposeReorganize(store, pid, rootId, hint);
+    if (!prop || 'error' in prop || !prop.alterations?.length) return;
+    const inSubtree = new Set([rootId, ...descendantNodes(store, rootId)]);
+    const created = new Set(prop.alterations.filter((a: any) => a.op === 'create_node').map((a: any) => a.id));
+    const inMandate = prop.alterations.every((a: any) => {
+      const target = a.id ?? (a as any).nodeId;
+      const parent = (a as any).parentId;
+      return (!target || inSubtree.has(target) || created.has(target)) && (!parent || inSubtree.has(parent) || created.has(parent));
+    });
+    if (!inMandate) { store.audit('import_autofinish_refused', { reason: 'out-of-subtree alteration' }); return; }
+    const inverse = inverseOfAlterations(prop.alterations);
+    const meta = captureFocusLit(prop.alterations.map((a: any) => a.id).filter(Boolean));
+    store.applyAlterations(pid, prop.alterations, { kind: 'reorganize' });
+    store.pushUndo(pid, `import auto-finish (${prop.alterations.length} change(s))`, inverse, meta);
+    healTitles(12, pid).catch(() => {});
+    store.audit('import_autofinish', { changes: prop.alterations.length, findings: mapSide.length });
+    broadcast({ type: 'map', ...state() });
+    await brainCycle(store, pid);
+    await verifyImport(store, pid);
+    reAnchorPanes(pid);
+  } catch (err) { console.error('[import auto-finish] failed:', err); }
+}
 const WINDOW = Number(process.env.HARNESSMAP_WINDOW ?? 20);
 // M42/P2: recent removal notices, handed to the summary folder so deleted
 // topics die in the summary too. Consumed per fold.
@@ -1330,7 +1368,7 @@ const server = Bun.serve({
       // The re-judge lane of the mutual-revision loop: while a summary
       // standard exists, every map status run re-verifies the import against
       // it — map-side findings clear only when a later verify passes.
-      if (store.getSetting(`importsummary:${projectId}`)) await verifyImport(store, projectId);
+      if (store.getSetting(`importsummary:${projectId}`)) { await verifyImport(store, projectId); await importAutoFinish(projectId); }
       reAnchorPanes(projectId);
       broadcast({ type: 'map_status' });
     const chapterReport = () => {
@@ -1458,8 +1496,10 @@ const server = Bun.serve({
             // The import's source summary must outlive the proposal — capture
             // it BEFORE the row and job are consumed (the verify gate used to
             // read after this deletion and never saw a summary).
-            const ss = (pp ? JSON.parse(pp.proposal)?.sourceSummary : undefined) ?? (importJobs.get(jobId) as any)?.proposal?.sourceSummary;
+            const ppj = pp ? JSON.parse(pp.proposal) : (importJobs.get(jobId) as any)?.proposal;
+            const ss = ppj?.sourceSummary;
             if (ss) store.setSetting(`importsummary:${applyPid}`, ss);
+            if (ppj?.rootId) store.setSetting(`importroot:${applyPid}`, ppj.rootId);
           }
         } catch {}
         try { (store as any).db.prepare('DELETE FROM pending_proposals WHERE job_id = ?').run(jobId); } catch {}
@@ -1503,7 +1543,7 @@ const server = Bun.serve({
         store.audit('import_applied', { creates: alterations.filter((a: any) => a.op === 'create_node').length, jobId: jobId ?? null });
         // M195c (Jacob): the summary (captured above, before the proposal was
         // consumed) is the standard — brain cycle, then verify against it.
-        brainCycle(store, applyPid).then(() => verifyImport(store, applyPid)).then(() => reAnchorPanes(applyPid)).catch(() => {});
+        brainCycle(store, applyPid).then(() => verifyImport(store, applyPid)).then(() => importAutoFinish(applyPid)).then(() => reAnchorPanes(applyPid)).catch(() => {});
       }
       if (chatId) chats.noteMapChange(chatId, `reorganized the "${containerName ?? 'selected'}" subtree (${alterations.length} change(s))`);
       broadcast({ type: 'map', ...state() });
