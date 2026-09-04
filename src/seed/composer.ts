@@ -1,5 +1,6 @@
 import { Store } from '../store/db.js';
 import { getNodeMemory, getAllNodeMemories, getAllMinimals, getAllCurrentDetails } from '../translator/memory.js';
+import { chatAwareness } from '../translator/mapstatus.js';
 import {
   ancestors, descendantNodes, renderNodeBrief,
   renderNodeOneLiner, renderSubtreeFull,
@@ -115,6 +116,11 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   }
 
   const tail: string[] = [];
+  // M195b: the overall map status report's judgment-sized geography rides every briefing —
+  // it names what exists (dim areas included) so offers to pull things up
+  // are well-informed; a few hundred chars, size-independent.
+  const aware = chatAwareness(store, project);
+  if (aware) tail.push('', aware);
   if (constraints.length > 0) {
     tail.push('', 'STANDING CONSTRAINTS (respect these):');
     for (const k of constraints) tail.push(`  • ${k.content}${k.status === 'hard' ? ' (hard)' : ''}`);

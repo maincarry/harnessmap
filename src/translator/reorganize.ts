@@ -176,7 +176,7 @@ export async function proposeReorganize(store: Store, projectId: string, nodeId:
           ...(feedback ? [`THE USER'S DIRECTION — this OVERRIDES your own instincts; build the proposal the user is asking for: ${feedback}`] : []),
           ...(hintedIds.length ? [`ALSO IN SCOPE (referenced by the suggestion): ${hintedIds.map((id) => `"${store.getNode(id)?.content}" [${id.slice(0, 8)}]`).join(', ')} — you may modify these too, e.g. as merge survivors.`] : []),
           'Propose the conservative cleanup.',
-        ].join('\n\n') + statusConsult(store, projectId),
+        ].join('\n\n') + statusConsult(store, projectId, nodeId ?? undefined, 'tidy'),
     });
     let alterations = normalizeIds(parsed.alterations ?? [], map);
 

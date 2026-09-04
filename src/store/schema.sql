@@ -310,3 +310,15 @@ CREATE TABLE IF NOT EXISTS pending_proposals (
   proposal TEXT NOT NULL,                    -- JSON: the full LargeProposal
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- M195 (Jacob): the overall map status report and its reporting passes.
+-- Chapter assessments: one bounded text per area of the map, refreshed
+-- incrementally by the content-status pass; the overall report's comprehensive
+-- input layer (judgment compresses only above this).
+CREATE TABLE IF NOT EXISTS chapter_assessments (
+  project_id TEXT NOT NULL,
+  chapter_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (project_id, chapter_id)
+);

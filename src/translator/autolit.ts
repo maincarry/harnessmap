@@ -2,6 +2,7 @@ import { Store } from '../store/db.js';
 import { systemCard } from './cast.js';
 import { call } from '../inference.js';
 import { loadMap, renderTree, renderTieredTree } from '../map/render.js';
+import { statusConsult } from './mapstatus.js';
 
 // Auto-lit (v0.3, Jacob's Z2): the map agent recommends which topics belong in
 // the conversation's background and which should dim, given the current focus.
@@ -51,7 +52,7 @@ export async function proposeAutolit(
           ...(priorSummary ? [`YOUR PREVIOUS PROPOSAL (the user saw it and wants something different): ${priorSummary}`] : []),
           ...(feedback ? [`THE USER'S DIRECTION — this OVERRIDES your own instincts; build the lighting the user is asking for: ${feedback}`] : []),
           'Choose the lighting changes.',
-        ].join('\n\n'),
+        ].join('\n\n') + statusConsult(store, projectId, focusId ?? undefined),
     });
     // Resolve 8-char bracket prefixes back to full container ids; drop unknowns.
     const resolve = (ids: string[]) => ids

@@ -1151,6 +1151,32 @@ console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
     }
     await post('/api/dev/toggle', {});
   }
+
+  // == 45. M195: the overall map status report ==
+  console.log('\n== 45. overall map status report (M195) ==');
+  {
+    const run45 = await post('/api/map-status', {});
+    check('map status button produces the overall report', run45.status === 200 && !!run45.body?.understanding);
+    const u45 = run45.body?.understanding;
+    const secs = ['essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust'];
+    check('understanding has all six sections with stamps', !!u45 && secs.every((k) => u45.sections[k] && typeof u45.sections[k].text === 'string' && !!u45.sections[k].ts));
+    // advisors consult it; tidy does not get the global understanding
+    await post('/api/dev/toggle', {});
+    const CH45 = (await state()).mainChatId;
+    await post(`/api/chats/${CH45}/autolit`, { preview: true });
+    const trA = (await get('/api/dev/traces?task=autolit')).traces?.[0];
+    check('auto-light consults the overall map status report', !!trA && (trA.user ?? '').includes('OVERALL MAP STATUS REPORT'));
+    const t45 = (await state()).nodes.find((n: any) => n.parentId === null && !(n.title === 'to sort' || n.content.startsWith('to sort')));
+    if (t45) {
+      await post('/api/reorganize/preview', { nodeId: t45.id });
+      const trT = (await get('/api/dev/traces?task=tidy')).traces?.[0];
+      check('tidy stays in its lane (no overall report)', !!trT && !(trT.user ?? '').includes('OVERALL MAP STATUS REPORT'));
+    }
+    // the chat briefing carries the awareness block once an understanding exists
+    const av45 = await get('/api/agent-view');
+    check('the briefing carries WHAT THE MAP HOLDS', /WHAT THE MAP HOLDS/.test(av45.text ?? ''));
+    await post('/api/dev/toggle', {});
+  }
 }
 
 console.log('\n== 13. audit ==');

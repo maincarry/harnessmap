@@ -207,7 +207,11 @@ export function ancestors(store: Store, nodeId: string): MapNode[] {
 // the floor (folding at scale), promoted to medium and long by closeness to
 // the focus and recency, under a real budget. One context model everywhere.
 // Ids ride in [brackets] because advisors must reference nodes.
-export function renderTieredTree(store: any, projectId: string, focusId: string | null, budget = 40_000): string {
+export function renderTieredTreeForSubtree(store: any, projectId: string, rootId: string, budget = 9_000): string {
+  return renderTieredTree(store, projectId, null, budget, rootId);
+}
+
+export function renderTieredTree(store: any, projectId: string, focusId: string | null, budget = 40_000, rootId: string | null = null): string {
   const nodes = (store.getNodes(projectId) as MapNode[]).filter((n) => n.status !== 'removed');
   if (!nodes.length) return '(empty map)';
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -240,7 +244,8 @@ export function renderTieredTree(store: any, projectId: string, focusId: string 
       walk(n.id, depth + 1);
     }
   };
-  walk(null, 0);
+  walk(rootId ?? null, 0);
+  if (rootId) { const rn = byId.get(rootId); if (rn) { const min0 = minBy.get(rootId); entries.unshift({ n: rn, depth: 0, line: `- [${rootId.slice(0, 8)}] ${(rn.title || rn.content.slice(0, 69))}${min0 ? ` — ${min0}` : ''}` }); } }
   // Floor with fold: minimal lines for depth ≤ cap; deeper folds into counts.
   let cap = Math.max(...entries.map((e) => e.depth));
   const sizeAt = (c: number) => entries.filter((e) => e.depth <= c).reduce((s, e) => s + e.line.length + 1, 0);

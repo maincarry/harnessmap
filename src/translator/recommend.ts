@@ -55,7 +55,7 @@ export async function proposeTopicRec(
       user: [`MAP (ids in [brackets]):\n${tree}`, `CONVERSATION TAIL:\n${tail || '(none yet)'}`,
         ...(priorSummary ? [`YOUR PREVIOUS RECOMMENDATION (the user saw it and wants something different): ${priorSummary}`] : []),
         ...(feedback ? [`THE USER'S DIRECTION — this OVERRIDES your own instincts: ${feedback}`] : []),
-        'Recommend.'].join('\n\n'),
+        'Recommend.'].join('\n\n') + statusConsult(store, projectId),
     });
     const rawId = String(parsed.containerId ?? '').replace(/[\[\]]/g, '');
     const c = map.nodes.find((x) => x.id === rawId || x.id.startsWith(rawId));

@@ -1201,10 +1201,12 @@ $('feedback-btn').onclick = () => {
 async function openMapStatus() {
   const ov = document.createElement('div');
   ov.className = 'overlay';
-  const render = (s, running) => `
+  const render = (s, running, u2, ch2) => `
     <div class="modal">
       <h3>🩺 map status</h3>
       <div style="font-size:12px;color:var(--muted);margin:-4px 0 10px">the structural specialist's professional review — advice only; changes still go through ⟳ tidy and your approval. The tidy and review agents consult this standing opinion.</div>
+      ${u2 ? `<div style="margin-bottom:10px">${['essence','arc','tensions','keystones','gaps','trust'].map(k => u2.sections[k]?.text ? `<details style="margin:3px 0"><summary style="cursor:pointer;font-size:12px"><b>${k === 'essence' ? 'what this project is' : k === 'arc' ? 'where the work is heading' : k === 'tensions' ? 'live tensions' : k === 'keystones' ? 'load-bearing decisions' : k === 'gaps' ? 'known gaps' : 'area reliability'}</b> <span style="color:var(--muted);font-size:10px">${new Date(u2.sections[k].ts).toLocaleString()}</span></summary><div style="font-size:13px;padding:4px 0 4px 12px;white-space:pre-wrap">${esc(u2.sections[k].text)}</div></details>` : '').join('')}</div>` : ''}
+      ${ch2 && ch2.length ? `<details style="margin:3px 0 10px"><summary style="cursor:pointer;font-size:12px"><b>content report</b> <span style="color:var(--muted);font-size:10px">${ch2.length} areas assessed</span></summary>${ch2.map(c => `<details style="margin:2px 0 2px 12px"><summary style="cursor:pointer;font-size:12px">${esc(c.name)} <span style="color:var(--muted);font-size:10px">${new Date(c.ts + 'Z').toLocaleString()}</span></summary><div style="font-size:13px;padding:4px 0 4px 12px;white-space:pre-wrap">${esc(c.text)}</div></details>`).join('')}</details>` : ''}
       ${s ? `
         <div style="font-size:14px;margin-bottom:8px"><b>${esc(s.health)}</b></div>
         ${s.findings.length ? s.findings.map(f => `<div style="padding:5px 0;border-top:1px solid var(--hair)"><div>• ${esc(f.what)}</div><div style="color:var(--muted);font-size:12px;margin-left:12px">fix: ${esc(f.fix)}</div></div>`).join('') : '<div style="color:var(--muted);font-size:13px">no structural findings.</div>'}
@@ -1216,20 +1218,20 @@ async function openMapStatus() {
         <button id="ms-run" class="primary" ${running ? 'disabled' : ''} title="ask the structural specialist for a fresh review of the whole map">${running ? 'reviewing…' : '▶ run review'}</button>
       </div>
     </div>`;
-  let cur = null;
-  try { cur = (await (await fetch('/api/map-status')).json()).status; } catch {}
-  ov.innerHTML = render(cur, false);
+  let cur = null, curU = null, curC = null;
+  try { const j = await (await fetch('/api/map-status')).json(); cur = j.status; curU = j.understanding; curC = j.chapters; } catch {}
+  ov.innerHTML = render(cur, false, curU, curC);
   document.body.appendChild(ov);
   const wire = () => {
     ov.querySelector('#ms-close').onclick = () => ov.remove();
     ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
     ov.querySelector('#ms-run').onclick = async () => {
-      ov.innerHTML = render(cur, true); wire();
+      ov.innerHTML = render(cur, true, curU, curC); wire();
       try {
         const r = await post('/api/map-status', {});
-        cur = r.status;
+        cur = r.status; curU = r.understanding; curC = r.chapters;
       } catch (err) { $('round-line').textContent = `map status failed: ${err.message}`; }
-      ov.innerHTML = render(cur, false); wire();
+      ov.innerHTML = render(cur, false, curU, curC); wire();
     };
   };
   wire();

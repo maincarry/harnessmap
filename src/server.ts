@@ -12,7 +12,7 @@ import { ChatSessionManager } from './agent/chat-session.js';
 import { composeParts } from './seed/composer.js';
 import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/render.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
-import { runMapStatus, getMapStatus } from './translator/mapstatus.js';
+import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding } from './translator/mapstatus.js';
 import { proposeAutolit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
@@ -546,6 +546,28 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
         .map((a: any) => a.id ?? a.nodeId)
         .filter((id: any) => id && id !== chat.focusContainerId);
       if (touchedIds.length) updateTouchedMemories(store, touchedIds, params.userText, params.assistantText, roundProv).catch(() => {});
+      // M195: the overall map status rhythm — event-driven, debounced (M166b
+      // idiom): every 10 filed rounds or 30 minutes of activity, whichever
+      // first; scans are free, assessments cheap and only for changed areas,
+      // one synthesis per cycle. Idle maps spend nothing.
+      (async () => {
+        try {
+          // Same off-switch as auto-review (suites and tests set it to 0):
+          // the rhythm is disabled, the map-status button still runs everything.
+          if (Number(process.env.HARNESSMAP_AUTOTIDY_ROUNDS ?? 15) === 0) return;
+          const nRounds = Number(store.getSetting(`brain_rounds:${roundPid}`) ?? 0) + 1;
+          store.setSetting(`brain_rounds:${roundPid}`, String(nRounds));
+          const last = Number(store.getSetting(`brain_last:${roundPid}`) ?? 0);
+          if (nRounds >= 10 || (last && Date.now() - last > 1_800_000)) {
+            store.setSetting(`brain_rounds:${roundPid}`, '0');
+            store.setSetting(`brain_last:${roundPid}`, String(Date.now()));
+            await brainCycle(store, roundPid);
+            await tasteDigest(store, roundPid);
+          } else if (!last) {
+            store.setSetting(`brain_last:${roundPid}`, String(Date.now()));
+          }
+        } catch { /* the brain never blocks a round */ }
+      })();
       // M166 (Jacob): the whole-map review runs itself once in a while —
       // every HARNESSMAP_AUTOTIDY_ROUNDS filed rounds (default 15) — and only
       // PROPOSES: findings land in the ⟳ to tidy folder as suggestions, never
@@ -1237,15 +1259,30 @@ const server = Bun.serve({
     // demand (rare tier). GET returns the standing review; POST runs a new
     // one. The stored opinion is what tidy/reviewer/import-finish consult.
     if (path === '/api/map-status' && req.method === 'GET') {
-      return json({ status: getMapStatus(store, projectId) });
+    const chapterReport = () => {
+      try {
+        return ((store as any).db.prepare('SELECT chapter_id, text, updated_at FROM chapter_assessments WHERE project_id = ? ORDER BY updated_at DESC').all(projectId) as any[])
+          .map((r: any) => { const n = store.getNode(r.chapter_id); return { id: r.chapter_id, name: (n?.title || n?.content || '?').slice(0, 60), text: r.text, ts: r.updated_at }; });
+      } catch { return []; }
+    };
+      return json({ status: getMapStatus(store, projectId), understanding: getUnderstanding(store, projectId), chapters: chapterReport() });
     }
     if (path === '/api/map-status' && req.method === 'POST') {
       store.metric(projectId, 'interaction.map_status');
       const outline = renderTree(loadMap(store, projectId), { ids: false }).slice(0, 20_000);
       const r = await runMapStatus(store, projectId, outline);
       if ('error' in r) return json({ error: r.error }, 502);
+      // The button runs the whole brain: structure pass above, then the
+      // cycle (scan → changed assessments → overall report synthesis).
+      await brainCycle(store, projectId);
       broadcast({ type: 'map_status' });
-      return json({ status: r });
+    const chapterReport = () => {
+      try {
+        return ((store as any).db.prepare('SELECT chapter_id, text, updated_at FROM chapter_assessments WHERE project_id = ? ORDER BY updated_at DESC').all(projectId) as any[])
+          .map((r: any) => { const n = store.getNode(r.chapter_id); return { id: r.chapter_id, name: (n?.title || n?.content || '?').slice(0, 60), text: r.text, ts: r.updated_at }; });
+      } catch { return []; }
+    };
+      return json({ status: r, understanding: getUnderstanding(store, projectId), chapters: chapterReport() });
     }
     // M191: RECALL — the pull channel. The host agent fetches a node's card
     // (minimal view + current details), its neighborhood, or resolved evidence, on
@@ -1386,6 +1423,7 @@ const server = Bun.serve({
         if (fb) applyFocus(c.id, fb);
       }
       if (suggestionId) store.setSuggestionStatus(suggestionId, 'done');
+      if (origin === 'import') { brainCycle(store, projectId).catch(() => {}); }
       if (chatId) chats.noteMapChange(chatId, `reorganized the "${containerName ?? 'selected'}" subtree (${alterations.length} change(s))`);
       broadcast({ type: 'map', ...state() });
       return json({ ok: true, undo: `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))` });
