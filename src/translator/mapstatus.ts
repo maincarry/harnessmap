@@ -1,7 +1,7 @@
 import { Store } from '../store/db.js';
 import { systemCard } from './cast.js';
 import { call, modelFor } from '../inference.js';
-import { loadMap, renderTieredTreeForSubtree } from '../map/render.js';
+import { loadMap, renderTieredTreeForSubtree, descendantNodes } from '../map/render.js';
 
 // M192 (Jacob): "a professional map structure monitoring agent that the map
 // consults to when reorganizing… should be a function called 'map status' in
@@ -305,7 +305,13 @@ export function runContentScan(store: Store, projectId: string): ContentScan {
   return scan;
 }
 
-const ASSESS_SYSTEM = `You are the content-status agent for a goal map — one of the map status agent's reporters. For each AREA given, write its chapter assessment: 100-150 words covering what this area holds, how current it is (are settled things marked settled; is anything contested), where it is thin (little remembered detail), and anything odd. Ground every claim in the material shown. Plain words. Return one assessment per area.`;
+// M195g (Jacob: "why on earth ... the whole thing in 150 words?"): the flat
+// 150-word cap was the builder's number and it contradicted Jacob's own rule
+// — size scales with what the area holds, at EVERY layer. An assessment's
+// length now follows the area's size, and a chapter that dominates the map
+// is assessed by its parts (one level down), so depth never has to fit
+// through a fixed keyhole.
+const ASSESS_SYSTEM = `You are the content-status agent for a goal map — one of the map status agent's reporters. For each AREA given, write its chapter assessment at the size given for it (larger areas deserve longer assessments — never pad a small one), covering: what this area holds (name the actual subjects, not categories), how current it is (are settled things marked settled; is anything contested), where it is thin (little remembered detail), and anything odd. Ground every claim in the material shown. Plain words. Return one assessment per area.`;
 
 const ASSESS_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['assessments'],
@@ -319,20 +325,30 @@ export async function assessChapters(store: Store, projectId: string, chapterIds
   const db = (store as any).db;
   const scanRaw = store.getSetting(`contentscan:${projectId}`);
   const scan: ContentScan | null = scanRaw ? JSON.parse(scanRaw) : null;
-  let done = 0;
-  for (const cid of chapterIds.slice(0, 4)) {
+  const totalNodes = scan?.chapters.reduce((a, c) => a + c.nodes, 0) ?? 0;
+  const subtreeSize = (id: string): number => descendantNodes(store, id).length + 1;
+  // Words/tokens/slice budgets follow the area's size (Jacob's rule at every layer).
+  const sizing = (n: number) => n <= 25
+    ? { words: '100-150 words', maxTokens: 600, cap: 1200, slice: 9000 }
+    : n <= 80
+      ? { words: '200-300 words', maxTokens: 1100, cap: 2400, slice: 16000 }
+      : { words: '350-500 words', maxTokens: 1800, cap: 4000, slice: 28000 };
+  const assessOne = async (cid: string, nodeCount: number, extra?: string): Promise<boolean> => {
     const node = store.getNode(cid);
-    if (!node) continue;
-    const slice = renderTieredSlice(store, projectId, cid, 9000);
+    if (!node) return false;
+    const sz = sizing(nodeCount);
+    const slice = renderTieredSlice(store, projectId, cid, sz.slice);
     const stats = scan?.chapters.find((c) => c.id === cid);
     const prev = (db.prepare('SELECT text FROM chapter_assessments WHERE project_id = ? AND chapter_id = ?').get(projectId, cid) as any)?.text ?? '';
     try {
       const parsed = await call({
-        task: 'mapcheck', system: ASSESS_SYSTEM, maxTokens: 600, schema: ASSESS_SCHEMA as any, timeoutMs: 90_000,
+        task: 'mapcheck', system: ASSESS_SYSTEM, maxTokens: sz.maxTokens, schema: ASSESS_SCHEMA as any, timeoutMs: 120_000,
         audit: (k, d) => store.audit(k, d),
         user: [
           `AREA [${cid.slice(0, 8)}]: ${node.title || node.content}`,
+          `SIZE FOR THIS ASSESSMENT: ${sz.words} (the area holds ${nodeCount} nodes).`,
           stats ? `MEASURED: ${stats.nodes} nodes, ${stats.withMinimal} with one-line versions, ${stats.details} remembered specifics, ${stats.settled} settled, ${stats.staleMinimals} with stale compressions, newest change ${stats.newestChange}` : '',
+          extra ?? '',
           `THE AREA (tiered):\n${slice}`,
           prev ? `YOUR PREVIOUS ASSESSMENT (integrate, don't append):\n${prev}` : '',
           'Write the chapter assessment.',
@@ -341,10 +357,39 @@ export async function assessChapters(store: Store, projectId: string, chapterIds
       const a = (parsed.assessments ?? [])[0];
       if (a?.text) {
         db.prepare(`INSERT INTO chapter_assessments (project_id, chapter_id, text, updated_at) VALUES (?, ?, ?, datetime('now'))
-                    ON CONFLICT(project_id, chapter_id) DO UPDATE SET text = excluded.text, updated_at = datetime('now')`).run(projectId, cid, String(a.text).slice(0, 1200));
-        done++;
+                    ON CONFLICT(project_id, chapter_id) DO UPDATE SET text = excluded.text, updated_at = datetime('now')`).run(projectId, cid, String(a.text).slice(0, sz.cap));
+        return true;
       }
     } catch (err) { console.error('[assess] chapter failed:', err); }
+    return false;
+  };
+  let done = 0;
+  for (const cid of chapterIds.slice(0, 4)) {
+    const count = subtreeSize(cid);
+    const dominant = count > 120 || (totalNodes > 0 && count > totalNodes * 0.4 && count > 40);
+    if (!dominant) {
+      if (await assessOne(cid, count)) done++;
+      continue;
+    }
+    // A dominant chapter is assessed BY ITS PARTS (one level down): its
+    // largest direct-child subtrees each get their own sized assessment,
+    // stalest first; the chapter's own row becomes the mechanical roll-up
+    // naming the parts, so the synthesis reads parts, not a keyhole.
+    const node = store.getNode(cid);
+    if (!node) continue;
+    const children = (store.getNodes(projectId) as any[]).filter((n) => n.parentId === cid && n.status !== 'removed');
+    const parts = children.map((c) => ({ id: c.id, name: (c.title || String(c.content).slice(0, 40)), n: subtreeSize(c.id) }))
+      .filter((p2) => p2.n >= 8).sort((x, y) => y.n - x.n).slice(0, 12);
+    const staleness = new Map<string, string>((db.prepare('SELECT chapter_id, updated_at FROM chapter_assessments WHERE project_id = ?').all(projectId) as any[]).map((r: any) => [r.chapter_id, r.updated_at]));
+    const queue = [...parts].sort((x, y) => (staleness.get(x.id) ?? '0').localeCompare(staleness.get(y.id) ?? '0'));
+    let partDone = 0;
+    for (const p2 of queue.slice(0, 8)) {
+      if (await assessOne(p2.id, p2.n, `THIS AREA IS PART of the larger "${node.title || node.content}" chapter, assessed by its parts.`)) { done++; partDone++; }
+    }
+    const rollup = `Assessed by its parts (${count} nodes total): ${parts.map((p2) => `${p2.name} (${p2.n})`).join(' · ')}. Read the parts' own assessments for content.`;
+    db.prepare(`INSERT INTO chapter_assessments (project_id, chapter_id, text, updated_at) VALUES (?, ?, ?, datetime('now'))
+                ON CONFLICT(project_id, chapter_id) DO UPDATE SET text = excluded.text, updated_at = datetime('now')`).run(projectId, cid, rollup.slice(0, 1200));
+    if (partDone) done++;
   }
   return done;
 }
