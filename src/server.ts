@@ -265,9 +265,14 @@ Return: summary (one sentence) + alterations.`,
     if (!falts.length) return { created: 0, note: String(fparsed.summary ?? 'nothing new to file') };
     const inSub = new Set([rootId, ...descendantNodes(store, rootId)]);
     const madeIds = new Set(falts.map((a: any) => a.id));
-    const fits = falts.every((a: any) => !a.parentId || inSub.has(a.parentId) || madeIds.has(a.parentId));
-    if (!fits) { store.audit('import_autofinish_refused', { reason: 'filed node outside the subtree' }); return { created: 0, note: 'refused: a filed node landed outside the import' }; }
-    for (const a of falts) if (!a.parentId) a.parentId = rootId;
+    // The mandate holds per node, not wholesale: a stray parent re-homes to
+    // the import root (the importer's own orphan-sweep precedent) instead of
+    // one bad parent discarding a whole round of good filings.
+    let rehomed = 0;
+    for (const a of falts) {
+      if (!a.parentId || (!inSub.has(a.parentId) && !madeIds.has(a.parentId))) { if (a.parentId) rehomed++; a.parentId = rootId; }
+    }
+    if (rehomed) store.audit('import_autofinish_rehomed', { rehomed });
     const finv = inverseOfAlterations(falts);
     store.applyAlterations(pid, falts, { kind: 'reorganize' });
     store.pushUndo(pid, `filed ${falts.length} node(s) from the import's source`, finv, captureFocusLit(falts.map((a: any) => a.id)));

@@ -420,6 +420,9 @@ Each section at its natural size; judgment scales with what is genuinely contest
 Two rules learned from your own first run (both were real failures, caught by the user):
 - INTERNAL CONSISTENCY: a claim that something is open, blocking, or contested must survive your OWN trust judgments. Where you have judged status markers unreliable, you may not assert openness as fact — say "recorded as open, but the markers are unreliable" and rank it accordingly. Never trust in one section what you distrust in another.
 - DATES, NOT PROMINENCE: claims about what is current must stand on dates and statuses, never on how large or wide a node is. A fat chapter is not the present; it may be exactly the misfiled past your structure report warns about.
+- NUMBERS BEFORE NARRATIVE: you may never assert an absence the measured numbers contradict. If the scan counts nodes and stored memories in an area, "nothing landed there" is a forbidden sentence; write what the numbers allow.
+
+THE MINIMUM WORK (Jacob: a minimum budget that must be used in full — denominated in obligations, not words): before any section, write your RECONCILIATION, and it must cover, by name, EVERY input you were handed — the structure report, each assessed area, the historical report, the user's edits, the taste note, the user's standing guidance, the import verification findings, and your own previous text — one plain line each: what it says, whether you accept, reject, or partly accept it, and why; and quote the measured numbers you checked your story against. No section may contradict your reconciliation. This is the floor of every cycle; it cannot be met by padding because it is met by coverage.
 
 Then write your ACTUAL ADVICE, per job. Each working agent is consulted with a trimmed version of the report above PLUS your suggestions for its specific job — the two travel together, so they must be coherent: advise nothing the report does not support, and put everything an agent must act on into its advice, in plain imperative words, only what that job can act on. Empty is a fine answer when you have nothing to advise:
 - advice_filing: for the agent filing new conversation material onto nodes — where new or contested material should go, which areas not to trust, what incoming claims to double-check against settled decisions.
@@ -428,8 +431,8 @@ Then write your ACTUAL ADVICE, per job. Each working agent is consulted with a t
 - advice_chat: for the chat agent — what exists on this map (set-aside areas included) that it should recognize when the user touches it and offer to pull up, never answer from directly; and which recorded decisions are settled so it never reopens them.`;
 
 const OVERALL_SCHEMA = {
-  type: 'object', additionalProperties: false, required: ['essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust', 'advice_filing', 'advice_lighting', 'advice_review', 'advice_chat'],
-  properties: { essence: { type: 'string' }, arc: { type: 'string' }, tensions: { type: 'string' }, keystones: { type: 'string' }, gaps: { type: 'string' }, trust: { type: 'string' }, advice_filing: { type: 'string' }, advice_lighting: { type: 'string' }, advice_review: { type: 'string' }, advice_chat: { type: 'string' } },
+  type: 'object', additionalProperties: false, required: ['reconciliation', 'essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust', 'advice_filing', 'advice_lighting', 'advice_review', 'advice_chat'],
+  properties: { reconciliation: { type: 'string' }, essence: { type: 'string' }, arc: { type: 'string' }, tensions: { type: 'string' }, keystones: { type: 'string' }, gaps: { type: 'string' }, trust: { type: 'string' }, advice_filing: { type: 'string' }, advice_lighting: { type: 'string' }, advice_review: { type: 'string' }, advice_chat: { type: 'string' } },
 } as const;
 
 export function getUnderstanding(store: Store, projectId: string): Understanding | null {
@@ -461,6 +464,7 @@ export async function synthesizeOverallStatus(store: Store, projectId: string, e
       system: OVERALL_SYSTEM, maxTokens: 16000, schema: OVERALL_SCHEMA as any, timeoutMs: 240_000,
       audit: (k, d) => store.audit(k, d),
       user: [
+        (() => { try { const sc = JSON.parse(store.getSetting(`contentscan:${projectId}`) ?? 'null'); return sc ? `THE MEASURED NUMBERS (mechanical scan, ${sc.ts} — check every claim against these):\n${sc.chapters.map((c: any) => `${c.name}: ${c.nodes} nodes, ${c.withMinimal} with one-line versions, ${c.withMedium} with summaries, ${c.details} remembered specifics, ${c.settled} settled, newest change ${c.newestChange}`).join('\n')}` : ''; } catch { return ''; } })(),
         status ? `STRUCTURE REPORT (${status.ts}):\n${status.health}\n${status.findings.map((f) => `- ${f.what} (fix: ${f.fix})`).join('\n')}\n${status.opinion}` : 'STRUCTURE REPORT: none yet.',
         `CHAPTER ASSESSMENTS (every area):\n${assessments.map((a) => {
           const n = store.getNode(a.chapter_id);
@@ -482,7 +486,7 @@ export async function synthesizeOverallStatus(store: Store, projectId: string, e
     const now = new Date().toISOString();
     const prevS = prev?.sections ?? {};
     const sections: Understanding['sections'] = {};
-    for (const k of ['essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust', 'advice_filing', 'advice_lighting', 'advice_review', 'advice_chat']) {
+    for (const k of ['reconciliation', 'essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust', 'advice_filing', 'advice_lighting', 'advice_review', 'advice_chat']) {
       const text = String((parsed as any)[k] ?? "").slice(0, 12000);
       const old = (prevS as any)[k];
       sections[k] = { text, ts: old && old.text === text ? old.ts : now };
@@ -575,7 +579,7 @@ export async function verifyImport(store: Store, projectId: string): Promise<Imp
   const judge = async (): Promise<ImportCheck | null> => {
     const u = getUnderstanding(store, projectId);
     if (!u) return null;
-    const report = Object.entries(u.sections).filter(([k]) => !k.startsWith('advice_')).map(([k, v]) => `${k}: ${v.text}`).join('\n\n');
+    const report = Object.entries(u.sections).filter(([k]) => !k.startsWith('advice_') && k !== 'reconciliation').map(([k, v]) => `${k}: ${v.text}`).join('\n\n');
     try {
       const parsed = await call({
         task: 'mapcheck', modelOverride: modelFor('import'),
