@@ -10,6 +10,14 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
+// M195c (founders, 2026-09-04): Codex support is SHELVED while the injection
+// economy consolidates — its integration returns as its own track.
+if (process.env.HARNESSMAP_CODEX_BETA !== '1') {
+  console.log('harnessmap: Codex support is shelved for now — its integration will return as its own track.');
+  console.log('(dev override: HARNESSMAP_CODEX_BETA=1 bun run hooks/enable-codex.ts)');
+  process.exit(0);
+}
+
 const CODEX_HOME = process.env.CODEX_HOME ?? join(homedir(), '.codex');
 const HOOKS_DIR = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
 const wrap = (file: string) =>

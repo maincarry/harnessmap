@@ -2,6 +2,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../store/db.js';
 import { composeState, composeParts } from '../seed/composer.js';
+import { getFullAnchor, setFullAnchor, currentSeq, renderDelta } from './harness-adapter.js';
 import { getConversationSummary } from './rolling-summary.js';
 
 // v0.3 — THE MAP IS THE MEMORY (Jacob's Q2 = (b)).
@@ -116,8 +117,19 @@ export class ChatSessionManager {
   // map description too). Peeks at pending manipulations without consuming.
   previewContext(chatId: string): string {
     const manipulations = this.pendingMapChanges.get(chatId) ?? [];
+    // Mirror the pane economy read-only: anchored block + delta when
+    // anchored, a fresh composition preview when the next turn re-anchors.
+    const chat = this.store.getChat(chatId);
+    const sid = `pane:${chatId}`;
+    const fullA = chat ? getFullAnchor(this.store, sid) : null;
+    const block = this.store.getSetting(`paneblock:${chatId}`) ?? '';
+    const RE = Number(process.env.HARNESSMAP_REANCHOR ?? 15);
+    const anchored = chat && fullA !== null && block && (currentSeq(this.store, chat.projectId) - fullA <= RE);
+    const mapPart = anchored
+      ? [block, renderDelta(this.store, chat!.projectId, fullA!) ?? '', manipulations.length ? `[harnessmap — user actions]\n${manipulations.map((m) => `• ${m}`).join('\n')}` : ''].filter(Boolean).join('\n\n')
+      : composeState(this.store, chatId, manipulations);
     return [
-      composeState(this.store, chatId, manipulations),
+      mapPart,
       this.renderSummaryBlock(chatId),
       this.renderWindow(chatId),
       '[YOUR NEXT MESSAGE APPEARS HERE]',
@@ -135,6 +147,30 @@ export class ChatSessionManager {
       'removed or dropped must not be re-raised from here.]',
       text,
     ].join('\n');
+  }
+
+  // M195c (founders: "making the chat interface and claude code sessions
+  // use the same" economy): the pane runs the SAME full-block-then-deltas
+  // regime as host sessions — one anchored composition (stored), deltas
+  // since, re-anchored by the same triggers (re-aim, threshold, ⟲ refresh,
+  // a fresh overall report, clear). Anchors ride harness_sessions under a
+  // pane:<chatId> id so one machinery drives both surfaces.
+  private paneContext(chatId: string, manipulations: string[], userText?: string): { text: string; kind: 'full' | 'delta'; thinking: string } {
+    const chat = this.store.getChat(chatId)!;
+    const sid = `pane:${chatId}`;
+    const seq = currentSeq(this.store, chat.projectId);
+    const fullA = getFullAnchor(this.store, sid);
+    const block = this.store.getSetting(`paneblock:${chatId}`) ?? '';
+    const RE = Number(process.env.HARNESSMAP_REANCHOR ?? 15);
+    if (fullA === null || !block || seq - fullA > RE) {
+      const parts = composeParts(this.store, chatId, manipulations, userText);
+      this.store.setSetting(`paneblock:${chatId}`, parts.text);
+      setFullAnchor(this.store, sid, seq);
+      return { text: parts.text, kind: 'full', thinking: parts.thinking };
+    }
+    const delta = renderDelta(this.store, chat.projectId, fullA);
+    const manip = manipulations.length ? `[harnessmap — user actions]\n${manipulations.map((m) => `• ${m}`).join('\n')}` : '';
+    return { text: [block, delta ?? '', manip].filter(Boolean).join('\n\n'), kind: 'delta', thinking: '(anchored full block + changes since — no recomposition this turn)' };
   }
 
   private async runTurn(chatId: string, userText: string, events: TurnEvents) {
@@ -166,7 +202,7 @@ export class ChatSessionManager {
     const userTurnId = randomUUID();
     this.store.appendTurn({ id: userTurnId, chatId, role: 'user', content: userText, raw: null });
 
-    const composed = composeParts(this.store, chatId, manipulations, userText);
+    const composed = this.paneContext(chatId, manipulations, userText);
     this.traceAttention(userText, composed.thinking);
     const prompt = [
       composed.text,

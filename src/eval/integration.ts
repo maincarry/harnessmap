@@ -298,10 +298,15 @@ console.log('\n== 8. injection mechanics: full / delta / notice / re-anchor ==')
   const c2 = await get('/api/harness/context?session_id=s-def');
   check('notice is one-shot (gone on second fetch)', !/auto-focus button/.test(c2.context ?? ''));
   const CH = (await state()).mainChatId;
+  // M195c (founders): a re-aim re-anchors — refocus and mass lighting hand
+  // every session a fresh FULL block (with the /compact-is-optional notice),
+  // instead of a delta line about a view whose geometry just went stale.
   await post(`/api/chats/${CH}/focus`, { nodeId: pricingId });
   const c3 = await get('/api/harness/context?session_id=s-def');
-  check('map change → DELTA with user action', c3.kind === 'delta' && /moved FOCUS|user actions/.test(c3.context ?? ''));
+  check('refocus → FULL block with the /compact notice', c3.kind === 'full' && /\/compact/.test(c3.context ?? ''));
   await post('/api/nodes', { content: 'change one' });
+  const c3b = await get('/api/harness/context?session_id=s-def');
+  check('small change after re-aim → DELTA (no notice)', c3b.kind === 'delta' && !/\/compact/.test(c3b.context ?? ''));
   await post('/api/nodes', { content: 'change two' });
   await post('/api/nodes', { content: 'change three' });
   const c4 = await get('/api/harness/context?session_id=s-def');
@@ -311,6 +316,11 @@ console.log('\n== 8. injection mechanics: full / delta / notice / re-anchor ==')
   check('after compaction → FULL re-anchor', c5.kind === 'full');
   const comp = await get('/api/harness/compaction?session_id=s-def');
   check('compaction instructions name the focus', /pricing/i.test(comp.instructions ?? ''));
+  // The manual lane: ⟲ refresh hands every session on the map a full view.
+  const rr = await post('/api/context/refresh', {});
+  check('⟲ refresh re-anchors the sessions on this map', rr.status === 200 && rr.body.ok && rr.body.sessions >= 1);
+  const c6 = await get('/api/harness/context?session_id=s-def');
+  check('after ⟲ refresh → FULL block with the /compact notice', c6.kind === 'full' && /\/compact/.test(c6.context ?? ''));
 }
 
 console.log('\n== 9. dots: mapcheck → precompute → cached preview → apply (model) ==');

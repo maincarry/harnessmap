@@ -434,6 +434,7 @@
           <button id="auto-zoom" title="the zoom agent suggests which branch to view alone — you confirm">◱ auto-zoom</button>
           <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
           <button id="mapstatus-btn" title="the map's own standing judgment — the overall map status report, per-area content report, structural review, and the direct line to tune the map status agent">🩺 map status</button>
+          <button id="ctx-refresh-btn" title="hand every Claude Code session on this map a fresh full view of the map on its next message — use after big lighting or focus changes, or a long conversation">⟲ refresh agent context</button>
           <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes an organized subtree you approve">⇪ import</button>
           <button id="undo-btn" title="undo the last destructive action — delete, merge, tidy, or move (Ctrl/Cmd+Z works too)">↩ undo</button>
           <button id="feedback-btn" title="tell the developers about a bug or an idea — you review before anything is sent (GitHub issue or your own email)">🐞 send feedback</button>
@@ -1263,6 +1264,32 @@ async function openMapStatus() {
 }
 
 $('mapstatus-btn').onclick = () => { $('other-menu').hidden = true; openMapStatus(); };
+$('ctx-refresh-btn').onclick = () => {
+  $('other-menu').hidden = true;
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal">
+      <h3>⟲ refresh agent context</h3>
+      <div style="font-size:13px;line-height:1.5">Every Claude Code session on this map gets a <b>fresh full view of the map</b> with its next message — current focus, current lighting, current content.<br><br>The older map blocks stay in those conversations until you run <code>/compact</code> there yourself — that's optional cleanup; <b>everything works fine if you don't</b> (the fresh view supersedes them).</div>
+      <div class="actions">
+        <button id="cr-cancel">cancel</button>
+        <button id="cr-go" class="primary">⟲ refresh</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  ov.querySelector('#cr-cancel').onclick = () => ov.remove();
+  ov.querySelector('#cr-go').onclick = async () => {
+    try {
+      const r = await post('/api/context/refresh', {});
+      $('round-line').textContent = r.sessions > 0
+        ? `⟲ ${r.sessions} session(s) get the full map view on their next message`
+        : '⟲ no recently active sessions on this map — new sessions always start with the full view';
+    } catch (err) { $('round-line').textContent = `refresh failed: ${err.message}`; }
+    ov.remove();
+  };
+};
 $('authinfo-btn').onclick = async () => {
   $('other-menu').hidden = true;
   let a = null;

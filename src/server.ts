@@ -204,6 +204,33 @@ function sessionPair(sessionId: string | null | undefined): { pid: string; chatI
   }
   return { pid: projectId, chatId: mainChatId };
 }
+// M195c (founders): a re-aim invalidates the standing snapshot's geometry —
+// refocus and mass lighting changes re-anchor every session bound to the
+// project, so each gets a fresh FULL map block on its next turn (M59 holds:
+// one block, at the deliberate gesture, not per turn). The ⟲ refresh button
+// is the manual lane of the same economy. Sessions owed the block also get
+// the one-line notice: full view given; /compact is optional cleanup.
+const refreshNotices = new Set<string>();
+function reAnchorSessions(pid: string, why: string): number {
+  const rows = (store as any).db.prepare("SELECT session_id FROM harness_sessions WHERE last_active > datetime('now', '-7 days')").all() as any[];
+  let n = 0;
+  for (const r of rows) {
+    if (!r.session_id || sessionPair(r.session_id).pid !== pid) continue;
+    resetInjectionAnchor(store, r.session_id);
+    refreshNotices.add(r.session_id);
+    n++;
+  }
+  reAnchorPanes(pid);
+  if (n) store.audit('context_reanchor', { why, sessions: n });
+  return n;
+}
+// The pane side of the same economy: dropping a chat's anchored block makes
+// its next turn recompose. Free (the pane rebuilds context per call), so the
+// pane also re-anchors on cheaper signals (a fresh overall report, serving-
+// mode changes) where a host session's transcript would pay for a block.
+function reAnchorPanes(pid: string): void {
+  for (const c of store.getChats(pid)) store.setSetting(`paneblock:${c.id}`, '');
+}
 const WINDOW = Number(process.env.HARNESSMAP_WINDOW ?? 20);
 // M42/P2: recent removal notices, handed to the summary folder so deleted
 // topics die in the summary too. Consumed per fold.
@@ -562,6 +589,7 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
             store.setSetting(`brain_rounds:${roundPid}`, '0');
             store.setSetting(`brain_last:${roundPid}`, String(Date.now()));
             await brainCycle(store, roundPid);
+            reAnchorPanes(roundPid);
             await tasteDigest(store, roundPid);
           } else if (!last) {
             store.setSetting(`brain_last:${roundPid}`, String(Date.now()));
@@ -791,6 +819,7 @@ const server = Bun.serve({
       const maxIdx = turns.length ? turns[turns.length - 1].idx : -1;
       if (maxIdx >= 0) foldTurns(store, projectId, clearMatch[1], maxIdx, pendingRemovals), pendingRemovals = [];
       store.appendTurn({ id: randomUUID(), chatId: clearMatch[1], role: 'system', content: ChatSessionManager.CLEAR_MARKER, raw: null });
+      store.setSetting(`paneblock:${clearMatch[1]}`, ''); // clear = the pane's compaction: fresh full block next turn
       broadcast({ type: 'chat_cleared', chatId: clearMatch[1] });
       return json({ ok: true });
     }
@@ -825,6 +854,7 @@ const server = Bun.serve({
       chats.noteMapChange(litMatch[1], body.on
         ? `lit as background: "${nodeName(n)}"${ids.length > 1 ? ' (and everything under it)' : ''}`
         : `set aside (dimmed): "${nodeName(n)}"${ids.length > 1 ? ' and everything under it' : ''} — don't bring it up or draw on its earlier discussion unless the user does`);
+      if (ids.length > 3) reAnchorSessions(projectId, 'lighting changed');
       broadcast({ type: 'map', ...state() });
       return json({ ok: true, affected: ids.length });
     }
@@ -1068,6 +1098,7 @@ const server = Bun.serve({
       store.clearMark(nodeId);
       applyFocus(focusMatch[1], nodeId);
       store.metric(projectId, 'interaction.focus');
+      reAnchorSessions(projectId, 'focus moved');
       chats.noteMapChange(focusMatch[1], `moved FOCUS to: "${nodeName(n)}"`);
       appendMarker(`focus moved to "${nodeName(n)}"`); // durable transcript marker
       broadcast({ type: 'map', ...state() });
@@ -1086,6 +1117,7 @@ const server = Bun.serve({
       if (body.focus) {
         clearNudges();
         applyFocus(chatId, nodeId);
+        reAnchorSessions(projectId, 'focus moved');
         chats.noteMapChange(chatId, `moved FOCUS to: "${nodeName(n)}" (zoomed the view in)`);
         appendMarker(`zoomed into "${nodeName(n)}" — focus moved here`);
       } else {
@@ -1147,7 +1179,7 @@ const server = Bun.serve({
         const pathA = focusPathOf(chatId);
         for (const id of lit) for (const d of [id, ...descendantNodes(store, id)]) store.setLit(chatId, d, true);
         for (const id of dim) for (const d of [id, ...descendantNodes(store, id)]) { if (!pathA.has(d)) store.setLit(chatId, d, false); }
-        if (lit.length + dim.length > 0) chats.noteMapChange(chatId, `background lighting auto-adjusted: ${body.summary ?? ''}`);
+        if (lit.length + dim.length > 0) { chats.noteMapChange(chatId, `background lighting auto-adjusted: ${body.summary ?? ''}`); reAnchorSessions(projectId, 'auto-light applied'); }
         broadcast({ type: 'map', ...state() });
         return json({ ok: true, lit: lit.length, dim: dim.length });
       }
@@ -1267,6 +1299,14 @@ const server = Bun.serve({
     };
       return json({ status: getMapStatus(store, projectId), understanding: getUnderstanding(store, projectId), chapters: chapterReport(), importCheck: getImportCheck(store, projectId), tuning: store.getSetting(`braintuning:${projectId}`) ?? '' });
     }
+    // M195c (founders): ⟲ refresh — the user hands every session on this map
+    // a fresh FULL view on its next message. /compact in the terminal is the
+    // optional deep clean; everything works without it.
+    if (path === '/api/context/refresh' && req.method === 'POST') {
+      store.metric(projectId, 'interaction.context_refresh');
+      const n = reAnchorSessions(projectId, 'user refresh');
+      return json({ ok: true, sessions: n });
+    }
     // M195c (Jacob): the user talks directly to the map status agent to tune
     // it — advisory, never edits; the exchange distills into standing
     // guidance that rides every synthesis.
@@ -1287,6 +1327,7 @@ const server = Bun.serve({
       // The button runs the whole brain: structure pass above, then the
       // cycle (scan → changed assessments → overall report synthesis).
       await brainCycle(store, projectId);
+      reAnchorPanes(projectId);
       broadcast({ type: 'map_status' });
     const chapterReport = () => {
       try {
@@ -1447,7 +1488,7 @@ const server = Bun.serve({
             if (ss) store.setSetting(`importsummary:${projectId}`, ss);
           }
         } catch {}
-        brainCycle(store, projectId).then(() => verifyImport(store, projectId)).catch(() => {});
+        brainCycle(store, projectId).then(() => verifyImport(store, projectId)).then(() => reAnchorPanes(projectId)).catch(() => {});
       }
       if (chatId) chats.noteMapChange(chatId, `reorganized the "${containerName ?? 'selected'}" subtree (${alterations.length} change(s))`);
       broadcast({ type: 'map', ...state() });
@@ -1771,6 +1812,7 @@ const server = Bun.serve({
       const b2 = (await req.json()) as { key: string; value: string };
       store.setSetting(b2.key, b2.value);
       if (b2.key === 'latest_ver') latestKnown = b2.value || null;
+      if (b2.key === 'memory_serving' || b2.key === 'map_budget') reAnchorPanes(projectId); // a serving-mode change recomposes the pane next turn
       return json({ ok: true });
     }
     // M191 test seam (localhost dev tooling): write structured memory
@@ -2108,7 +2150,7 @@ const server = Bun.serve({
         }
         return json({ context: '', kind: 'off' });
       }
-      if (!sessionId) return json({ context: chats.harnessContext(ctxChatId, promptText) }); // legacy/full
+      if (!sessionId) { store.audit('legacy_context_served', {}); return json({ context: chats.harnessContext(ctxChatId, promptText) }); } // legacy/full — pre-session clients; audited for retirement
       const anchor = getInjectionAnchor(store, sessionId);
       const fullAnchor = getFullAnchor(store, sessionId);
       const seq = currentSeq(store, ctxPid);
@@ -2120,6 +2162,9 @@ const server = Bun.serve({
         : null;
       if (anchor === null || (fullAnchor !== null && seq - fullAnchor > RE_ANCHOR_AFTER)) {
         let context = chats.harnessContext(ctxChatId, promptText);
+        if (refreshNotices.delete(sessionId)) {
+          context += `\n\n[harnessmap] This FULL map view supersedes every earlier map block above. Briefly tell the user: you now have the full current view of the map; they can run /compact to clean up the old map data in this conversation — optional, everything works fine without it.`;
+        }
         if (focusNotice) { context = `${context}\n\n${focusNotice}`; nudgeNoticePending = false; }
         setFullAnchor(store, sessionId, seq);
         store.audit('inject_full', { session: sessionId.slice(0, 8), chars: context.length });
