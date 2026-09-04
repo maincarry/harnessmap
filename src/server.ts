@@ -1327,6 +1327,10 @@ const server = Bun.serve({
       // The button runs the whole brain: structure pass above, then the
       // cycle (scan → changed assessments → overall report synthesis).
       await brainCycle(store, projectId);
+      // The re-judge lane of the mutual-revision loop: while a summary
+      // standard exists, every map status run re-verifies the import against
+      // it — map-side findings clear only when a later verify passes.
+      if (store.getSetting(`importsummary:${projectId}`)) await verifyImport(store, projectId);
       reAnchorPanes(projectId);
       broadcast({ type: 'map_status' });
     const chapterReport = () => {
@@ -1441,12 +1445,31 @@ const server = Bun.serve({
     }
     if (path === '/api/reorganize/apply' && req.method === 'POST') {
       const { alterations, chatId, containerName, suggestionId, memories, origin, jobId } = await req.json() as { alterations: any[]; chatId?: string; containerName?: string; suggestionId?: string; memories?: Record<string, string>; origin?: string; jobId?: string };
-      if (jobId) { try { (store as any).db.prepare('DELETE FROM pending_proposals WHERE job_id = ?').run(jobId); } catch {} importJobs.delete(jobId); }
+      // M195d fix (found live): the ACTIVE project is mutable — session
+      // follow-mode can flip it between propose and apply, and a 519-node
+      // import landed on the wrong map. A proposal APPLIES TO THE PROJECT IT
+      // WAS PROPOSED FOR: the pending row's project_id wins over the global.
+      let applyPid = projectId;
+      if (jobId) {
+        try {
+          const pp = (store as any).db.prepare('SELECT project_id, proposal FROM pending_proposals WHERE job_id = ?').get(jobId) as any;
+          if (pp?.project_id && store.listProjects().some((x) => x.id === pp.project_id)) applyPid = pp.project_id;
+          if (origin === 'import') {
+            // The import's source summary must outlive the proposal — capture
+            // it BEFORE the row and job are consumed (the verify gate used to
+            // read after this deletion and never saw a summary).
+            const ss = (pp ? JSON.parse(pp.proposal)?.sourceSummary : undefined) ?? (importJobs.get(jobId) as any)?.proposal?.sourceSummary;
+            if (ss) store.setSetting(`importsummary:${applyPid}`, ss);
+          }
+        } catch {}
+        try { (store as any).db.prepare('DELETE FROM pending_proposals WHERE job_id = ?').run(jobId); } catch {}
+        importJobs.delete(jobId);
+      }
       const tidyInverse = inverseOfAlterations(alterations);
       const tidyMeta = captureFocusLit(alterations.map((a: any) => a.id).filter(Boolean));
-      store.applyAlterations(projectId, alterations, { kind: 'reorganize' });
-      store.pushUndo(projectId, `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))`, tidyInverse, tidyMeta);
-      store.metric(projectId, 'interaction.tidy_apply', alterations.length);
+      store.applyAlterations(applyPid, alterations, { kind: 'reorganize' });
+      store.pushUndo(applyPid, `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))`, tidyInverse, tidyMeta);
+      store.metric(applyPid, 'interaction.tidy_apply', alterations.length);
       // M191/Q4 (Mark): an IMPORT lands dim — the user chooses focus and may
       // auto-light; born-lit (M66) stays for normal per-round filing.
       if (origin !== 'import') lightNewNodes(alterations, mainChatId);
@@ -1456,39 +1479,31 @@ const server = Bun.serve({
         for (const [nid, mem] of Object.entries(memories)) {
           if (store.getNode(nid) && typeof mem === 'string' && mem) setNodeMemory(store, nid, mem.slice(0, 1500));
         }
-        store.metric(projectId, 'memory.stored', Object.values(memories).join('').length, { source: 'import' });
+        store.metric(applyPid, 'memory.stored', Object.values(memories).join('').length, { source: 'import' });
       }
       // M182: renames/creates from a tidy can carry long content — heal their
       // SHORT display titles right away, not on the next round (guards, not
       // prompts: the naming rule now also lives in the reorganizer prompt,
       // but the display layer enforces it mechanically).
-      healTitles(12, projectId).catch(() => {});
+      healTitles(12, applyPid).catch(() => {});
       touch(alterations.map((a: any) => a.id ?? a.nodeId ?? a.containerId).filter(Boolean));
       // M122: a root-scope tidy can insert a container ABOVE the focus path —
       // re-run applyFocus so the ancestor chain stays lit (M111 invariant).
       // M123: and EVERY chat whose focus a tidy deletion removed is rescued
       // to the removed node's parent (or a surviving top-level node).
-      for (const c of store.getChats(projectId)) {
+      for (const c of store.getChats(applyPid)) {
         const f = c.focusContainerId ? store.getNode(c.focusContainerId) : undefined;
         if (f && f.status !== 'removed') { if (c.id === (chatId ?? mainChatId)) applyFocus(c.id, f.id); continue; }
         const fb = (f?.parentId && store.getNode(f.parentId)?.status !== 'removed' ? f.parentId : undefined)
-          ?? store.getNodes(projectId).find((x) => x.parentId === null && x.status !== 'removed')?.id;
+          ?? store.getNodes(applyPid).find((x) => x.parentId === null && x.status !== 'removed')?.id;
         if (fb) applyFocus(c.id, fb);
       }
       if (suggestionId) store.setSuggestionStatus(suggestionId, 'done');
       if (origin === 'import') {
         store.audit('import_applied', { creates: alterations.filter((a: any) => a.op === 'create_node').length, jobId: jobId ?? null });
-        // M195c (Jacob): the import's comprehensive source summary becomes
-        // the standard the finished map is judged against — persist it, run
-        // the brain cycle, then verify the overall report against it.
-        try {
-          if (jobId) {
-            const pp = (store as any).db.prepare('SELECT proposal FROM pending_proposals WHERE job_id = ?').get(jobId) as any;
-            const ss = pp ? (JSON.parse(pp.proposal)?.sourceSummary ?? '') : '';
-            if (ss) store.setSetting(`importsummary:${projectId}`, ss);
-          }
-        } catch {}
-        brainCycle(store, projectId).then(() => verifyImport(store, projectId)).then(() => reAnchorPanes(projectId)).catch(() => {});
+        // M195c (Jacob): the summary (captured above, before the proposal was
+        // consumed) is the standard — brain cycle, then verify against it.
+        brainCycle(store, applyPid).then(() => verifyImport(store, applyPid)).then(() => reAnchorPanes(applyPid)).catch(() => {});
       }
       if (chatId) chats.noteMapChange(chatId, `reorganized the "${containerName ?? 'selected'}" subtree (${alterations.length} change(s))`);
       broadcast({ type: 'map', ...state() });

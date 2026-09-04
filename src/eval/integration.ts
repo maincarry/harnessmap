@@ -1071,6 +1071,38 @@ console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
   const mem = await (await fetch(`${BASE}/api/nodes/${memId}/memory`)).json();
   check('imported node memory readable through the normal channel', typeof mem.text === 'string' && mem.text.length > 20);
 
+  // == 41b. M195e: a proposal applies to the project it was proposed for ==
+  // Found live: session follow-mode flipped the active project between
+  // propose and apply, and a 519-node import landed on the wrong map. The
+  // pending row's project stamp must win over the global active project.
+  console.log('\n== 41b. apply honors the proposing project (M195e) ==');
+  {
+    const before = await get('/api/projects');
+    const origActive = before.active;
+    const np = await post('/api/projects', { name: 'apply-target' });
+    check('target project created and active', np.status === 200 && !!np.body.projectId);
+    const targetPid = np.body.projectId;
+    const s2 = await post('/api/import/large', { kind: 'text', text: 'Kiln notes. The firing schedule was decided: cone 6 at 2232 degrees, a twelve-hour ramp, because the first bisque batch cracked at speed. The glaze decision: matte white for the full run. The kiln vent question stays open pending the garage measurement.' });
+    check('target-project import starts', s2.status === 200 && !!s2.body.jobId);
+    let job2: any = null;
+    for (let i = 0; i < 40; i++) {
+      await sleep(5000);
+      job2 = await (await fetch(`${BASE}/api/import/job/${s2.body.jobId}`)).json();
+      if (job2.status === 'done' || job2.status === 'error') break;
+    }
+    check('target-project import proposes', job2?.status === 'done', job2?.error ?? job2?.status);
+    // The follow-mode flip: another project becomes active before the apply.
+    await post(`/api/projects/${origActive}/activate`, {});
+    const ap2 = await post('/api/reorganize/apply', { alterations: job2.alterations, memories: job2.memories, jobId: s2.body.jobId, containerName: 'apply-target import' });
+    check('apply succeeds after the active-project flip', ap2.status === 200);
+    await post(`/api/projects/${targetPid}/activate`, {});
+    const stT = await state();
+    check('M195e: the import landed on the project it was proposed for', stT.nodes.some((n: any) => /kiln|2232|bisque/i.test(n.content ?? '')));
+    await post(`/api/projects/${origActive}/activate`, {});
+    const stO = await state();
+    check('and NOT on the project that happened to be active', !stO.nodes.some((n: any) => /2232|bisque/i.test(n.content ?? '')));
+  }
+
   // == 42. M189: file a node's earlier discussion onto the map ==
   console.log('\n== 42. expand: earlier discussion → child nodes ==');
   await post('/api/nodes', { content: 'a brand-new node with no discussion yet' });
