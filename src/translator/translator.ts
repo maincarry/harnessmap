@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { systemCard } from './cast.js';
+import { statusConsult } from './mapstatus.js';
 import { call, modelFor, backendName } from '../inference.js';
 import type { Alteration, RoundResult } from '../types.js';
 import { Store } from '../store/db.js';
@@ -170,7 +171,7 @@ export class Translator {
               integrationNote,
               pass === 2 ? 'You requested expansion; the branches are now readable (READ-ONLY). Translate this round fully — request_expansion is no longer available.' : '',
               'Translate this round. Five final checks before answering: (0) NEW-TOPIC GUARANTEE: did the user bring up ANY topic this round that is absent from the map — however small or transient (a weather question, a quick lookup, a passing thought)? You MUST leave at least one node for it (in scope, or under "to sort"): often a question node with status answered, carrying the gist of the answer in its description. A topic switch that produces zero alterations is almost always wrong. Only pure mechanics produce nothing (greetings, thanks, questions about the assistant itself). (1) does any subtree you filed under now hold two or more unrelated topics, duplicates, or material that outgrew it? If yes, add a suggest_restructure. (2) Are you changing the status of any node the user did NOT touch this round? "Park/drop/done all of it" refers to the CURRENT thread only — decisions, constraints, and evidence settled earlier KEEP their statuses. If your alterations re-status more than ~3 nodes, you are almost certainly wrong — cut back to the ones actually discussed. (3) Does the "to sort" node hold anything whose home is NOW writable (fully readable, not (dim))? If yes, move_node it home and strip the provenance note from its content. (4) FOCUS REQUEST: did the user EXPLICITLY ask to concentrate the conversation on ONE thing ("let\'s focus on X", "just X for now", "back to X")? If yes, add top-level focus_request: {id: the node where X lives — an existing [id], or the id you used in a create_node this round}. This changes nothing by itself; the user confirms via a button. Most rounds have NO focus_request — passing mentions and new topics are NOT focus requests, only an explicit ask to concentrate.',
-            ].filter(Boolean).join('\n\n'),
+            ].filter(Boolean).join('\n\n') + statusConsult(this.store, params.projectId, params.focusContainerId, 'filing'),
         }) as RoundResult;
         text = JSON.stringify(parsed);
         summary = parsed.summary ?? '';

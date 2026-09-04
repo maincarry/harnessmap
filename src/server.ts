@@ -12,7 +12,7 @@ import { ChatSessionManager } from './agent/chat-session.js';
 import { composeParts } from './seed/composer.js';
 import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/render.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
-import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding } from './translator/mapstatus.js';
+import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat } from './translator/mapstatus.js';
 import { proposeAutolit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
@@ -1265,7 +1265,19 @@ const server = Bun.serve({
           .map((r: any) => { const n = store.getNode(r.chapter_id); return { id: r.chapter_id, name: (n?.title || n?.content || '?').slice(0, 60), text: r.text, ts: r.updated_at }; });
       } catch { return []; }
     };
-      return json({ status: getMapStatus(store, projectId), understanding: getUnderstanding(store, projectId), chapters: chapterReport() });
+      return json({ status: getMapStatus(store, projectId), understanding: getUnderstanding(store, projectId), chapters: chapterReport(), importCheck: getImportCheck(store, projectId), tuning: store.getSetting(`braintuning:${projectId}`) ?? '' });
+    }
+    // M195c (Jacob): the user talks directly to the map status agent to tune
+    // it — advisory, never edits; the exchange distills into standing
+    // guidance that rides every synthesis.
+    if (path === '/api/map-status/chat' && req.method === 'POST') {
+      const b = await req.json() as { text?: string };
+      const text = (b.text ?? '').trim();
+      if (!text) return json({ error: 'say something' }, 400);
+      store.metric(projectId, 'interaction.map_status_chat');
+      const r = await brainChat(store, projectId, text);
+      if ('error' in r) return json({ error: r.error }, 502);
+      return json(r);
     }
     if (path === '/api/map-status' && req.method === 'POST') {
       store.metric(projectId, 'interaction.map_status');
@@ -1282,7 +1294,7 @@ const server = Bun.serve({
           .map((r: any) => { const n = store.getNode(r.chapter_id); return { id: r.chapter_id, name: (n?.title || n?.content || '?').slice(0, 60), text: r.text, ts: r.updated_at }; });
       } catch { return []; }
     };
-      return json({ status: r, understanding: getUnderstanding(store, projectId), chapters: chapterReport() });
+      return json({ status: r, understanding: getUnderstanding(store, projectId), chapters: chapterReport(), importCheck: getImportCheck(store, projectId), tuning: store.getSetting(`braintuning:${projectId}`) ?? '' });
     }
     // M191: RECALL — the pull channel. The host agent fetches a node's card
     // (minimal view + current details), its neighborhood, or resolved evidence, on
@@ -1423,7 +1435,20 @@ const server = Bun.serve({
         if (fb) applyFocus(c.id, fb);
       }
       if (suggestionId) store.setSuggestionStatus(suggestionId, 'done');
-      if (origin === 'import') { brainCycle(store, projectId).catch(() => {}); }
+      if (origin === 'import') {
+        store.audit('import_applied', { creates: alterations.filter((a: any) => a.op === 'create_node').length, jobId: jobId ?? null });
+        // M195c (Jacob): the import's comprehensive source summary becomes
+        // the standard the finished map is judged against — persist it, run
+        // the brain cycle, then verify the overall report against it.
+        try {
+          if (jobId) {
+            const pp = (store as any).db.prepare('SELECT proposal FROM pending_proposals WHERE job_id = ?').get(jobId) as any;
+            const ss = pp ? (JSON.parse(pp.proposal)?.sourceSummary ?? '') : '';
+            if (ss) store.setSetting(`importsummary:${projectId}`, ss);
+          }
+        } catch {}
+        brainCycle(store, projectId).then(() => verifyImport(store, projectId)).catch(() => {});
+      }
       if (chatId) chats.noteMapChange(chatId, `reorganized the "${containerName ?? 'selected'}" subtree (${alterations.length} change(s))`);
       broadcast({ type: 'map', ...state() });
       return json({ ok: true, undo: `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))` });

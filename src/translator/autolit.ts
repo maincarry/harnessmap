@@ -52,7 +52,7 @@ export async function proposeAutolit(
           ...(priorSummary ? [`YOUR PREVIOUS PROPOSAL (the user saw it and wants something different): ${priorSummary}`] : []),
           ...(feedback ? [`THE USER'S DIRECTION — this OVERRIDES your own instincts; build the lighting the user is asking for: ${feedback}`] : []),
           'Choose the lighting changes.',
-        ].join('\n\n') + statusConsult(store, projectId, focusId ?? undefined),
+        ].join('\n\n') + statusConsult(store, projectId, focusId ?? undefined, 'lighting'),
     });
     // Resolve 8-char bracket prefixes back to full container ids; drop unknowns.
     const resolve = (ids: string[]) => ids

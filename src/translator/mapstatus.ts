@@ -154,22 +154,34 @@ export function chatAwareness(store: Store, projectId: string): string {
   const u = getUnderstanding(store, projectId);
   if (!u) return '';
   const sec = (k: string, cap: number) => (u.sections[k]?.text ?? '').slice(0, cap);
+  // M195c (Jacob): agents are consulted with the brain's actual suggestions
+  // for their job AND the trimmed report, so influence is comprehensive; the
+  // two come from the same synthesis cycle, so they are coherent by
+  // construction (and the charter binds the advice to the report).
+  const advice = sec('advice_chat', 1400);
   const parts = [
     sec('keystones', 350) ? `load-bearing decisions: ${sec('keystones', 350)}` : '',
     sec('tensions', 300) ? `currently contested: ${sec('tensions', 300)}` : '',
     sec('trust', 450) ? `area reliability: ${sec('trust', 450)}` : '',
+    advice ? `its advice for chat: ${advice}` : '',
   ].filter(Boolean);
   return parts.length ? `WHAT THE MAP HOLDS (the map's own standing judgment — includes set-aside areas; use it to recognize what exists and offer to pull things up, never to answer from it directly):\n${parts.join('\n')}` : '';
 }
 
-export function statusConsult(store: Store, projectId: string, forNodeId?: string, lane: 'full' | 'tidy' = 'full'): string {
+export function statusConsult(store: Store, projectId: string, forNodeId?: string, lane: 'full' | 'tidy' | 'filing' | 'lighting' | 'review' = 'full'): string {
   const s = getMapStatus(store, projectId);
   const u = getUnderstanding(store, projectId);
   const parts: string[] = [];
-  if (u && lane === 'full') {
+  if (u && lane !== 'tidy') {
+    // M195c (Jacob): the agent receives the brain's actual advice for its job
+    // AND the trimmed report, so influence is comprehensive — both from the
+    // same cycle, so coherent.
     const sec = (k: string, label: string, cap = 400) => { const x = u.sections[k]; return x?.text ? `${label}: ${x.text.slice(0, cap)}` : ''; };
-    parts.push(`THE OVERALL MAP STATUS REPORT (consult it; the user's preferences still outrank it):`);
+    const adviceKey = lane === 'filing' ? 'advice_filing' : lane === 'review' ? 'advice_review' : 'advice_lighting';
+    const advice = (u.sections[adviceKey]?.text ?? '').slice(0, 1800);
+    parts.push(`THE OVERALL MAP STATUS REPORT, trimmed (consult it; the user's preferences still outrank it):`);
     parts.push([sec('essence', 'what this project is', 350), sec('arc', 'where the work is heading', 350), sec('tensions', 'live tensions', 400), sec('keystones', 'keystones', 300), sec('gaps', 'known gaps', 300)].filter(Boolean).join('\n'));
+    if (advice) parts.push(`ITS ADVICE FOR THIS JOB (written from the same judgment — follow it unless the user's own words say otherwise):\n${advice}`);
   }
   {
     // The consulting agent's working area gets its chapter assessment (tiered consultation).
@@ -348,7 +360,7 @@ export interface Understanding {
   sections: Record<string, { text: string; ts: string }>;
 }
 
-const OVERALL_SYSTEM = `You are the map status agent writing the OVERALL MAP STATUS REPORT — the one coherent judgment of a goal map. Your reporters hand you: the structure report, chapter assessments covering every area, a taste note (what the user has accepted and rejected lately), and your own previous overall report. Reconcile them — where reports pull opposite ways, decide; where nothing changed, keep your prior text.
+const OVERALL_SYSTEM = `You are the map status agent writing the OVERALL MAP STATUS REPORT — the one coherent judgment of a goal map. Your reporters hand you: the structure report, chapter assessments covering every area, a taste note (what the user has accepted and rejected lately), THE USER'S OWN RECENT EDITS (the highest authority in this system — a user edit outranks every other input including your prior text and stale assessments), and your own previous overall report. Reconcile them — where reports pull opposite ways, decide; where nothing changed, keep your prior text — but keeping prior text is NEVER allowed to preserve a claim that any current input contradicts, and a user edit that settles or reverses something must update every section that mentioned it, this cycle, even if the chapter assessments have not caught up yet.
 
 Write the overall report as these sections, each self-contained, plain words, grounded in the reports (never invent):
 - essence: what this project IS — its thesis and standing doctrine. Stable; amend only on real change.
@@ -358,11 +370,21 @@ Write the overall report as these sections, each self-contained, plain words, gr
 - gaps: what the map should contain and doesn't — unanswered questions, unrecorded decisions, and where the map has not been fed lately.
 - trust: one line per area — where the map is reliable vs thin, contested, or old.
 
-Each section at its natural size; judgment scales with what is genuinely contested, not with map size.`;
+Each section at its natural size; judgment scales with what is genuinely contested, not with map size.
+
+Two rules learned from your own first run (both were real failures, caught by the user):
+- INTERNAL CONSISTENCY: a claim that something is open, blocking, or contested must survive your OWN trust judgments. Where you have judged status markers unreliable, you may not assert openness as fact — say "recorded as open, but the markers are unreliable" and rank it accordingly. Never trust in one section what you distrust in another.
+- DATES, NOT PROMINENCE: claims about what is current must stand on dates and statuses, never on how large or wide a node is. A fat chapter is not the present; it may be exactly the misfiled past your structure report warns about.
+
+Then write your ACTUAL ADVICE, per job. Each working agent is consulted with a trimmed version of the report above PLUS your suggestions for its specific job — the two travel together, so they must be coherent: advise nothing the report does not support, and put everything an agent must act on into its advice, in plain imperative words, only what that job can act on. Empty is a fine answer when you have nothing to advise:
+- advice_filing: for the agent filing new conversation material onto nodes — where new or contested material should go, which areas not to trust, what incoming claims to double-check against settled decisions.
+- advice_lighting: for the light and focus decisions — what deserves light now and why, what should stay set aside, where the user's attention keeps returning.
+- advice_review: for the agents reviewing structure and finishing imports — what to verify first, where the known rot or staleness is, what a finished import must not disturb.
+- advice_chat: for the chat agent — what exists on this map (set-aside areas included) that it should recognize when the user touches it and offer to pull up, never answer from directly; and which recorded decisions are settled so it never reopens them.`;
 
 const OVERALL_SCHEMA = {
-  type: 'object', additionalProperties: false, required: ['essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust'],
-  properties: { essence: { type: 'string' }, arc: { type: 'string' }, tensions: { type: 'string' }, keystones: { type: 'string' }, gaps: { type: 'string' }, trust: { type: 'string' } },
+  type: 'object', additionalProperties: false, required: ['essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust', 'advice_filing', 'advice_lighting', 'advice_review', 'advice_chat'],
+  properties: { essence: { type: 'string' }, arc: { type: 'string' }, tensions: { type: 'string' }, keystones: { type: 'string' }, gaps: { type: 'string' }, trust: { type: 'string' }, advice_filing: { type: 'string' }, advice_lighting: { type: 'string' }, advice_review: { type: 'string' }, advice_chat: { type: 'string' } },
 } as const;
 
 export function getUnderstanding(store: Store, projectId: string): Understanding | null {
@@ -370,35 +392,53 @@ export function getUnderstanding(store: Store, projectId: string): Understanding
   try { return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 
-export async function synthesizeOverallStatus(store: Store, projectId: string): Promise<Understanding | { error: string }> {
+export async function synthesizeOverallStatus(store: Store, projectId: string, extraInput?: string): Promise<Understanding | { error: string }> {
   const db = (store as any).db;
   const status = getMapStatus(store, projectId);
   const assessments = (db.prepare('SELECT chapter_id, text, updated_at FROM chapter_assessments WHERE project_id = ? ORDER BY updated_at DESC').all(projectId) as any[]);
   const taste = store.getSetting(`taste:${projectId}`) ?? '';
   const prev = getUnderstanding(store, projectId);
   const prefs = store.getSetting(`prefs:${projectId}`) ?? '';
+  // The user's own recent edits — the highest-authority reporter (learned
+  // when a user correction failed to propagate past stale assessments).
+  const fmtEvent = (r: any): string | null => { try { const a = JSON.parse(r.alteration); const n = a.id ? store.getNode(a.id) : null; return `${r.created_at} [${r.source_kind}]: ${a.op} on "${(n?.title || n?.content || a.id || '?').slice(0, 50)}"${a.status ? ` → status ${a.status}` : ''}${a.content ? ` → "${String(a.content).slice(0, 120)}"` : ''}`; } catch { return null; } };
+  const userEdits = (db.prepare("SELECT alteration, created_at, source_kind FROM map_events WHERE project_id = ? AND source_kind = 'user_edit' ORDER BY seq DESC LIMIT 15").all(projectId) as any[])
+    .map(fmtEvent).filter(Boolean).join('\n');
+  // M195d (Jacob): history reaches the synthesis as the historical-status
+  // agent's REPORT, not as raw events.
+  const historyReport = store.getSetting(`historystatus:${projectId}`) ?? '';
   try {
     const parsed = await call({
-      task: 'mapcheck', modelOverride: modelFor('tidy'),
-      system: OVERALL_SYSTEM, maxTokens: 2500, schema: OVERALL_SCHEMA as any, timeoutMs: 120_000,
+      // Jacob's ruling: the brain gets the smartest model — synthesis is the
+      // one judgment everything else consults.
+      task: 'mapcheck', modelOverride: modelFor('import'),
+      // Jacob: the understanding gets a much larger budget.
+      system: OVERALL_SYSTEM, maxTokens: 16000, schema: OVERALL_SCHEMA as any, timeoutMs: 240_000,
       audit: (k, d) => store.audit(k, d),
       user: [
         status ? `STRUCTURE REPORT (${status.ts}):\n${status.health}\n${status.findings.map((f) => `- ${f.what} (fix: ${f.fix})`).join('\n')}\n${status.opinion}` : 'STRUCTURE REPORT: none yet.',
         `CHAPTER ASSESSMENTS (every area):\n${assessments.map((a) => {
           const n = store.getNode(a.chapter_id);
           return `[${(n?.title || n?.content || a.chapter_id).slice(0, 40)}] (${a.updated_at}): ${a.text}`;
-        }).join('\n\n').slice(0, 30_000) || '(none yet)'}`,
+        }).join('\n\n').slice(0, 120_000) || '(none yet)'}`,
+        userEdits ? `THE USER'S RECENT EDITS (highest authority — these outrank stale assessments and your prior text):\n${userEdits}` : '',
+        historyReport ? `HISTORICAL-STATUS REPORT (how this map came to be — from the historical-status agent):\n${historyReport}` : 'HISTORICAL-STATUS REPORT: none yet.',
         taste ? `TASTE NOTE (from the user's recent accept/reject decisions):\n${taste}` : '',
         prefs ? `THE USER'S MAP PREFERENCES:\n${prefs}` : '',
+        (store.getSetting(`braintuning:${projectId}`) ?? '') ? `THE USER'S STANDING GUIDANCE TO YOU (their spoken tuning, given to you directly — outranked only by their edits):\n${store.getSetting(`braintuning:${projectId}`)}` : '',
         prev ? `YOUR PREVIOUS UNDERSTANDING:\n${Object.entries(prev.sections).map(([k, v]) => `${k} (${v.ts}): ${v.text}`).join('\n\n')}` : '',
+        // Unresolved import verification findings ride every synthesis until
+        // a later verify passes (the mutual-revision loop, Jacob's ruling).
+        (() => { try { const c = JSON.parse(store.getSetting(`importcheck:${projectId}`) ?? 'null'); return c && !c.similar ? `IMPORT VERIFICATION FINDINGS (unresolved — the finished import did not yet match its source summary; address report-side findings in your sections, and carry map-side findings in gaps and your advice so filing and tidy can heal them):\n${(c.discrepancies ?? []).map((d: any) => `- [${d.side}] ${d.what} (fix: ${d.fix})`).join('\n')}` : ''; } catch { return ''; } })(),
+        extraInput ?? '',
         'Write the understanding.',
       ].filter(Boolean).join('\n\n'),
     });
     const now = new Date().toISOString();
     const prevS = prev?.sections ?? {};
     const sections: Understanding['sections'] = {};
-    for (const k of ['essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust']) {
-      const text = String((parsed as any)[k] ?? '').slice(0, 2000);
+    for (const k of ['essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust', 'advice_filing', 'advice_lighting', 'advice_review', 'advice_chat']) {
+      const text = String((parsed as any)[k] ?? "").slice(0, 12000);
       const old = (prevS as any)[k];
       sections[k] = { text, ts: old && old.text === text ? old.ts : now };
     }
@@ -447,10 +487,150 @@ export async function brainCycle(store: Store, projectId: string): Promise<{ ass
     .sort((a, b) => (b.newestChange > a.newestChange ? 1 : -1))
     .map((c) => c.id);
   const assessed = changed.length ? await assessChapters(store, projectId, changed) : 0;
+  await historyStatus(store, projectId);
   let synthesized = false;
   if (assessed > 0 || !getUnderstanding(store, projectId)) {
     const r = await synthesizeOverallStatus(store, projectId);
     synthesized = !('error' in r);
   }
   return { assessed, synthesized };
+}
+
+
+// M195c (Jacob): "the import is successful only after the map status report
+// produces a similar enough report afterward. If not there need to be mutual
+// revisions/adjustment." After an import is applied and the brain cycle has
+// run, the finished map's overall report is judged against the import's own
+// comprehensive source summary. Report-side findings trigger one immediate
+// resynthesis (the report revises); map-side findings persist as unresolved
+// verification findings that ride every synthesis — into gaps and advice —
+// until filing/tidy heal the map and a later verify passes.
+const VERIFY_SYSTEM = `You judge whether an import landed. You get: THE SOURCE SUMMARY (the comprehensive summary of the original source, written at import time — the standard) and THE OVERALL MAP STATUS REPORT (what the map now understands itself to hold). Decide: does the report show the map holding what the source held — the same subjects, the same key decisions and reversals, the same latest state? Judge substance, never wording. Return:
+- similar: true only if someone reading just the report would not be misled about anything significant the source contains.
+- discrepancies: each significant mismatch — { what: one plain sentence; side: "map" when the map is missing or misplacing something the source holds, "report" when the map likely holds it but the report under- or mis-represents it; fix: one sentence naming the mechanism (file X under Y, a tidy of Z, the report's trust section should say W) }. Empty when similar.`;
+
+const VERIFY_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['similar', 'discrepancies'],
+  properties: { similar: { type: 'boolean' }, discrepancies: { type: 'array', items: {
+    type: 'object', additionalProperties: false, required: ['what', 'side', 'fix'],
+    properties: { what: { type: 'string' }, side: { type: 'string', enum: ['map', 'report'] }, fix: { type: 'string' } },
+  } } },
+} as const;
+
+export interface ImportCheck { similar: boolean; discrepancies: { what: string; side: 'map' | 'report'; fix: string }[]; ts: string; pass: number }
+
+export function getImportCheck(store: Store, projectId: string): ImportCheck | null {
+  const raw = store.getSetting(`importcheck:${projectId}`);
+  try { return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+
+export async function verifyImport(store: Store, projectId: string): Promise<ImportCheck | null> {
+  const sourceSummary = store.getSetting(`importsummary:${projectId}`) ?? '';
+  if (!sourceSummary) return null;
+  const judge = async (): Promise<ImportCheck | null> => {
+    const u = getUnderstanding(store, projectId);
+    if (!u) return null;
+    const report = Object.entries(u.sections).filter(([k]) => !k.startsWith('advice_')).map(([k, v]) => `${k}: ${v.text}`).join('\n\n');
+    try {
+      const parsed = await call({
+        task: 'mapcheck', modelOverride: modelFor('import'),
+        system: VERIFY_SYSTEM, maxTokens: 3000, schema: VERIFY_SCHEMA as any, timeoutMs: 240_000,
+        audit: (k, d) => store.audit(k, d),
+        user: `THE SOURCE SUMMARY (the standard):\n${sourceSummary}\n\nTHE OVERALL MAP STATUS REPORT (the map now):\n${report}\n\nJudge.`,
+      }) as any;
+      return { similar: !!parsed.similar, discrepancies: (parsed.discrepancies ?? []).slice(0, 12), ts: new Date().toISOString(), pass: 0 };
+    } catch (err) { console.error('[import verify] failed:', err); return null; }
+  };
+  let check = await judge();
+  if (!check) return null;
+  check.pass = 1;
+  store.setSetting(`importcheck:${projectId}`, JSON.stringify(check));
+  if (!check.similar && check.discrepancies.some((d) => d.side === 'report')) {
+    // Mutual revision, report side, once: resynthesize with the findings in
+    // hand, then judge again. Map-side findings stay for the healing loop.
+    await synthesizeOverallStatus(store, projectId);
+    const again = await judge();
+    if (again) { again.pass = 2; check = again; store.setSetting(`importcheck:${projectId}`, JSON.stringify(check)); }
+  }
+  store.audit('import_verified', { similar: check.similar, discrepancies: check.discrepancies.length, pass: check.pass });
+  return check;
+}
+
+// M195c (Jacob): "User should also be able to talk directly to the map
+// status agent to tune it." The direct line (M77 precedent: advisory, never
+// edits): the user speaks, the map status agent answers from its full
+// understanding, and the exchange is distilled into standing guidance that
+// rides every future synthesis — the user's spoken tuning, second only to
+// their edits.
+const BRAIN_CHAT_SYSTEM = `You are the map status agent — the one mind that holds the coherent understanding of this goal map, whose report and advice all the working agents consult. The USER is speaking to you directly, to tune you: correct your judgments, tell you what to watch, what to stop flagging, how to weigh things. Answer them plainly and briefly (this is a conversation, not a report), grounded in your actual current understanding — and when they correct you, say what you will do differently, never defend a mistake. You change nothing on the map and propose nothing here; you only explain yourself and take tuning.
+
+Then rewrite YOUR STANDING GUIDANCE: the durable instructions you carry from everything this user has ever told you directly, updated with this exchange — integrate, don't append; drop what they have retracted; keep it under ~200 words of plain imperatives. This guidance rides into every future synthesis you write.`;
+
+const BRAIN_CHAT_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['reply', 'guidance'],
+  properties: { reply: { type: 'string' }, guidance: { type: 'string' } },
+} as const;
+
+export async function brainChat(store: Store, projectId: string, text: string): Promise<{ reply: string; guidance: string } | { error: string }> {
+  const u = getUnderstanding(store, projectId);
+  const status = getMapStatus(store, projectId);
+  const tuning = store.getSetting(`braintuning:${projectId}`) ?? '';
+  try {
+    const parsed = await call({
+      task: 'mapcheck', modelOverride: modelFor('import'),
+      system: BRAIN_CHAT_SYSTEM, maxTokens: 2000, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
+      audit: (k, d) => store.audit(k, d),
+      user: [
+        u ? `YOUR CURRENT UNDERSTANDING:\n${Object.entries(u.sections).map(([k, v]) => `${k}: ${v.text.slice(0, 2000)}`).join('\n\n')}` : 'YOUR CURRENT UNDERSTANDING: none written yet.',
+        status ? `YOUR STRUCTURE REPORT: ${status.health} ${status.opinion}` : '',
+        tuning ? `YOUR STANDING GUIDANCE (as it stands):\n${tuning}` : 'YOUR STANDING GUIDANCE: none yet.',
+        `THE USER SAYS:\n${text.slice(0, 4000)}`,
+        'Reply, then rewrite the standing guidance.',
+      ].filter(Boolean).join('\n\n'),
+    }) as any;
+    const reply = String(parsed.reply ?? '').slice(0, 4000);
+    const guidance = String(parsed.guidance ?? '').slice(0, 2000);
+    if (guidance) store.setSetting(`braintuning:${projectId}`, guidance);
+    store.audit('map_status_chat', { chars: text.length });
+    return { reply, guidance };
+  } catch (err) {
+    return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
+  }
+}
+
+// M195d (Jacob's correction): the synthesis must not read raw change history
+// — a HISTORICAL-STATUS agent digests it and reports alongside the
+// structure-status and content-status agents. Mechanical gather below,
+// bounded judgment on top, stored and refreshed on the same rhythms.
+const HISTORY_SYSTEM = `You are the historical-status agent for a goal map — one of the map status agent's reporters. From the change records given (recent events verbatim, complete daily aggregates over the map's whole life, import records), write the map's biography as a report (at most ~250 words, most significant first): how this map came to be (imports: when, from what, how large), its rhythm of activity and quiet, when it was last actually fed and from what, the user's recent corrections, and anything odd in the pattern (mass changes, long silences, unfed frontiers). Ground every claim in the records; integrate with your previous report, don't append.`;
+
+export async function historyStatus(store: Store, projectId: string): Promise<void> {
+  const db = (store as any).db;
+  const maxSeq = (db.prepare('SELECT MAX(seq) s FROM map_events WHERE project_id = ?').get(projectId) as any)?.s ?? 0;
+  const lastSeq = Number(store.getSetting(`historyseq:${projectId}`) ?? -1);
+  if (maxSeq === lastSeq) return; // nothing new — no call
+  const fmtEvent = (r: any): string | null => { try { const a = JSON.parse(r.alteration); const n = a.id ? store.getNode(a.id) : null; return `${r.created_at} [${r.source_kind}]: ${a.op} "${(n?.title || n?.content || a.id || '?').slice(0, 45)}"${a.status ? ` → ${a.status}` : ''}`; } catch { return null; } };
+  const recent = (db.prepare('SELECT alteration, created_at, source_kind FROM map_events WHERE project_id = ? ORDER BY seq DESC LIMIT 30').all(projectId) as any[]).map(fmtEvent).filter(Boolean).join('\n');
+  const aggregates = (db.prepare('SELECT substr(created_at, 1, 10) day, source_kind, COUNT(*) c FROM map_events WHERE project_id = ? GROUP BY day, source_kind ORDER BY day DESC').all(projectId) as any[])
+    .map((r: any) => `${r.day}: ${r.c} via ${r.source_kind}`).join('\n');
+  const imports = (db.prepare("SELECT ts, detail FROM audit_log WHERE kind = 'import_applied' ORDER BY id DESC LIMIT 10").all() as any[])
+    .map((r: any) => `${r.ts}: ${String(r.detail).slice(0, 120)}`).join('\n');
+  const prev = store.getSetting(`historystatus:${projectId}`) ?? '';
+  try {
+    const text = await call({
+      task: 'memory', system: HISTORY_SYSTEM, maxTokens: 500, timeoutMs: 90_000,
+      audit: (k, d) => store.audit(k, d),
+      user: [
+        `RECENT EVENTS:\n${recent}`,
+        `COMPLETE DAILY AGGREGATES:\n${aggregates.slice(0, 4000)}`,
+        `IMPORT RECORDS:\n${imports || '(none recorded)'}`,
+        prev ? `YOUR PREVIOUS REPORT:\n${prev}` : '',
+        'Write the historical-status report.',
+      ].filter(Boolean).join('\n\n'),
+    });
+    if (typeof text === 'string' && text) {
+      store.setSetting(`historystatus:${projectId}`, text.slice(0, 1800));
+      store.setSetting(`historyseq:${projectId}`, String(maxSeq));
+    }
+  } catch (err) { console.error('[history-status] failed:', err); }
 }

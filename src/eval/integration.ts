@@ -1160,6 +1160,10 @@ console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
     const u45 = run45.body?.understanding;
     const secs = ['essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust'];
     check('understanding has all six sections with stamps', !!u45 && secs.every((k) => u45.sections[k] && typeof u45.sections[k].text === 'string' && !!u45.sections[k].ts));
+    // M195c (Jacob): agents are consulted with the brain's actual suggestions
+    // for their job, never handed the report itself.
+    const adv45 = ['advice_filing', 'advice_lighting', 'advice_review', 'advice_chat'];
+    check('the brain writes advice for every job', !!u45 && adv45.every((k) => u45.sections[k] && typeof u45.sections[k].text === 'string'));
     // advisors consult it; tidy does not get the global understanding
     await post('/api/dev/toggle', {});
     const CH45 = (await state()).mainChatId;

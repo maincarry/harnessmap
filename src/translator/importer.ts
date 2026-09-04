@@ -160,7 +160,7 @@ RULES:
 const FINISH_SYSTEM = `You are finishing a chunked import into a goal map. You see the complete imported subtree (every node with [id], name, and statement). Earlier chunks were filed without seeing later ones, so: (1) MERGE near-duplicates by renaming one node to carry both statements and moving the other's meaning into it — you may ONLY rename (update_node content/title) and re-parent (move_node); you cannot delete, so make duplicates harmless by renaming them into genuinely distinct aspects or moving them under the node they duplicate; (2) fix names that break the rule (topics 2-5 words, statements one tight sentence); (3) move nodes that clearly sit in the wrong branch. Propose NOTHING where the tree is already right — a small correct pass beats an ambitious rewrite. Ops may reference ONLY the [ids] shown.`;
 
 export interface LargeProgress { phase: 'chunk' | 'finish'; done: number; total: number }
-export interface LargeProposal extends ImportProposal { memories: Record<string, string>; chunks: number; skipped: { chunk: number; error: string }[] }
+export interface LargeProposal extends ImportProposal { memories: Record<string, string>; chunks: number; skipped: { chunk: number; error: string }[]; sourceSummary?: string }
 
 function splitChunks(text: string, target = 50_000): string[] {
   const lines = text.split('\n');
@@ -182,6 +182,25 @@ export async function proposeImportLarge(
   onProgress?: (p: LargeProgress) => void,
 ): Promise<LargeProposal | { error: string }> {
   const map = loadMap(store, projectId);
+  // M195c (Jacob): before any chunk is filed, demand a comprehensive summary
+  // of the whole original transcript — every chunk then files against the
+  // global picture (attacks phase-chaptering at the root: chunks used to
+  // know only their slice of time). Stored with the proposal; written onto
+  // the import root's memory at apply, where the brain's reporters read it.
+  // M195c (Jacob): "the comprehensive summary at import stage should be very
+  // long and comprehensive, for it is a one time thing and impression maker"
+  // — and the import counts as successful only when the overall map status
+  // report afterward agrees with this summary (verified at apply).
+  let sourceSummary = '';
+  try {
+    const capped0 = text.length > 300_000 ? text.slice(0, 200_000) + `\n[… middle omitted …]\n` + text.slice(-100_000) : text;
+    const sum = await call({
+      task: 'import', system: 'Summarize this source very comprehensively for the agents who will file it onto a goal map — this summary is written ONCE and becomes the standard the finished map is judged against, so err on the side of completeness. Cover: what the source IS; its overall arc from beginning to latest state; EVERY main subject it contains (name them all — a subject you omit is a subject the map may silently lose); the key decisions, reversals, and open questions, each with who ruled and roughly when; recurring themes and constraints; and what its latest state asserts as current. Scale the length to the source — a large source deserves 1,500-3,000 words. Plain prose, no formatting.',
+      maxTokens: 8000, timeoutMs: 360_000, audit: (k, d) => store.audit(k, d),
+      user: `SOURCE (${sourceLabel}, ${text.length} chars):\n${capped0}`,
+    });
+    if (typeof sum === 'string') sourceSummary = sum.slice(0, 30_000);
+  } catch (err) { console.error('[import] source summary failed (chunks proceed without it):', err); }
   // M190c (Jacob: "why not iterative sorting into topics as things import,
   // just like actual use"): import = the filer's job over history, so the
   // unit is a few deliberations (~8k), not a 50k time-slice — 50k slices
@@ -236,6 +255,7 @@ export async function proposeImportLarge(
         user: [
           i === 0 ? `THE MAP THIS LANDS IN (read-only, for tone):\n${renderTree(map, { ids: false }).slice(0, 4000) || '(empty map)'}` : '',
           `THE IMPORTED SUBTREE SO FAR (${accum.length} nodes):\n${renderAccum() || '(nothing yet — this is the first chunk; your first node becomes the ROOT container for the whole import, named 2-4 words for what the source IS)'}`,
+          sourceSummary ? `THE WHOLE SOURCE, SUMMARIZED (file this chunk against the global picture, by subject):\n${sourceSummary.slice(0, 12_000)}` : '',
           `SOURCE: ${sourceLabel} — CHUNK ${i + 1} of ${chunks.length}`,
           `MATERIAL:\n${chunks[i]}`,
           'Extend the subtree with this chunk.',
@@ -278,7 +298,7 @@ export async function proposeImportLarge(
         task: 'import', system: FINISH_SYSTEM, maxTokens: 6000,
         schema: FINISH_SCHEMA as any, timeoutMs: 300_000,
         audit: (k, d) => store.audit(k, d),
-        user: `THE IMPORTED SUBTREE (complete):\n${renderAccum()}\n\nStatements in full:\n${accum.map((n) => `[${n.id.slice(0, 8)}] ${n.content.slice(0, 200)}`).join('\n').slice(0, 30_000)}\n\nPropose the finishing corrections.` + statusConsult(store, projectId),
+        user: `THE IMPORTED SUBTREE (complete):\n${renderAccum()}\n\nStatements in full:\n${accum.map((n) => `[${n.id.slice(0, 8)}] ${n.content.slice(0, 200)}`).join('\n').slice(0, 30_000)}\n\nPropose the finishing corrections.` + statusConsult(store, projectId, undefined, 'review'),
       });
       const accumIds = new Set(accum.map((n) => n.id));
       const short = new Map(accum.map((n) => [n.id.slice(0, 8), n.id]));
@@ -332,7 +352,7 @@ export async function proposeImportLarge(
       }
     }
     if (skipped.length) summary += ` (${skipped.length} of ${chunks.length} chunks could not be filed and were skipped)`;
-    return { summary, alterations, rootId, memories, chunks: chunks.length, skipped };
+    return { summary, alterations, rootId, memories, chunks: chunks.length, skipped, sourceSummary };
   } catch (err) {
     console.error('[import-large] failed:', err);
     return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
