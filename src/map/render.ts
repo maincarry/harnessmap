@@ -198,3 +198,78 @@ export function ancestors(store: Store, nodeId: string): MapNode[] {
   }
   return chain;
 }
+
+
+// M194 (Jacob): the advisory agents — auto-light, auto-focus, the reviewer —
+// stop receiving the flat every-node dump (whose size grew with the map and
+// was heading off a context cliff: ~240k chars at 2,161 nodes) and receive
+// the SAME tiered serving as everything else: every topic at its minimal as
+// the floor (folding at scale), promoted to medium and long by closeness to
+// the focus and recency, under a real budget. One context model everywhere.
+// Ids ride in [brackets] because advisors must reference nodes.
+export function renderTieredTree(store: any, projectId: string, focusId: string | null, budget = 40_000): string {
+  const nodes = (store.getNodes(projectId) as MapNode[]).filter((n) => n.status !== 'removed');
+  if (!nodes.length) return '(empty map)';
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const kids = new Map<string | null, MapNode[]>();
+  for (const n of nodes) { const k = kids.get(n.parentId) ?? []; k.push(n); kids.set(n.parentId, k); }
+  const db = store.db ?? (store as any).db;
+  const minBy = new Map<string, string>((db.prepare("SELECT node_id, minimal FROM node_memory WHERE minimal IS NOT NULL AND minimal != ''").all() as any[]).map((r: any) => [r.node_id, r.minimal]));
+  const medBy = new Map<string, string>((db.prepare("SELECT node_id, medium FROM node_memory WHERE medium != ''").all() as any[]).map((r: any) => [r.node_id, r.medium]));
+  const detBy = new Map<string, string[]>();
+  for (const r of db.prepare("SELECT node_id, text FROM memory_details WHERE status='current' ORDER BY id").all() as any[]) {
+    const a = detBy.get(r.node_id); if (a) a.push(r.text); else detBy.set(r.node_id, [r.text]);
+  }
+  const chapterOf = (id: string): string => {
+    let cur = id; let p = byId.get(id)?.parentId;
+    while (p && byId.get(p) && byId.get(p)!.parentId) { cur = p; p = byId.get(p)!.parentId; }
+    return p ? cur : id;
+  };
+  const focusChapter = focusId ? chapterOf(focusId) : null;
+  const dayAgo = new Date(Date.now() - 86_400_000).toISOString().slice(0, 19).replace('T', ' ');
+  const warmth = (id: string): number =>
+    (focusChapter && chapterOf(id) === focusChapter ? 2 : 0) + ((byId.get(id)?.updatedAt ?? '') > dayAgo ? 1 : 0);
+  interface E { n: MapNode; depth: number; line: string }
+  const entries: E[] = [];
+  const walk = (pid: string | null, depth: number) => {
+    for (const n of kids.get(pid) ?? []) {
+      const short = (n.title || (n.content.length > 70 ? n.content.slice(0, 69) + '…' : n.content));
+      const mark = n.id === focusId ? '▶ ' : '';
+      const min = minBy.get(n.id);
+      entries.push({ n, depth, line: `${'  '.repeat(depth)}- [${n.id.slice(0, 8)}] ${mark}${short}${min ? ` — ${min}` : ''}` });
+      walk(n.id, depth + 1);
+    }
+  };
+  walk(null, 0);
+  // Floor with fold: minimal lines for depth ≤ cap; deeper folds into counts.
+  let cap = Math.max(...entries.map((e) => e.depth));
+  const sizeAt = (c: number) => entries.filter((e) => e.depth <= c).reduce((s, e) => s + e.line.length + 1, 0);
+  while (cap > 1 && sizeAt(cap) > budget * 0.6) cap--;
+  const below = (id: string): number => { let s = 0; const st = [...(kids.get(id) ?? [])]; while (st.length) { const x = st.pop()!; s++; st.push(...(kids.get(x.id) ?? [])); } return s; };
+  const visible = entries.filter((e) => e.depth <= cap);
+  let used = 0;
+  const parts = new Map<string, string[]>();
+  for (const e of visible) {
+    const roll = e.depth === cap && (kids.get(e.n.id)?.length ?? 0) > 0 ? ` (+${below(e.n.id)} inside)` : '';
+    parts.set(e.n.id, [e.line + roll]);
+    used += e.line.length + roll.length + 1;
+  }
+  // Promote by warmth: medium, then long (statement + specifics).
+  const ranked = [...visible].sort((a, b) => warmth(b.n.id) - warmth(a.n.id));
+  for (const e of ranked) {
+    const med = medBy.get(e.n.id); if (!med) continue;
+    const add2 = `${'  '.repeat(e.depth)}    (${med.slice(0, 620)})`;
+    if (used + add2.length > budget) continue;
+    parts.get(e.n.id)!.push(add2); used += add2.length + 1;
+  }
+  for (const e of ranked) {
+    const pad = '  '.repeat(e.depth);
+    const lines2: string[] = [`${pad}    • ${e.n.content}${e.n.type ? ` [${e.n.type}, ${e.n.status}]` : ''}`];
+    const det = (detBy.get(e.n.id) ?? []).slice(0, 4);
+    if (det.length) lines2.push(`${pad}    remembered: ${det.join(' · ')}`.slice(0, 700));
+    const add3 = lines2.join('\n');
+    if (used + add3.length > budget) continue;
+    parts.get(e.n.id)!.push(add3); used += add3.length + 1;
+  }
+  return visible.map((e) => parts.get(e.n.id)!.join('\n')).join('\n');
+}

@@ -2,7 +2,7 @@ import { Store } from '../store/db.js';
 import { systemCard } from './cast.js';
 import { call } from '../inference.js';
 import { statusConsult } from './mapstatus.js';
-import { loadMap, renderTree } from '../map/render.js';
+import { loadMap, renderTree, renderTieredTree } from '../map/render.js';
 
 // On-demand map check (v0.3.5, Jacob): "can you add a button where I can
 // demand suggestion? or none-suggestion ('well done your map is clean!')".
@@ -43,7 +43,8 @@ export interface MapCheckResult { summary: string; suggestions: { nodeId: string
 
 export async function checkMap(store: Store, projectId: string, focusId: string | null): Promise<MapCheckResult | { error: string }> {
   const map = loadMap(store, projectId);
-  const tree = renderTree(map, { ids: true, focusId: focusId ?? undefined });
+  // M194 (Jacob): tiered context, same model as the chat briefing.
+  const tree = renderTieredTree(store, projectId, null, 40_000);
 
   try {
     const parsed = await call({

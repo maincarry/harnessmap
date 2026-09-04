@@ -1,7 +1,7 @@
 import { Store } from '../store/db.js';
 import { systemCard } from './cast.js';
 import { call } from '../inference.js';
-import { loadMap, renderTree } from '../map/render.js';
+import { loadMap, renderTree, renderTieredTree } from '../map/render.js';
 
 // Auto-lit (v0.3, Jacob's Z2): the map agent recommends which topics belong in
 // the conversation's background and which should dim, given the current focus.
@@ -36,7 +36,8 @@ export async function proposeAutolit(
   feedback?: string, priorSummary?: string,
 ): Promise<AutolitResult | { error: string }> {
   const map = loadMap(store, projectId);
-  const tree = renderTree(map, { ids: true, focusId: focusId ?? undefined });
+  // M194 (Jacob): tiered context, same model as the chat briefing.
+  const tree = renderTieredTree(store, projectId, focusId ?? null, 40_000);
   const litNames = currentLit.map((id) => store.getNode(id)?.content).filter(Boolean);
 
   try {

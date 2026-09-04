@@ -31,7 +31,8 @@ export async function proposeTopicRec(
 ): Promise<TopicRec | { error: string }> {
   const map = loadMap(store, projectId);
   const chat = store.getChats(projectId).find((c) => c.id === chatId);
-  const tree = renderTree(map, { ids: true, focusId: chat?.focusContainerId ?? undefined });
+  // M194 (Jacob): tiered context, same model as the chat briefing.
+  const tree = renderTieredTree(store, projectId, chat?.focusContainerId ?? null, 40_000);
   const tail = store.getTurns(chatId).slice(-6)
     .map((t) => `${t.role.toUpperCase()}: ${t.content.slice(0, 400)}`).join('\n');
 
