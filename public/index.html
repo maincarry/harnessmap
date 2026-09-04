@@ -441,6 +441,7 @@
           <button id="font-btn" title="text size for the whole page — cycles Small / Normal / Large / Extra large">🔠 text size: normal</button>
           <button id="other-more-btn" title="map housekeeping: tidy, bulk lighting, import, preferences">＋ more…<span class="nudge-dot" hidden>●</span></button>
           <div id="other-more" hidden>
+          <button id="enrich-btn" title="the map too coarse? the machinery reads this map's own conversation record, finds thin nodes that were discussed at length, and proposes the depth under them — you approve">✚ enrich map</button>
           <button id="map-check" title="review the whole map now — anything needing a restructure lands in the ⟳ to tidy folder, or you get a clean bill (the map also reviews itself every 10 rounds)">⟳ tidy map</button>
           <button id="tidy-top" title="group and clean the top level — only here may the tidy agent propose domain containers and move top-level threads under them; you approve">⟳ tidy top level</button>
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
@@ -2197,6 +2198,38 @@ $('auto-zoom').onclick = autoZoom;
 
 // On-demand map check (Jacob): demand suggestions — or get the clean bill.
 $('tidy-top').onclick = () => { $('other-menu').hidden = true; openReorganize(null, 'the top level'); };
+$('enrich-btn').onclick = async () => {
+  $('other-menu').hidden = true;
+  $('round-line').textContent = '✚ reading the conversation record for depth…';
+  let r;
+  try { r = await post('/api/enrich/preview', {}); }
+  catch (err) { $('round-line').textContent = `enrich failed: ${err.message}`; return; }
+  if (r.error) { $('round-line').textContent = r.error; return; }
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  ov.innerHTML = `
+    <div class="modal" style="width:min(620px,94vw)">
+      <h3>✚ enrich map</h3>
+      <div style="font-size:13px;margin-bottom:6px">${esc(r.summary || 'proposed depth from the conversation record')}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${r.alterations.length} node(s) proposed under ${r.targets.length} thin topic(s) — nothing lands until you apply; undoable after.</div>
+      <div style="max-height:40vh;overflow-y:auto;font-size:12px">${r.targets.map(t => `<div style="margin:3px 0"><b>${esc(t.name)}</b>${r.alterations.filter(x => x.parentId === t.id).map(x => `<div style="margin-left:14px">+ ${esc(x.title || x.content)}</div>`).join('')}</div>`).join('')}</div>
+      <div class="actions">
+        <button id="en-cancel">cancel</button>
+        <button id="en-apply" class="primary">apply</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+  ov.querySelector('#en-cancel').onclick = () => ov.remove();
+  ov.querySelector('#en-apply').onclick = async () => {
+    try {
+      const ap = await post('/api/reorganize/apply', { alterations: r.alterations, containerName: 'enrich map' });
+      $('round-line').textContent = `✚ enriched: ${r.alterations.length} node(s) filed`;
+      undoToast(ap.undo);
+    } catch (err) { $('round-line').textContent = `enrich apply failed: ${err.message}`; }
+    ov.remove();
+  };
+};
 // M124: per-project map preferences — standing instructions every map agent
 // receives. Editable here; the map guide can propose additions you approve.
 $('prefs-btn').onclick = async () => {

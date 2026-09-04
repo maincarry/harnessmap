@@ -156,6 +156,11 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     'clean up, lighting/focus mechanics — refer them to the map panel\'s',
     '"🗨 talk to map" button, where the map agent answers directly with',
     'instructions; do not try to restructure the map yourself.',
+    'When the user insists something WAS discussed before but you cannot find',
+    'it on the map (and it is not merely set aside), do not argue and do not',
+    'invent it: say the map does not hold it yet and point at "✚ enrich map"',
+    '(in ⋯ other → more…), which reads this map\'s own conversation record',
+    'and proposes the missing depth for their approval.',
   );
 
   const BUDGET_CHARS = budgetChars(store);

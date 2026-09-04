@@ -1,11 +1,11 @@
 {
   "meta": {
-    "version": 1,
+    "version": 2,
     "created": "2026-09-02",
     "doctrine": "docs/TEST-DESIGN.md + the Measurement Doctrine artifact",
     "target_size": 70,
-    "power_note": "sd(paired per-item diff)=0.92 measured 2026-09-02 over 90 archived pairs; n=69 detects Δ=0.4 at α=.05 two-sided, power .95; current size supports exploratory claims only",
-    "authorship_gap": "ALL current items are builder-authored (mined from MODLOG rulings). Founder-authored items pending — until they exist, every report from this bank must carry the line 'builder-authored bank'.",
+    "power_note": "sd(paired per-item diff)=0.92 measured 2026-09-02 over 90 archived pairs; n=69 detects Δ=0.4 at α=.05 two-sided, power .95; bank at target size 69 as of 2026-09-04",
+    "authorship_gap": "ALL 69 items are builder-authored (mined from MODLOG rulings; B25-B69 added 2026-09-04 covering M72-M195k). Founder-authored items still pending — until they exist, every report from this bank must carry the line 'builder-authored bank'.",
     "scale": {
       "2": "states the required fact correctly",
       "1": "partially right, or honestly declines to answer without contradicting the required fact",
@@ -13,29 +13,863 @@
     }
   },
   "items": [
-    {"id": "B01", "question": "A user ran '/plugin marketplace update harnessmap' and then '/plugin install map@harnessmap' but still has the old plugin version. What exact command gets them the newest version?", "required_fact": "/plugin update map@harnessmap (then restart Claude Code)", "wrong_answers": ["repeating marketplace update", "reinstalling", "no concrete command"], "doctrine": "M177", "provenance": "real failure: we shipped the wrong instruction and a founder stayed on 0.9.6", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B02", "question": "Should we set ANTHROPIC_API_KEY in the environment when running the test suites or the playground server? How is inference billed?", "required_fact": "no — everything runs on the Claude subscription path; any key present is scrubbed at boot so children cannot see it; only explicit HARNESSMAP_INFERENCE=api uses a key", "wrong_answers": ["recommending setting the key", "claiming suites need a key"], "doctrine": "M185/M185b", "provenance": "real failure: weeks of calls billed a founder's key", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B03", "question": "When a user switches on 'close map influence' (the ⏻ switch), does the map stop filing what they talk about?", "required_fact": "no — filing continues quietly; only the map's influence on sessions stops (no injections, no mentions), so the map is current when reopened", "wrong_answers": ["filing stops", "the map pauses entirely"], "doctrine": "M143", "provenance": "founder ruling with explicit requirement that filing continues", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B04", "question": "Jacob messaged 'the two mode thing is fine actually'. Earlier there was discussion of a two-mode interface toggle. Should we build the two-mode toggle now?", "required_fact": "no — the two-mode decision was historically misread as approval once, the build was reversed, and the concept was parked; only an explicit founder decision revives it", "wrong_answers": ["build it now", "treat the message as approval"], "doctrine": "M132/M134", "provenance": "real failure: 'fine actually' was misread as build authority", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B05", "question": "Should the folders in the pinned band (to sort / favorites / to tidy) be hidden when they are empty?", "required_fact": "no — they stay visible when empty so the mechanism stays discoverable; an earlier hide-when-empty behavior was explicitly reversed", "wrong_answers": ["hide them when empty"], "doctrine": "M167b", "provenance": "founder ruling reversing earlier behavior", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B06", "question": "When the tidy agent proposes renames for map nodes, how long should proposed names be?", "required_fact": "short: topic/heading nodes about 2-5 words (containers 2-4), statement nodes one tight sentence; never make a name longer without making it clearer", "wrong_answers": ["long descriptive names are fine", "no length rule"], "doctrine": "M182/M68", "provenance": "real failure: tidy proposed 21-word names", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B07", "question": "When a large import is applied to the map, do the newly created nodes arrive lit or dim?", "required_fact": "dim — an import lands dim and the user chooses focus and may auto-light; born-lit applies to normal per-round filing, not imports", "wrong_answers": ["imports arrive lit", "born-lit applies to everything"], "doctrine": "M191e ruling 4 (Mark)", "provenance": "ruling after a 2,169-node import auto-lit the whole map", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B08", "question": "A user asks: 'the map port on my laptop is forwarded to a server on another machine — will my sessions bind to it?'", "required_fact": "no — hooks refuse a server answering from another machine (the server reports its machine name and the hook checks it), telling the user to close or move the tunnel rather than misbinding", "wrong_answers": ["it will bind to whatever answers on the port"], "doctrine": "M176", "provenance": "real failure: a founder's tunnel nearly filed his conversations onto our playground", "difficulty": "off-path", "author": "builder"},
-    {"id": "B09", "question": "Can a website the user visits read the map through the localhost port (for example over a WebSocket to localhost:8790)?", "required_fact": "no — on the loopback bind the Host header must be local and any Origin must be local, which blocks cross-origin WebSockets, DNS rebinding, and CSRF; originless clients like hooks and curl still pass", "wrong_answers": ["localhost binding alone makes it safe", "yes, nothing prevents it"], "doctrine": "M181", "provenance": "security review finding, guard shipped with suite checks", "difficulty": "off-path", "author": "builder"},
-    {"id": "B10", "question": "What is the map's per-injection size budget, and where does the number come from?", "required_fact": "about 5% of the harness context window — 200k tokens gives roughly 10k tokens ≈ 40k characters — overridable by settings/env; it is derived, not an arbitrary constant", "wrong_answers": ["a fixed arbitrary number with no basis", "unlimited"], "doctrine": "M162 (Mark)", "provenance": "founder ruling deriving budget from the harness window", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B11", "question": "The chat agent inside the map's own chat pane — does it have tools like web search or file access?", "required_fact": "no tools at all — when the user needs them it says so in one line and points at the ＋ session button, where a real Claude Code session on the same map has tools and inherits the context", "wrong_answers": ["it can search the web", "it can read files"], "doctrine": "M175", "provenance": "founder ruling with inline ＋ session button", "difficulty": "off-path", "author": "builder"},
-    {"id": "B12", "question": "How often does the automatic map review (auto-tidy proposals) run?", "required_fact": "every 10 filed rounds OR every 30 minutes since the last review, whichever comes first — checked at round completion; an idle map reviews nothing; first review at round 5; propose-only", "wrong_answers": ["every round", "only when the user asks"], "doctrine": "M166/M166b", "provenance": "founder set both the count and the time trigger", "difficulty": "off-path", "author": "builder"},
-    {"id": "B13", "question": "When the user says hello or makes small talk, what should the chat agent do about the map?", "required_fact": "nothing — greetings and small talk are never map business; reply in kind and stop, no focus offers, no map status, no 'want to get back to X?'", "wrong_answers": ["offer to refocus", "mention the map state"], "doctrine": "M174", "provenance": "real failure: the agent offered to refocus after 'hello'", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B14", "question": "A topic the user discussed landed in 'to sort'. What are the ways it gets out of there?", "required_fact": "re-light its suggested home (the map moves it next round), ↖ place (agent-suggested homes with browse fallback), ★ promote to top level, mention it in chat, or a tidy — and moves out strip the provenance note", "wrong_answers": ["it must be deleted", "only manual dragging"], "doctrine": "M47-M55", "provenance": "the standing to-sort exit set", "difficulty": "off-path", "author": "builder"},
-    {"id": "B15", "question": "Who may restructure the map on its own initiative — the filer, the tidy agent, or neither?", "required_fact": "neither — the filer never restructures (it suggests via dots), and every restructuring (tidy, place, import) is a proposal the user approves; propose-then-approve is standing law", "wrong_answers": ["the filer reorganizes as it files", "tidy applies automatically"], "doctrine": "M23/M24 + standing rules", "provenance": "founding rulings", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B16", "question": "What does the user's lighting control, exactly — reading, writing, or both?", "required_fact": "both, asymmetrically: it bounds what the chat agent sees as background AND where the map agent may write; the map agent may expand its READING on its own once per round (up to 3 branches) but writing outside the light always goes to 'to sort'", "wrong_answers": ["only what the agent sees", "the agent can write anywhere"], "doctrine": "M47 (the light is the law)", "provenance": "the core doctrine", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B17", "question": "Are the machine-maintained memory layers of a node (its one-line version, its summary, how-it-fits) editable by the user?", "required_fact": "no — machine-maintained layers are read-only for the user; the user edits only title, description, and category", "wrong_answers": ["the user can edit everything"], "doctrine": "M43", "provenance": "standing ruling", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B18", "question": "What are the three lengths every node's memory exists at, and what does each contain?", "required_fact": "minimal, medium, and long — and each contains the WHOLE node at that size: minimal is one sentence of everything, medium is up to 150 words of everything, long is every layer in full (statement, dated specifics with links, discussion record)", "wrong_answers": ["different fields at different tiers", "lengths that are subsets rather than compressions"], "doctrine": "M192c (Jacob, 2026-09-01)", "provenance": "founder command, corrected once after being misbuilt", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B19", "question": "When does a topic get served at full length in the agent's briefing even though it sits far from the user's focus?", "required_fact": "when the user's message names it — the question rides into the composition and the named topic is promoted to full for that turn, even from beneath the rolled-up fold; only within lit territory", "wrong_answers": ["never", "the agent decides to look it up on its own (measured: it doesn't)"], "doctrine": "M191c", "provenance": "founder yes; built because agents never pull unprompted (0 of 18)", "difficulty": "on-lit-path", "author": "builder"},
-    {"id": "B20", "question": "Does closing map influence also block the agent-initiated recall/lookup of map content?", "required_fact": "yes — closed means silent in both directions; recall is refused while influence is closed", "wrong_answers": ["recall still works when closed"], "doctrine": "M191e ruling 5", "provenance": "founder confirmation 2026-09-02", "difficulty": "off-path", "author": "builder"},
-    {"id": "B21", "question": "What happens to a proposal (a big import, a tidy) that the user hasn't applied yet if the server restarts?", "required_fact": "it survives — pending proposals persist to the database and reload on boot; this was ruled after a 588-node import proposal was lost to a restart", "wrong_answers": ["it is lost", "proposals only live in memory"], "doctrine": "M191f (ruling 7)", "provenance": "real loss, then founder yes", "difficulty": "off-path", "author": "builder"},
-    {"id": "B22", "question": "What model tier do the per-round background agents (filer, memory, naming) run on, and whose account pays?", "required_fact": "the cheap tier through the user's own Claude Code sign-in (subscription path) — no separate API billing unless the user explicitly opts into api mode", "wrong_answers": ["a separate API key", "the big model for everything"], "doctrine": "M63 D2-D3 + M185", "provenance": "founder rulings on tiering and billing", "difficulty": "off-path", "author": "builder"},
-    {"id": "B23", "question": "A node's name in the map ran long and ugly after a bad model round. What fixes names like this, and when?", "required_fact": "the store rejects titles over 6 words/64 chars, and a healer sweep auto-renames broken display names at boot and after every round — names self-heal without the user asking", "wrong_answers": ["the user must rename manually", "nothing"], "doctrine": "M68", "provenance": "founder ruling: broken names always self-heal", "difficulty": "off-path", "author": "builder"},
-    {"id": "B24", "question": "May the assistant introduce new product vocabulary (new names for concepts) when building or explaining features?", "required_fact": "no — the vocabulary is closed: founders' words are the vocabulary; new concepts reuse existing words or don't ship, and this applies to internal names too", "wrong_answers": ["internal names are exempt", "new coinages are fine if explained"], "doctrine": "M156b + the standing 2026-09-01 rule", "provenance": "repeated founder corrections in one day", "difficulty": "on-lit-path", "author": "builder"}
+    {
+      "id": "B01",
+      "question": "A user ran '/plugin marketplace update harnessmap' and then '/plugin install map@harnessmap' but still has the old plugin version. What exact command gets them the newest version?",
+      "required_fact": "/plugin update map@harnessmap (then restart Claude Code)",
+      "wrong_answers": [
+        "repeating marketplace update",
+        "reinstalling",
+        "no concrete command"
+      ],
+      "doctrine": "M177",
+      "provenance": "real failure: we shipped the wrong instruction and a founder stayed on 0.9.6",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B02",
+      "question": "Should we set ANTHROPIC_API_KEY in the environment when running the test suites or the playground server? How is inference billed?",
+      "required_fact": "no — everything runs on the Claude subscription path; any key present is scrubbed at boot so children cannot see it; only explicit HARNESSMAP_INFERENCE=api uses a key",
+      "wrong_answers": [
+        "recommending setting the key",
+        "claiming suites need a key"
+      ],
+      "doctrine": "M185/M185b",
+      "provenance": "real failure: weeks of calls billed a founder's key",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B03",
+      "question": "When a user switches on 'close map influence' (the ⏻ switch), does the map stop filing what they talk about?",
+      "required_fact": "no — filing continues quietly; only the map's influence on sessions stops (no injections, no mentions), so the map is current when reopened",
+      "wrong_answers": [
+        "filing stops",
+        "the map pauses entirely"
+      ],
+      "doctrine": "M143",
+      "provenance": "founder ruling with explicit requirement that filing continues",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B04",
+      "question": "Jacob messaged 'the two mode thing is fine actually'. Earlier there was discussion of a two-mode interface toggle. Should we build the two-mode toggle now?",
+      "required_fact": "no — the two-mode decision was historically misread as approval once, the build was reversed, and the concept was parked; only an explicit founder decision revives it",
+      "wrong_answers": [
+        "build it now",
+        "treat the message as approval"
+      ],
+      "doctrine": "M132/M134",
+      "provenance": "real failure: 'fine actually' was misread as build authority",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B05",
+      "question": "Should the folders in the pinned band (to sort / favorites / to tidy) be hidden when they are empty?",
+      "required_fact": "no — they stay visible when empty so the mechanism stays discoverable; an earlier hide-when-empty behavior was explicitly reversed",
+      "wrong_answers": [
+        "hide them when empty"
+      ],
+      "doctrine": "M167b",
+      "provenance": "founder ruling reversing earlier behavior",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B06",
+      "question": "When the tidy agent proposes renames for map nodes, how long should proposed names be?",
+      "required_fact": "short: topic/heading nodes about 2-5 words (containers 2-4), statement nodes one tight sentence; never make a name longer without making it clearer",
+      "wrong_answers": [
+        "long descriptive names are fine",
+        "no length rule"
+      ],
+      "doctrine": "M182/M68",
+      "provenance": "real failure: tidy proposed 21-word names",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B07",
+      "question": "When a large import is applied to the map, do the newly created nodes arrive lit or dim?",
+      "required_fact": "dim — an import lands dim and the user chooses focus and may auto-light; born-lit applies to normal per-round filing, not imports",
+      "wrong_answers": [
+        "imports arrive lit",
+        "born-lit applies to everything"
+      ],
+      "doctrine": "M191e ruling 4 (Mark)",
+      "provenance": "ruling after a 2,169-node import auto-lit the whole map",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B08",
+      "question": "A user asks: 'the map port on my laptop is forwarded to a server on another machine — will my sessions bind to it?'",
+      "required_fact": "no — hooks refuse a server answering from another machine (the server reports its machine name and the hook checks it), telling the user to close or move the tunnel rather than misbinding",
+      "wrong_answers": [
+        "it will bind to whatever answers on the port"
+      ],
+      "doctrine": "M176",
+      "provenance": "real failure: a founder's tunnel nearly filed his conversations onto our playground",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B09",
+      "question": "Can a website the user visits read the map through the localhost port (for example over a WebSocket to localhost:8790)?",
+      "required_fact": "no — on the loopback bind the Host header must be local and any Origin must be local, which blocks cross-origin WebSockets, DNS rebinding, and CSRF; originless clients like hooks and curl still pass",
+      "wrong_answers": [
+        "localhost binding alone makes it safe",
+        "yes, nothing prevents it"
+      ],
+      "doctrine": "M181",
+      "provenance": "security review finding, guard shipped with suite checks",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B10",
+      "question": "What is the map's per-injection size budget, and where does the number come from?",
+      "required_fact": "about 5% of the harness context window — 200k tokens gives roughly 10k tokens ≈ 40k characters — overridable by settings/env; it is derived, not an arbitrary constant",
+      "wrong_answers": [
+        "a fixed arbitrary number with no basis",
+        "unlimited"
+      ],
+      "doctrine": "M162 (Mark)",
+      "provenance": "founder ruling deriving budget from the harness window",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B11",
+      "question": "The chat agent inside the map's own chat pane — does it have tools like web search or file access?",
+      "required_fact": "no tools at all — when the user needs them it says so in one line and points at the ＋ session button, where a real Claude Code session on the same map has tools and inherits the context",
+      "wrong_answers": [
+        "it can search the web",
+        "it can read files"
+      ],
+      "doctrine": "M175",
+      "provenance": "founder ruling with inline ＋ session button",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B12",
+      "question": "How often does the automatic map review (auto-tidy proposals) run?",
+      "required_fact": "every 10 filed rounds OR every 30 minutes since the last review, whichever comes first — checked at round completion; an idle map reviews nothing; first review at round 5; propose-only",
+      "wrong_answers": [
+        "every round",
+        "only when the user asks"
+      ],
+      "doctrine": "M166/M166b",
+      "provenance": "founder set both the count and the time trigger",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B13",
+      "question": "When the user says hello or makes small talk, what should the chat agent do about the map?",
+      "required_fact": "nothing — greetings and small talk are never map business; reply in kind and stop, no focus offers, no map status, no 'want to get back to X?'",
+      "wrong_answers": [
+        "offer to refocus",
+        "mention the map state"
+      ],
+      "doctrine": "M174",
+      "provenance": "real failure: the agent offered to refocus after 'hello'",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B14",
+      "question": "A topic the user discussed landed in 'to sort'. What are the ways it gets out of there?",
+      "required_fact": "re-light its suggested home (the map moves it next round), ↖ place (agent-suggested homes with browse fallback), ★ promote to top level, mention it in chat, or a tidy — and moves out strip the provenance note",
+      "wrong_answers": [
+        "it must be deleted",
+        "only manual dragging"
+      ],
+      "doctrine": "M47-M55",
+      "provenance": "the standing to-sort exit set",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B15",
+      "question": "Who may restructure the map on its own initiative — the filer, the tidy agent, or neither?",
+      "required_fact": "neither — the filer never restructures (it suggests via dots), and every restructuring (tidy, place, import) is a proposal the user approves; propose-then-approve is standing law",
+      "wrong_answers": [
+        "the filer reorganizes as it files",
+        "tidy applies automatically"
+      ],
+      "doctrine": "M23/M24 + standing rules",
+      "provenance": "founding rulings",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B16",
+      "question": "What does the user's lighting control, exactly — reading, writing, or both?",
+      "required_fact": "both, asymmetrically: it bounds what the chat agent sees as background AND where the map agent may write; the map agent may expand its READING on its own once per round (up to 3 branches) but writing outside the light always goes to 'to sort'",
+      "wrong_answers": [
+        "only what the agent sees",
+        "the agent can write anywhere"
+      ],
+      "doctrine": "M47 (the light is the law)",
+      "provenance": "the core doctrine",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B17",
+      "question": "Are the machine-maintained memory layers of a node (its one-line version, its summary, how-it-fits) editable by the user?",
+      "required_fact": "no — machine-maintained layers are read-only for the user; the user edits only title, description, and category",
+      "wrong_answers": [
+        "the user can edit everything"
+      ],
+      "doctrine": "M43",
+      "provenance": "standing ruling",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B18",
+      "question": "What are the three lengths every node's memory exists at, and what does each contain?",
+      "required_fact": "minimal, medium, and long — and each contains the WHOLE node at that size: minimal is one sentence of everything, medium is up to 150 words of everything, long is every layer in full (statement, dated specifics with links, discussion record)",
+      "wrong_answers": [
+        "different fields at different tiers",
+        "lengths that are subsets rather than compressions"
+      ],
+      "doctrine": "M192c (Jacob, 2026-09-01)",
+      "provenance": "founder command, corrected once after being misbuilt",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B19",
+      "question": "When does a topic get served at full length in the agent's briefing even though it sits far from the user's focus?",
+      "required_fact": "when the user's message names it — the question rides into the composition and the named topic is promoted to full for that turn, even from beneath the rolled-up fold; only within lit territory",
+      "wrong_answers": [
+        "never",
+        "the agent decides to look it up on its own (measured: it doesn't)"
+      ],
+      "doctrine": "M191c",
+      "provenance": "founder yes; built because agents never pull unprompted (0 of 18)",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B20",
+      "question": "Does closing map influence also block the agent-initiated recall/lookup of map content?",
+      "required_fact": "yes — closed means silent in both directions; recall is refused while influence is closed",
+      "wrong_answers": [
+        "recall still works when closed"
+      ],
+      "doctrine": "M191e ruling 5",
+      "provenance": "founder confirmation 2026-09-02",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B21",
+      "question": "What happens to a proposal (a big import, a tidy) that the user hasn't applied yet if the server restarts?",
+      "required_fact": "it survives — pending proposals persist to the database and reload on boot; this was ruled after a 588-node import proposal was lost to a restart",
+      "wrong_answers": [
+        "it is lost",
+        "proposals only live in memory"
+      ],
+      "doctrine": "M191f (ruling 7)",
+      "provenance": "real loss, then founder yes",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B22",
+      "question": "What model tier do the per-round background agents (filer, memory, naming) run on, and whose account pays?",
+      "required_fact": "the cheap tier through the user's own Claude Code sign-in (subscription path) — no separate API billing unless the user explicitly opts into api mode",
+      "wrong_answers": [
+        "a separate API key",
+        "the big model for everything"
+      ],
+      "doctrine": "M63 D2-D3 + M185",
+      "provenance": "founder rulings on tiering and billing",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B23",
+      "question": "A node's name in the map ran long and ugly after a bad model round. What fixes names like this, and when?",
+      "required_fact": "the store rejects titles over 6 words/64 chars, and a healer sweep auto-renames broken display names at boot and after every round — names self-heal without the user asking",
+      "wrong_answers": [
+        "the user must rename manually",
+        "nothing"
+      ],
+      "doctrine": "M68",
+      "provenance": "founder ruling: broken names always self-heal",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B24",
+      "question": "May the assistant introduce new product vocabulary (new names for concepts) when building or explaining features?",
+      "required_fact": "no — the vocabulary is closed: founders' words are the vocabulary; new concepts reuse existing words or don't ship, and this applies to internal names too",
+      "wrong_answers": [
+        "internal names are exempt",
+        "new coinages are fine if explained"
+      ],
+      "doctrine": "M156b + the standing 2026-09-01 rule",
+      "provenance": "repeated founder corrections in one day",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B25",
+      "question": "The tidy agent is reviewing one subtree. May it read the whole map to decide?",
+      "required_fact": "no — tidy reads only the local neighborhood of its target; whole-map review is tidy-map's own job (a separate root-scope lane)",
+      "wrong_answers": [
+        "tidy always reads the whole map"
+      ],
+      "doctrine": "M72",
+      "provenance": "founder ruling splitting the lanes",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B26",
+      "question": "A round was chit-chat that seems irrelevant to the project. Should the tidy agent remove those nodes as irrelevant?",
+      "required_fact": "no — tidy never drops for irrelevance; relevance is focus/light's job, tidy only restructures what exists",
+      "wrong_answers": [
+        "tidy prunes irrelevant material"
+      ],
+      "doctrine": "M76",
+      "provenance": "founder ruling",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B27",
+      "question": "What kind of map is this product's map — a deliberation map that only records weighing/decisions, or something broader?",
+      "required_fact": "a TOPIC map — whatever gets discussed is a topic and belongs on the map, with no dignity threshold; deliberation structure grows under topics when it exists",
+      "wrong_answers": [
+        "only decisions and arguments belong"
+      ],
+      "doctrine": "M73",
+      "provenance": "founder ruling",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B28",
+      "question": "The user asks to merge two views of the map they were using. What happened to merge-views as a feature?",
+      "required_fact": "merge-views was REMOVED — recency is the chat lifecycle; node, chat, and project merges exist instead",
+      "wrong_answers": [
+        "merge-views is a current feature"
+      ],
+      "doctrine": "M95",
+      "provenance": "founder reversal on the record",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B29",
+      "question": "Does zooming into a branch change what the chat agent sees?",
+      "required_fact": "no — zoom is view-only and never touches lighting; 'dim all outside' is its own explicit action",
+      "wrong_answers": [
+        "zoom dims everything outside"
+      ],
+      "doctrine": "M105",
+      "provenance": "founder ruling superseding Z2",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B30",
+      "question": "The user tries to dim a node that lies on the current focus path. What happens?",
+      "required_fact": "refused — the focus path cannot be dimmed while the conversation is aimed through it; move the focus first (cascaded descendants on the path are skipped silently in bulk ops)",
+      "wrong_answers": [
+        "it dims like any node"
+      ],
+      "doctrine": "M111",
+      "provenance": "protected-path invariant",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B31",
+      "question": "The user clicks add-node. What name does the new node get and where does the conversation aim?",
+      "required_fact": "it is created unnamed ('untitled') and focused — the first round names it; the system, not the user, supplies the name from what gets discussed",
+      "wrong_answers": [
+        "the user must type a name first"
+      ],
+      "doctrine": "M114",
+      "provenance": "founder ruling",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B32",
+      "question": "When the product's own prompts and UI refer to its background agents, what naming rule applies?",
+      "required_fact": "canonical agent names everywhere — one fixed cast (filer, tidy, auto-light, auto-focus, the reviewer, the map status agent…); no ad-hoc synonyms",
+      "wrong_answers": [
+        "any descriptive name is fine"
+      ],
+      "doctrine": "M117 + M156b",
+      "provenance": "the cast ruling + closed vocabulary",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B33",
+      "question": "The expand control on a node shows how much of the subtree?",
+      "required_fact": "only the immediate children — one level per expand",
+      "wrong_answers": [
+        "the whole subtree expands"
+      ],
+      "doctrine": "M120",
+      "provenance": "founder ruling",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B34",
+      "question": "How do the map's background agents coordinate — do they talk to each other?",
+      "required_fact": "no agent chat — coordination is one-way: a shared system card, the user's map preferences, and typed requests/referrals; hierarchy, not conversation (M124), and the brain's reports flow down as consults",
+      "wrong_answers": [
+        "agents converse with each other"
+      ],
+      "doctrine": "M124 + M195",
+      "provenance": "coordination doctrine",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B35",
+      "question": "What does the ⌂ home button aim at, and can the user change it?",
+      "required_fact": "home is the whole map by default, always exists, and any node can be set as home from its row — home is a row button",
+      "wrong_answers": [
+        "home is fixed to the root forever"
+      ],
+      "doctrine": "M126",
+      "provenance": "founder ruling",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B36",
+      "question": "A user asks: does closing the map influence stop the map from being mentioned by the agent?",
+      "required_fact": "yes — closed influence means no injections AND no mentions of the map at all, while filing continues quietly in the background",
+      "wrong_answers": [
+        "the agent still mentions the map"
+      ],
+      "doctrine": "M143",
+      "provenance": "founder ruling",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B37",
+      "question": "Where does ALL user data live for an installed harnessmap, and why does that matter for support?",
+      "required_fact": "in ONE place: ~/.harnessmap (db, server log, port file) — overridable by env for dev/playground; support asks start there",
+      "wrong_answers": [
+        "data is scattered per-project"
+      ],
+      "doctrine": "M91",
+      "provenance": "installed-life ruling",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B38",
+      "question": "What is Claude's own memory to the import dialog?",
+      "required_fact": "a first-class import source — the per-project auto-memory files (MEMORY.md + notes) are listed alongside project documents and past sessions",
+      "wrong_answers": [
+        "memory files cannot be imported"
+      ],
+      "doctrine": "M157",
+      "provenance": "Jacob: directly importing memory from user's Claude",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B39",
+      "question": "How often does auto-tidy review run, and what does HARNESSMAP_AUTOTIDY_ROUNDS=0 do?",
+      "required_fact": "every 10 filed rounds or 30 minutes since the last review (whichever first, checked at round completion; idle maps review nothing); setting the env var to 0 switches the rhythm off — the suites' established off-switch",
+      "wrong_answers": [
+        "it runs on a fixed timer regardless of activity"
+      ],
+      "doctrine": "M166/M166b",
+      "provenance": "event-driven rhythms",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B40",
+      "question": "The user greets the agent with 'good morning'. What does the filer produce for that round?",
+      "required_fact": "nothing — pure dialogue mechanics (greetings, thanks, confirmations) are the ONLY rounds that produce no nodes",
+      "wrong_answers": [
+        "a small-talk node is filed"
+      ],
+      "doctrine": "M174 + filer duties",
+      "provenance": "capture-everything with the mechanics exception",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B41",
+      "question": "What are the three lengths every node's memory is stored at, and what rule do their contents obey?",
+      "required_fact": "minimal, medium, long — each contains the WHOLE node at that size (one sentence of everything / ≤150 words of everything / every layer), never subsets of different fields",
+      "wrong_answers": [
+        "different fields at different tiers"
+      ],
+      "doctrine": "M192c",
+      "provenance": "Jacob's corrected command",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B42",
+      "question": "How is the per-injection budget spent across lit topics (the resolution rule)?",
+      "required_fact": "by focus proximity: the focus neighborhood serves long, near/recent topics medium, everything else at least its minimal line with a '+N inside' fold at scale — degrading gracefully down that ladder, never truncating arbitrarily",
+      "wrong_answers": [
+        "equal budget per node",
+        "distant topics are dropped entirely"
+      ],
+      "doctrine": "M192 serving",
+      "provenance": "resolution-tiered serving",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B43",
+      "question": "A host session's second turn: does it get the full map block again?",
+      "required_fact": "no — full block once (per session and after compaction), then deltas rendered as current-state lines; a fresh full block returns on the 15-change threshold, a refocus, a mass lighting change, ⟲ refresh, or compaction",
+      "wrong_answers": [
+        "the full block is injected every turn"
+      ],
+      "doctrine": "M59/M60 + M195c",
+      "provenance": "the injection economy",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B44",
+      "question": "What does the ⟲ refresh agent context button do, and is /compact required afterwards?",
+      "required_fact": "every session on the map gets a fresh FULL map view on its next message; /compact in the terminal is optional cleanup of the older map blocks — everything works without it because the fresh view supersedes them",
+      "wrong_answers": [
+        "/compact is required",
+        "refresh restarts the session"
+      ],
+      "doctrine": "M195c",
+      "provenance": "founders' refresh ruling with the wording rule",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B45",
+      "question": "Which surfaces run the governed full-then-delta injection economy after the consolidation?",
+      "required_fact": "both the chat pane and Claude Code sessions — one machinery (pane anchors ride as pane:<chatId>); Codex support is shelved for its own track; influence-off stays a separate mode",
+      "wrong_answers": [
+        "the pane always recomposes fresh",
+        "Codex is fully supported"
+      ],
+      "doctrine": "M195d",
+      "provenance": "founders' consolidation ruling",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B46",
+      "question": "The user re-aims the map mid-conversation (new focus, relights a branch). What does the next turn's injection carry?",
+      "required_fact": "a fresh FULL map block composed for the new aim (re-aim re-anchors every session on the project), with the notice that /compact is optional",
+      "wrong_answers": [
+        "a one-line delta about the change only"
+      ],
+      "doctrine": "M195c",
+      "provenance": "the re-aim trigger ruling",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B47",
+      "question": "The user's question names a topic that is lit but far from focus, on a delta turn. What happens?",
+      "required_fact": "the server's every-turn matcher serves that node in full right in the injection — authorization exists because it is lit; the question no longer waits for a full-block turn",
+      "wrong_answers": [
+        "nothing until the next full block"
+      ],
+      "doctrine": "M195k (M194 design)",
+      "provenance": "the fetch, built",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B48",
+      "question": "The user's question touches a SET-ASIDE (dim) topic. What exactly reaches the agent?",
+      "required_fact": "a one-line offer naming the topic with a single-use pullupToken — zero content; the agent offers to pull it up, and only the user's yes redeems the token through recall, serving the node once with the lit set untouched",
+      "wrong_answers": [
+        "the content is served since the user asked",
+        "the node gets lit"
+      ],
+      "doctrine": "M195k (M194 ruling 3)",
+      "provenance": "consented one-turn pull-up",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B49",
+      "question": "Can the agent reuse a pull-up token to read the dim node again next turn?",
+      "required_fact": "no — the token is single-use (and expires in minutes); another read needs another offer and another yes",
+      "wrong_answers": [
+        "the token stays valid for the session"
+      ],
+      "doctrine": "M195k",
+      "provenance": "token semantics",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B50",
+      "question": "What is the overall map status report, and who is it for?",
+      "required_fact": "the map status agent's one coherent judgment of the map (essence, arc, tensions, keystones, gaps, trust per area, plus per-job advice) — FOR THE MAP ITSELF: the working agents consult it; the user sees it in 🩺 map status for transparency only",
+      "wrong_answers": [
+        "a user-facing summary feature"
+      ],
+      "doctrine": "M195/M195b",
+      "provenance": "Jacob's brain constitution",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B51",
+      "question": "Which reporters feed the overall map status report's synthesis?",
+      "required_fact": "structure-status, content-status (chapter assessments for all areas), historical-status (the map's biography from events/aggregates/import records), the user's own edits verbatim as the highest authority, the taste note, the user's standing guidance, and its own previous text",
+      "wrong_answers": [
+        "it reads the raw map directly",
+        "history arrives as raw events"
+      ],
+      "doctrine": "M195b",
+      "provenance": "the three-reporter architecture",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B52",
+      "question": "What do the working agents receive from the overall map status report — the report itself?",
+      "required_fact": "the trimmed report PLUS the brain's actual advice for their specific job (filing/lighting/review/chat), both from the same cycle so they stay coherent; tidy alone stays in its lane with the structural opinion only",
+      "wrong_answers": [
+        "the full report is dumped to every agent",
+        "tidy gets the global judgment"
+      ],
+      "doctrine": "M195b (Jacob's consult-with-suggestions ruling + comprehensive-influence amendment)",
+      "provenance": "advice-per-job consults",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B53",
+      "question": "Which model tier runs the overall report's synthesis, and why?",
+      "required_fact": "the smartest tier (the import's tier) — the brain is the one judgment everything else consults; its reporters stay on the cheap tier",
+      "wrong_answers": [
+        "everything runs on one tier"
+      ],
+      "doctrine": "M195b",
+      "provenance": "Jacob: use the smartest model",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B54",
+      "question": "Two duty rules were written into the brain's charter after its first real failures. Name them.",
+      "required_fact": "internal consistency (never trust in one section what you distrust in another) and dates-not-prominence (currency claims stand on dates and statuses, never on how big a node is) — later joined by numbers-before-narrative",
+      "wrong_answers": [
+        "no such written rules exist"
+      ],
+      "doctrine": "M195b/M195j",
+      "provenance": "learned from the false fork claim and v0.4.1-as-current",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B55",
+      "question": "What must the brain write BEFORE any section of its report, and what must it contain?",
+      "required_fact": "its reconciliation — the minimum work: every input covered by name (accept/reject/partly and why) with the measured numbers quoted; it may never assert an absence the numbers contradict",
+      "wrong_answers": [
+        "a free-form preamble",
+        "nothing is required"
+      ],
+      "doctrine": "M195j",
+      "provenance": "Jacob: a minimum budget that must be used in full — denominated in obligations",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B56",
+      "question": "How does a large import's proposal begin, before any chunk is filed?",
+      "required_fact": "with a very long comprehensive summary of the whole source (the one-time impression maker, up to ~3,000 words) — every chunk files against it, and it is persisted at apply as the standard the finished map is judged by",
+      "wrong_answers": [
+        "chunks file with only their own slice"
+      ],
+      "doctrine": "M195b/M195c",
+      "provenance": "Jacob's impression-maker ruling",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B57",
+      "question": "When does an import count as successful?",
+      "required_fact": "only when the overall map status report, after the import and brain cycle, is judged similar enough to the import's own source summary — mismatches drive mutual revisions until a later verify passes",
+      "wrong_answers": [
+        "when the apply returns ok"
+      ],
+      "doctrine": "M195c",
+      "provenance": "the import gate",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B58",
+      "question": "Verification says the finished import doesn't match its source. Whose click fixes it?",
+      "required_fact": "nobody's — the machinery's: map-side findings drive an automatic tidy AND automatic filing from the source summary, inside the imported subtree only, cycle after cycle until the verdict flips; the user approved once, at landing",
+      "wrong_answers": [
+        "the user must approve each fix"
+      ],
+      "doctrine": "M195f/M195h",
+      "provenance": "Jacob: it's the filer's click not my",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B59",
+      "question": "The automatic finish proposes a node parented OUTSIDE the imported subtree. What happens to that round?",
+      "required_fact": "only the stray re-homes to the import root (per-node mandate, the orphan-sweep precedent) — the round is never refused wholesale; a whole-round escape is refused and audited",
+      "wrong_answers": [
+        "the whole round is discarded"
+      ],
+      "doctrine": "M195j amendment",
+      "provenance": "found live: two good rounds were thrown away",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B60",
+      "question": "What does find-and-file do, and what authorizes it?",
+      "required_fact": "the applied import's FULL source stays with the map; the user asks in plain words, the source is searched mechanically, and the matches are filed through the same finish machinery into the import's branch — the user's ask is the approval",
+      "wrong_answers": [
+        "it needs a proposal round",
+        "the source is discarded after import"
+      ],
+      "doctrine": "M195i",
+      "provenance": "Jacob: the user controls the finisher after the import",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B61",
+      "question": "What does ✚ enrich map do, and why is it propose→approve when the import's finish is automatic?",
+      "required_fact": "it reads the map's own conversation record, finds thin nodes discussed at length, and proposes the depth under them — propose→approve because no mandate covers the whole map; the import's one approval covered only its subtree",
+      "wrong_answers": [
+        "enrich applies automatically everywhere"
+      ],
+      "doctrine": "M195k",
+      "provenance": "Jacob's coarse-map ruling with the mandate boundary",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B62",
+      "question": "A proposal was made while project A was active, but project B is active when the user applies it. Where does it land?",
+      "required_fact": "on project A — a proposal applies to the project it was proposed for; the pending row's project stamp wins over the mutable active project",
+      "wrong_answers": [
+        "on whatever project is active at apply"
+      ],
+      "doctrine": "M195e",
+      "provenance": "found live: 513 nodes landed on the wrong map",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B63",
+      "question": "How large is a chapter assessment, and what happens when one chapter dominates the map?",
+      "required_fact": "size follows the area (100-150 words for small areas up to ~500 for large ones, reading slice scaled too); a chapter over ~120 nodes or ~40% share is assessed BY ITS PARTS one level down, its own row becoming the roll-up naming them",
+      "wrong_answers": [
+        "a flat 150 words for every chapter"
+      ],
+      "doctrine": "M195g",
+      "provenance": "Jacob's keyhole ruling",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B64",
+      "question": "Who may talk directly to the map status agent, and what does the exchange leave behind?",
+      "required_fact": "the user, from inside 🩺 map status — the agent answers from its current understanding and the exchange distills into standing guidance (≤200 words, integrated, retractions dropped) that rides every future synthesis, outranked only by the user's edits",
+      "wrong_answers": [
+        "only developers",
+        "nothing persists"
+      ],
+      "doctrine": "M195b",
+      "provenance": "the direct tuning line",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B65",
+      "question": "The brain flags a contradiction that turns out to be false. Why is that poison rather than benign?",
+      "required_fact": "every agent consults the brain, so a false flag steers filing, lighting, and chat wrong everywhere at once — true flags heal, false flags poison; the alarms are the stamps, grounding duties, and the bank",
+      "wrong_answers": [
+        "a wrong flag is harmless advice"
+      ],
+      "doctrine": "M195",
+      "provenance": "the false-tension risk, on the record",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B66",
+      "question": "What is the primary comparison of the recall test, and what is the honest opponent?",
+      "required_fact": "map briefing versus a transcript slice at EQUAL character budget — the transcript slice is what a user's agent has without the product; an empty-context opponent would be a rigged win",
+      "wrong_answers": [
+        "map versus no memory"
+      ],
+      "doctrine": "TEST-DESIGN v2 §2 / M193",
+      "provenance": "the thesis makes the comparison",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    },
+    {
+      "id": "B67",
+      "question": "Why is the bank's target size 69 items?",
+      "required_fact": "computed from measured variance: sd of paired per-item differences 0.92 (90 archived pairs) → 69 items detects a 0.4 difference at α=.05 two-sided with power .95; below that, claims stay exploratory",
+      "wrong_answers": [
+        "a round number was picked"
+      ],
+      "doctrine": "M193 + the Measurement Doctrine",
+      "provenance": "power computation on the record",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B68",
+      "question": "A recall run's grader disagrees with the double-grade check. What does the instrument do?",
+      "required_fact": "below chance-corrected agreement .70 it self-quarantines — the run's numbers are not reported except as quarantined; the rubric gets fixed before rerunning",
+      "wrong_answers": [
+        "the scores are reported anyway"
+      ],
+      "doctrine": "M193 doctrine",
+      "provenance": "κ .57 run quarantined, rubric fixed",
+      "difficulty": "off-path",
+      "author": "builder"
+    },
+    {
+      "id": "B69",
+      "question": "Every recall score in the ledger decomposes into which three classes?",
+      "required_fact": "recalled / served-but-wrong (the serving-selection class, e.g. confident inversions) / never-filed (staleness — the fact isn't on the map at all); each class points at a different fix",
+      "wrong_answers": [
+        "one aggregate number only"
+      ],
+      "doctrine": "M193 + TEST-DESIGN v2",
+      "provenance": "the 0.94 run's decomposition",
+      "difficulty": "on-lit-path",
+      "author": "builder"
+    }
   ]
 }

@@ -238,6 +238,53 @@ function reAnchorPanes(pid: string): void {
 // approval granted; anything outside it stays propose→approve), then the
 // cycle re-judges. One round per trigger; it keeps trying on every later
 // cycle until the verdict flips.
+// M194 ruling 3+4, built (the fetch): light is standing curation; fetch is
+// momentary retrieval. On EVERY turn the server mechanically matches the
+// user's message against the whole map. A distant LIT hit rides along served
+// in full (the user already authorized reading it — this closes the
+// delta-turn gap where question promotion only ran on full blocks). A DIM
+// hit becomes a one-line consented OFFER carrying a single-use token: if the
+// user says yes, the agent redeems the token through recall and receives the
+// content FOR THAT TURN ONLY — the lit set is never touched. Discovery is
+// server-side and size-independent (M194 ruling 4).
+const pullupTokens = new Map<string, { nodeId: string; chatId: string; exp: number; used: boolean }>();
+function matchPullup(pid: string, chatId: string, promptText: string, includeLit: boolean): string {
+  try {
+    const q = (promptText ?? '').trim();
+    if (q.length < 8) return '';
+    const toks = q.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 3);
+    if (toks.length < 2) return '';
+    const chat = store.getChat(chatId);
+    if (!chat) return '';
+    const litSet = new Set(store.getLit(chatId));
+    const focusSet = new Set([chat.focusContainerId, ...descendantNodes(store, chat.focusContainerId)]);
+    let best: { n: any; sc: number } | null = null;
+    for (const n of store.getNodes(pid)) {
+      if (n.status === 'removed') continue;
+      if (focusSet.has(n.id)) continue; // near focus = already served in full
+      const label = `${n.title ?? ''} ${String(n.content).slice(0, 200)}`.toLowerCase();
+      let sc = 0;
+      for (const t of toks) if (label.includes(t)) sc++;
+      if (sc >= 2 && (!best || sc > best.sc)) best = { n, sc };
+    }
+    if (!best) return '';
+    const name = best.n.title || String(best.n.content).slice(0, 60);
+    if (litSet.has(best.n.id)) {
+      if (!includeLit) return '';
+      // Lit but distant: serve the card directly — authorization exists.
+      const c = getNodeCard(store, best.n.id);
+      const details = c.details.filter((f: any) => f.status === 'current').slice(0, 6).map((f: any) => `  - ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n');
+      store.audit('pullup_served_lit', { node: best.n.id.slice(0, 8) });
+      return `[harnessmap] the message touches "${name}" (lit, far from focus) — served in full for this turn:\n${best.n.content}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}`;
+    }
+    // Dim: a consented offer, never content.
+    const token = randomUUID().slice(0, 13);
+    pullupTokens.set(token, { nodeId: best.n.id, chatId, exp: Date.now() + 10 * 60_000, used: false });
+    store.audit('pullup_offered', { node: best.n.id.slice(0, 8) });
+    store.metric(pid, 'interaction.pullup_offered');
+    return `[harnessmap] The user's message touches a SET-ASIDE topic: "${name}". Its content is withheld. In one short line, offer to pull it up for this turn; if the user agrees, call recall with pullupToken "${token}" to receive it once (the lighting stays untouched). Never guess at its content.`;
+  } catch { return ''; }
+}
 // M195h/M195i: the shared filing pass — creates missing content inside an
 // import's subtree from source material, under the filer's own duties,
 // consulting the brain's filing advice. Used by the automatic finish (the
@@ -337,7 +384,11 @@ let pendingRemovals: string[] = [];
 // M48 (Jacob): whenever a node is referred to in chat markers/notices, use
 // its TITLE (fall back to content) — never the long description.
 function nodeName(n: { title?: string | null; content: string } | undefined | null): string {
-  return n ? (n.title || n.content) : '?';
+  // Name-sized only (M48 + the light's law): notices about a node — including
+  // the "set aside (dimmed)" notice — may carry its NAME, never its body.
+  // Found live: dimming a node quoted its full content into the very context
+  // the dim was meant to withhold it from.
+  return n ? (n.title || n.content.slice(0, 60)) : '?';
 }
 
 // M66 (Jacob): newly introduced nodes are LIT by default — the user dims
@@ -867,11 +918,11 @@ const server = Bun.serve({
       store.setLit(mainChatId, id, true); // M66: new nodes are born lit
       chats.noteMapChange(mainChatId, content === 'untitled'
         ? 'created a new node (unnamed — it will be named from the conversation)'
-        : `created new node: "${content}"`);
+        : `created new node: "${content.slice(0, 60)}"`); // notices carry names, name-sized (M195l)
       if (body.focus) {
         applyFocus(mainChatId, id);
-        chats.noteMapChange(mainChatId, `moved FOCUS to: "${content}"`);
-        appendMarker(content === 'untitled' ? 'focus moved to a new node' : `focus moved to "${content}"`);
+        chats.noteMapChange(mainChatId, `moved FOCUS to: "${content.slice(0, 60)}"`);
+        appendMarker(content === 'untitled' ? 'focus moved to a new node' : `focus moved to "${content.slice(0, 60)}"`);
       }
       broadcast({ type: 'map', ...state() });
       return json({ id, chatId: mainChatId, content, name: content });
@@ -1356,6 +1407,97 @@ const server = Bun.serve({
     }
 
     // v0.2 reorganize (a)+(i): propose → preview → user applies or cancels.
+    // M195k (Jacob: "Shouldn't there also be an enrich map option that reads
+    // from the whole transcript of the session to improve the map? … if the
+    // map is too coarse" — then "Do"): ENRICH MAP. Reads the project's own
+    // conversation log, finds nodes that are thin on the map but were
+    // discussed at length, and PROPOSES the depth under them. No import
+    // mandate covers the whole map, so this stays propose→approve: one
+    // proposal, the user applies once (rides /api/reorganize/apply — undo,
+    // title healing, all standard).
+    // Temporary diagnosis seam (HARNESSMAP_CALLPROBE=1 only): exercise call()
+    // with controlled parameters to isolate an in-server inference failure.
+    if (path === '/api/dev/callprobe' && req.method === 'POST' && process.env.HARNESSMAP_CALLPROBE === '1') {
+      const b = await req.json() as { task?: string; override?: string; chars?: number; schema?: boolean; consult?: boolean };
+      const filler = 'The kiln schedule ruling and its reversal history, restated for probing purposes. '.repeat(Math.max(1, Math.floor((b.chars ?? 2000) / 84)));
+      const user0 = `Summarize this in one sentence:\n${filler}` + (b.consult ? statusConsult(store, projectId, undefined, 'filing') : '');
+      try {
+        const out = await call({
+          task: (b.task ?? 'import') as any, modelOverride: b.override || undefined,
+          system: 'You are a probe. Reply as instructed.',
+          maxTokens: 500,
+          ...(b.schema ? { schema: { type: 'object', additionalProperties: false, required: ['summary'], properties: { summary: { type: 'string' } } } as any } : {}),
+          timeoutMs: 120_000,
+          user: user0,
+        });
+        return json({ ok: true, out: (typeof out === 'string' ? out : JSON.stringify(out)).slice(0, 200) });
+      } catch (err) { return json({ ok: false, error: String(err).slice(0, 300) }); }
+    }
+    if (path === '/api/enrich/preview' && req.method === 'POST') {
+      store.metric(projectId, 'interaction.enrich_preview');
+      const nodes = store.getNodes(projectId).filter((n) => n.status !== 'removed');
+      const kidCount = new Map<string, number>();
+      for (const n of nodes) if (n.parentId) kidCount.set(n.parentId, (kidCount.get(n.parentId) ?? 0) + 1);
+      const memRows = new Map<string, any>(((store as any).db.prepare('SELECT node_id, medium FROM node_memory').all() as any[]).map((r: any) => [r.node_id, r]));
+      const isToSort = (n: any) => n.parentId === null && (n.title === 'to sort' || String(n.content).startsWith('to sort'));
+      const thin = nodes.filter((n) => !isToSort(n) && (kidCount.get(n.id) ?? 0) === 0 && String(n.content).length < 220 && String(memRows.get(n.id)?.medium ?? '').length < 200);
+      if (!thin.length) return json({ error: 'nothing on this map looks too coarse' }, 404);
+      // The project's own conversation log, newest first, across its chats.
+      const turns: { who: string; text: string }[] = [];
+      for (const c of store.getChats(projectId)) {
+        for (const t of store.getTurns(c.id).slice(-200)) {
+          if (t.role === 'user' || t.role === 'assistant') turns.push({ who: t.role === 'user' ? 'USER' : 'AGENT', text: String(t.content) });
+        }
+      }
+      // Materials also include a retained import source (Jacob: "Test this
+      // function first using materials in v5" — an imported map's depth
+      // lives in its source, not in conversation turns it never had).
+      const enSource = store.getSetting(`importsource:${projectId}`) ?? '';
+      if (enSource) {
+        for (let i = 0; i < enSource.length; i += 1600) turns.push({ who: 'SOURCE', text: enSource.slice(i, i + 1600) });
+      }
+      if (!turns.length) return json({ error: 'no conversation record or retained source on this map yet' }, 404);
+      // Mechanical match: for each thin node, the turns that discuss it.
+      const scoreFor = (nodeText: string, turnText: string): number => {
+        const toks = nodeText.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 3);
+        const low = turnText.toLowerCase();
+        return toks.reduce((acc, t) => acc + (low.includes(t) ? 1 : 0), 0);
+      };
+      const candidates: { node: any; excerpts: string[] }[] = [];
+      for (const n of thin) {
+        const label = `${n.title ?? ''} ${n.content}`;
+        const hits = turns.map((t) => ({ t, sc: scoreFor(label, t.text) })).filter((x) => x.sc >= 2)
+          .sort((x, y) => y.sc - x.sc).slice(0, 3);
+        if (hits.length && hits.reduce((acc2, h) => acc2 + h.t.text.length, 0) > 400) {
+          candidates.push({ node: n, excerpts: hits.map((h) => `${h.t.who}: ${h.t.text.slice(0, 1200)}`) });
+        }
+      }
+      if (!candidates.length) return json({ error: 'the conversation record holds no depth for the thin nodes' }, 404);
+      const picked = candidates.slice(0, 12);
+      try {
+        const parsed = await call({
+          task: 'import', modelOverride: modelFor('tidy'),
+          system: `You deepen a goal map that is too coarse. For each THIN NODE given (each with the conversation passages that discussed it), propose child nodes carrying the substance the map is missing.
+RULES (the filer's own duties):
+- create_node operations ONLY, each with parentId = the thin node's [id] (or a node you create earlier in this list under it). Never touch, move, or remove what exists.
+- NODES STATE FACTS, NEVER NARRATE: each child is a standalone statement of a decision, fact, question, constraint, or piece of evidence from the passages — never "user asked / agent said".
+- Only what the passages support — never invent, never pad. A node whose passages hold nothing worth filing gets nothing.
+- Short names; honest statuses; short random strings for new ids.
+Return: summary (one sentence saying what was deepened) + alterations.`,
+          maxTokens: 6000, schema: { type: 'object', additionalProperties: false, required: ['summary', 'alterations'], properties: { summary: { type: 'string' }, alterations: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['op', 'id', 'parentId', 'content'], properties: { op: { type: 'string', enum: ['create_node'] }, id: { type: 'string' }, parentId: { type: 'string' }, content: { type: 'string' }, title: { type: 'string' }, type: { type: 'string' }, status: { type: 'string' } } } } } } as any,
+          timeoutMs: 300_000, audit: (k, d) => store.audit(k, d),
+          user: picked.map((cd) => `THIN NODE [${cd.node.id}]: ${cd.node.title ?? ''} — ${cd.node.content}\nPASSAGES:\n${cd.excerpts.join('\n')}`).join('\n\n') + statusConsult(store, projectId, undefined, 'filing'),
+        }) as any;
+        const thinIds = new Set(picked.map((cd) => cd.node.id));
+        const made = new Set((parsed.alterations ?? []).map((x: any) => x.id));
+        const alts = (parsed.alterations ?? []).filter((x: any) => x.op === 'create_node' && (thinIds.has(x.parentId) || made.has(x.parentId))).slice(0, 80);
+        if (!alts.length) return json({ error: 'the conversation record holds no depth worth filing' }, 404);
+        store.audit('enrich_proposed', { thin: picked.length, creates: alts.length });
+        return json({ summary: String(parsed.summary ?? ''), alterations: alts, targets: picked.map((cd) => ({ id: cd.node.id, name: cd.node.title || String(cd.node.content).slice(0, 50) })) });
+      } catch (err) {
+        return json({ error: (err instanceof Error ? err.message : String(err)).slice(0, 200) }, 502);
+      }
+    }
     if (path === '/api/reorganize/preview' && req.method === 'POST') {
       store.metric(projectId, 'interaction.tidy_preview');
       const body = await req.json() as { nodeId?: string; containerId?: string; hint?: string; feedback?: string; priorSummary?: string; suggestionId?: string };
@@ -1445,7 +1587,7 @@ const server = Bun.serve({
     // light (dim → set-aside, no content), refuses when map influence is
     // closed (M143 silence goes both directions), rate-capped, audited.
     if (path === '/api/recall' && req.method === 'POST') {
-      const b = await req.json() as { nodeId?: string; name?: string; depth?: 'card' | 'evidence' | 'around'; chatId?: string };
+      const b = await req.json() as { nodeId?: string; name?: string; depth?: 'card' | 'evidence' | 'around'; chatId?: string; pullupToken?: string };
       if (!b.nodeId && !b.name) return json({ error: 'nodeId or name required' }, 400);
       if (influenceOff(projectId)) return json({ error: 'map influence is closed — recall refused' }, 403);
       // Agents reference topics by NAME (the injection shows names, not ids):
@@ -1472,8 +1614,18 @@ const server = Bun.serve({
       const rFocusSet = new Set([rChat.focusContainerId, ...descendantNodes(store, rChat.focusContainerId)]);
       const rLit = new Set(store.getLit(rChatId));
       if (!rFocusSet.has(rn.id) && !rLit.has(rn.id)) {
-        store.audit('recall_setaside', { node: rn.id.slice(0, 8) });
-        return json({ setAside: true, message: 'set aside by the user (dimmed) — do not use its content; you may offer to light it' });
+        // The user's yes is the authorization (M194 ruling 3): a single-use
+        // pull-up token, minted only when the server offered this turn,
+        // serves the set-aside node ONCE — the lit set never moves.
+        const tok = b.pullupToken ? pullupTokens.get(b.pullupToken) : undefined;
+        if (tok && !tok.used && tok.exp > Date.now() && tok.nodeId === rn.id) {
+          tok.used = true;
+          store.audit('pullup_served', { node: rn.id.slice(0, 8) });
+          store.metric(projectId, 'interaction.pullup_served');
+        } else {
+          store.audit('recall_setaside', { node: rn.id.slice(0, 8) });
+          return json({ setAside: true, message: 'set aside by the user (dimmed) — do not use its content; you may offer to pull it up for this turn (the user\'s yes authorizes it)' });
+        }
       }
       const depth = b.depth ?? 'card';
       const card = (id: string) => {
@@ -2306,6 +2458,8 @@ const server = Bun.serve({
         : null;
       if (anchor === null || (fullAnchor !== null && seq - fullAnchor > RE_ANCHOR_AFTER)) {
         let context = chats.harnessContext(ctxChatId, promptText);
+        const pullF = matchPullup(ctxPid, ctxChatId, promptText, false);
+        if (pullF) context += `\n\n${pullF}`;
         if (refreshNotices.delete(sessionId)) {
           context += `\n\n[harnessmap] This FULL map view supersedes every earlier map block above. Briefly tell the user: you now have the full current view of the map; they can run /compact to clean up the old map data in this conversation — optional, everything works fine without it.`;
         }
@@ -2318,10 +2472,11 @@ const server = Bun.serve({
       }
       const delta = renderDelta(store, ctxPid, anchor);
       setInjectionAnchor(store, sessionId, seq);
+      const pull = matchPullup(ctxPid, ctxChatId, promptText, true);
       // Focus/lighting shifts aren't map events — include pending notices via
       // the manipulations channel inside the delta when present.
       const manips = chats.consumeManipulations(ctxChatId);
-      const parts = [delta, manips.length ? `[harnessmap — user actions]\n${manips.map((m) => `• ${m}`).join('\n')}` : ''].filter(Boolean);
+      const parts = [delta, pull, manips.length ? `[harnessmap — user actions]\n${manips.map((m) => `• ${m}`).join('\n')}` : ''].filter(Boolean);
       if (focusNotice) { parts.push(focusNotice); nudgeNoticePending = false; }
       if (parts.length) parts.push('(full current map: read .harnessmap/MAP.md)');
       const ctx = parts.join('\n\n') || null;

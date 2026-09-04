@@ -79,6 +79,13 @@ export function setMetricsSink(fn: typeof metricsSink): void { metricsSink = fn;
 export function setTraceSink(fn: TraceFn | null): void { traceSink = fn; }
 
 export async function call(opts: CallOpts): Promise<any> {
+  // Slicing text at fixed offsets can split an emoji's surrogate pair; a
+  // lone surrogate breaks the JSON framing to the CLI child, which exits 1
+  // with no output (found live: enrich/find-and-file died only when a source
+  // block crossed one specific emoji). Well-form every outgoing string at
+  // this one choke point so no slicing site can ever poison a call.
+  const wf = (t: string) => (t as any).toWellFormed ? (t as any).toWellFormed() : t;
+  opts = { ...opts, system: wf(opts.system), user: wf(opts.user) };
   const backend = backendName();
   const model = opts.modelOverride ?? modelFor(opts.task);
   const t0 = Date.now();
@@ -137,6 +144,7 @@ async function subCall(opts: CallOpts, model: string): Promise<any> {
         permissionMode: 'bypassPermissions',
         systemPrompt: opts.system + jsonNote,
         env: cleanEnv,
+        ...(process.env.HARNESSMAP_CLI_STDERR === '1' ? { stderr: (d: string) => console.error('[cli stderr]', String(d).slice(0, 800)) } : {}),
       },
     } as any);
     let text = '';

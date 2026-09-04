@@ -323,6 +323,35 @@ console.log('\n== 8. injection mechanics: full / delta / notice / re-anchor ==')
   check('after ⟲ refresh → FULL block with the /compact notice', c6.kind === 'full' && /\/compact/.test(c6.context ?? ''));
 }
 
+console.log('\n== 8b. the fetch: dim offer, consented one-turn pull-up (M194 rulings 3+4) ==');
+{
+  // A set-aside topic with distinctive words, far from focus.
+  // The secret must live BEYOND the 60-char name boundary: an offer shows
+  // the node's NAME (existence is visible under dim), never its content.
+  const mk = await post('/api/nodes', { content: 'zeppelin mooring procedure and hangar rules — the winch tension is set to seventeen turns before the doors open' });
+  const zepId = mk.body?.id ?? (await state()).nodes.find((n: any) => /zeppelin mooring/.test(n.content))?.id;
+  // A short explicit title: the offer and notices show the NAME; the healer
+  // has nothing to fix (no coupling with the rename-sweep section).
+  await post(`/api/nodes/${zepId}`, { title: 'zeppelin mooring' });
+  const CH8 = (await state()).mainChatId;
+  await post(`/api/chats/${CH8}/lit`, { nodeId: zepId, on: false, bulk: true });
+  // The question names it → the delta carries an OFFER with a token, never content.
+  await post('/api/nodes', { content: 'noise change so a delta exists' });
+  const cz = await get(`/api/harness/context?session_id=s-def&prompt=${encodeURIComponent('what was the zeppelin mooring procedure again?')}`);
+  const offer = /pullupToken "([a-z0-9-]+)"/.exec(cz.context ?? '');
+  check('a dim topic the question names becomes a consented offer', !!offer && /SET-ASIDE/.test(cz.context ?? '') && !/seventeen/.test(cz.context ?? ''));
+  // Without the token: refused, as always.
+  const r0 = await post('/api/recall', { nodeId: zepId, chatId: CH8 });
+  check('recall without consent still refuses the dim node', r0.body?.setAside === true);
+  // With the token: served once, lit untouched.
+  const r1 = await post('/api/recall', { nodeId: zepId, chatId: CH8, pullupToken: offer?.[1] });
+  check('the token serves the set-aside node once', !!r1.body?.card && /seventeen/.test(r1.body.card.statement ?? ''));
+  check('the lit set never moved', !((await state()).lit ?? []).includes?.(zepId) || !(await get(`/api/chats/${CH8}/context`)).context?.includes?.('zeppelin mooring — lit'));
+  // Single use: the same token is dead.
+  const r2 = await post('/api/recall', { nodeId: zepId, chatId: CH8, pullupToken: offer?.[1] });
+  check('the token is single-use', r2.body?.setAside === true);
+}
+
 console.log('\n== 9. dots: mapcheck → precompute → cached preview → apply (model) ==');
 {
   await post('/api/nodes', { content: 'We should price the enterprise tier at 99 dollars', parentId: pricingId });

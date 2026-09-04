@@ -31,7 +31,8 @@ BACKGROUND (lit by the user as reference):
       - Map legend
           (M6 — Legend explaining the map's marks. ✅ v0.2 (the `?` button). Later refreshed in M83.)
       - Auto-fold branches
-          (M7 — Auto-fold non-focus branches. ✅ v0.2.)
+      • Auto-fold branches: M7: auto-fold non-focus branches. [decision, resolved]
+        (M7 — Auto-fold non-focus branches. ✅ v0.2.)
       - Tidy flow
           (M8 — Reorganize/tidy: confirm target → proposal → before/after preview → apply/cancel. ✅ v0.2, resolved (a)+(i). Basis for the whole tidy lane later refined in M69, M70, M72, M76.)
         - M122 — Tidy top level
@@ -209,7 +210,6 @@ BACKGROUND (lit by the user as reference):
         - Zoom consistency
       - Auto-rename button
     - Standing rules
-        (MODLOG.md '## Standing rules distilled from the above'. The invariant principles: user controls flow, automated map no manual restructuring (M23), suggest-then-confirm (M15/M19/M24), everything is a node (M29), what the agent sees the user can see (M20/M21), machine memories read-only (M43), the light is the law (M47), no topic dignity threshold (M50), new-topic guarantee (M61).)
       - Map is the product
           (Standing rule: 'The user controls the flow tangibly; the map is the product, chat is the interface.')
       - Suggest then confirm
@@ -377,7 +377,7 @@ BACKGROUND (lit by the user as reference):
   … 1 lit topic(s) omitted for space (stalest first).
 
 ELSEWHERE ON THE MAP (folded — set aside by the user; see the rule below):
-  • to sort (folded — 0 nodes inside)
+  … 1 more topic(s) exist but are not shown (stalest first). If something seems missing, ask — the user can light it.
 
 STANDING CONSTRAINTS (respect these):
   • M23: scope ruling — NO manual map editing in MVP (no move/rename/wrap-selection); bare minimum, automated map.
@@ -408,6 +408,11 @@ raises an issue with the MAP itself — where something is filed, how to
 clean up, lighting/focus mechanics — refer them to the map panel's
 "🗨 talk to map" button, where the map agent answers directly with
 instructions; do not try to restructure the map yourself.
+When the user insists something WAS discussed before but you cannot find
+it on the map (and it is not merely set aside), do not argue and do not
+invent it: say the map does not hold it yet and point at "✚ enrich map"
+(in ⋯ other → more…), which reads this map's own conversation record
+and proposes the missing depth for their approval.
 ```
 
-_updated 2026-09-04T16:00:38.817Z_
+_updated 2026-09-04T20:26:31.652Z_
