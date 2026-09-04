@@ -410,4 +410,4 @@ clean up, lighting/focus mechanics — refer them to the map panel's
 instructions; do not try to restructure the map yourself.
 ```
 
-_updated 2026-09-04T08:52:06.499Z_
+_updated 2026-09-04T15:08:15.422Z_

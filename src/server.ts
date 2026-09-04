@@ -12,7 +12,7 @@ import { ChatSessionManager } from './agent/chat-session.js';
 import { composeParts } from './seed/composer.js';
 import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/render.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
-import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat } from './translator/mapstatus.js';
+import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
 import { proposeAutolit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
@@ -23,7 +23,7 @@ import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript } from './translator/importer.js';
-import { setTraceSink, setMetricsSink, callHealth } from './inference.js';
+import { setTraceSink, setMetricsSink, callHealth, call, modelFor } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync } from 'node:fs';
@@ -238,6 +238,48 @@ function reAnchorPanes(pid: string): void {
 // approval granted; anything outside it stays propose→approve), then the
 // cycle re-judges. One round per trigger; it keeps trying on every later
 // cycle until the verdict flips.
+// M195h/M195i: the shared filing pass — creates missing content inside an
+// import's subtree from source material, under the filer's own duties,
+// consulting the brain's filing advice. Used by the automatic finish (the
+// verification's findings drive it) and by the user's find-and-file line
+// (their question drives it). Mandate: the imported subtree, always.
+async function fileIntoImport(pid: string, rootId: string, instruction: string, material: string, auditKind: string): Promise<{ created: number; note: string }> {
+  try {
+    const subtreeView = renderSubtreeFull(store, rootId).slice(0, 40_000);
+    const fparsed = await call({
+      task: 'import', modelOverride: modelFor('tidy'),
+      system: `You are the filer, finishing an import. Create the missing nodes from the SOURCE MATERIAL given.
+RULES (the filer's own duties):
+- create_node operations ONLY, every one nested under an existing [id] in the subtree shown, or under a node you create earlier in this list. Never touch, move, or remove what exists.
+- NODES STATE FACTS, NEVER NARRATE: each node is a standalone statement of a decision, question, constraint, evidence, or fact — with who ruled and when where the material says so.
+- MERGE, DON'T DUPLICATE: if the subtree already holds a subject, file new detail UNDER it, never as a sibling restating it.
+- Topics, never phases: group by subject. Short names (2-5 words for headings, one tight sentence for statements). Honest statuses ('decided' only for what the material says was settled; reversals marked reversed/superseded).
+- Only what the material supports — never invent, never pad. If nothing new is worth filing, return zero alterations and say so.
+- Short random strings for new ids.
+Return: summary (one sentence) + alterations.`,
+      maxTokens: 8000, schema: { type: 'object', additionalProperties: false, required: ['summary', 'alterations'], properties: { summary: { type: 'string' }, alterations: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['op', 'id', 'content'], properties: { op: { type: 'string', enum: ['create_node'] }, id: { type: 'string' }, parentId: { type: 'string' }, content: { type: 'string' }, title: { type: 'string' }, type: { type: 'string' }, status: { type: 'string' } } } } } } as any,
+      timeoutMs: 300_000, audit: (k, d) => store.audit(k, d),
+      user: [instruction, material, `THE IMPORTED SUBTREE (ids in [brackets]):\n${subtreeView}`, 'File what belongs on the map.'].join('\n\n') + statusConsult(store, pid, rootId, 'filing'),
+    }) as any;
+    const falts = (fparsed.alterations ?? []).filter((a: any) => a.op === 'create_node').slice(0, 150);
+    if (!falts.length) return { created: 0, note: String(fparsed.summary ?? 'nothing new to file') };
+    const inSub = new Set([rootId, ...descendantNodes(store, rootId)]);
+    const madeIds = new Set(falts.map((a: any) => a.id));
+    const fits = falts.every((a: any) => !a.parentId || inSub.has(a.parentId) || madeIds.has(a.parentId));
+    if (!fits) { store.audit('import_autofinish_refused', { reason: 'filed node outside the subtree' }); return { created: 0, note: 'refused: a filed node landed outside the import' }; }
+    for (const a of falts) if (!a.parentId) a.parentId = rootId;
+    const finv = inverseOfAlterations(falts);
+    store.applyAlterations(pid, falts, { kind: 'reorganize' });
+    store.pushUndo(pid, `filed ${falts.length} node(s) from the import's source`, finv, captureFocusLit(falts.map((a: any) => a.id)));
+    healTitles(12, pid).catch(() => {});
+    store.audit(auditKind, { created: falts.length });
+    broadcast({ type: 'map', ...state() });
+    return { created: falts.length, note: String(fparsed.summary ?? '') };
+  } catch (err) {
+    console.error('[file into import] failed:', err);
+    return { created: 0, note: 'the filing pass failed' };
+  }
+}
 async function importAutoFinish(pid: string): Promise<void> {
   try {
     const check = getImportCheck(store, pid);
@@ -246,6 +288,19 @@ async function importAutoFinish(pid: string): Promise<void> {
     if (!mapSide.length) return;
     const rootId = store.getSetting(`importroot:${pid}`) ?? '';
     if (!rootId || !store.getNode(rootId)) return;
+    // M195h (Jacob: "Of course yes, file. Or at least consult filer") — the
+    // finish may FILE the missing pieces, not just reorganize: content the
+    // verification names as absent is created from the source summary the
+    // import wrote, under the filer's own duties (statements not narration,
+    // merge don't duplicate, short names, honest statuses), consulting the
+    // brain's filing advice. Mandate unchanged: inside the imported subtree.
+    const summaryStd = store.getSetting(`importsummary:${pid}`) ?? '';
+    if (summaryStd) {
+      await fileIntoImport(pid, rootId,
+        `MISSING, per verification:\n${mapSide.map((d) => `- ${d.what} (fix: ${d.fix})`).join('\n').slice(0, 4000)}`,
+        `THE WHOLE SOURCE, SUMMARIZED (written at import; file from this):\n${summaryStd}`,
+        'import_autofinish_filed');
+    }
     const hint = `Import verification found the finished map does not yet show what the source holds. Fix WITHIN this subtree only: ${mapSide.map((d) => `${d.what} (fix: ${d.fix})`).join(' · ').slice(0, 1500)}`;
     const prop = await proposeReorganize(store, pid, rootId, hint);
     if (!prop || 'error' in prop || !prop.alterations?.length) return;
@@ -1643,7 +1698,7 @@ const server = Bun.serve({
         } catch {}
       }
       sessions.sort((a, b) => b.mtime.localeCompare(a.mtime));
-      return json({ files: files.slice(0, 20), sessions: sessions.slice(0, 15), memories: memories.slice(0, 20) });
+      return json({ files: files.slice(0, 20), sessions: sessions.slice(0, 15), memories: memories.slice(0, 20), sourceRetained: !!(store.getSetting(`importsource:${projectId}`) && store.getSetting(`importroot:${projectId}`)) });
     }
     // M187: LARGE import — chunked background job with progress broadcasts.
     if (path === '/api/import/large' && req.method === 'POST') {
@@ -1669,6 +1724,9 @@ const server = Bun.serve({
       const jobId = randomUUID();
       importJobs.set(jobId, { status: 'running', label, startedAt: Date.now() });
       const jobPid = projectId;
+      // M195i (Jacob): the source stays with the map — retained so the user
+      // can search it and file from it any time after the import.
+      try { store.setSetting(`importsource:${jobPid}`, text.slice(0, 500_000)); } catch {}
       proposeImportLarge(store, jobPid, label, text, (prog) => {
         broadcast({ type: 'import_progress', jobId, ...prog });
       }).then((r) => {
@@ -1684,6 +1742,32 @@ const server = Bun.serve({
         broadcast({ type: 'import_ready', jobId, error: String(err).slice(0, 200) });
       });
       return json({ jobId, chars: text.length });
+    }
+    // M195i (Jacob: "Why don't the finisher be something that user can
+    // control as well even after the import? Something like search the
+    // source"): find-and-file — the user's hand on the same machinery. Their
+    // ask is the approval; mandate and duties identical to the automatic lane.
+    if (path === '/api/import/find' && req.method === 'POST') {
+      const b = await req.json() as { query?: string };
+      const query = (b.query ?? '').trim();
+      if (!query) return json({ error: 'say what to look for' }, 400);
+      const source = store.getSetting(`importsource:${projectId}`) ?? '';
+      const rootId = store.getSetting(`importroot:${projectId}`) ?? '';
+      if (!source || !rootId || !store.getNode(rootId)) return json({ error: 'no retained import source on this map yet' }, 404);
+      store.metric(projectId, 'interaction.import_find');
+      // Mechanical search: rank source blocks by query-token overlap.
+      const toks = query.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2);
+      const blocks: string[] = [];
+      for (let i = 0; i < source.length; i += 1600) blocks.push(source.slice(Math.max(0, i - 200), i + 1600));
+      const scored = blocks.map((blk) => { const low = blk.toLowerCase(); return { blk, score: toks.reduce((a, t) => a + (low.includes(t) ? 1 : 0), 0) }; })
+        .filter((x) => x.score > 0).sort((x, y) => y.score - x.score).slice(0, 8);
+      if (!scored.length) return json({ created: 0, note: 'nothing in the source matches that' });
+      const summaryStd2 = store.getSetting(`importsummary:${projectId}`) ?? '';
+      const r = await fileIntoImport(projectId, rootId,
+        `THE USER ASKED TO FIND AND FILE: ${query.slice(0, 500)}`,
+        `MATCHED PASSAGES FROM THE ORIGINAL SOURCE:\n${scored.map((x) => x.blk).join('\n[…]\n').slice(0, 24_000)}${summaryStd2 ? `\n\nTHE WHOLE SOURCE, SUMMARIZED:\n${summaryStd2.slice(0, 6000)}` : ''}`,
+        'import_source_find');
+      return json(r);
     }
     if (path === '/api/import/pending' && req.method === 'GET') {
       const rows = ((store as any).db.prepare('SELECT job_id, project_id, label, created_at FROM pending_proposals ORDER BY created_at DESC').all() as any[]);

@@ -1405,6 +1405,15 @@ function openImport() {
       <h3>⇪ import onto the map</h3>
       <div id="im-pick">
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Bring outside material in: the import agent reads it and proposes ONE organized branch — you see the whole tree before anything lands, and it's undoable after.</div>
+        <div id="im-find-wrap" hidden>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px">search the imported source</div>
+          <div style="font-size:12px;color:var(--muted);margin:2px 0 4px">the original source stays with the map — ask for anything it holds and the filer files it into the import's branch (undoable)</div>
+          <div style="display:flex;gap:6px">
+            <input id="im-find" type="text" placeholder="e.g. the billing decisions, what we ruled about two modes…" style="flex:1;font-size:13px" />
+            <button id="im-find-go" title="search the retained source and file what it finds">find &amp; file</button>
+          </div>
+          <div id="im-find-out" style="font-size:12px;color:var(--muted);margin-top:3px"></div>
+        </div>
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px">paste anything</div>
         <textarea id="im-text" placeholder="notes, a document, meeting minutes, an old conversation…" style="width:100%;min-height:110px;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px"></textarea>
         <div class="actions" style="margin:6px 0 2px"><button id="im-go-text" class="primary" title="the import agent organizes the pasted text into a subtree proposal">propose from pasted text</button></div>
@@ -1494,6 +1503,20 @@ function openImport() {
   (async () => {
     try {
       const src = await post2get('/api/import/sources');
+      if (src.sourceRetained) {
+        ov.querySelector('#im-find-wrap').hidden = false;
+        const go = async () => {
+          const q = ov.querySelector('#im-find').value.trim(); if (!q) return;
+          const out = ov.querySelector('#im-find-out');
+          out.textContent = 'searching the source and filing…';
+          try {
+            const r = await post('/api/import/find', { query: q });
+            out.textContent = r.error ? r.error : (r.created > 0 ? `filed ${r.created} node(s): ${r.note}` : (r.note || 'nothing new to file'));
+          } catch (err) { out.textContent = `failed: ${err.message}`; }
+        };
+        ov.querySelector('#im-find-go').onclick = go;
+        ov.querySelector('#im-find').onkeydown = (e) => { if (e.key === 'Enter') go(); };
+      }
       const files = ov.querySelector('#im-files'), sess = ov.querySelector('#im-sess'), mem = ov.querySelector('#im-mem');
       mem.innerHTML = (src.memories ?? []).length ? '' : '<span style="color:var(--muted);font-size:12px">no Claude memory found for this map\'s folder — it appears once Claude saves memories there</span>';
       for (const x of src.memories ?? []) {
