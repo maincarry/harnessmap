@@ -1,11 +1,11 @@
 {
   "meta": {
-    "version": 2,
+    "version": 3,
     "created": "2026-09-02",
     "doctrine": "docs/TEST-DESIGN.md + the Measurement Doctrine artifact",
     "target_size": 70,
     "power_note": "sd(paired per-item diff)=0.92 measured 2026-09-02 over 90 archived pairs; n=69 detects Δ=0.4 at α=.05 two-sided, power .95; bank at target size 69 as of 2026-09-04",
-    "authorship_gap": "ALL 69 items are builder-authored (mined from MODLOG rulings; B25-B69 added 2026-09-04 covering M72-M195k). Founder-authored items still pending — until they exist, every report from this bank must carry the line 'builder-authored bank'.",
+    "authorship_gap": "B01-B24: builder-selected (frozen pre-registered core). B25-B69: LOT-DRAWN 2026-09-05 — 195 modlog entries enumerated, selection by seeded RNG (seed 20260905), builder's hand removed from sampling; answers remain founder rulings quoted from the record. Founder-authored items (5 each) remain welcome for user-phrasing and off-record coverage, no longer a blocker.",
     "scale": {
       "2": "states the required fact correctly",
       "1": "partially right, or honestly declines to answer without contradicting the required fact",
@@ -324,552 +324,551 @@
     },
     {
       "id": "B25",
-      "question": "The tidy agent is reviewing one subtree. May it read the whole map to decide?",
-      "required_fact": "no — tidy reads only the local neighborhood of its target; whole-map review is tidy-map's own job (a separate root-scope lane)",
+      "question": "When is a suggestion dot's tidy proposal computed, and what does clicking it cost?",
+      "required_fact": "once ever, in a background sweep after a 25s settle debounce (serially, never while the filer queue is busy), cached with a subtree hash; clicking serves the cache instantly when the hash matches — the background never recomputes",
       "wrong_answers": [
-        "tidy always reads the whole map"
+        "computed fresh on every click",
+        "recomputed periodically"
       ],
-      "doctrine": "M72",
-      "provenance": "founder ruling splitting the lanes",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M71",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B26",
-      "question": "A round was chit-chat that seems irrelevant to the project. Should the tidy agent remove those nodes as irrelevant?",
-      "required_fact": "no — tidy never drops for irrelevance; relevance is focus/light's job, tidy only restructures what exists",
+      "question": "The user says 'let's focus on X'. What happens mechanically, and does a passing mention of X count?",
+      "required_fact": "the filer flags an explicit focus request → the ▶ auto-focus button gets a red dot with that target and clicking serves it instantly with no model call; a one-shot notice tells the host agent to point at the button; passing mentions are NOT focus requests and a server-side directive-word gate vetoes them",
       "wrong_answers": [
-        "tidy prunes irrelevant material"
+        "the focus changes immediately",
+        "any mention re-aims the map"
       ],
-      "doctrine": "M76",
-      "provenance": "founder ruling",
-      "difficulty": "off-path",
-      "author": "builder"
+      "doctrine": "M75/M87",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "on-lit-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B27",
-      "question": "What kind of map is this product's map — a deliberation map that only records weighing/decisions, or something broader?",
-      "required_fact": "a TOPIC map — whatever gets discussed is a topic and belongs on the map, with no dignity threshold; deliberation structure grows under topics when it exists",
+      "question": "The chat agent keeps reintroducing topics the user dimmed. What rule governs dimmed topics in the injection, and what is its honest limit?",
+      "required_fact": "dimmed topics appear as set aside by the user: never bring them up on your own initiative, never fold their ideas into answers as if current; only if the user raises one, note it is set aside and offer — and honestly this is a prompt rule on the host model, which reduces but does not eliminate (the host transcript still holds everything said)",
       "wrong_answers": [
-        "only decisions and arguments belong"
+        "dim deletes the content from the host's memory"
       ],
-      "doctrine": "M73",
-      "provenance": "founder ruling",
+      "doctrine": "M85",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B28",
-      "question": "The user asks to merge two views of the map they were using. What happened to merge-views as a feature?",
-      "required_fact": "merge-views was REMOVED — recency is the chat lifecycle; node, chat, and project merges exist instead",
+      "question": "Merging one node into another: what happens to distinct wording, and what mechanical rule decides a true duplicate?",
+      "required_fact": "children move to the survivor; DISTINCT wording is preserved as a child of the survivor; word-overlap ≥0.5 counts as a true duplicate and is dropped — capture-everything holds through merges",
       "wrong_answers": [
-        "merge-views is a current feature"
+        "the source's wording is always discarded"
       ],
-      "doctrine": "M95",
-      "provenance": "founder reversal on the record",
+      "doctrine": "M90",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B29",
-      "question": "Does zooming into a branch change what the chat agent sees?",
-      "required_fact": "no — zoom is view-only and never touches lighting; 'dim all outside' is its own explicit action",
+      "question": "Why did project merge have to move the event log rather than run raw SQL on nodes?",
+      "required_fact": "the projection is rebuilt from map_events on migration — a raw SQL move would have been silently undone; absorbing the source's whole event log keeps replay, deltas, and rebuild coherent",
       "wrong_answers": [
-        "zoom dims everything outside"
+        "a simple UPDATE of project ids suffices"
       ],
-      "doctrine": "M105",
-      "provenance": "founder ruling superseding Z2",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M90",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B30",
-      "question": "The user tries to dim a node that lies on the current focus path. What happens?",
-      "required_fact": "refused — the focus path cannot be dimmed while the conversation is aimed through it; move the focus first (cascaded descendants on the path are skipped silently in bulk ops)",
+      "question": "What replaced merge-views and archived-chat lifecycle verbs after they were removed?",
+      "required_fact": "nothing — the chat dropdown sorts by last activity and folds 7-day-stale views under an 'older' group; chats never diverge in content because the map is shared by construction",
       "wrong_answers": [
-        "it dims like any node"
+        "a new archive feature",
+        "merge-views still exists"
       ],
-      "doctrine": "M111",
-      "provenance": "protected-path invariant",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M95",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B31",
-      "question": "The user clicks add-node. What name does the new node get and where does the conversation aim?",
-      "required_fact": "it is created unnamed ('untitled') and focused — the first round names it; the system, not the user, supplies the name from what gets discussed",
+      "question": "In user-facing copy, is it called a 'project' or a 'map'?",
+      "required_fact": "always 'map' in user-facing copy; 'project' survives only in internals (projectId)",
       "wrong_answers": [
-        "the user must type a name first"
+        "the words are interchangeable in the UI"
       ],
-      "doctrine": "M114",
-      "provenance": "founder ruling",
+      "doctrine": "M96",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B32",
-      "question": "When the product's own prompts and UI refer to its background agents, what naming rule applies?",
-      "required_fact": "canonical agent names everywhere — one fixed cast (filer, tidy, auto-light, auto-focus, the reviewer, the map status agent…); no ad-hoc synonyms",
+      "question": "How do embedded sessions in the map's tab bar get map filing and injection — special wiring?",
+      "required_fact": "no special wiring: each tab runs the real claude CLI over a PTY, so the ordinary hooks fire exactly as in an external terminal; opening a tab in a bound directory auto-activates its map (follow mode)",
       "wrong_answers": [
-        "any descriptive name is fine"
+        "a custom integration API"
       ],
-      "doctrine": "M117 + M156b",
-      "provenance": "the cast ruling + closed vocabulary",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M97",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B33",
-      "question": "The expand control on a node shows how much of the subtree?",
-      "required_fact": "only the immediate children — one level per expand",
+      "question": "Why did the repo root become the plugin itself?",
+      "required_fact": "a marketplace install copies only the plugin directory — with the app outside ./plugin the server would be stripped; root-as-plugin ships everything by construction",
       "wrong_answers": [
-        "the whole subtree expands"
+        "cosmetic restructure"
       ],
-      "doctrine": "M120",
-      "provenance": "founder ruling",
+      "doctrine": "M97",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B34",
-      "question": "How do the map's background agents coordinate — do they talk to each other?",
-      "required_fact": "no agent chat — coordination is one-way: a shared system card, the user's map preferences, and typed requests/referrals; hierarchy, not conversation (M124), and the brain's reports flow down as consults",
+      "question": "Where does the authoritative user text of a round come from, and why not the transcript?",
+      "required_fact": "the UserPromptSubmit hook posts the prompt to the server per-session (the stash); Claude Code's transcript format changed and silently blanked user turns, so transcript parsing is demoted to best-effort enrichment",
       "wrong_answers": [
-        "agents converse with each other"
+        "parsed from the session transcript"
       ],
-      "doctrine": "M124 + M195",
-      "provenance": "coordination doctrine",
+      "doctrine": "M99",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B35",
-      "question": "What does the ⌂ home button aim at, and can the user change it?",
-      "required_fact": "home is the whole map by default, always exists, and any node can be set as home from its row — home is a row button",
+      "question": "How does the user see what the last map update changed?",
+      "required_fact": "the status line under the map is the entry point: click it for a panel listing the last update's changes; clicking an entry scrolls to the node and flashes it; last-round nodes carry an accent edge and tint in the tree",
       "wrong_answers": [
-        "home is fixed to the root forever"
+        "a changelog file",
+        "no such view"
       ],
-      "doctrine": "M126",
-      "provenance": "founder ruling",
-      "difficulty": "off-path",
-      "author": "builder"
+      "doctrine": "M106",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "on-lit-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B36",
-      "question": "A user asks: does closing the map influence stop the map from being mentioned by the agent?",
-      "required_fact": "yes — closed influence means no injections AND no mentions of the map at all, while filing continues quietly in the background",
+      "question": "How long do the 'new'/'changed' marks persist, and what clears them?",
+      "required_fact": "until touched — the user's own actions clear them (open detail, focus, light, move, edit), never time; filer rounds mark, user actions clear; ✓ clear-all lives in the what-changed panel",
       "wrong_answers": [
-        "the agent still mentions the map"
+        "they fade on a timer"
       ],
-      "doctrine": "M143",
-      "provenance": "founder ruling",
+      "doctrine": "M107",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B37",
-      "question": "Where does ALL user data live for an installed harnessmap, and why does that matter for support?",
-      "required_fact": "in ONE place: ~/.harnessmap (db, server log, port file) — overridable by env for dev/playground; support asks start there",
+      "question": "What happened to the amber dot?",
+      "required_fact": "the amber CONCEPT is dead: all suggestion dots are red and the suggestion's kind decides what clicking offers; zero amber references remain in user-facing text",
       "wrong_answers": [
-        "data is scattered per-project"
+        "amber marks relight suggestions"
       ],
-      "doctrine": "M91",
-      "provenance": "installed-life ruling",
+      "doctrine": "M109d",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B38",
-      "question": "What is Claude's own memory to the import dialog?",
-      "required_fact": "a first-class import source — the per-project auto-memory files (MEMORY.md + notes) are listed alongside project documents and past sessions",
+      "question": "What lesson did the tidy-modal crash write into the testing practice?",
+      "required_fact": "parse checks don't execute template IIFEs — render-test UI code paths with real data before shipping (the crash was a stray .join on a recursive call that already returned a string)",
       "wrong_answers": [
-        "memory files cannot be imported"
+        "it was a server bug"
       ],
-      "doctrine": "M157",
-      "provenance": "Jacob: directly importing memory from user's Claude",
+      "doctrine": "M122b",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B39",
-      "question": "How often does auto-tidy review run, and what does HARNESSMAP_AUTOTIDY_ROUNDS=0 do?",
-      "required_fact": "every 10 filed rounds or 30 minutes since the last review (whichever first, checked at round completion; idle maps review nothing); setting the env var to 0 switches the rhythm off — the suites' established off-switch",
+      "question": "Can a subtree tidy group the top level?",
+      "required_fact": "no — top-level grouping is ⟳ tidy-top-level's own lane; subtree tidy cannot restructure the root tier (the guide's knowledge states this routing)",
       "wrong_answers": [
-        "it runs on a fixed timer regardless of activity"
+        "any tidy can restructure anything"
       ],
-      "doctrine": "M166/M166b",
-      "provenance": "event-driven rhythms",
+      "doctrine": "M127",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B40",
-      "question": "The user greets the agent with 'good morning'. What does the filer produce for that round?",
-      "required_fact": "nothing — pure dialogue mechanics (greetings, thanks, confirmations) are the ONLY rounds that produce no nodes",
+      "question": "After expanding '＋ more…' in the ⋯ menu, where does the button go?",
+      "required_fact": "it disappears — no 'less'; every reopen of ⋯ resets to the folded state",
       "wrong_answers": [
-        "a small-talk node is filed"
+        "it toggles to 'less'"
       ],
-      "doctrine": "M174 + filer duties",
-      "provenance": "capture-everything with the mechanics exception",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M128b",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B41",
-      "question": "What are the three lengths every node's memory is stored at, and what rule do their contents obey?",
-      "required_fact": "minimal, medium, long — each contains the WHOLE node at that size (one sentence of everything / ≤150 words of everything / every layer), never subsets of different fields",
+      "question": "Which glyph belongs to tidy, and what is ● reserved for?",
+      "required_fact": "⟳ is tidy's symbol on all tidy surfaces; ● is reserved for suggestion dots alone",
       "wrong_answers": [
-        "different fields at different tiers"
+        "● marks tidy functions"
       ],
-      "doctrine": "M192c",
-      "provenance": "Jacob's corrected command",
+      "doctrine": "M128d",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B42",
-      "question": "How is the per-injection budget spent across lit topics (the resolution rule)?",
-      "required_fact": "by focus proximity: the focus neighborhood serves long, near/recent topics medium, everything else at least its minimal line with a '+N inside' fold at scale — degrading gracefully down that ladder, never truncating arbitrarily",
+      "question": "The two-modes toggle: what finally authorized building it after the earlier misread?",
+      "required_fact": "Jacob explicitly lifted his own deferral ('Why don't we add the two modes') — a direct instruction from the founder who imposed the wait, unlike the earlier offhand 'fine actually' that was misread as approval",
       "wrong_answers": [
-        "equal budget per node",
-        "distant topics are dropped entirely"
+        "the earlier 'fine actually' was the approval"
       ],
-      "doctrine": "M192 serving",
-      "provenance": "resolution-tiered serving",
+      "doctrine": "M132b",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B43",
-      "question": "A host session's second turn: does it get the full map block again?",
-      "required_fact": "no — full block once (per session and after compaction), then deltas rendered as current-state lines; a fresh full block returns on the 15-change threshold, a refocus, a mass lighting change, ⟲ refresh, or compaction",
+      "question": "What does a map row look like on mobile, and where did the buttons go?",
+      "required_fact": "a row is its name: text, indentation, a muted count, and only actionable signals (red dots, tiny new/changed dots); everything else lives one tap away — tap a leaf or long-press any row for the action sheet, tap a parent to expand",
       "wrong_answers": [
-        "the full block is injected every turn"
+        "desktop buttons shrink onto mobile rows"
       ],
-      "doctrine": "M59/M60 + M195c",
-      "provenance": "the injection economy",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M135b",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B44",
-      "question": "What does the ⟲ refresh agent context button do, and is /compact required afterwards?",
-      "required_fact": "every session on the map gets a fresh FULL map view on its next message; /compact in the terminal is optional cleanup of the older map blocks — everything works without it because the fresh view supersedes them",
+      "question": "What critical thing was found git-tracked during packaging hardening, and what remains true even after untracking?",
+      "required_fact": "a real map database backup was tracked; it remains in git HISTORY, so flipping the repo public requires a fresh-history publish or a history scrub first",
       "wrong_answers": [
-        "/compact is required",
-        "refresh restarts the session"
+        "untracking removed it completely"
       ],
-      "doctrine": "M195c",
-      "provenance": "founders' refresh ruling with the wording rule",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M141",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B45",
-      "question": "Which surfaces run the governed full-then-delta injection economy after the consolidation?",
-      "required_fact": "both the chat pane and Claude Code sessions — one machinery (pane anchors ride as pane:<chatId>); Codex support is shelved for its own track; influence-off stays a separate mode",
+      "question": "What does the install-smoke suite actually simulate?",
+      "required_fact": "a fresh machine at the exact surface Claude Code touches: scratch home + never-seen folder, the real hooks driven with stdin JSON exactly as CC drives them — proving the server spawns from nothing, first-run intro, folder binding, injection, handover, shutdown, and hook-revival",
       "wrong_answers": [
-        "the pane always recomposes fresh",
-        "Codex is fully supported"
+        "it mocks the hooks"
       ],
-      "doctrine": "M195d",
-      "provenance": "founders' consolidation ruling",
+      "doctrine": "M141",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B46",
-      "question": "The user re-aims the map mid-conversation (new focus, relights a branch). What does the next turn's injection carry?",
-      "required_fact": "a fresh FULL map block composed for the new aim (re-aim re-anchors every session on the project), with the notice that /compact is optional",
+      "question": "What did the first stranger-path install (fresh Mac) change about the tutorial?",
+      "required_fact": "17 dense steps became SEVEN beats, one idea each, in plain words, ending on the three-idea summary: files itself / you govern / nothing without you; a 🔠 text-size control was added the same day",
       "wrong_answers": [
-        "a one-line delta about the change only"
+        "the tour grew more detailed"
       ],
-      "doctrine": "M195c",
-      "provenance": "the re-aim trigger ruling",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M144",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B47",
-      "question": "The user's question names a topic that is lit but far from focus, on a delta turn. What happens?",
-      "required_fact": "the server's every-turn matcher serves that node in full right in the injection — authorization exists because it is lit; the question no longer waits for a full-block turn",
+      "question": "Where does the cast/crew description belong, and why not the reference card?",
+      "required_fact": "in dev mode's who's-who — 'that's for dev not user' (Jacob); the user card dropped the cast section",
       "wrong_answers": [
-        "nothing until the next full block"
+        "the reference card lists the agents"
       ],
-      "doctrine": "M195k (M194 design)",
-      "provenance": "the fetch, built",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M145",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B48",
-      "question": "The user's question touches a SET-ASIDE (dim) topic. What exactly reaches the agent?",
-      "required_fact": "a one-line offer naming the topic with a single-use pullupToken — zero content; the agent offers to pull it up, and only the user's yes redeems the token through recall, serving the node once with the lit set untouched",
+      "question": "A newcomer is disoriented by the map. What is the designated comprehension fallback?",
+      "required_fact": "the map guide (🗨 talk to map): its prompt handles 'what am I looking at?' with a short orientation grounded in the user's own node names; the spatial mind-map view stays parked",
       "wrong_answers": [
-        "the content is served since the user asked",
-        "the node gets lit"
+        "a redesigned visual map"
       ],
-      "doctrine": "M195k (M194 ruling 3)",
-      "provenance": "consented one-turn pull-up",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M145b",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B49",
-      "question": "Can the agent reuse a pull-up token to read the dim node again next turn?",
-      "required_fact": "no — the token is single-use (and expires in minutes); another read needs another offer and another yes",
+      "question": "Which four row buttons stay visible on a node row, per the interim ruling?",
+      "required_fact": "zoom (◱), focus (▶), light (☀), and delete (✕) — the rest fold behind ⋯ on the row",
       "wrong_answers": [
-        "the token stays valid for the session"
+        "all buttons always show"
       ],
-      "doctrine": "M195k",
-      "provenance": "token semantics",
+      "doctrine": "M147",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B50",
-      "question": "What is the overall map status report, and who is it for?",
-      "required_fact": "the map status agent's one coherent judgment of the map (essence, arc, tensions, keystones, gaps, trust per area, plus per-job advice) — FOR THE MAP ITSELF: the working agents consult it; the user sees it in 🩺 map status for transparency only",
+      "question": "The product needed a plain word sweep for one concept in tooltips and cards — which phrase died?",
+      "required_fact": "'aim the conversation' — everything now says 'talk about this' / 'what to talk about next' / 'what the conversation is about'",
       "wrong_answers": [
-        "a user-facing summary feature"
+        "'focus' was removed"
       ],
-      "doctrine": "M195/M195b",
-      "provenance": "Jacob's brain constitution",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M151",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B51",
-      "question": "Which reporters feed the overall map status report's synthesis?",
-      "required_fact": "structure-status, content-status (chapter assessments for all areas), historical-status (the map's biography from events/aggregates/import records), the user's own edits verbatim as the highest authority, the taste note, the user's standing guidance, and its own previous text",
+      "question": "How does the UI make the focused row unmistakable?",
+      "required_fact": "the ▶ icon travels: the row button, the chip, and a persistent accent ▶ mark on the focused row with accent frame, tinted background, and bold name — press ▶, see ▶ appear",
       "wrong_answers": [
-        "it reads the raw map directly",
-        "history arrives as raw events"
+        "only the header chip shows focus"
       ],
-      "doctrine": "M195b",
-      "provenance": "the three-reporter architecture",
+      "doctrine": "M155",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B52",
-      "question": "What do the working agents receive from the overall map status report — the report itself?",
-      "required_fact": "the trimmed report PLUS the brain's actual advice for their specific job (filing/lighting/review/chat), both from the same cycle so they stay coherent; tidy alone stays in its lane with the structural opinion only",
+      "question": "Where does bug reporting live and what does it never do?",
+      "required_fact": "in dev mode's tools row (🐞), opening a user-reviewed pre-filled GitHub issue — nothing is ever sent automatically",
       "wrong_answers": [
-        "the full report is dumped to every agent",
-        "tidy gets the global judgment"
+        "feedback auto-sends"
       ],
-      "doctrine": "M195b (Jacob's consult-with-suggestions ruling + comprehensive-influence amendment)",
-      "provenance": "advice-per-job consults",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M159",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B53",
-      "question": "Which model tier runs the overall report's synthesis, and why?",
-      "required_fact": "the smartest tier (the import's tier) — the brain is the one judgment everything else consults; its reporters stay on the cheap tier",
+      "question": "Is the dev-mode password security?",
+      "required_fact": "no — stated honestly as a speed bump keeping ordinary users out of developer tooling; the code is public and the data is the user's own, local",
       "wrong_answers": [
-        "everything runs on one tier"
+        "it protects user data"
       ],
-      "doctrine": "M195b",
-      "provenance": "Jacob: use the smartest model",
+      "doctrine": "M159c",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B54",
-      "question": "Two duty rules were written into the brain's charter after its first real failures. Name them.",
-      "required_fact": "internal consistency (never trust in one section what you distrust in another) and dates-not-prominence (currency claims stand on dates and statuses, never on how big a node is) — later joined by numbers-before-narrative",
+      "question": "How many hook-script forks did Codex support require?",
+      "required_fact": "zero — Codex copied Claude Code's hook dialect, so the same three hook scripts serve both harnesses unmodified; only a registrar writes ~/.codex/hooks.json (support itself is currently shelved for its own track)",
       "wrong_answers": [
-        "no such written rules exist"
+        "a parallel codex hook set"
       ],
-      "doctrine": "M195b/M195j",
-      "provenance": "learned from the false fork claim and v0.4.1-as-current",
+      "doctrine": "M160",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B55",
-      "question": "What must the brain write BEFORE any section of its report, and what must it contain?",
-      "required_fact": "its reconciliation — the minimum work: every input covered by name (accept/reject/partly and why) with the measured numbers quoted; it may never assert an absence the numbers contradict",
+      "question": "What is the ONE disclosed exception to 'no network calls leave your machine'?",
+      "required_fact": "the daily update check fetches only the version number from the public repo's package.json (fail-silent offline); nothing about the user or their data is sent, and the README privacy section says so plainly",
       "wrong_answers": [
-        "a free-form preamble",
-        "nothing is required"
+        "telemetry",
+        "there are no network calls at all"
       ],
-      "doctrine": "M195j",
-      "provenance": "Jacob: a minimum budget that must be used in full — denominated in obligations",
+      "doctrine": "M161",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B56",
-      "question": "How does a large import's proposal begin, before any chunk is filed?",
-      "required_fact": "with a very long comprehensive summary of the whole source (the one-time impression maker, up to ~3,000 words) — every chunk files against it, and it is persisted at apply as the standard the finished map is judged by",
+      "question": "How often may the upgrade-available line appear, and can the product update itself?",
+      "required_fact": "at most once per day at session start, one concise line; updating is always a user action in the harness — never automatic",
       "wrong_answers": [
-        "chunks file with only their own slice"
+        "it nags per prompt",
+        "it self-updates"
       ],
-      "doctrine": "M195b/M195c",
-      "provenance": "Jacob's impression-maker ruling",
+      "doctrine": "M161",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B57",
-      "question": "When does an import count as successful?",
-      "required_fact": "only when the overall map status report, after the import and brain cycle, is judged similar enough to the import's own source summary — mismatches drive mutual revisions until a later verify passes",
+      "question": "What does a status-line roll look like when a message lands?",
+      "required_fact": "it lands in accent color instantly, fades to muted over ~1.2s starting after 2.6s, and yields to idle text at 8s; idle text is never colored",
       "wrong_answers": [
-        "when the apply returns ok"
+        "messages appear without emphasis"
       ],
-      "doctrine": "M195c",
-      "provenance": "the import gate",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M163b",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B58",
-      "question": "Verification says the finished import doesn't match its source. Whose click fixes it?",
-      "required_fact": "nobody's — the machinery's: map-side findings drive an automatic tidy AND automatic filing from the source summary, inside the imported subtree only, cycle after cycle until the verdict flips; the user approved once, at landing",
+      "question": "What did Jacob's grilling establish about what an install leaks onto a user's disk?",
+      "required_fact": "the injection is in the session transcripts and every specialist call is persisted with full input+output — the architecture and pipeline behavior are learnable from any install; only the system-prompt WORDING stays private; the protectable set is instruction wording, guard logic, schemas, and the why",
       "wrong_answers": [
-        "the user must approve each fix"
+        "the write side is invisible"
       ],
-      "doctrine": "M195f/M195h",
-      "provenance": "Jacob: it's the filer's click not my",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M163f",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B59",
-      "question": "The automatic finish proposes a node parented OUTSIDE the imported subtree. What happens to that round?",
-      "required_fact": "only the stray re-homes to the import root (per-node mandate, the orphan-sweep precedent) — the round is never refused wholesale; a whole-round escape is refused and audited",
+      "question": "What exactly is a ★ favorites row?",
+      "required_fact": "a true shortcut in a pinned tray at the bottom: click jumps to the real node, ▶/☀ act on the real node (same id — no second node), ✕ removes only the favorite; no parents, no map machinery on the row; hidden when empty; presentation-only",
       "wrong_answers": [
-        "the whole round is discarded"
+        "a copy of the node"
       ],
-      "doctrine": "M195j amendment",
-      "provenance": "found live: two good rounds were thrown away",
+      "doctrine": "M164",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B60",
-      "question": "What does find-and-file do, and what authorizes it?",
-      "required_fact": "the applied import's FULL source stays with the map; the user asks in plain words, the source is searched mechanically, and the matches are filed through the same finish machinery into the import's branch — the user's ask is the approval",
+      "question": "In the agent's view, can the exact injected text be inspected per section?",
+      "required_fact": "yes — the exact-text fold opens one sub-fold per section, color-matched to the composition bar, each with its own text and size",
       "wrong_answers": [
-        "it needs a proposal round",
-        "the source is discarded after import"
+        "only the total text shows"
       ],
-      "doctrine": "M195i",
-      "provenance": "Jacob: the user controls the finisher after the import",
+      "doctrine": "M165c",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B61",
-      "question": "What does ✚ enrich map do, and why is it propose→approve when the import's finish is automatic?",
-      "required_fact": "it reads the map's own conversation record, finds thin nodes discussed at length, and proposes the depth under them — propose→approve because no mandate covers the whole map; the import's one approval covered only its subtree",
+      "question": "Which two functions were promoted to tier 1 as 'everyday operating'?",
+      "required_fact": "◐ dim all outside and ⇪ import (Jacob's tier amendment)",
       "wrong_answers": [
-        "enrich applies automatically everywhere"
+        "they live in housekeeping"
       ],
-      "doctrine": "M195k",
-      "provenance": "Jacob's coarse-map ruling with the mandate boundary",
-      "difficulty": "on-lit-path",
-      "author": "builder"
+      "doctrine": "M168c",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "off-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B62",
-      "question": "A proposal was made while project A was active, but project B is active when the user applies it. Where does it land?",
-      "required_fact": "on project A — a proposal applies to the project it was proposed for; the pending row's project stamp wins over the mutable active project",
+      "question": "The feedback feature's final shape — what are its two calm stages?",
+      "required_fact": "save first (always local, always works, stated plainly), then the optional hand-off: a pre-filled GitHub issue or copy-the-report with the email shown as plain text; the mailto automation is gone because it failed invisibly",
       "wrong_answers": [
-        "on whatever project is active at apply"
+        "it emails automatically"
       ],
-      "doctrine": "M195e",
-      "provenance": "found live: 513 nodes landed on the wrong map",
-      "difficulty": "off-path",
-      "author": "builder"
+      "doctrine": "M172c",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "on-lit-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B63",
-      "question": "How large is a chapter assessment, and what happens when one chapter dominates the map?",
-      "required_fact": "size follows the area (100-150 words for small areas up to ~500 for large ones, reading slice scaled too); a chapter over ~120 nodes or ~40% share is assessed BY ITS PARTS one level down, its own row becoming the roll-up naming them",
+      "question": "A desktop-app-only user's rounds all die silently. What is the actual fix the product now names?",
+      "required_fact": "the desktop login doesn't authenticate the CLI path the agents use — the status line says: open a terminal, run claude, type /login and approve, one time; every desktop-app-only user hits this",
       "wrong_answers": [
-        "a flat 150 words for every chapter"
+        "reinstall the plugin",
+        "an API key is needed"
       ],
-      "doctrine": "M195g",
-      "provenance": "Jacob's keyhole ruling",
+      "doctrine": "M179",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B64",
-      "question": "Who may talk directly to the map status agent, and what does the exchange leave behind?",
-      "required_fact": "the user, from inside 🩺 map status — the agent answers from its current understanding and the exchange distills into standing guidance (≤200 words, integrated, retractions dropped) that rides every future synthesis, outranked only by the user's edits",
+      "question": "Why did large imports stop using 50k chunks, and what unit replaced them?",
+      "required_fact": "50k time-slices made the model write time-chapters; import = the filer's job over history, so the unit became ~8k split on round boundaries, run on the filer's cheap tier, with the tree-so-far served as a full rollup so later chunks can see every topic home",
       "wrong_answers": [
-        "only developers",
-        "nothing persists"
+        "bigger chunks are better"
       ],
-      "doctrine": "M195b",
-      "provenance": "the direct tuning line",
-      "difficulty": "off-path",
-      "author": "builder"
+      "doctrine": "M190c",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "on-lit-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B65",
-      "question": "The brain flags a contradiction that turns out to be false. Why is that poison rather than benign?",
-      "required_fact": "every agent consults the brain, so a false flag steers filing, lighting, and chat wrong everywhere at once — true flags heal, false flags poison; the alarms are the stamps, grounding duties, and the bank",
+      "question": "The map went quadratic at 2,161 nodes. What were the two fixes?",
+      "required_fact": "an index for parent lookups (child lookups were full table scans) and the composer walking entirely in memory (bulk queries + maps) — 23,020ms per compose down to 158ms",
       "wrong_answers": [
-        "a wrong flag is harmless advice"
+        "a faster model",
+        "caching the injection"
       ],
-      "doctrine": "M195",
-      "provenance": "the false-tension risk, on the record",
+      "doctrine": "M190d",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B66",
-      "question": "What is the primary comparison of the recall test, and what is the honest opponent?",
-      "required_fact": "map briefing versus a transcript slice at EQUAL character budget — the transcript slice is what a user's agent has without the product; an empty-context opponent would be a rigged win",
+      "question": "The first recall-offered experiment: how many times did agents pull in 18 cells, and what was the finding?",
+      "required_fact": "zero — the agent cannot tell related-context from sufficient-context; it answered wrong confidently from a branch lacking the fact and never pulled: miscalibration, not tool absence, is the read-side bottleneck",
       "wrong_answers": [
-        "map versus no memory"
+        "agents pull when uncertain"
       ],
-      "doctrine": "TEST-DESIGN v2 §2 / M193",
-      "provenance": "the thesis makes the comparison",
+      "doctrine": "M191",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B67",
-      "question": "Why is the bank's target size 69 items?",
-      "required_fact": "computed from measured variance: sd of paired per-item differences 0.92 (90 archived pairs) → 69 items detects a 0.4 difference at α=.05 two-sided with power .95; below that, claims stay exploratory",
+      "question": "Question-promotion matches the user's message against what, exactly, and why separately?",
+      "required_fact": "against node titles and statement-heads, matched SEPARATELY — mixing them diluted clean title hits below threshold (found live); promotion pierces the rollup fold but searches only lit territory",
       "wrong_answers": [
-        "a round number was picked"
+        "one combined text match"
       ],
-      "doctrine": "M193 + the Measurement Doctrine",
-      "provenance": "power computation on the record",
+      "doctrine": "M191c",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "off-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B68",
-      "question": "A recall run's grader disagrees with the double-grade check. What does the instrument do?",
-      "required_fact": "below chance-corrected agreement .70 it self-quarantines — the run's numbers are not reported except as quarantined; the rubric gets fixed before rerunning",
+      "question": "Where can the user see WHY each topic was served at its detail level?",
+      "required_fact": "the map's attention block in the dev timeline (and the agent's view): aggregated by reason — the question named it, near your focus, freshly filed, background at one line, folded counts, and ❗ branches with no room",
       "wrong_answers": [
-        "the scores are reported anyway"
+        "nowhere; serving is opaque"
       ],
-      "doctrine": "M193 doctrine",
-      "provenance": "κ .57 run quarantined, rubric fixed",
-      "difficulty": "off-path",
-      "author": "builder"
+      "doctrine": "M191d",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
+      "difficulty": "on-lit-path",
+      "author": "builder (lot-drawn selection)"
     },
     {
       "id": "B69",
-      "question": "Every recall score in the ledger decomposes into which three classes?",
-      "required_fact": "recalled / served-but-wrong (the serving-selection class, e.g. confident inversions) / never-filed (staleness — the fact isn't on the map at all); each class points at a different fix",
+      "question": "What does the map status structural specialist return, and what may it change?",
+      "required_fact": "health (one honest sentence), 0-4 findings each naming the mechanism that fixes it, and a standing opinion the working agents consult — advisory only; it changes nothing (propose→approve untouched)",
       "wrong_answers": [
-        "one aggregate number only"
+        "it applies fixes itself"
       ],
-      "doctrine": "M193 + TEST-DESIGN v2",
-      "provenance": "the 0.94 run's decomposition",
+      "doctrine": "M192",
+      "provenance": "lot-drawn from the modlog (seed 20260905, 195 entries enumerated)",
       "difficulty": "on-lit-path",
-      "author": "builder"
+      "author": "builder (lot-drawn selection)"
     }
   ]
 }
