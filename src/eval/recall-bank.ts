@@ -26,24 +26,33 @@ const ARMS = (flag('arms') ?? 'on').split(',');
 const H1 = flag('h1');
 const EXPLORATORY = args.includes('--exploratory');
 const EXCLUDE = (flag('exclude-doctrine') ?? '').split(',').filter(Boolean);
-const LIGHTING = flag('lighting'); // 'all' | 'dark' — the condition is part of the design, never inherited state
+const LIGHTING = flag('lighting'); // 'all' | 'dark' | 'realistic' — the condition is part of the design, never inherited state
+const TRANSCRIPT = flag('transcript'); // path to the conversation record; required when arm 'transcript' runs
+const PROJECT = flag('project'); // project id to pin active (guards against session follow-mode flips mid-run)
 
 // Doctrine: no comparison without a registered claim. Enforced, not advised.
 if (ARMS.length > 1 && !H1) {
   console.error('REFUSED: a multi-arm run requires --h1 "<direction and minimum effect>", registered before running (Doctrine §3.3).');
   process.exit(2);
 }
-if (!LIGHTING || !['all', 'dark'].includes(LIGHTING)) {
-  console.error('REFUSED: --lighting all|dark is required — what is lit is the central independent variable and may not be inherited from ambient chat state (first-run lesson, 2026-09-02).');
+if (!LIGHTING || !['all', 'dark', 'realistic'].includes(LIGHTING)) {
+  console.error('REFUSED: --lighting all|dark|realistic is required — what is lit is the central independent variable and may not be inherited from ambient chat state (first-run lesson, 2026-09-02).');
   process.exit(2);
 }
+if (ARMS.includes('transcript') && !TRANSCRIPT) {
+  console.error('REFUSED: the transcript arm requires --transcript <path to the real conversation record> (TEST-DESIGN §2: the honest opponent).');
+  process.exit(2);
+}
+const transcriptText = TRANSCRIPT ? await Bun.file(TRANSCRIPT).text() : '';
 if (ARMS.length === 1 && !EXPLORATORY && !H1) {
   console.error('REFUSED: single-arm runs must declare --exploratory (they support no confirmatory claim) or carry --h1 against a stated floor.');
   process.exit(2);
 }
 
 const bankFile = JSON.parse(await Bun.file(new URL('./bank.json', import.meta.url).pathname).text());
-const items = bankFile.items.filter((it: any) => !EXCLUDE.some((d: string) => String(it.doctrine).includes(d)));
+let items = bankFile.items.filter((it: any) => !EXCLUDE.some((d: string) => String(it.doctrine).includes(d)));
+const LIMIT = Number(flag('limit') ?? 0); // smoke seam: first N items (exploratory only)
+if (LIMIT > 0) items = items.slice(0, LIMIT);
 console.log(`bank v${bankFile.meta.version}: ${items.length} items (${bankFile.items.length - items.length} excluded by doctrine tag) · arms: ${ARMS.join(', ')} · reps: ${REPS}`);
 console.log(H1 ? `REGISTERED: ${H1}` : 'EXPLORATORY RUN — no confirmatory claim will be made from this.');
 
@@ -52,10 +61,21 @@ const ROOM = `/tmp/recall-bank-room-${process.pid}`;
 await Bun.spawn(['mkdir', '-p', ROOM]).exited;
 const DENY = 'Bash,Read,Glob,Grep,WebSearch,WebFetch,Task,Edit,Write,NotebookEdit,TodoWrite';
 const sealed = async (model: string, input: string): Promise<string> => {
+  // Env by explicit deletion, never by spreading undefined — a spread
+  // undefined can reach the child as the string "undefined", a broken key
+  // that wedges the CLI at auth (the subCall lesson, relearned here).
+  const cleanEnv: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (v !== undefined && k !== 'ANTHROPIC_API_KEY' && k !== 'ANTHROPIC_AUTH_TOKEN' && k !== 'HARNESSMAP_INFERENCE') cleanEnv[k] = v;
+  }
   const p = Bun.spawn(['claude', '-p', '--model', model, '--disallowedTools', DENY],
-    { cwd: ROOM, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe', env: { ...process.env, ANTHROPIC_API_KEY: undefined, HARNESSMAP_INFERENCE: undefined } as any });
+    { cwd: ROOM, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe', env: cleanEnv });
   p.stdin.write(input); p.stdin.end();
-  const out = await new Response(p.stdout).text(); await p.exited; return out.trim();
+  // Drain BOTH pipes concurrently — an unread stderr fills its 64k buffer
+  // and deadlocks the child forever (found live: chattier hook stderr wedged
+  // the canary where the Sept-2 runs sailed through).
+  const [out] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
+  await p.exited; return out.trim();
 };
 // Canary: the seal must hold or nothing else is valid.
 // The canary must PROVE access, not claim it: only actually-read file
@@ -65,10 +85,26 @@ if (!/SEALED/.test(canary)) { console.error(`REFUSED: seal canary failed ("${can
 
 // ---- the answering cell (the shipped configuration) -----------------------
 const PRE = 'You are the assistant working with a two-founder team on their software product. Answer the user concretely in 2-5 sentences.';
-const briefing = async (question: string): Promise<string> => {
+const briefing = async (question: string, cellId: string): Promise<string> => {
+  if (PROJECT) await fetch(`${BASE}/api/projects/${PROJECT}/activate`, { method: 'POST' }).catch(() => {});
   const q = encodeURIComponent(question.slice(0, 1900));
-  const r = await (await fetch(`${BASE}/api/harness/context?prompt=${q}`)).json();
+  const r = await (await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(cellId)}&prompt=${q}`)).json();
   return r.context ?? '';
+};
+// The consent turn, automated (founder ruling: full automation — a user who
+// asked the question says yes). One pull per cell; the token's single use
+// and the untouched lit set are the product's own guarantees, not the test's.
+const OFFER_RE = /SET-ASIDE topic: "([^"]{1,80})"[\s\S]{0,200}?pullupToken "([a-z0-9-]{6,20})"/;
+const consentPull = async (brief: string): Promise<string> => {
+  const m = OFFER_RE.exec(brief);
+  if (!m) return '';
+  try {
+    const r = await (await fetch(`${BASE}/api/recall`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: m[1], pullupToken: m[2] }) })).json();
+    if (!r?.card) return '';
+    const d = (r.card.details ?? []).map((f: any) => `  - ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n');
+    return `USER: yes, pull it up.\n\nPULLED UP (this turn only): ${r.card.name}\n${r.card.statement}${r.card.minimal ? `\n${r.card.minimal}` : ''}${d ? `\n${d}` : ''}`;
+  } catch { return ''; }
 };
 const setServing = async (arm: string) => {
   await fetch(`${BASE}/api/dev/setting`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: 'memory_serving', value: arm === 'legacy' ? 'legacy' : '' }) });
@@ -94,28 +130,55 @@ const parseScore = (out: string): number | null => {
 interface Cell { item: string; arm: string; rep: number; answer: string; score: number | null; score2?: number | null }
 // Pin the lighting condition: 'all' lights every top-level chapter of the
 // active project; 'dark' unlights everything. Restored to dark after.
+if (PROJECT) await fetch(`${BASE}/api/projects/${PROJECT}/activate`, { method: 'POST' }).catch(() => {});
 const st0 = await (await fetch(`${BASE}/api/state`)).json();
 const chat0 = st0.chats.find((c: any) => c.id === st0.mainChatId);
 const setLit = async (nodeId: string, on: boolean) => { try { await fetch(`${BASE}/api/chats/${st0.mainChatId}/lit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId, on }) }); } catch {} };
 for (const id of chat0?.lit ?? []) await setLit(id, false);
 const tops0 = st0.nodes.filter((n: any) => n.parentId === null && n.status !== 'removed' && !(n.title === 'to sort' || String(n.content).startsWith('to sort')));
 if (LIGHTING === 'all') for (const t of tops0) await setLit(t.id, true);
+if (LIGHTING === 'realistic') {
+  // The founder-approved default: focus the most recently worked topic;
+  // light its chapter plus the two most recently touched other chapters.
+  const live = st0.nodes.filter((n: any) => n.status !== 'removed');
+  const byId0: Record<string, any> = Object.fromEntries(live.map((n: any) => [n.id, n]));
+  const chapterOf = (n: any): any => { let c = n; const seen = new Set<string>(); while (c?.parentId && byId0[c.parentId]?.parentId && !seen.has(c.id)) { seen.add(c.id); c = byId0[c.parentId]; } return c; };
+  const recent = [...live].filter((n: any) => !(n.parentId === null && (n.title === 'to sort' || String(n.content).startsWith('to sort')))).sort((x: any, y: any) => String(y.updatedAt ?? '').localeCompare(String(x.updatedAt ?? '')));
+  const chosen: string[] = [];
+  for (const n of recent) { const ch = chapterOf(n); if (ch && !chosen.includes(ch.id)) chosen.push(ch.id); if (chosen.length === 3) break; }
+  for (const cid of chosen) await setLit(cid, true);
+  if (recent[0]) await fetch(`${BASE}/api/chats/${st0.mainChatId}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: chapterOf(recent[0]).id }) }).catch(() => {});
+  console.log(`realistic aiming: focus+lit chapters = ${chosen.length}`);
+}
 let briefChars = 0; let briefN = 0;
 const cells: Cell[] = [];
-for (const arm of ARMS) {
-  await setServing(arm);
+// Equal budget is paired PER ITEM: the transcript slice for an item is the
+// tail of the real record cut to the exact length the map briefing had for
+// that same item (TEST-DESIGN §2). Map arms run first to fix the budgets.
+const mapBudget: Record<string, number> = {};
+const armOrder = [...ARMS].sort((x, y) => (x === 'transcript' ? 1 : 0) - (y === 'transcript' ? 1 : 0));
+for (const arm of armOrder) {
+  if (arm !== 'transcript') await setServing(arm);
   for (const it of items) {
-    const brief = await briefing(it.question);
+    let brief: string; let pulled = '';
+    if (arm === 'transcript') {
+      const budget = mapBudget[it.id] ?? Math.round(briefChars / Math.max(1, briefN));
+      brief = `[conversation record — most recent portion]\n` + transcriptText.slice(-budget);
+    } else {
+      brief = await briefing(it.question, `rb-${arm}-${it.id}`);
+      mapBudget[it.id] = brief.length;
+      pulled = await consentPull(brief);
+    }
     briefChars += brief.length; briefN++;
     for (let rep = 0; rep < REPS; rep++) {
-      const answer = await sealed('claude-sonnet-4-6', [PRE, brief, `USER: ${it.question}`].join('\n\n---\n\n'));
+      const answer = await sealed('claude-sonnet-4-6', [PRE, brief, `USER: ${it.question}`, pulled].filter(Boolean).join('\n\n---\n\n'));
       cells.push({ item: it.id, arm, rep, answer, score: null });
     }
-    console.log(`${arm}/${it.id} answered ×${REPS}`);
+    console.log(`${arm}/${it.id} answered ×${REPS}${pulled ? ' (consented pull-up served)' : ''}`);
   }
 }
 await setServing('on'); // restore default
-if (LIGHTING === 'all') for (const t of tops0) await setLit(t.id, false); // restore dark
+if (LIGHTING !== 'dark') { const stR = await (await fetch(`${BASE}/api/state`)).json(); for (const id of stR.chats.find((c: any) => c.id === stR.mainChatId)?.lit ?? []) await setLit(id, false); } // restore dark
 
 // grading: shuffled, blind (grader never sees the arm)
 const order = [...cells].sort((a, b) => Bun.hash(a.answer + a.item).toString().localeCompare(Bun.hash(b.answer + b.item).toString()));
@@ -154,6 +217,17 @@ const repDiffs: number[] = [];
 for (const arm of ARMS) for (const it of items) { const xs = byArm[arm]?.[it.id] ?? []; for (let i = 1; i < xs.length; i++) repDiffs.push(Math.abs(xs[i] - xs[0])); }
 const noise = repDiffs.length ? repDiffs.reduce((a, b) => a + b, 0) / repDiffs.length : NaN;
 
+// The per-item on-map check (M193 amendment): does the required fact exist
+// on the map at all — mechanical token coverage against node titles+content.
+const stM = await (await fetch(`${BASE}/api/state`)).json();
+const corpus = stM.nodes.filter((n: any) => n.status !== 'removed').map((n: any) => `${n.title ?? ''} ${n.content}`).join('\n').toLowerCase();
+const onMap: Record<string, boolean> = {};
+for (const it of items) {
+  const toks = String(it.required_fact).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w: string) => w.length > 4);
+  const hit = toks.filter((t: string) => corpus.includes(t)).length;
+  onMap[it.id] = toks.length > 0 && hit / toks.length >= 0.4;
+}
+
 const lines: string[] = [];
 lines.push(`lighting=${LIGHTING} briefing≈${briefN ? Math.round(briefChars / briefN) : 0}ch n_items=${items.length} reps=${REPS} kappa=${kappa.toFixed(2)} (${pairs.length} double-graded) noise=${noise.toFixed(2)}`);
 for (const arm of ARMS) lines.push(`arm ${arm}: mean ${armMean(arm).toFixed(2)}`);
@@ -163,7 +237,21 @@ if (ARMS.length === 2) {
   const mean = diffs.reduce((s: number, d: number) => s + d, 0) / diffs.length;
   const wins = diffs.filter((d: number) => d > 0).length; const losses = diffs.filter((d: number) => d < 0).length;
   lines.push(`paired ${a}-${b}: Δmean ${mean.toFixed(2)}, sign ${wins}-${losses}-${diffs.length - wins - losses}`);
-  lines.push(`VERDICT vs registered claim: ${H1} → ${mean >= 0.4 ? 'supported at face value (check CI before claiming)' : 'NOT supported'}`);
+  const minEff = Number((/([\d.]+)/.exec(H1 ?? '') ?? [])[1] ?? 0.4);
+  lines.push(`VERDICT vs registered claim: ${H1} → ${mean >= minEff ? 'supported at face value (check CI before claiming)' : 'NOT supported'}`);
+  // Decomposition for the first (map) arm: recalled / served-but-wrong / never-filed.
+  const mapArm = ARMS.find((x) => x !== 'transcript');
+  if (mapArm) {
+    let rec = 0, sbw = 0, nf = 0;
+    for (const it of items) {
+      const m2 = itemMean(mapArm, it.id);
+      if (m2 === null) continue;
+      if (!onMap[it.id]) nf++;
+      else if (m2 >= 1.5) rec++;
+      else sbw++;
+    }
+    lines.push(`decomposition(${mapArm}): recalled ${rec} · served-but-wrong ${sbw} · never-filed ${nf}`);
+  }
 }
 if (kappa < 0.7) lines.push('QUARANTINE: kappa < .70 — grades unreliable; revise rubrics before using this run.');
 if (bankFile.meta.authorship_gap) lines.push('CAVEAT: builder-authored bank.');
