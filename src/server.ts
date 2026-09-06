@@ -13,7 +13,7 @@ import { composeParts } from './seed/composer.js';
 import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/render.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
 import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
-import { proposeAutolit } from './translator/autolit.js';
+import { proposeAutolit, litSetCost, litCap, resultingLit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion } from './translator/mapchat.js';
@@ -252,37 +252,55 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
   try {
     const q = (promptText ?? '').trim();
     if (q.length < 8) return '';
-    const toks = q.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 3);
+    const STOP = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'should', 'would', 'about', 'what', 'when', 'how', 'our', 'are', 'was', 'were', 'have', 'has', 'does', 'user', 'users', 'map', 'node', 'nodes', 'agent', 'which', 'where', 'there', 'their', 'into', 'been', 'also', 'only', 'each', 'than', 'then', 'them', 'they', 'will', 'exactly', 'still']);
+    const toks = [...new Set(q.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 3 && !STOP.has(w)))];
     if (toks.length < 2) return '';
     const chat = store.getChat(chatId);
     if (!chat) return '';
     const litSet = new Set(store.getLit(chatId));
     const focusSet = new Set([chat.focusContainerId, ...descendantNodes(store, chat.focusContainerId)]);
-    let best: { n: any; sc: number } | null = null;
-    for (const n of store.getNodes(pid)) {
-      if (n.status === 'removed') continue;
+    // M199 (after the 2026-09-06 recall run): common words ("view", "served",
+    // "composition") let the wrong node win the count on 6 of 9 lost
+    // questions. A shared word now weighs by its rarity on this map, and up
+    // to three hits ride along instead of one.
+    const live = store.getNodes(pid).filter((n) => n.status !== 'removed');
+    const labelOf = (n: any) => `${n.title ?? ''} ${String(n.content).slice(0, 300)}`.toLowerCase();
+    const df = new Map<string, number>();
+    const labels = new Map<string, string>();
+    for (const n of live) { const l = labelOf(n); labels.set(n.id, l); for (const t of toks) if (l.includes(t)) df.set(t, (df.get(t) ?? 0) + 1); }
+    const weight = (t: string) => { const d = df.get(t) ?? 0; return d ? Math.log(1 + live.length / d) : 0; };
+    const scored: { n: any; sc: number; hits: number }[] = [];
+    for (const n of live) {
       if (focusSet.has(n.id)) continue; // near focus = already served in full
-      const label = `${n.title ?? ''} ${String(n.content).slice(0, 200)}`.toLowerCase();
-      let sc = 0;
-      for (const t of toks) if (label.includes(t)) sc++;
-      if (sc >= 2 && (!best || sc > best.sc)) best = { n, sc };
+      const l = labels.get(n.id)!;
+      let sc = 0, hits = 0;
+      for (const t of toks) if (l.includes(t)) { sc += weight(t); hits++; }
+      if (hits >= 2) scored.push({ n, sc, hits });
     }
-    if (!best) return '';
+    scored.sort((x, y) => y.sc - x.sc);
+    const top = scored.slice(0, 3).filter((h, i) => i === 0 || h.sc >= scored[0].sc * 0.7);
+    if (!top.length) return '';
+    const outs: string[] = [];
+    for (const best of top) {
     const name = best.n.title || String(best.n.content).slice(0, 60);
     if (litSet.has(best.n.id)) {
-      if (!includeLit) return '';
+      if (!includeLit) continue;
       // Lit but distant: serve the card directly — authorization exists.
       const c = getNodeCard(store, best.n.id);
       const details = c.details.filter((f: any) => f.status === 'current').slice(0, 6).map((f: any) => `  - ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n');
       store.audit('pullup_served_lit', { node: best.n.id.slice(0, 8) });
-      return `[harnessmap] the message touches "${name}" (lit, far from focus) — served in full for this turn:\n${best.n.content}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}`;
+      // Guard: a served hit is a node, not a document — cap it (an import root's content once rode along at 90k chars).
+      outs.push(`[harnessmap] the message touches "${name}" (lit, far from focus) — served in full for this turn:\n${String(best.n.content).slice(0, 2500)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}`.slice(0, 4000));
+      continue;
     }
     // Dim: a consented offer, never content.
     const token = randomUUID().slice(0, 13);
     pullupTokens.set(token, { nodeId: best.n.id, chatId, exp: Date.now() + 10 * 60_000, used: false });
     store.audit('pullup_offered', { node: best.n.id.slice(0, 8) });
     store.metric(pid, 'interaction.pullup_offered');
-    return `[harnessmap] The user's message touches a SET-ASIDE topic: "${name}". Its content is withheld. In one short line, offer to pull it up for this turn; if the user agrees, call recall with pullupToken "${token}" to receive it once (the lighting stays untouched). Never guess at its content.`;
+    outs.push(`[harnessmap] The user's message touches a SET-ASIDE topic: "${name}". Its content is withheld. In one short line, offer to pull it up for this turn; if the user agrees, call recall with pullupToken "${token}" to receive it once (the lighting stays untouched). Never guess at its content.`);
+    }
+    return outs.join('\n\n');
   } catch { return ''; }
 }
 // M195h/M195i: the shared filing pass — creates missing content inside an
@@ -1326,8 +1344,13 @@ const server = Bun.serve({
         const { lit = [], dim = [] } = body.apply;
         clearNudges();
         const pathA = focusPathOf(chatId);
-        for (const id of lit) for (const d of [id, ...descendantNodes(store, id)]) store.setLit(chatId, d, true);
+        // M199 guard: the block's budget is a hard limit, enforced here, not in a prompt.
+        const would = litSetCost(store, resultingLit(store, store.getLit(chatId), lit, dim, pathA));
+        const capNow = litCap(store);
+        if (would.chars > capNow) { store.audit('guard_lit_budget_apply', { nodes: would.nodes, chars: would.chars, cap: capNow }); return json({ error: `over budget: ${would.nodes} nodes ≈ ${would.chars} chars lit, limit ${capNow}` }, 409); }
+        // M199: dim first, then light — a lit child inside a dimmed chapter survives.
         for (const id of dim) for (const d of [id, ...descendantNodes(store, id)]) { if (!pathA.has(d)) store.setLit(chatId, d, false); }
+        for (const id of lit) for (const d of [id, ...descendantNodes(store, id)]) store.setLit(chatId, d, true);
         if (lit.length + dim.length > 0) { chats.noteMapChange(chatId, `background lighting auto-adjusted: ${body.summary ?? ''}`); reAnchorSessions(projectId, 'auto-light applied'); }
         broadcast({ type: 'map', ...state() });
         return json({ ok: true, lit: lit.length, dim: dim.length });
@@ -1335,7 +1358,7 @@ const server = Bun.serve({
       const r = await proposeAutolit(store, projectId, chat.focusContainerId, store.getLit(chatId), body.feedback, body.priorSummary);
       if ('error' in r) return json({ error: r.error }, 502);
       const name = (id: string) => nodeName(store.getNode(id));
-      return json({ ok: true, preview: true, summary: r.summary,
+      return json({ ok: true, preview: true, summary: r.summary, cost: r.cost, overBudget: r.overBudget,
         lit: r.lit.map((id) => ({ id, name: name(id) })), dim: r.dim.map((id) => ({ id, name: name(id) })) });
     }
 
@@ -2458,7 +2481,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         : null;
       if (anchor === null || (fullAnchor !== null && seq - fullAnchor > RE_ANCHOR_AFTER)) {
         let context = chats.harnessContext(ctxChatId, promptText);
-        const pullF = matchPullup(ctxPid, ctxChatId, promptText, false);
+        const pullF = matchPullup(ctxPid, ctxChatId, promptText, true); // M199: lit hits ride along on the first turn too — lit no longer means in-the-block once lit nodes fold
         if (pullF) context += `\n\n${pullF}`;
         if (refreshNotices.delete(sessionId)) {
           context += `\n\n[harnessmap] This FULL map view supersedes every earlier map block above. Briefly tell the user: you now have the full current view of the map; they can run /compact to clean up the old map data in this conversation — optional, everything works fine without it.`;

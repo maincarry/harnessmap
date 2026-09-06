@@ -414,7 +414,7 @@ export class Store {
   addTrace(t: { kind: string; task: string; model?: string; backend?: string; ms?: number; ok?: boolean; system?: string; user?: string; response?: string }): void {
     this.db.prepare('INSERT INTO dev_traces (kind, task, model, backend, ms, ok, system, user, response) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(t.kind, t.task, t.model ?? null, t.backend ?? null, t.ms ?? null, t.ok === false ? 0 : 1, t.system ?? null, t.user ?? null, t.response ?? null);
-    this.db.prepare('DELETE FROM dev_traces WHERE id NOT IN (SELECT id FROM dev_traces ORDER BY id DESC LIMIT 200)').run();
+    this.db.prepare('DELETE FROM dev_traces WHERE id NOT IN (SELECT id FROM dev_traces ORDER BY id DESC LIMIT 5000)').run();
   }
 
   getTraces(limit = 50, task?: string): any[] {

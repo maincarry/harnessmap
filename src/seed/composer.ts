@@ -268,10 +268,29 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     const msg = (userText ?? '').toLowerCase();
     const STOP = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'should', 'would', 'about', 'what', 'when', 'how', 'our', 'are', 'was', 'were', 'have', 'has']);
     const sig = (t: string) => t.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !STOP.has(w));
+    // M199 (after the 2026-09-06 recall run): the question names a node by
+    // MEANING-BEARING words, not only by its title. Nine of nineteen losses
+    // were questions that described a node in other words ("how many pulls
+    // in 18 cells" vs the node "Read-side miscalibration"). A word counts if
+    // it is rare on this map (in under 5% of nodes); a node is named when the
+    // question shares two rare words with its title, statement, or medium
+    // memory — or, as before, 60% of its title words.
+    const msgWords = new Set(sig(msg));
+    const docFreq = new Map<string, number>();
+    const nodeWords = new Map<string, Set<string>>();
+    for (const n of nodes) {
+      const ws = new Set(sig(`${n.title ?? ''} ${n.content} ${memByNode.get(n.id) ?? ''}`));
+      nodeWords.set(n.id, ws);
+      for (const w of ws) docFreq.set(w, (docFreq.get(w) ?? 0) + 1);
+    }
+    const rareCap = Math.max(3, Math.ceil(nodes.length * 0.05));
+    const rareInMsg = [...msgWords].filter((w) => (docFreq.get(w) ?? 0) > 0 && (docFreq.get(w) ?? 0) <= rareCap);
     const named = (id: string): boolean => {
       if (!msg) return false;
       const n = byIdC.get(id);
       if (!n) return false;
+      const ws = nodeWords.get(id);
+      if (ws && rareInMsg.length >= 2 && rareInMsg.filter((w) => ws.has(w)).length >= 2) return true;
       // Title and statement-head match separately — mixing them dilutes a
       // clean title hit below threshold.
       for (const toks of [sig(n.title ?? ''), sig(n.content.slice(0, 60))]) {
