@@ -2,6 +2,8 @@ import { Store } from '../store/db.js';
 import { systemCard } from './cast.js';
 import { call } from '../inference.js';
 import { loadMap, renderTree, descendantNodes } from '../map/render.js';
+import { renderTieredTree } from '../map/render.js';
+import { statusConsult } from './mapstatus.js';
 
 // Auto-focus / auto-zoom (v0.3.1, Jacob): the map agent RECOMMENDS a topic —
 // nothing is applied server-side; the client asks the user to confirm first.
