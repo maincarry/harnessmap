@@ -132,7 +132,7 @@ const parseScore = (out: string): number | null => {
 };
 
 // ---- run ------------------------------------------------------------------
-interface Cell { item: string; arm: string; rep: number; answer: string; score: number | null; score2?: number | null }
+interface Cell { item: string; arm: string; rep: number; answer: string; score: number | null; score2?: number | null; brief?: string; pulled?: string }
 // Pin the lighting condition: 'all' lights every top-level chapter of the
 // active project; 'dark' unlights everything. Restored to dark after.
 if (PROJECT) await fetch(`${BASE}/api/projects/${PROJECT}/activate`, { method: 'POST' }).catch(() => {});
@@ -184,7 +184,7 @@ for (const arm of armOrder) {
     briefChars += brief.length; briefN++;
     for (let rep = 0; rep < REPS; rep++) {
       const answer = await sealed('claude-sonnet-4-6', [PRE, brief, `USER: ${it.question}`, pulled].filter(Boolean).join('\n\n---\n\n'));
-      cells.push({ item: it.id, arm, rep, answer, score: null });
+      cells.push({ item: it.id, arm, rep, answer, score: null, ...(rep === 0 ? { brief, pulled } : {}) }); // the briefing is kept on rep 0: dev_traces hold only 200 rows, so this is the durable record of what the cell saw
     }
     console.log(`${arm}/${it.id} answered ×${REPS}${pulled ? ' (consented pull-up served)' : ''}`);
     await checkpoint();
