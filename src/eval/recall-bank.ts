@@ -34,6 +34,8 @@ const PROJECT = flag('project'); // project id to pin active (guards against ses
 // (2026-09-05): a 2h12m run held all 414 answers and grades in memory only,
 // then died at the finish line — nothing reached the ledger.
 const CKPT = flag('checkpoint') ?? `/tmp/recall-bank-ckpt.json`;
+const REAIM = args.includes('--reaim'); // product mode only: auto-focus + auto-light before EVERY question (the question as the conversation's tail)
+if (REAIM && LIGHTING !== 'product') { console.error('REFUSED: --reaim needs --lighting product (it re-aims through auto-focus and auto-light).'); process.exit(2); }
 
 // Doctrine: no comparison without a registered claim. Enforced, not advised.
 if (ARMS.length > 1 && !H1) {
@@ -171,6 +173,21 @@ if (LIGHTING === 'product') {
   const litN = stP.chats.find((c: any) => c.id === stP.mainChatId)?.lit?.length ?? 0;
   console.log(`product aiming: focus "${fr.name}" (${fr.reason?.slice(0, 80)}) · auto-light: ${lr.summary?.slice(0, 120)} · lit nodes ${litN} ≈ ${lr.cost?.chars ?? '?'} chars`);
 }
+let reaimRefusals = 0;
+const reaimFor = async (question: string): Promise<string> => {
+  // Per-question aiming (Jacob, 2026-09-06: "you are not auto-focusing on your
+  // way?"): the question is the conversation's tail; auto-focus picks the
+  // focus, auto-light lights for it under the budget guard. An over-budget or
+  // failed proposal keeps the previous aim and is counted, never hidden.
+  const post = async (path: string, body: any) => (await fetch(`${BASE}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json().catch(() => ({}));
+  const fr: any = await post(`/api/chats/${st0.mainChatId}/recommend`, { kind: 'focus', feedback: question });
+  if (fr?.containerId) await post(`/api/chats/${st0.mainChatId}/focus`, { nodeId: fr.containerId });
+  const lr: any = await post(`/api/chats/${st0.mainChatId}/autolit`, { preview: true, feedback: question });
+  if (!lr?.ok || lr?.overBudget) { reaimRefusals++; return `focus "${fr?.name ?? '?'}" · light kept (${lr?.overBudget ? 'over budget' : 'no proposal'})`; }
+  const ar: any = await post(`/api/chats/${st0.mainChatId}/autolit`, { apply: { lit: (lr.lit ?? []).map((x: any) => x.id), dim: (lr.dim ?? []).map((x: any) => x.id) }, summary: lr.summary });
+  if (!ar?.ok) { reaimRefusals++; return `focus "${fr?.name ?? '?'}" · light apply refused`; }
+  return `focus "${fr?.name ?? '?'}" · lit ${lr.cost?.nodes ?? '?'} nodes ≈ ${lr.cost?.chars ?? '?'} chars`;
+};
 let briefChars = 0; let briefN = 0;
 let cells: Cell[] = [];
 const mapBudget: Record<string, number> = {};
@@ -193,6 +210,7 @@ for (const arm of armOrder) {
       const budget = mapBudget[it.id] ?? Math.round(briefChars / Math.max(1, briefN));
       brief = `[conversation record — most recent portion]\n` + transcriptText.slice(-budget);
     } else {
+      if (REAIM) console.log(`  re-aim ${it.id}: ${await reaimFor(it.question)}`);
       brief = await briefing(it.question, `rb-${arm}-${it.id}`);
       mapBudget[it.id] = brief.length;
       pulled = await consentPull(brief);
@@ -266,7 +284,7 @@ for (const it of items) {
 }
 
 const lines: string[] = [];
-lines.push(`lighting=${LIGHTING} briefing≈${briefN ? Math.round(briefChars / briefN) : 0}ch n_items=${items.length} reps=${REPS} kappa=${kappa.toFixed(2)} (${pairs.length} double-graded) noise=${noise.toFixed(2)}`);
+lines.push(`lighting=${LIGHTING}${REAIM ? `+reaim(${reaimRefusals} refusals)` : ''} briefing≈${briefN ? Math.round(briefChars / briefN) : 0}ch n_items=${items.length} reps=${REPS} kappa=${kappa.toFixed(2)} (${pairs.length} double-graded) noise=${noise.toFixed(2)}`);
 for (const arm of ARMS) lines.push(`arm ${arm}: mean ${armMean(arm).toFixed(2)}`);
 if (ARMS.length === 2) {
   const [a, b] = ARMS;
