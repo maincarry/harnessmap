@@ -1314,7 +1314,7 @@ const server = Bun.serve({
     // confirms with the user before applying anything.
     const recMatch = path.match(/^\/api\/chats\/([\w-]+)\/recommend$/);
     if (recMatch && req.method === 'POST') {
-      const { kind, feedback, priorSummary } = await req.json() as { kind: 'focus' | 'zoom'; feedback?: string; priorSummary?: string };
+      const { kind, feedback, priorSummary, tail } = await req.json() as { kind: 'focus' | 'zoom'; feedback?: string; priorSummary?: string; tail?: string };
       if (kind !== 'focus' && kind !== 'zoom') return json({ error: 'kind must be focus|zoom' }, 400);
       // M75: an explicit ask already named the target — serve it for free
       // (unless the user is revising: feedback always goes to the specialist).
@@ -1324,7 +1324,7 @@ const server = Bun.serve({
           return json({ containerId: fn.id, name: nodeName(fn), reason: 'you asked in chat to focus on this' });
         }
       }
-      const r = await proposeTopicRec(store, projectId, recMatch[1], kind, feedback, priorSummary);
+      const r = await proposeTopicRec(store, projectId, recMatch[1], kind, feedback, priorSummary, tail); // tail: the caller's conversation tail when the chat itself holds none (the recall test hands the question over this way, M200)
       if ('error' in r) return json({ error: r.error }, 502);
       return json(r);
     }

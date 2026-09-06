@@ -9,6 +9,7 @@ import { statusConsult } from './mapstatus.js';
 // nothing is applied server-side; the client asks the user to confirm first.
 
 const FOCUS_SYSTEM = `You advise on where a goal-map conversation should aim next. Given the map (ids in [brackets]; ▶ marks the current focus) and the tail of the conversation, pick the ONE node that most deserves the conversation's focus now: open questions blocking progress, active work mid-flight, or a neglected commitment going stale. Prefer specific sub-nodes over broad parents. If the current focus is still clearly right, recommend it and say why.
+If the latest turn asks about a topic the map already holds, the conversation is aiming THERE now: the focus is the node that holds that topic (the tightest one), not the frontier of the work. (M200, Jacob: the focus follows the question.)
 
 containerId can be ANY node's id — focusing on a specific claim/option/question is allowed and often right. Prefer the tightest node that captures where the conversation should aim.
 
@@ -29,13 +30,13 @@ export interface TopicRec { containerId: string; name: string; reason: string }
 
 export async function proposeTopicRec(
   store: Store, projectId: string, chatId: string, kind: 'focus' | 'zoom',
-  feedback?: string, priorSummary?: string,
+  feedback?: string, priorSummary?: string, tailOverride?: string,
 ): Promise<TopicRec | { error: string }> {
   const map = loadMap(store, projectId);
   const chat = store.getChats(projectId).find((c) => c.id === chatId);
   // M194 (Jacob): tiered context, same model as the chat briefing.
   const tree = renderTieredTree(store, projectId, chat?.focusContainerId ?? null, 40_000);
-  const tail = store.getTurns(chatId).slice(-6)
+  const tail = tailOverride ?? store.getTurns(chatId).slice(-6)
     .map((t) => `${t.role.toUpperCase()}: ${t.content.slice(0, 400)}`).join('\n');
 
   // Mechanical deepest-match guard (same haiku parent-bias as mapchat, bench-
@@ -43,6 +44,21 @@ export async function proposeTopicRec(
   // picked node, retarget to the best-matching descendant.
   const STOP = new Set(['the', 'this', 'that', 'with', 'about', 'want', 'focus', 'work', 'stuff', 'not']);
   const toks = (t: string) => new Set(t.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)));
+  // M200 guard: a question names its topic in its own words. When the model's
+  // pick shares no words with the latest turn but some node anywhere shares
+  // two RARE ones (rare = in under 5% of nodes), the focus goes there.
+  const wholeMapMatch = (text: string, pickedId: string): string => {
+    const live = map.nodes.filter((n: any) => n.status !== 'removed');
+    const words = new Map<string, Set<string>>(); const df = new Map<string, number>();
+    for (const n of live) { const ws = toks(`${n.title ?? ''} ${n.content}`); words.set(n.id, ws); for (const w of ws) df.set(w, (df.get(w) ?? 0) + 1); }
+    const cap = Math.max(3, Math.ceil(live.length * 0.05));
+    const rare = [...toks(text)].filter((w) => (df.get(w) ?? 0) > 0 && (df.get(w) ?? 0) <= cap);
+    const pickedWords = words.get(pickedId) ?? new Set<string>();
+    if (rare.length < 2 || rare.some((w) => pickedWords.has(w))) return pickedId;
+    let best = pickedId, bestN = 1;
+    for (const n of live) { const c = rare.filter((w) => words.get(n.id)!.has(w)).length; if (c > bestN) { best = n.id; bestN = c; } }
+    return best;
+  };
   const deepestMatch = (text: string, pickedId: string): string => {
     const qt = toks(text);
     const score = (id: string) => { const n = store.getNode(id); if (!n || n.status === 'removed') return -1; const nt = toks(`${n.title ?? ''} ${n.content}`); let c = 0; for (const w of qt) if (nt.has(w)) c++; return c; };
@@ -66,9 +82,11 @@ export async function proposeTopicRec(
       return { error: 'the model recommended an unknown topic — try again' };
     }
     let targetId = c.id;
-    if (feedback) {
-      const better = deepestMatch(feedback, c.id);
-      if (better !== c.id) { store.audit('recommend_retarget', { from: c.id.slice(0, 8), to: better.slice(0, 8) }); targetId = better; }
+    const direction = feedback || (kind === 'focus' ? (tailOverride ?? '') : '');
+    if (direction) {
+      const whole = wholeMapMatch(direction, c.id);
+      const better = deepestMatch(direction, whole);
+      if (better !== c.id) { store.audit('recommend_retarget', { from: c.id.slice(0, 8), to: better.slice(0, 8), whole: whole !== c.id }); targetId = better; }
     }
     const t = store.getNode(targetId)!;
     return { containerId: t.id, name: t.title || t.content, reason: parsed.reason ?? '' };

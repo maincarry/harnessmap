@@ -180,9 +180,9 @@ const reaimFor = async (question: string): Promise<string> => {
   // focus, auto-light lights for it under the budget guard. An over-budget or
   // failed proposal keeps the previous aim and is counted, never hidden.
   const post = async (path: string, body: any) => (await fetch(`${BASE}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json().catch(() => ({}));
-  const fr: any = await post(`/api/chats/${st0.mainChatId}/recommend`, { kind: 'focus', feedback: question });
+  const fr: any = await post(`/api/chats/${st0.mainChatId}/recommend`, { kind: 'focus', tail: `USER: ${question}` });
   if (fr?.containerId) await post(`/api/chats/${st0.mainChatId}/focus`, { nodeId: fr.containerId });
-  const lr: any = await post(`/api/chats/${st0.mainChatId}/autolit`, { preview: true, feedback: question });
+  const lr: any = await post(`/api/chats/${st0.mainChatId}/autolit`, { preview: true, feedback: `The user's latest message: ${question}` });
   if (!lr?.ok || lr?.overBudget) { reaimRefusals++; return `focus "${fr?.name ?? '?'}" · light kept (${lr?.overBudget ? 'over budget' : 'no proposal'})`; }
   const ar: any = await post(`/api/chats/${st0.mainChatId}/autolit`, { apply: { lit: (lr.lit ?? []).map((x: any) => x.id), dim: (lr.dim ?? []).map((x: any) => x.id) }, summary: lr.summary });
   if (!ar?.ok) { reaimRefusals++; return `focus "${fr?.name ?? '?'}" · light apply refused`; }
