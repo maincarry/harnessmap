@@ -29,6 +29,11 @@ const EXCLUDE = (flag('exclude-doctrine') ?? '').split(',').filter(Boolean);
 const LIGHTING = flag('lighting'); // 'all' | 'dark' | 'realistic' — the condition is part of the design, never inherited state
 const TRANSCRIPT = flag('transcript'); // path to the conversation record; required when arm 'transcript' runs
 const PROJECT = flag('project'); // project id to pin active (guards against session follow-mode flips mid-run)
+// Every answer and every grade is written to disk the moment it exists, and a
+// re-launch with the same --checkpoint resumes from it. Learned the hard way
+// (2026-09-05): a 2h12m run held all 414 answers and grades in memory only,
+// then died at the finish line — nothing reached the ledger.
+const CKPT = flag('checkpoint') ?? `/tmp/recall-bank-ckpt.json`;
 
 // Doctrine: no comparison without a registered claim. Enforced, not advised.
 if (ARMS.length > 1 && !H1) {
@@ -151,15 +156,22 @@ if (LIGHTING === 'realistic') {
   console.log(`realistic aiming: focus+lit chapters = ${chosen.length}`);
 }
 let briefChars = 0; let briefN = 0;
-const cells: Cell[] = [];
+let cells: Cell[] = [];
+const mapBudget: Record<string, number> = {};
+if (await Bun.file(CKPT).exists()) {
+  const ck = JSON.parse(await Bun.file(CKPT).text());
+  cells = ck.cells ?? []; briefChars = ck.briefChars ?? 0; briefN = ck.briefN ?? 0; Object.assign(mapBudget, ck.mapBudget ?? {});
+  console.log(`RESUMED from ${CKPT}: ${cells.length} cells (${cells.filter((c) => c.score !== null).length} graded, ${cells.filter((c) => c.score2 !== undefined).length} double-graded)`);
+}
+const checkpoint = async () => { await Bun.write(CKPT, JSON.stringify({ cells, briefChars, briefN, mapBudget })); };
 // Equal budget is paired PER ITEM: the transcript slice for an item is the
 // tail of the real record cut to the exact length the map briefing had for
 // that same item (TEST-DESIGN §2). Map arms run first to fix the budgets.
-const mapBudget: Record<string, number> = {};
 const armOrder = [...ARMS].sort((x, y) => (x === 'transcript' ? 1 : 0) - (y === 'transcript' ? 1 : 0));
 for (const arm of armOrder) {
   if (arm !== 'transcript') await setServing(arm);
   for (const it of items) {
+    if (cells.filter((c) => c.arm === arm && c.item === it.id).length >= REPS) continue; // resumed
     let brief: string; let pulled = '';
     if (arm === 'transcript') {
       const budget = mapBudget[it.id] ?? Math.round(briefChars / Math.max(1, briefN));
@@ -175,6 +187,7 @@ for (const arm of armOrder) {
       cells.push({ item: it.id, arm, rep, answer, score: null });
     }
     console.log(`${arm}/${it.id} answered ×${REPS}${pulled ? ' (consented pull-up served)' : ''}`);
+    await checkpoint();
   }
 }
 await setServing('on'); // restore default
@@ -183,18 +196,26 @@ if (LIGHTING !== 'dark') { const stR = await (await fetch(`${BASE}/api/state`)).
 // grading: shuffled, blind (grader never sees the arm)
 const order = [...cells].sort((a, b) => Bun.hash(a.answer + a.item).toString().localeCompare(Bun.hash(b.answer + b.item).toString()));
 for (let i = 0; i < order.length; i += 8) {
-  await Promise.all(order.slice(i, i + 8).map(async (c) => {
+  await Promise.all(order.slice(i, i + 8).filter((c) => c.score === null).map(async (c) => {
     const it = items.find((x: any) => x.id === c.item)!;
     c.score = parseScore(await sealed('claude-haiku-4-5', graderPrompt(it.question, it.required_fact, it.wrong_answers, c.answer)));
   }));
+  await checkpoint();
   console.log(`graded ${Math.min(i + 8, order.length)}/${order.length}`);
 }
 // reliability: 20% double-graded by a second model → Cohen's kappa
+// Batched like grading: the unbatched version launched every double-grade at
+// once — ~83 concurrent CLI processes — and the OOM killer took the whole
+// user session with it (2026-09-05 06:21).
 const sample = order.filter((_, i) => i % 5 === 0);
-await Promise.all(sample.map(async (c) => {
-  const it = items.find((x: any) => x.id === c.item)!;
-  c.score2 = parseScore(await sealed('claude-sonnet-4-6', graderPrompt(it.question, it.required_fact, it.wrong_answers, c.answer)));
-}));
+for (let i = 0; i < sample.length; i += 8) {
+  await Promise.all(sample.slice(i, i + 8).filter((c) => c.score2 === undefined).map(async (c) => {
+    const it = items.find((x: any) => x.id === c.item)!;
+    c.score2 = parseScore(await sealed('claude-sonnet-4-6', graderPrompt(it.question, it.required_fact, it.wrong_answers, c.answer)));
+  }));
+  await checkpoint();
+  console.log(`double-graded ${Math.min(i + 8, sample.length)}/${sample.length}`);
+}
 const pairs = sample.filter((c) => c.score !== null && c.score2 != null);
 const kappa = (() => {
   const n = pairs.length; if (!n) return NaN;
