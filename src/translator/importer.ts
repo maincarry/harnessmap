@@ -324,7 +324,8 @@ export async function proposeImportLarge(
       for (const a of alterations as any[]) {
         if (a.op !== 'create_node') continue;
         let p = a.parentId;
-        while (p && parentOf.has(p)) {
+        const hops = new Set<string>();
+        while (p && parentOf.has(p) && !hops.has(p)) { hops.add(p);
           if (parentOf.get(p) === rootId) { childCount.set(p, (childCount.get(p) ?? 0) + 1); break; }
           p = parentOf.get(p);
         }

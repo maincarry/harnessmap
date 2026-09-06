@@ -41,7 +41,7 @@ export function measureMap(store: Store, projectId: string): MapInstruments {
   for (const n of nodes) if (n.parentId) kids.set(n.parentId, (kids.get(n.parentId) ?? 0) + 1);
   const depth = (id: string): number => {
     let d = 0; let p = byId.get(id)?.parentId;
-    while (p && byId.has(p)) { d++; p = byId.get(p)!.parentId; }
+    while (p && byId.has(p) && d < 256) { d++; p = byId.get(p)!.parentId; } // bounded: a parent cycle is not infinite depth
     return d;
   };
   const dh: Record<number, number> = {};
@@ -189,7 +189,8 @@ export function statusConsult(store: Store, projectId: string, forNodeId?: strin
       const db = (store as any).db;
       let p: string | null | undefined = forNodeId;
       let chapter: string | null = null;
-      while (p) { const n = store.getNode(p); if (!n) break; if (!n.parentId || !store.getNode(n.parentId)?.parentId) { chapter = n.parentId ? p : p; break; } p = n.parentId; }
+      const hops = new Set<string>();
+      while (p && !hops.has(p)) { hops.add(p); const n = store.getNode(p); if (!n) break; if (!n.parentId || !store.getNode(n.parentId)?.parentId) { chapter = n.parentId ? p : p; break; } p = n.parentId; }
       if (chapter) {
         const a = (db.prepare('SELECT text FROM chapter_assessments WHERE project_id = ? AND chapter_id = ?').get(projectId, chapter) as any);
         if (a?.text) parts.push(`THIS AREA'S ASSESSMENT: ${a.text}`);
@@ -269,8 +270,8 @@ export function runContentScan(store: Store, projectId: string): ContentScan {
   const mainRoot = tops.length === 1 ? tops[0] : null;
   const chapterNodes = mainRoot ? (kids.get(mainRoot.id) ?? []) : tops;
   const subtree = (id: string): typeof nodes => {
-    const out: typeof nodes = []; const st = [...(kids.get(id) ?? [])];
-    while (st.length) { const x = st.pop()!; out.push(x); st.push(...(kids.get(x.id) ?? [])); }
+    const out: typeof nodes = []; const st = [...(kids.get(id) ?? [])]; const seen = new Set<string>([id]);
+    while (st.length) { const x = st.pop()!; if (seen.has(x.id)) continue; seen.add(x.id); out.push(x); st.push(...(kids.get(x.id) ?? [])); }
     return out;
   };
   const chapters = chapterNodes.map((c) => {

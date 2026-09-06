@@ -135,6 +135,14 @@ async function subCall(opts: CallOpts, model: string): Promise<any> {
     for (const [k, v] of Object.entries(process.env)) {
       if (v !== undefined && k !== 'ANTHROPIC_API_KEY' && k !== 'ANTHROPIC_AUTH_TOKEN') cleanEnv[k] = v;
     }
+    // M200/M201 (2026-09-06): the subscription path had NO timeout. It was
+    // bounded while chasing the re-aim run's hangs; the hang itself turned out
+    // to be the server's own tree walk looping on a parent cycle (M201), not a
+    // wedged child — but a child that never answers would wedge inference the
+    // same way, so the bound stays: past timeoutMs the child is aborted and
+    // the call fails loudly, like the API path. stderr is always drained so a
+    // chatty child cannot block on a full pipe.
+    const ac = new AbortController();
     const q = query({
       prompt,
       options: {
@@ -144,15 +152,25 @@ async function subCall(opts: CallOpts, model: string): Promise<any> {
         permissionMode: 'bypassPermissions',
         systemPrompt: opts.system + jsonNote,
         env: cleanEnv,
-        ...(process.env.HARNESSMAP_CLI_STDERR === '1' ? { stderr: (d: string) => console.error('[cli stderr]', String(d).slice(0, 800)) } : {}),
+        abortController: ac,
+        stderr: (d: string) => { if (process.env.HARNESSMAP_CLI_STDERR === '1') console.error('[cli stderr]', String(d).slice(0, 800)); },
       },
     } as any);
+    const limitMs = opts.timeoutMs ?? 120_000;
+    let timedOut = false;
+    const timer = setTimeout(() => { timedOut = true; try { ac.abort(); } catch {} }, limitMs);
     let text = '';
-    for await (const msg of q as any) {
-      if (msg.type === 'assistant') {
-        for (const b of msg.message?.content ?? []) if (b.type === 'text') text += b.text;
+    try {
+      for await (const msg of q as any) {
+        if (msg.type === 'assistant') {
+          for (const b of msg.message?.content ?? []) if (b.type === 'text') text += b.text;
+        }
       }
-    }
+    } catch (e) {
+      if (timedOut) throw new Error(`subscription backend: no answer within ${limitMs}ms (child aborted)`);
+      throw e;
+    } finally { clearTimeout(timer); }
+    if (timedOut) throw new Error(`subscription backend: no answer within ${limitMs}ms (child aborted)`);
     if (!opts.schema) return text;
     const stripped = text.trim().replace(/^```(json)?\s*/i, '').replace(/\s*```$/, '');
     try {

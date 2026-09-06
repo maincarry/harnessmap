@@ -310,6 +310,26 @@ export class Store {
   }
 
   // ---- audit log (M63): harness decisions, model calls, guard actions ----
+  // Break every parent cycle in the table: for each cycle one member is
+  // re-homed to top level (audited). Returns the re-homed ids. Runs on boot.
+  repairCycles(): string[] {
+    const rows = this.db.prepare('SELECT id, parent_id FROM nodes').all() as { id: string; parent_id: string | null }[];
+    const par = new Map(rows.map((r) => [r.id, r.parent_id]));
+    const fixed: string[] = [];
+    for (const r of rows) {
+      const seen = new Set<string>();
+      let x: string | null | undefined = r.id;
+      while (x && par.has(x) && !seen.has(x)) { seen.add(x); x = par.get(x); }
+      if (x && seen.has(x)) { // x sits on a cycle — cut it there
+        par.set(x, null);
+        this.moveNode(x, null);
+        this.audit('cycle_repaired', { id: x.slice(0, 8), rehomed: 'top' });
+        fixed.push(x);
+      }
+    }
+    return fixed;
+  }
+
   audit(kind: string, detail: Record<string, unknown> = {}): void {
     try {
       this.db.prepare('INSERT INTO audit_log (kind, detail) VALUES (?, ?)').run(kind, JSON.stringify(detail));
@@ -518,9 +538,25 @@ export class Store {
     try {
       switch (a.op) {
         // ---- canonical node ops ----
-        case 'create_node':
+        case 'create_node': {
           this.createNode({ id: a.id, projectId, parentId: a.parentId ?? null, content: a.content, type: a.type ?? null, status: a.status ?? 'live', author: a.author ?? 'agent', title: (a as any).title ?? null });
+          // Cycle guard for creation (found 2026-09-06: a find-and-file batch
+          // declared two nodes as each other's parent — the second create
+          // closed the loop the first had left dangling — and every tree walk
+          // then ran until the OOM killer took the server). After the create,
+          // the new node's ancestor chain must not come back to it; if it
+          // does, the NEW node goes to top level and the audit says so.
+          {
+            const hops = new Set<string>([a.id]);
+            let cyc = false;
+            for (let anc = a.parentId ? this.getNode(a.parentId) : undefined; anc; anc = anc.parentId ? this.getNode(anc.parentId) : undefined) {
+              if (hops.has(anc.id)) { cyc = true; break; }
+              hops.add(anc.id);
+            }
+            if (cyc) { this.moveNode(a.id, null); this.audit('create_cycle_guard', { id: String(a.id).slice(0, 8), parent: String(a.parentId).slice(0, 8), rehomed: 'top' }); }
+          }
           break;
+        }
         case 'update_node':
           this.updateNode(a.id, { content: a.content, status: a.status, type: a.type, title: (a as any).title });
           break;

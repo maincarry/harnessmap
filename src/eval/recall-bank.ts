@@ -162,12 +162,13 @@ if (LIGHTING === 'product') {
   // the focus, auto-light (with the map status agent's advice and the budget
   // guard) picks the light. The test measures the product's own aiming, not a
   // timestamp rule; an over-budget proposal is a refusal, not a run.
-  const fr = await (await fetch(`${BASE}/api/chats/${st0.mainChatId}/recommend`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'focus' }) })).json();
+  const postP = async (path: string, body: any): Promise<any> => { try { return await (await fetch(`${BASE}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(240_000) })).json(); } catch (e) { return { error: String(e).slice(0, 120) }; } };
+  const fr = await postP(`/api/chats/${st0.mainChatId}/recommend`, { kind: 'focus' });
   if (!fr?.containerId) { console.error(`REFUSED: auto-focus gave no target (${JSON.stringify(fr).slice(0, 200)})`); process.exit(2); }
   await fetch(`${BASE}/api/chats/${st0.mainChatId}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: fr.containerId }) });
-  const lr = await (await fetch(`${BASE}/api/chats/${st0.mainChatId}/autolit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ preview: true }) })).json();
+  const lr = await postP(`/api/chats/${st0.mainChatId}/autolit`, { preview: true });
   if (lr?.overBudget || !lr?.ok) { console.error(`REFUSED: auto-light proposal unusable — ${lr?.summary ?? lr?.error ?? '?'}`); process.exit(2); }
-  const ar = await (await fetch(`${BASE}/api/chats/${st0.mainChatId}/autolit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ apply: { lit: (lr.lit ?? []).map((x: any) => x.id), dim: (lr.dim ?? []).map((x: any) => x.id) }, summary: lr.summary }) })).json();
+  const ar = await postP(`/api/chats/${st0.mainChatId}/autolit`, { apply: { lit: (lr.lit ?? []).map((x: any) => x.id), dim: (lr.dim ?? []).map((x: any) => x.id) }, summary: lr.summary });
   if (!ar?.ok) { console.error(`REFUSED: auto-light apply refused — ${ar?.error ?? '?'}`); process.exit(2); }
   const stP = await (await fetch(`${BASE}/api/state`)).json();
   const litN = stP.chats.find((c: any) => c.id === stP.mainChatId)?.lit?.length ?? 0;

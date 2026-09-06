@@ -68,7 +68,8 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const descendantsC = (id: string): string[] => {
     const out: string[] = [];
     const stack = [...(kidsOfC.get(id) ?? [])];
-    while (stack.length) { const n = stack.pop()!; out.push(n.id); stack.push(...(kidsOfC.get(n.id) ?? [])); }
+    const seen = new Set<string>([id]); // a parent cycle must not grow this forever (it did, 2026-09-06)
+    while (stack.length) { const n = stack.pop()!; if (seen.has(n.id)) continue; seen.add(n.id); out.push(n.id); stack.push(...(kidsOfC.get(n.id) ?? [])); }
     return out;
   };
 
@@ -257,7 +258,8 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     const chapterOf = (id: string): string => {
       let cur = id;
       let p = byIdC.get(id)?.parentId;
-      while (p && byIdC.get(p) && byIdC.get(p)!.parentId) { cur = p; p = byIdC.get(p)!.parentId; }
+      const hops = new Set<string>([id]);
+      while (p && byIdC.get(p) && byIdC.get(p)!.parentId && !hops.has(p)) { hops.add(p); cur = p; p = byIdC.get(p)!.parentId; }
       return p ? cur : id;
     };
     const focusChapter = chapterOf(focusId);

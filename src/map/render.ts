@@ -37,9 +37,14 @@ export function renderTree(map: MapView, opts: { focusId?: string; ids?: boolean
     children.get(n.parentId)!.push(n);
   }
   const lines: string[] = [];
+  // Every walk below carries a visited set: a parent cycle in the data (one
+  // shipped 2026-09-04 and took the server down on 2026-09-06) must cost a
+  // skipped node, never the process.
+  const seen = new Set<string>();
   const walk = (parentId: string | null, depth: number) => {
     for (const n of children.get(parentId) ?? []) {
-      if (n.status === 'removed') continue;
+      if (n.status === 'removed' || seen.has(n.id)) continue;
+      seen.add(n.id);
       const marker = n.id === opts.focusId ? '▶ ' : '';
       lines.push(`${'  '.repeat(depth)}${marker}${nodeLine(n, opts)}`);
       walk(n.id, depth + 1);
@@ -60,21 +65,23 @@ export function descendantNodes(store: Store, nodeId: string): string[] {
     byParent.get(x.parentId)!.push(x.id);
   }
   const out: string[] = [];
+  const seen = new Set<string>([nodeId]);
   const walk = (id: string) => {
-    for (const kid of byParent.get(id) ?? []) { out.push(kid); walk(kid); }
+    for (const kid of byParent.get(id) ?? []) { if (seen.has(kid)) continue; seen.add(kid); out.push(kid); walk(kid); }
   };
   walk(nodeId);
   return out;
 }
 
 // A node + all its descendants in full detail (the focus view).
-export function renderSubtreeFull(store: Store, nodeId: string, depth = 0): string {
+export function renderSubtreeFull(store: Store, nodeId: string, depth = 0, seen: Set<string> = new Set()): string {
   const n = store.getNode(nodeId);
-  if (!n || n.status === 'removed') return '';
+  if (!n || n.status === 'removed' || seen.has(nodeId)) return '';
+  seen.add(nodeId);
   const pad = '  '.repeat(depth);
   const lines = [`${pad}${nodeLine(n)}`];
   for (const kid of store.childrenOf(nodeId)) {
-    const sub = renderSubtreeFull(store, kid.id, depth + 1);
+    const sub = renderSubtreeFull(store, kid.id, depth + 1, seen);
     if (sub) lines.push(sub);
   }
   return lines.join('\n');
@@ -120,14 +127,14 @@ export function renderScopedTree(map: MapView, scope: Set<string>, opts: { focus
     children.get(n.parentId)!.push(n);
   }
   const byId = new Map(map.nodes.map((n) => [n.id, n]));
-  const subtreeCount = (id: string): number => {
+  const subtreeCount = (id: string, seen: Set<string> = new Set([id])): number => {
     let c = 0;
-    for (const k of children.get(id) ?? []) { if (k.status !== 'removed') c += 1 + subtreeCount(k.id); }
+    for (const k of children.get(id) ?? []) { if (k.status !== 'removed' && !seen.has(k.id)) { seen.add(k.id); c += 1 + subtreeCount(k.id, seen); } }
     return c;
   };
-  const subtreeTouch = (id: string): string => {
+  const subtreeTouch = (id: string, seen: Set<string> = new Set([id])): string => {
     let max = byId.get(id)?.updatedAt ?? '';
-    for (const k of children.get(id) ?? []) { const t = subtreeTouch(k.id); if (t > max) max = t; }
+    for (const k of children.get(id) ?? []) { if (seen.has(k.id)) continue; seen.add(k.id); const t = subtreeTouch(k.id, seen); if (t > max) max = t; }
     return max;
   };
   const dimLine = (n: MapNode, depth: number) => {
@@ -135,9 +142,11 @@ export function renderScopedTree(map: MapView, scope: Set<string>, opts: { focus
     const c = subtreeCount(n.id);
     return `${'  '.repeat(depth)}(dim) ${name}${c ? ` — ${c} node(s) inside, not shown` : ''} [${n.id.slice(0, 8)}]`;
   };
+  const seenW = new Set<string>();
   const walk = (parentId: string | null, depth: number, out: string[]) => {
     for (const n of children.get(parentId) ?? []) {
-      if (n.status === 'removed') continue;
+      if (n.status === 'removed' || seenW.has(n.id)) continue;
+      seenW.add(n.id);
       const marker = n.id === opts.focusId ? '▶ ' : '';
       if (scope.has(n.id)) {
         out.push(`${'  '.repeat(depth)}${marker}${nodeLine(n, { ids: true })}`);
@@ -171,7 +180,8 @@ export function renderScopedTree(map: MapView, scope: Set<string>, opts: { focus
     const focusTop = opts.focusId ? (map.nodes.find((n) => n.id === opts.focusId) ?? null) : null;
     const focusTopId = (() => {
       let cur = focusTop;
-      while (cur && cur.parentId) cur = byId.get(cur.parentId) ?? null;
+      const hops = new Set<string>();
+      while (cur && cur.parentId && !hops.has(cur.id)) { hops.add(cur.id); cur = byId.get(cur.parentId) ?? null; }
       return cur?.id;
     })();
     for (const r of [...rendered].sort((a, b) => (a.touch < b.touch ? -1 : 1))) {
@@ -190,7 +200,9 @@ export function renderScopedTree(map: MapView, scope: Set<string>, opts: { focus
 export function ancestors(store: Store, nodeId: string): MapNode[] {
   const chain: MapNode[] = [];
   let cur = store.getNode(nodeId);
-  while (cur && cur.parentId) {
+  const seen = new Set<string>([nodeId]);
+  while (cur && cur.parentId && !seen.has(cur.parentId)) {
+    seen.add(cur.parentId);
     const parent = store.getNode(cur.parentId);
     if (!parent) break;
     chain.unshift(parent);
@@ -226,7 +238,8 @@ export function renderTieredTree(store: any, projectId: string, focusId: string 
   }
   const chapterOf = (id: string): string => {
     let cur = id; let p = byId.get(id)?.parentId;
-    while (p && byId.get(p) && byId.get(p)!.parentId) { cur = p; p = byId.get(p)!.parentId; }
+    const hops = new Set<string>([id]);
+    while (p && byId.get(p) && byId.get(p)!.parentId && !hops.has(p)) { hops.add(p); cur = p; p = byId.get(p)!.parentId; }
     return p ? cur : id;
   };
   const focusChapter = focusId ? chapterOf(focusId) : null;
@@ -235,8 +248,11 @@ export function renderTieredTree(store: any, projectId: string, focusId: string 
     (focusChapter && chapterOf(id) === focusChapter ? 2 : 0) + ((byId.get(id)?.updatedAt ?? '') > dayAgo ? 1 : 0);
   interface E { n: MapNode; depth: number; line: string }
   const entries: E[] = [];
+  const seenT = new Set<string>();
   const walk = (pid: string | null, depth: number) => {
     for (const n of kids.get(pid) ?? []) {
+      if (seenT.has(n.id)) continue;
+      seenT.add(n.id);
       const short = (n.title || (n.content.length > 70 ? n.content.slice(0, 69) + '…' : n.content));
       const mark = n.id === focusId ? '▶ ' : '';
       const min = minBy.get(n.id);
@@ -250,7 +266,7 @@ export function renderTieredTree(store: any, projectId: string, focusId: string 
   let cap = Math.max(...entries.map((e) => e.depth));
   const sizeAt = (c: number) => entries.filter((e) => e.depth <= c).reduce((s, e) => s + e.line.length + 1, 0);
   while (cap > 1 && sizeAt(cap) > budget * 0.6) cap--;
-  const below = (id: string): number => { let s = 0; const st = [...(kids.get(id) ?? [])]; while (st.length) { const x = st.pop()!; s++; st.push(...(kids.get(x.id) ?? [])); } return s; };
+  const below = (id: string): number => { let s = 0; const seenB = new Set<string>([id]); const st = [...(kids.get(id) ?? [])]; while (st.length) { const x = st.pop()!; if (seenB.has(x.id)) continue; seenB.add(x.id); s++; st.push(...(kids.get(x.id) ?? [])); } return s; };
   const visible = entries.filter((e) => e.depth <= cap);
   let used = 0;
   const parts = new Map<string, string[]>();

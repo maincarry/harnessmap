@@ -52,6 +52,11 @@ if (process.env.HARNESSMAP_HOME) {
 }
 
 const store = new Store(DB_PATH);
+// A parent cycle in the data (2026-09-06: two find-and-file nodes as each
+// other's parent) sent every tree walk into an endless loop and the OOM
+// killer took the server, the tmux scope and the Claude session. Broken on
+// boot, loudly; the store's create/move guards keep new ones out.
+for (const id of store.repairCycles()) console.error(`[store] parent cycle broken: ${id} re-homed to top level`);
 setTraceSink((t) => { if (store.getSetting('dev_mode') === '1') store.addTrace(t); });
 setMetricsSink((m) => store.metric(projectId, 'cost.call', m.approxTokens, { task: m.task, model: m.model }));
 const translator = new Translator(store);
@@ -1660,7 +1665,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       if (depth === 'around') {
         const chain: any[] = [];
         let p = rn.parentId;
-        while (p) { const a = store.getNode(p); if (!a || a.status === 'removed') break; chain.push({ id: a.id, name: a.title || a.content, minimal: getNodeCard(store, a.id).minimal }); p = a.parentId; }
+        const hops = new Set<string>([rn.id]);
+        while (p && !hops.has(p)) { hops.add(p); const a = store.getNode(p); if (!a || a.status === 'removed') break; chain.push({ id: a.id, name: a.title || a.content, minimal: getNodeCard(store, a.id).minimal }); p = a.parentId; }
         out.ancestors = chain;
         out.children = store.childrenOf(rn.id).filter((k) => k.status !== 'removed').slice(0, 12).map((k) => card(k.id));
       }
