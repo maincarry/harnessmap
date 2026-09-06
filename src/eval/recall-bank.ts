@@ -40,8 +40,8 @@ if (ARMS.length > 1 && !H1) {
   console.error('REFUSED: a multi-arm run requires --h1 "<direction and minimum effect>", registered before running (Doctrine §3.3).');
   process.exit(2);
 }
-if (!LIGHTING || !['all', 'dark', 'realistic'].includes(LIGHTING)) {
-  console.error('REFUSED: --lighting all|dark|realistic is required — what is lit is the central independent variable and may not be inherited from ambient chat state (first-run lesson, 2026-09-02).');
+if (!LIGHTING || !['all', 'dark', 'realistic', 'product'].includes(LIGHTING)) {
+  console.error('REFUSED: --lighting all|dark|realistic|product is required — what is lit is the central independent variable and may not be inherited from ambient chat state (first-run lesson, 2026-09-02).');
   process.exit(2);
 }
 if (ARMS.includes('transcript') && !TRANSCRIPT) {
@@ -154,6 +154,22 @@ if (LIGHTING === 'realistic') {
   for (const cid of chosen) await setLit(cid, true);
   if (recent[0]) await fetch(`${BASE}/api/chats/${st0.mainChatId}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: chapterOf(recent[0]).id }) }).catch(() => {});
   console.log(`realistic aiming: focus+lit chapters = ${chosen.length}`);
+}
+if (LIGHTING === 'product') {
+  // M199 (Jacob): the test aims the way the product aims — auto-focus picks
+  // the focus, auto-light (with the map status agent's advice and the budget
+  // guard) picks the light. The test measures the product's own aiming, not a
+  // timestamp rule; an over-budget proposal is a refusal, not a run.
+  const fr = await (await fetch(`${BASE}/api/chats/${st0.mainChatId}/recommend`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'focus' }) })).json();
+  if (!fr?.containerId) { console.error(`REFUSED: auto-focus gave no target (${JSON.stringify(fr).slice(0, 200)})`); process.exit(2); }
+  await fetch(`${BASE}/api/chats/${st0.mainChatId}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: fr.containerId }) });
+  const lr = await (await fetch(`${BASE}/api/chats/${st0.mainChatId}/autolit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ preview: true }) })).json();
+  if (lr?.overBudget || !lr?.ok) { console.error(`REFUSED: auto-light proposal unusable — ${lr?.summary ?? lr?.error ?? '?'}`); process.exit(2); }
+  const ar = await (await fetch(`${BASE}/api/chats/${st0.mainChatId}/autolit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ apply: { lit: (lr.lit ?? []).map((x: any) => x.id), dim: (lr.dim ?? []).map((x: any) => x.id) }, summary: lr.summary }) })).json();
+  if (!ar?.ok) { console.error(`REFUSED: auto-light apply refused — ${ar?.error ?? '?'}`); process.exit(2); }
+  const stP = await (await fetch(`${BASE}/api/state`)).json();
+  const litN = stP.chats.find((c: any) => c.id === stP.mainChatId)?.lit?.length ?? 0;
+  console.log(`product aiming: focus "${fr.name}" (${fr.reason?.slice(0, 80)}) · auto-light: ${lr.summary?.slice(0, 120)} · lit nodes ${litN} ≈ ${lr.cost?.chars ?? '?'} chars`);
 }
 let briefChars = 0; let briefN = 0;
 let cells: Cell[] = [];
