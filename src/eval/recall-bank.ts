@@ -179,7 +179,8 @@ const reaimFor = async (question: string): Promise<string> => {
   // way?"): the question is the conversation's tail; auto-focus picks the
   // focus, auto-light lights for it under the budget guard. An over-budget or
   // failed proposal keeps the previous aim and is counted, never hidden.
-  const post = async (path: string, body: any) => (await fetch(`${BASE}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json().catch(() => ({}));
+  // A failed or slow aiming call keeps the previous aim and counts as a refusal — the run never dies on it.
+  const post = async (path: string, body: any) => { try { return await (await fetch(`${BASE}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(240_000) })).json(); } catch (e) { console.log(`  (aiming call ${path.split('/').pop()} failed: ${String(e).slice(0, 80)})`); return {}; } };
   const fr: any = await post(`/api/chats/${st0.mainChatId}/recommend`, { kind: 'focus', tail: `USER: ${question}` });
   if (fr?.containerId) await post(`/api/chats/${st0.mainChatId}/focus`, { nodeId: fr.containerId });
   const lr: any = await post(`/api/chats/${st0.mainChatId}/autolit`, { preview: true, feedback: `The user's latest message: ${question}` });
