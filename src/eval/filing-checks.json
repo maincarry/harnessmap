@@ -149,14 +149,14 @@
   "id": "C01",
   "kind": "currency",
   "m": "M132→M132 REVERSED→M132b→M134",
-  "what": "the toggle's final state is dropped/parked; no node still says it is built, reinstated or approved as live",
+  "what": "the toggle's final state is dropped/parked; no node still says it is built, reinstated or approved as live (earlier = a statement that the toggle is back/reinstated; 'built and reverted' or 'removal shipped' are not that)",
   "must": [
    "toggle",
    "drop|park|future testing"
   ],
   "earlier": [
    "toggle",
-   "reinstat|restor|back in|built and live|is fine|shipped|approved"
+   "reinstat|restor|back in|is back|are back|re-?enabled"
   ]
  },
  {
