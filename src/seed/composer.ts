@@ -315,7 +315,9 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     };
     const mediumExtra = (e: LitEntry): string | null => {
       const blob = memByNode.get(e.id);
-      return blob ? `${pads(e)}    (${blob.slice(0, 620)})` : null;
+      const hist = historyBy.get(e.id); // M204: a changed node says so at medium too (one short marker)
+      const mark = hist && hist.length > 1 ? ` · changed ${hist.length - 1}×, latest ${hist[hist.length - 1].at.slice(0, 10)}` : '';
+      return blob ? `${pads(e)}    (${blob.slice(0, 620)}${mark})` : (mark ? `${pads(e)}    (${mark.slice(3)})` : null);
     };
     const longExtra = (e: LitEntry): string | null => {
       // LONG is the whole node (Jacob): full statement, the medium text, and
