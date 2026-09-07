@@ -176,24 +176,29 @@ if (LIGHTING === 'realistic') {
   if (recent[0]) await fetch(`${BASE}/api/chats/${st0.mainChatId}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: chapterOf(recent[0]).id }) }).catch(() => {});
   console.log(`realistic aiming: focus+lit chapters = ${chosen.length}`);
 }
+let reaimRefusals = 0; // counted refusals: initial aim (M206) and per-question re-aims (M200)
 if (LIGHTING === 'product') {
   // M199 (Jacob): the test aims the way the product aims — auto-focus picks
   // the focus, auto-light (with the map status agent's advice and the budget
   // guard) picks the light. The test measures the product's own aiming, not a
   // timestamp rule; an over-budget proposal is a refusal, not a run.
   const postP = async (path: string, body: any): Promise<any> => { try { return await (await fetch(`${BASE}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(240_000) })).json(); } catch (e) { return { error: String(e).slice(0, 120) }; } };
+  // M206: under --reaim the initial aim is only the starting state (every
+  // question re-aims), so its refusal is COUNTED, not fatal — the v6-improved
+  // launch died here on a proposal 45 chars over the lit cap. Without --reaim
+  // the initial aim IS the condition and a refusal still ends the run.
+  const initialRefusal = (why: string) => { if (REAIM) { console.error(`initial aim refused (counted; the run re-aims per question): ${why}`); reaimRefusals++; return; } console.error(`REFUSED: ${why}`); process.exit(2); };
   const fr = await postP(`/api/chats/${st0.mainChatId}/recommend`, { kind: 'focus' });
-  if (!fr?.containerId) { console.error(`REFUSED: auto-focus gave no target (${JSON.stringify(fr).slice(0, 200)})`); process.exit(2); }
-  await fetch(`${BASE}/api/chats/${st0.mainChatId}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: fr.containerId }) });
+  if (!fr?.containerId) initialRefusal(`auto-focus gave no target (${JSON.stringify(fr).slice(0, 200)})`);
+  else await fetch(`${BASE}/api/chats/${st0.mainChatId}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: fr.containerId }) });
   const lr = await postP(`/api/chats/${st0.mainChatId}/autolit`, { preview: true });
-  if (lr?.overBudget || !lr?.ok) { console.error(`REFUSED: auto-light proposal unusable — ${lr?.summary ?? lr?.error ?? '?'}`); process.exit(2); }
-  const ar = await postP(`/api/chats/${st0.mainChatId}/autolit`, { apply: { lit: (lr.lit ?? []).map((x: any) => x.id), dim: (lr.dim ?? []).map((x: any) => x.id) }, summary: lr.summary });
-  if (!ar?.ok) { console.error(`REFUSED: auto-light apply refused — ${ar?.error ?? '?'}`); process.exit(2); }
+  if (lr?.overBudget || !lr?.ok) initialRefusal(`auto-light proposal unusable — ${lr?.summary ?? lr?.error ?? '?'}`);
+  const ar = (lr?.ok && !lr?.overBudget) ? await postP(`/api/chats/${st0.mainChatId}/autolit`, { apply: { lit: (lr.lit ?? []).map((x: any) => x.id), dim: (lr.dim ?? []).map((x: any) => x.id) }, summary: lr.summary }) : { ok: false, error: 'skipped' };
+  if (!ar?.ok && lr?.ok && !lr?.overBudget) initialRefusal(`auto-light apply refused — ${ar?.error ?? '?'}`);
   const stP = await (await fetch(`${BASE}/api/state`)).json();
   const litN = stP.chats.find((c: any) => c.id === stP.mainChatId)?.lit?.length ?? 0;
   console.log(`product aiming: focus "${fr.name}" (${fr.reason?.slice(0, 80)}) · auto-light: ${lr.summary?.slice(0, 120)} · lit nodes ${litN} ≈ ${lr.cost?.chars ?? '?'} chars`);
 }
-let reaimRefusals = 0;
 const reaimFor = async (question: string): Promise<string> => {
   // Per-question aiming (Jacob, 2026-09-06: "you are not auto-focusing on your
   // way?"): the question is the conversation's tail; auto-focus picks the
