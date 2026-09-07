@@ -251,6 +251,7 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   if (SERVING !== 'legacy') {
     const minBy = getAllMinimals(store);
     const detailsBy = getAllCurrentDetails(store);
+    const historyBy = store.contentHistoryAll(project); // M203: timeline of changed nodes
     const marks = store.getMarks(project);
     // Warmth (M191, Mark: "focus proximity strongest, same tree first"):
     // shares the focus's top-level chapter +2 · filer-touched fresh mark +2 ·
@@ -324,6 +325,14 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       const med = memByNode.get(e.id);
       if (med) lines.push(`${pads(e)}  (${med.slice(0, 700)})`);
       if (details.length) lines.push(`${pads(e)}  remembered: ${details.map((f) => f.date ? `${f.text} (${f.date})` : f.text).join(' · ')}`.slice(0, 900));
+      // M203 (Jacob): the node's timeline — how many times its statement
+      // changed and what it said before the latest change, so a later ruling
+      // reads as an update of this topic.
+      const hist = historyBy.get(e.id);
+      if (hist && hist.length > 1) {
+        const prev = hist[hist.length - 2];
+        lines.push(`${pads(e)}  changed ${hist.length - 1}× · before ${hist[hist.length - 1].at.slice(0, 10)} it said: "${prev.content.slice(0, 200)}"`);
+      }
       return lines.length ? lines.join('\n') : null;
     };
     // Floor: every visible node at minimal (tree order, already budgeted via

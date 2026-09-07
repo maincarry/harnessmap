@@ -11,6 +11,7 @@ import { Translator } from './translator/translator.js';
 import { ChatSessionManager } from './agent/chat-session.js';
 import { composeParts } from './seed/composer.js';
 import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/render.js';
+import { matchNodes } from './map/match.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
 import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
 import { proposeAutolit, litSetCost, litCap, resultingLit } from './translator/autolit.js';
@@ -268,20 +269,9 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
     // "composition") let the wrong node win the count on 6 of 9 lost
     // questions. A shared word now weighs by its rarity on this map, and up
     // to three hits ride along instead of one.
-    const live = store.getNodes(pid).filter((n) => n.status !== 'removed');
-    const labelOf = (n: any) => `${n.title ?? ''} ${String(n.content).slice(0, 300)}`.toLowerCase();
-    const df = new Map<string, number>();
-    const labels = new Map<string, string>();
-    for (const n of live) { const l = labelOf(n); labels.set(n.id, l); for (const t of toks) if (l.includes(t)) df.set(t, (df.get(t) ?? 0) + 1); }
-    const weight = (t: string) => { const d = df.get(t) ?? 0; return d ? Math.log(1 + live.length / d) : 0; };
-    const scored: { n: any; sc: number; hits: number }[] = [];
-    for (const n of live) {
-      if (focusSet.has(n.id)) continue; // near focus = already served in full
-      const l = labels.get(n.id)!;
-      let sc = 0, hits = 0;
-      for (const t of toks) if (l.includes(t)) { sc += weight(t); hits++; }
-      if (hits >= 2) scored.push({ n, sc, hits });
-    }
+    // M203: shared word matcher — whole words over title, statement, and the
+    // node's minimal/medium memory, title weighted ×2 (see src/map/match.ts).
+    const scored = matchNodes(store, pid, q, { exclude: focusSet as Set<string> }).map((m) => ({ n: store.getNode(m.id)!, sc: m.score, hits: m.hits }));
     scored.sort((x, y) => y.sc - x.sc);
     const top = scored.slice(0, 3).filter((h, i) => i === 0 || h.sc >= scored[0].sc * 0.7);
     if (!top.length) return '';
@@ -1614,6 +1604,12 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // demand instead of pre-paid in the injection. Server-guarded: obeys the
     // light (dim → set-aside, no content), refuses when map influence is
     // closed (M143 silence goes both directions), rate-capped, audited.
+    const mHist = path.match(/^\/api\/nodes\/([^/]+)\/history$/);
+    if (mHist && req.method === 'GET') {
+      const n = store.getNode(decodeURIComponent(mHist[1]));
+      if (!n) return json({ error: 'unknown node' }, 404);
+      return json({ id: n.id, name: n.title || n.content, versions: store.nodeHistory(n.id) });
+    }
     if (path === '/api/recall' && req.method === 'POST') {
       const b = await req.json() as { nodeId?: string; name?: string; depth?: 'card' | 'evidence' | 'around'; chatId?: string; pullupToken?: string };
       if (!b.nodeId && !b.name) return json({ error: 'nodeId or name required' }, 400);
@@ -1651,8 +1647,14 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
           store.audit('pullup_served', { node: rn.id.slice(0, 8) });
           store.metric(projectId, 'interaction.pullup_served');
         } else {
-          store.audit('recall_setaside', { node: rn.id.slice(0, 8) });
-          return json({ setAside: true, message: 'set aside by the user (dimmed) — do not use its content; you may offer to pull it up for this turn (the user\'s yes authorizes it)' });
+          // M203 (Jacob): the agent may offer ANY named node, not only the ones
+          // the server offered this turn — the name is visible, the body is not.
+          // The token is minted here on request, single-use, ten minutes; the
+          // user's yes still authorizes, the lit set still never moves.
+          const reqTok = randomUUID().slice(0, 13);
+          pullupTokens.set(reqTok, { nodeId: rn.id, chatId: rChatId, exp: Date.now() + 10 * 60_000, used: false });
+          store.audit('recall_setaside', { node: rn.id.slice(0, 8), tokenMinted: true });
+          return json({ setAside: true, pullupToken: reqTok, message: 'set aside by the user (dimmed) — do not use its content; you may offer to pull it up for this turn (the user\'s yes authorizes it)' });
         }
       }
       const depth = b.depth ?? 'card';
@@ -1662,6 +1664,11 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         return { id: n.id, name: n.title || n.content, statement: n.content, type: n.type ?? null, status: n.status, minimal: c.minimal, details: c.details.filter((f) => f.status === 'current').map((f) => ({ text: f.text, date: f.date, prov: f.prov })) };
       };
       const out: any = { card: card(rn.id) };
+      // M203 (Jacob): a node's timeline — every content/title/status change
+      // from the event log, oldest first, so a later ruling is seen AS a
+      // change of the same topic, not a twin node.
+      const hist = store.nodeHistory(rn.id);
+      if (hist.length > 1) out.card.history = hist.map((v) => ({ at: v.at, source: v.source, ...(v.content !== undefined ? { content: v.content.slice(0, 400) } : {}), ...(v.title !== undefined ? { title: v.title } : {}), ...(v.status !== undefined ? { status: v.status } : {}) }));
       if (depth === 'around') {
         const chain: any[] = [];
         let p = rn.parentId;

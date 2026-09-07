@@ -102,16 +102,23 @@ const briefing = async (question: string, cellId: string): Promise<string> => {
 // asked the question says yes). One pull per cell; the token's single use
 // and the untouched lit set are the product's own guarantees, not the test's.
 const OFFER_RE = /SET-ASIDE topic: "([^"]{1,80})"[\s\S]{0,200}?pullupToken "([a-z0-9-]{6,20})"/;
+// M203 (Jacob): the stand-in user consents to EVERY offer the server made
+// (up to three), as a cooperative user would — the first-offer-only consent
+// lost B21, whose node was the second offer.
 const consentPull = async (brief: string): Promise<string> => {
-  const m = OFFER_RE.exec(brief);
-  if (!m) return '';
-  try {
-    const r = await (await fetch(`${BASE}/api/recall`, { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: m[1], pullupToken: m[2] }) })).json();
-    if (!r?.card) return '';
-    const d = (r.card.details ?? []).map((f: any) => `  - ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n');
-    return `USER: yes, pull it up.\n\nPULLED UP (this turn only): ${r.card.name}\n${r.card.statement}${r.card.minimal ? `\n${r.card.minimal}` : ''}${d ? `\n${d}` : ''}`;
-  } catch { return ''; }
+  const re = new RegExp(OFFER_RE.source, 'g');
+  const pulls: string[] = [];
+  for (let m = re.exec(brief); m && pulls.length < 3; m = re.exec(brief)) {
+    try {
+      const r = await (await fetch(`${BASE}/api/recall`, { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: m[1], pullupToken: m[2] }) })).json();
+      if (!r?.card) continue;
+      const d = (r.card.details ?? []).map((f: any) => `  - ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n');
+      const h = r.card.history ? `\n(changed ${r.card.history.length - 1}×; before the latest change it said: "${String(r.card.history[r.card.history.length - 2]?.content ?? '').slice(0, 200)}")` : '';
+      pulls.push(`PULLED UP (this turn only): ${r.card.name}\n${r.card.statement}${r.card.minimal ? `\n${r.card.minimal}` : ''}${d ? `\n${d}` : ''}${h}`);
+    } catch { /* an offer that fails to serve is simply not pulled */ }
+  }
+  return pulls.length ? `USER: yes, pull ${pulls.length > 1 ? 'them' : 'it'} up.\n\n${pulls.join('\n\n')}` : '';
 };
 const setServing = async (arm: string) => {
   await fetch(`${BASE}/api/dev/setting`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: 'memory_serving', value: arm === 'legacy' ? 'legacy' : '' }) });

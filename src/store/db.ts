@@ -162,6 +162,40 @@ export class Store {
     return (this.db.prepare('SELECT * FROM nodes WHERE project_id = ?').all(projectId) as any[]).map(rowToNode);
   }
 
+  // M203 (Jacob): a node's timeline from the event log — its create and every
+  // update that changed content, title or status, oldest first. No new
+  // storage: the map has been event-sourced since the nodes migration.
+  nodeHistory(id: string): { seq: number; at: string; source: string; content?: string; title?: string; status?: string }[] {
+    const rows = this.db.prepare("SELECT seq, alteration, source_kind, created_at FROM map_events WHERE alteration LIKE ? ORDER BY seq ASC").all(`%"id":"${id}"%`) as any[];
+    const out: { seq: number; at: string; source: string; content?: string; title?: string; status?: string }[] = [];
+    for (const r of rows) {
+      let a: any; try { a = JSON.parse(r.alteration); } catch { continue; }
+      if (a.id !== id || (a.op !== 'create_node' && a.op !== 'update_node')) continue;
+      if (a.content === undefined && a.title === undefined && a.status === undefined) continue;
+      const v: any = { seq: r.seq, at: r.created_at, source: r.source_kind ?? '' };
+      if (a.content !== undefined) v.content = String(a.content);
+      if (a.title !== undefined) v.title = String(a.title);
+      if (a.status !== undefined) v.status = String(a.status);
+      out.push(v);
+    }
+    return out;
+  }
+
+  // Bulk form for the composer's hot path: node id → its content versions
+  // (oldest first) for every node of the project with more than one.
+  contentHistoryAll(projectId: string): Map<string, { at: string; content: string }[]> {
+    const rows = this.db.prepare("SELECT alteration, created_at FROM map_events WHERE project_id = ? AND alteration LIKE '%\"content\"%' ORDER BY seq ASC").all(projectId) as any[];
+    const all = new Map<string, { at: string; content: string }[]>();
+    for (const r of rows) {
+      let a: any; try { a = JSON.parse(r.alteration); } catch { continue; }
+      if ((a.op !== 'create_node' && a.op !== 'update_node') || typeof a.content !== 'string' || !a.id) continue;
+      const l = all.get(a.id); const v = { at: r.created_at, content: a.content };
+      if (l) l.push(v); else all.set(a.id, [v]);
+    }
+    for (const [k, l] of all) if (l.length < 2) all.delete(k);
+    return all;
+  }
+
   getNode(id: string): MapNode | undefined {
     const r = this.db.prepare('SELECT * FROM nodes WHERE id = ?').get(id) as any;
     return r ? rowToNode(r) : undefined;

@@ -5,6 +5,8 @@ import { call, modelFor, backendName } from '../inference.js';
 import type { Alteration, RoundResult } from '../types.js';
 import { Store } from '../store/db.js';
 import { loadMap, renderTree, renderScopedTree, descendantNodes, type MapView } from '../map/render.js';
+import { matchNodes } from '../map/match.js';
+import type { MapNode } from '../types.js';
 
 // The bridge (DESIGN.md §4): per-round, map-conditioned translation.
 // Runs async — never blocks the chat. Cheap fast model.
@@ -161,6 +163,15 @@ export class Translator {
       let focusRequestId: string | null = null;
       for (let pass = 1; pass <= 2; pass++) {
         const tree = renderScopedTree(map, readScope, { focusId: params.focusContainerId });
+        // M203 (Jacob): the nodes this round is ABOUT, found by the shared word
+        // matcher over titles and memory, named to the filer so a refinement
+        // or a later ruling becomes update_node on the existing node (its
+        // earlier state stays in the node's history) — not a twin node.
+        const existing = matchNodes(this.store, params.projectId, `${params.userText}\n${truncate(params.assistantText, 3000)}`, { limit: 6 })
+          .map((m) => map.nodes.find((n) => n.id === m.id)).filter((n): n is MapNode => !!n && readScope.has(n.id));
+        const existingNote = existing.length
+          ? `EXISTING NODES ON THIS ROUND'S SUBJECTS (word-matched; check before creating): ${existing.map((n) => `[${n.id}] ${n.title || n.content.slice(0, 60)}`).join(' · ')}\nIf the round refines, corrects or supersedes one of these, update_node THAT id (the node keeps its history); create a new node only for a subject none of them holds. When the round OVERTURNS part of a node's statement, REWRITE that part so the statement reads as the current rule — never leave the old clause standing beside the new one.`
+          : '';
         const parsed = await call({
           task: 'filer', system: SYSTEM + systemCard(this.store, params.projectId, 'the FILER'), maxTokens: 2048, schema: SCHEMA, timeoutMs: 60_000,
           audit: (k, d) => this.store.audit(k, d),
@@ -168,6 +179,7 @@ export class Translator {
               `CURRENT MAP (▶ = focus; ids in [brackets]):\n${tree}`,
               `FOCUS NODE ID: ${params.focusContainerId}`,
               `NEW ROUND:\nUSER: ${params.userText}\nAGENT: ${truncate(params.assistantText, 3000)}`,
+              existingNote,
               integrationNote,
               pass === 2 ? 'You requested expansion; the branches are now readable (READ-ONLY). Translate this round fully — request_expansion is no longer available.' : '',
               'Translate this round. Five final checks before answering: (0) NEW-TOPIC GUARANTEE: did the user bring up ANY topic this round that is absent from the map — however small or transient (a weather question, a quick lookup, a passing thought)? You MUST leave at least one node for it (in scope, or under "to sort"): often a question node with status answered, carrying the gist of the answer in its description. A topic switch that produces zero alterations is almost always wrong. Only pure mechanics produce nothing (greetings, thanks, questions about the assistant itself). (1) does any subtree you filed under now hold two or more unrelated topics, duplicates, or material that outgrew it? If yes, add a suggest_restructure. (2) Are you changing the status of any node the user did NOT touch this round? "Park/drop/done all of it" refers to the CURRENT thread only — decisions, constraints, and evidence settled earlier KEEP their statuses. If your alterations re-status more than ~3 nodes, you are almost certainly wrong — cut back to the ones actually discussed. (3) Does the "to sort" node hold anything whose home is NOW writable (fully readable, not (dim))? If yes, move_node it home and strip the provenance note from its content. (4) FOCUS REQUEST: did the user EXPLICITLY ask to concentrate the conversation on ONE thing ("let\'s focus on X", "just X for now", "back to X")? If yes, add top-level focus_request: {id: the node where X lives — an existing [id], or the id you used in a create_node this round}. This changes nothing by itself; the user confirms via a button. Most rounds have NO focus_request — passing mentions and new topics are NOT focus requests, only an explicit ask to concentrate.',
