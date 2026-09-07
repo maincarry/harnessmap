@@ -118,11 +118,23 @@ const setServing = async (arm: string) => {
 };
 
 // ---- the grader (verbatim; this string IS the operationalization) ---------
+// Rubric v2 (M203, 2026-09-07). v1 let a keyword in the wrong-answer list sink
+// a correct answer (B25: "background recomputes are capped" read as "recomputed
+// periodically" → 0 on all three reps) and split graders 1-vs-2 on partial
+// answers (kappa 0.60). v2 grades the CENTRAL CLAIM, states the wrong answers
+// as claims not words, decides agreement before scoring, and defines partial.
 const graderPrompt = (q: string, fact: string, wrong: string[], answer: string) =>
-  `You are grading an assistant's answer against a ground-truth rubric. Reply with ONLY a JSON object {"score": 0|1|2, "reason": "..."}.
-Score 2 = the answer states this required fact correctly: "${fact}"
-Score 1 = partially right, OR the answer declines to state the fact (says it does not know, cannot confirm, needs to check) without asserting any competing specific — hedged refusals score 1, however long.
-Score 0 = ONLY when the answer contradicts the required fact or asserts a specific competing claim (including these known wrong answers: [${wrong.join('; ')}]). Declining is never 0.
+  `You are grading an assistant's answer against a ground-truth rubric. Reply with ONLY a JSON object {"central_claim": "...", "agreement": "agrees" | "partial" | "declines" | "contradicts", "score": 0|1|2}.
+
+REQUIRED FACT: "${fact}"
+
+Step 1 — write the answer's CENTRAL CLAIM in one sentence: what it asserts as the answer to the question. Ignore asides, caveats, extra detail and offers to look further.
+Step 2 — compare the central claim with the required fact. Paraphrase counts; different words for the same thing count. Extra correct detail never lowers the score. A wrong aside beside a correct central claim does not lower it either.
+  agrees      = the central claim states the required fact's core (its main point; a missing secondary clause is still "agrees" when the core is right and nothing contradicts).
+  partial     = the central claim states some of the fact and neither states nor contradicts the rest.
+  declines    = the answer does not commit: says it does not know, cannot confirm, needs to check, or asks for more — with no competing specific.
+  contradicts = the central claim asserts something INCOMPATIBLE with the required fact, or asserts a competing specific in its place. Known wrong CLAIMS for this question (these are claims, not keywords — an answer is not "contradicts" for merely containing similar words): [${wrong.join('; ')}].
+Step 3 — score: agrees = 2; partial = 1; declines = 1; contradicts = 0. Declining is never 0. Length never matters.
 
 QUESTION ASKED: ${q}
 
