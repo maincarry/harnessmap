@@ -21,23 +21,22 @@ export interface NodeMatch { id: string; score: number; hits: number }
 // Field weights: a word in the title outranks the same word in the memory.
 const FIELD_WEIGHT: Record<string, number> = { title: 2, content: 1, minimal: 1.5, medium: 1 };
 
-export function matchNodes(store: Store, projectId: string, text: string, opts: { exclude?: Set<string>; limit?: number; minHits?: number } = {}): NodeMatch[] {
+export interface MatchItem { id: string; title?: string | null; content?: string | null; minimal?: string | null; medium?: string | null }
+
+// Match against any list of items (an import's subtree-so-far, a proposal)
+// — the store form below builds its items from the map.
+export function matchItems(items: MatchItem[], text: string, opts: { exclude?: Set<string>; limit?: number; minHits?: number } = {}): NodeMatch[] {
   const toks = matchTokens(text);
   if (toks.length < 2) return [];
-  const live = store.getNodes(projectId).filter((n) => n.status !== 'removed');
-  const db = (store as any).db;
-  const mem = new Map<string, { minimal: string; medium: string }>();
-  for (const r of db.prepare('SELECT node_id, minimal, medium FROM node_memory').all() as any[]) mem.set(r.node_id, { minimal: r.minimal ?? '', medium: r.medium ?? '' });
   const fields = new Map<string, Record<string, Set<string>>>();
-  for (const n of live) {
-    const m = mem.get(n.id);
-    fields.set(n.id, { title: wordSet(n.title ?? ''), content: wordSet(String(n.content).slice(0, 300)), minimal: wordSet(m?.minimal ?? ''), medium: wordSet(m?.medium ?? '') });
+  for (const n of items) {
+    fields.set(n.id, { title: wordSet(n.title ?? ''), content: wordSet(String(n.content ?? '').slice(0, 300)), minimal: wordSet(n.minimal ?? ''), medium: wordSet(n.medium ?? '') });
   }
   const df = new Map<string, number>();
   for (const t of toks) { let d = 0; for (const f of fields.values()) if (f.title.has(t) || f.content.has(t) || f.minimal.has(t) || f.medium.has(t)) d++; df.set(t, d); }
-  const weight = (t: string) => { const d = df.get(t) ?? 0; return d ? Math.log(1 + live.length / d) : 0; };
+  const weight = (t: string) => { const d = df.get(t) ?? 0; return d ? Math.log(1 + items.length / d) : 0; };
   const out: NodeMatch[] = [];
-  for (const n of live) {
+  for (const n of items) {
     if (opts.exclude?.has(n.id)) continue;
     const f = fields.get(n.id)!;
     let score = 0, hits = 0;
@@ -50,4 +49,12 @@ export function matchNodes(store: Store, projectId: string, text: string, opts: 
   }
   out.sort((a, b) => b.score - a.score);
   return opts.limit ? out.slice(0, opts.limit) : out;
+}
+
+export function matchNodes(store: Store, projectId: string, text: string, opts: { exclude?: Set<string>; limit?: number; minHits?: number } = {}): NodeMatch[] {
+  const live = store.getNodes(projectId).filter((n) => n.status !== 'removed');
+  const db = (store as any).db;
+  const mem = new Map<string, { minimal: string; medium: string }>();
+  for (const r of db.prepare('SELECT node_id, minimal, medium FROM node_memory').all() as any[]) mem.set(r.node_id, { minimal: r.minimal ?? '', medium: r.medium ?? '' });
+  return matchItems(live.map((n) => ({ id: n.id, title: n.title, content: n.content, minimal: mem.get(n.id)?.minimal, medium: mem.get(n.id)?.medium })), text, opts);
 }

@@ -10,6 +10,7 @@
 import { Store } from '../store/db.js';
 import { call, modelFor } from '../inference.js';
 import { statusConsult } from './mapstatus.js';
+import { matchItems } from '../map/match.js';
 import { loadMap, renderTree } from '../map/render.js';
 import { SCHEMA, normalizeIds } from './translator.js';
 import { systemCard } from './cast.js';
@@ -120,6 +121,10 @@ const IMPORT_SCHEMA = {
         anyOf: [
           v2('create_node', { id: s2, content: s2, status: s2, author: { type: 'string' as const, enum: ['user', 'agent'] } },
             ['id', 'content', 'status', 'author'], { parentId: s2, type: s2, title: s2, memory: s2 }),
+          // M205 (Jacob): an import UPDATES a node it already built when a
+          // later part of the source continues, corrects or reverses it —
+          // the node keeps its earlier statement as a version (event log).
+          v2('update_node', { id: s2 }, ['id'], { content: s2, title: s2, status: s2, memory: s2 }),
         ],
       },
     },
@@ -149,7 +154,8 @@ const FINISH_SCHEMA = {
 const EXTEND_SYSTEM = `You are the IMPORT agent for a goal map, processing a LARGE source in chunks. You see (a) the imported subtree AS BUILT SO FAR from earlier chunks (nodes with [ids]) and (b) the next chunk of the source. Your job: EXTEND the subtree with THIS chunk's material.
 
 RULES:
-- create_node operations ONLY. Attach new nodes under existing [ids] where the material belongs there; create new branch nodes when the material opens a genuinely new thread. NEVER duplicate a node that already exists in the subtree — if this chunk revisits a topic, add the NEW information under the existing node.
+- create_node for material the subtree does not hold yet. Attach new nodes under existing [ids] where the material belongs there; create new branch nodes when the material opens a genuinely new thread. NEVER duplicate a node that already exists in the subtree.
+- update_node [id] when this chunk CONTINUES, CORRECTS, REVERSES or SUPERSEDES a node already in the subtree (a later ruling on the same subject, a fix to an earlier design, a reversal, a lifted deferral): rewrite that node's content so it states the CURRENT rule in its first sentence and DROPS the overturned clause — the earlier statement is kept automatically as a dated version of the node, so the old wording must never stand beside the new as if both held. Update the status too when it changed (decided, reversed, parked…). Example: the subtree says "proposals are computed once per dot, ever" and this chunk reports that stale caches are now recomputed in the background, capped at three — the updated statement says the capped recompute and no longer says "once, ever"; the reader of the CURRENT statement must not be told the superseded rule. File the episode's reasons, evidence and rejected alternatives as CHILD nodes under it when they earn a node. Same subject in new words = the same node, updated — not a twin under a different name. The nodes this chunk most likely touches are listed with their full statements; check them before creating.
 - ORGANIZE BY TOPIC, NEVER BY CONVERSATION PHASE: one topic = one subtree, wherever in the source its episodes occur. When this chunk continues, corrects, or reverses something already on the subtree, that material goes UNDER the topic's existing home (the reversal of a proposal lives with the proposal) — never into a new chapter for "this part of the conversation". Chapters named after meetings, sessions, or phases are wrong; chapters are subjects. A reader looking up one topic must find its whole story in one place.
 - DENSITY: roughly one node per coherent point in the source. Do not compress a rich chunk into a handful of lines; do not pad a thin one. A chunk holding a few deliberations typically deserves a handful of nodes; a thin connective chunk may deserve one or none.
 - DEPTH — the structure carries the substance: where the source has layers (a claim with its supporting facts, an option with its tradeoffs, a decision with its reasons and the rejected alternative, a correction superseding an earlier state), file those layers as CHILD NODES — evidence under the claim, objections under the option, reasons under the decision — three or four levels deep where the material earns it. Never flatten a layered discussion into a list of siblings whose detail hides in memory fields: a reader of the TREE alone should be able to follow the argument.
@@ -244,6 +250,18 @@ export async function proposeImportLarge(
   };
 
   const skipped: { chunk: number; error: string }[] = [];
+  let updates = 0;
+  // M205: the nodes this chunk most likely touches, by the shared word
+  // matcher over the subtree-so-far (title, statement, memory), with their
+  // FULL statements — the outline shows 90-char names, which is not enough
+  // to notice that a later entry supersedes an earlier node.
+  const touched = (chunk: string): string => {
+    if (!accum.length) return '';
+    const hits = matchItems(accum.map((n) => ({ id: n.id, title: n.title, content: n.content, medium: memories[n.id] ?? '' })), chunk, { limit: 10, minHits: 3 });
+    if (!hits.length) return '';
+    const byId = new Map(accum.map((n) => [n.id, n]));
+    return `NODES THIS CHUNK LIKELY TOUCHES (full statements — update_node these when the chunk continues, corrects or supersedes them):\n${hits.map((h) => { const n = byId.get(h.id)!; return `- [${n.id.slice(0, 8)}] ${n.title ? n.title + ' — ' : ''}${n.content.slice(0, 240)}`; }).join('\n')}`;
+  };
   try {
     for (let i = 0; i < chunks.length; i++) {
       onProgress?.({ phase: 'chunk', done: i, total: chunks.length });
@@ -255,6 +273,7 @@ export async function proposeImportLarge(
         user: [
           i === 0 ? `THE MAP THIS LANDS IN (read-only, for tone):\n${renderTree(map, { ids: false }).slice(0, 4000) || '(empty map)'}` : '',
           `THE IMPORTED SUBTREE SO FAR (${accum.length} nodes):\n${renderAccum() || '(nothing yet — this is the first chunk; your first node becomes the ROOT container for the whole import, named 2-4 words for what the source IS)'}`,
+          touched(chunks[i]),
           sourceSummary ? `THE WHOLE SOURCE, SUMMARIZED (file this chunk against the global picture, by subject):\n${sourceSummary.slice(0, 12_000)}` : '',
           `SOURCE: ${sourceLabel} — CHUNK ${i + 1} of ${chunks.length}`,
           `MATERIAL:\n${chunks[i]}`,
@@ -277,6 +296,23 @@ export async function proposeImportLarge(
       }
       if (i === 0 && parsed.summary) summary = parsed.summary;
       const synthetic = { ...map, nodes: [...map.nodes, ...accum.map((n) => ({ ...n, status: 'live' }))] } as any;
+      // M205: updates first — they name nodes built by earlier chunks (short
+      // or full ids); the subtree-so-far and the memory change in place so
+      // later chunks see the current statement. The event log keeps the
+      // earlier one as a version at apply.
+      const shortIds = new Map(accum.map((n) => [n.id.slice(0, 8), n.id]));
+      for (const a of (parsed.alterations ?? []) as any[]) {
+        if (a.op !== 'update_node') continue;
+        const raw = String(a.id ?? '').replace(/[\[\]]/g, '');
+        const id = shortIds.get(raw) ?? (accum.some((n) => n.id === raw) ? raw : undefined);
+        if (!id || (!a.content && !a.title && !a.status)) continue;
+        const n = accum.find((x) => x.id === id)!;
+        if (a.content) n.content = String(a.content);
+        if (a.title) n.title = String(a.title);
+        if (a.memory) memories[id] = `${memories[id] ? memories[id] + '\n' : ''}${String(a.memory)}`.slice(-1500);
+        alterations.push({ op: 'update_node', id, ...(a.content ? { content: String(a.content) } : {}), ...(a.title ? { title: String(a.title) } : {}), ...(a.status ? { status: String(a.status) } : {}) });
+        updates++;
+      }
       const alts = normalizeIds((parsed.alterations ?? []) as any[], synthetic).filter((a: any) => a.op === 'create_node');
       const batchIds = new Set(alts.map((a: any) => a.id));
       const accumIds = new Set(accum.map((n) => n.id));
@@ -353,6 +389,7 @@ export async function proposeImportLarge(
       }
     }
     if (skipped.length) summary += ` (${skipped.length} of ${chunks.length} chunks could not be filed and were skipped)`;
+    if (updates) summary += ` · ${updates} node(s) updated in place by later entries (earlier statements kept as versions)`;
     return { summary, alterations, rootId, memories, chunks: chunks.length, skipped, sourceSummary };
   } catch (err) {
     console.error('[import-large] failed:', err);
