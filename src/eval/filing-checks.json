@@ -1,0 +1,201 @@
+[
+ {
+  "id": "R01",
+  "kind": "ruling",
+  "m": "M136 (gap named)",
+  "what": "undo is the biggest missing principle: once something applies there is no way back",
+  "must": [
+   "undo"
+  ]
+ },
+ {
+  "id": "R02",
+  "kind": "ruling",
+  "m": "M187 seed",
+  "what": "importing past Claude Code sessions into the map is possible, propose→approve",
+  "must": [
+   "import",
+   "session|transcript|past"
+  ]
+ },
+ {
+  "id": "R03",
+  "kind": "ruling",
+  "m": "M91/M97",
+  "what": "the plugin = hooks + skills; SessionStart hook spawns or reuses the server",
+  "must": [
+   "hook",
+   "server|session ?start|spawn"
+  ]
+ },
+ {
+  "id": "R04",
+  "kind": "ruling",
+  "m": "M97 root-as-plugin",
+  "what": "the plugin is the adapter; the product is a standalone local app",
+  "must": [
+   "standalone|adapter",
+   "plugin|app"
+  ]
+ },
+ {
+  "id": "R05",
+  "kind": "ruling",
+  "m": "M98 workspace",
+  "what": "the designed experience is one window: our page with map + real Claude Code session tabs; input home is our app",
+  "must": [
+   "workspace|one window|our page",
+   "session|tab"
+  ]
+ },
+ {
+  "id": "R06",
+  "kind": "ruling",
+  "m": "M132 deferral",
+  "what": "the two-mode decision was handed to Mark",
+  "must": [
+   "Mark",
+   "two.?mode|mode|decision|defer|wait"
+  ]
+ },
+ {
+  "id": "R07",
+  "kind": "ruling",
+  "m": "launcher",
+  "what": "the first Claude session is only a launcher; the server runs detached and outlives it",
+  "must": [
+   "detached|launcher|keeps running|outlive"
+  ]
+ },
+ {
+  "id": "R08",
+  "kind": "ruling",
+  "m": "funnel",
+  "what": "the plugin into existing Claude Code is the front door; a standalone launcher is never the acquisition path",
+  "must": [
+   "front door|acquisition|adoption|funnel|on-ramp",
+   "plugin"
+  ]
+ },
+ {
+  "id": "R09",
+  "kind": "ruling",
+  "m": "M133 future",
+  "what": "a mobile app is future work; phone connectivity needs a founder decision because the server is local-only",
+  "must": [
+   "mobile",
+   "future|local|connect|founder"
+  ]
+ },
+ {
+  "id": "R10",
+  "kind": "ruling",
+  "m": "M133b",
+  "what": "dev mode has a button to test the mobile layout on desktop and switch back",
+  "must": [
+   "mobile",
+   "dev|test|button|preview|desktop"
+  ]
+ },
+ {
+  "id": "R11",
+  "kind": "ruling",
+  "m": "M134 concept",
+  "what": "two real hosting modes: chat on us (map-chat, transcript in our DB) vs chat in the user's Claude",
+  "must": [
+   "map-chat|on us|our (own )?(database|agent|chat)",
+   "claude|mode"
+  ]
+ },
+ {
+  "id": "R12",
+  "kind": "ruling",
+  "m": "M134 hooks are eyes",
+  "what": "we can never act on the user's Claude app: hooks observe and inject only",
+  "must": [
+   "never|cannot|can't|no (control|hands)",
+   "hook|observe|inject|eyes|whisper"
+  ]
+ },
+ {
+  "id": "R13",
+  "kind": "ruling",
+  "m": "M134",
+  "what": "the ⧉ toggle is dropped; the two-mode concept parked for future testing",
+  "must": [
+   "toggle",
+   "drop|park|future"
+  ]
+ },
+ {
+  "id": "R14",
+  "kind": "ruling",
+  "m": "M133d",
+  "what": "mobile: finger-sized buttons and ONE switch button at the bottom",
+  "must": [
+   "one (switch|button)|single (switch|button)|finger|big(ger)? buttons|touch"
+  ]
+ },
+ {
+  "id": "R15",
+  "kind": "ruling",
+  "m": "M135",
+  "what": "the mobile shell follows the ChatGPT app philosophy: radical subtraction, composer at the bottom",
+  "must": [
+   "ChatGPT|radical subtraction|composer"
+  ]
+ },
+ {
+  "id": "C01",
+  "kind": "currency",
+  "m": "M132→M132 REVERSED→M132b→M134",
+  "what": "the toggle's final state is dropped/parked; no node still says it is built, reinstated or approved as live",
+  "must": [
+   "toggle",
+   "drop|park|future testing"
+  ],
+  "earlier": [
+   "toggle",
+   "reinstat|restor|back in|built and live|is fine|shipped|approved"
+  ]
+ },
+ {
+  "id": "C02",
+  "kind": "currency",
+  "m": "M132 REVERSED→M132b",
+  "what": "the deferral to Mark was lifted by Jacob; 'wait for Mark' must not stand as the live rule",
+  "must": [
+   "two.?mode|toggle",
+   "lift|reinstat|add(ed)? the two modes|Jacob|drop|park"
+  ],
+  "earlier": [
+   "wait for mark|leave mark|mark.?s call|deferred to mark"
+  ]
+ },
+ {
+  "id": "C03",
+  "kind": "currency",
+  "m": "M133→M133d",
+  "what": "the mobile bottom bar is ONE switch button; the two-button switcher must not stand as live",
+  "must": [
+   "one (switch|button)|single (switch|button)",
+   "mobile|bottom|switch"
+  ],
+  "earlier": [
+   "two buttons|🗺/💬 switcher|bottom switcher"
+  ]
+ },
+ {
+  "id": "C04",
+  "kind": "currency",
+  "m": "M132→M134 meaning",
+  "what": "the toggle was UI presentation only (a curtain); 'two modes switch where sessions run' must not stand as live",
+  "must": [
+   "curtain|presentation only|show(s)? or hide|layout"
+  ],
+  "earlier": [
+   "two modes",
+   "switch(es)? (where|which) sessions|sessions run"
+  ]
+ }
+]
