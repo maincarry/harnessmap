@@ -262,7 +262,10 @@ for (let i = 0; i < order.length; i += 8) {
 // Batched like grading: the unbatched version launched every double-grade at
 // once — ~83 concurrent CLI processes — and the OOM killer took the whole
 // user session with it (2026-09-05 06:21).
-const sample = order.filter((_, i) => i % 5 === 0);
+// --double all (M205): double-grade EVERY cell — kappa on 83 cells carries a
+// sampling error near ±0.1, which is the width of the floor decision; on 414
+// it does not. A stricter reliability measurement, never a rubric change.
+const sample = flag('double') === 'all' ? order : order.filter((_, i) => i % 5 === 0);
 for (let i = 0; i < sample.length; i += 8) {
   await Promise.all(sample.slice(i, i + 8).filter((c) => c.score2 === undefined).map(async (c) => {
     const it = items.find((x: any) => x.id === c.item)!;
