@@ -206,6 +206,19 @@ export async function proposeImportLarge(
       user: `SOURCE (${sourceLabel}, ${text.length} chars):\n${capped0}`,
     });
     if (typeof sum === 'string') sourceSummary = sum.slice(0, 30_000);
+    // M205 (found on the v6 import): on a 228k-char source the subscription
+    // path once answered with a one-line preamble ("I'll analyze this
+    // source…", 92 chars) and every chunk then filed without the global
+    // picture. A summary that short is not a summary: ask once more, plainly.
+    if (sourceSummary.length < 2_000) {
+      store.audit('import_summary_retry', { chars: sourceSummary.length });
+      const again = await call({
+        task: 'import', system: 'Write the comprehensive summary NOW, in full, in this single reply — no preamble, no offer to proceed, no questions. It is the standard the finished map is judged against: cover what the source is, every major subject and how it developed, every decision with its reasons and reversals, the constraints and open questions, and the vocabulary the author uses. Several thousand words are expected.',
+        maxTokens: 8000, timeoutMs: 360_000, audit: (k, d) => store.audit(k, d),
+        user: `SOURCE (${sourceLabel}, ${text.length} chars):\n${capped0}`,
+      });
+      if (typeof again === 'string' && again.length > sourceSummary.length) sourceSummary = again.slice(0, 30_000);
+    }
   } catch (err) { console.error('[import] source summary failed (chunks proceed without it):', err); }
   // M190c (Jacob: "why not iterative sorting into topics as things import,
   // just like actual use"): import = the filer's job over history, so the
