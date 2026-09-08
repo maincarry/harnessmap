@@ -11,7 +11,7 @@ import { Translator } from './translator/translator.js';
 import { ChatSessionManager } from './agent/chat-session.js';
 import { composeParts } from './seed/composer.js';
 import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/render.js';
-import { matchNodes } from './map/match.js';
+import { matchNodes, rareTokens, coverageOf } from './map/match.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
 import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
 import { listMinds, getAreaAdvice } from './translator/governors.js';
@@ -2642,6 +2642,36 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         let context = chats.harnessContext(ctxChatId, promptText);
         const pullF = matchPullup(ctxPid, ctxChatId, promptText, true); // M199: lit hits ride along on the first turn too — lit no longer means in-the-block once lit nodes fold
         if (pullF) context = `[harnessmap — what you just asked about]\n${pullF}\n\n${context}`; // M230: at the top, before the standing view
+        // M231: the coverage check — does the served block carry the question's
+        // rare words? If not: unfold the lit-but-folded topics that carry them
+        // (authorized already); if words are still missing, say so hard.
+        try {
+          const rare = rareTokens(store, ctxPid, promptText);
+          if (rare.length >= 2) {
+            let cov = coverageOf(context, rare);
+            let unfolded = 0;
+            if (cov.share < 0.6) {
+              const litSet = new Set(store.getLit(ctxChatId));
+              const cands = matchNodes(store, ctxPid, promptText, { limit: 10, minHits: 1 }).map((m) => store.getNode(m.id)!).filter((n) => n && litSet.has(n.id) && !context.includes(n.content.slice(0, 80)));
+              const adds: string[] = [];
+              for (const n of cands) {
+                const text = `${n.title ?? ''} ${n.content}`.toLowerCase();
+                if (!cov.missing.some((t) => text.includes(t))) continue;
+                const c = getNodeCard(store, n.id);
+                adds.push(`• ${n.title || n.content.slice(0, 60)}: ${n.content.slice(0, 1200)}${c.minimal ? `\n  ${c.minimal}` : ''}`);
+                unfolded++; if (adds.join('\n').length > 6000) break;
+              }
+              if (adds.length) { context = `[harnessmap — unfolded because your question names them]\n${adds.join('\n')}\n\n${context}`; cov = coverageOf(context, rare); }
+            }
+            let directive = false;
+            if (cov.share < 0.6 && cov.missing.length) {
+              const near = matchNodes(store, ctxPid, promptText, { limit: 3, minHits: 1 }).map((m) => store.getNode(m.id)).filter(Boolean).map((n) => n!.title || n!.content.slice(0, 50));
+              context += `\n\n[harnessmap] COVERAGE WARNING: the map as served does not contain these specific terms from the question: ${cov.missing.slice(0, 6).join(', ')}. Do not guess or answer from a neighbouring topic — say plainly what the map holds and what it does not${near.length ? `; the closest topics on the map are: ${near.join(' · ')}` : ''}.`;
+              directive = true;
+            }
+            store.audit('coverage_check', { rare: rare.length, share: Math.round(cov.share * 100) / 100, unfolded, directive });
+          }
+        } catch {}
         if (refreshNotices.delete(sessionId)) {
           context += `\n\n[harnessmap] This FULL map view supersedes every earlier map block above. Briefly tell the user: you now have the full current view of the map; they can run /compact to clean up the old map data in this conversation — optional, everything works fine without it.`;
         }

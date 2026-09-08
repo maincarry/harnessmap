@@ -58,3 +58,22 @@ export function matchNodes(store: Store, projectId: string, text: string, opts: 
   for (const r of db.prepare('SELECT node_id, minimal, medium FROM node_memory').all() as any[]) mem.set(r.node_id, { minimal: r.minimal ?? '', medium: r.medium ?? '' });
   return matchItems(live.map((n) => ({ id: n.id, title: n.title, content: n.content, minimal: mem.get(n.id)?.minimal, medium: mem.get(n.id)?.medium })), text, opts);
 }
+
+// M231 (Jacob, 2026-09-08: "it should know if it has sufficient information or
+// not" — measured: it does not; 0 recalls in 18 tries): sufficiency is the
+// SYSTEM's judgment at compose time. The question's RARE words (present on the
+// map, in at most 5% of nodes) are what a served block must cover; the
+// coverage is the share of them found in the served text.
+export function rareTokens(store: Store, projectId: string, text: string): string[] {
+  const live = store.getNodes(projectId).filter((n) => n.status !== 'removed');
+  const toks = matchTokens(text);
+  if (!toks.length || !live.length) return [];
+  const sets = live.map((n) => wordSet(`${n.title ?? ''} ${n.content}`));
+  const cap = Math.max(3, Math.ceil(live.length * 0.05));
+  return toks.filter((t) => { let d = 0; for (const ws of sets) { if (ws.has(t)) { d++; if (d > cap) break; } } return d > 0 && d <= cap; });
+}
+export function coverageOf(servedText: string, rare: string[]): { covered: string[]; missing: string[]; share: number } {
+  const ws = wordSet(servedText);
+  const covered = rare.filter((t) => ws.has(t)), missing = rare.filter((t) => !ws.has(t));
+  return { covered, missing, share: rare.length ? covered.length / rare.length : 1 };
+}
