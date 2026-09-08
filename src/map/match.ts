@@ -77,3 +77,29 @@ export function coverageOf(servedText: string, rare: string[]): { covered: strin
   const covered = rare.filter((t) => ws.has(t)), missing = rare.filter((t) => !ws.has(t));
   return { covered, missing, share: rare.length ? covered.length / rare.length : 1 };
 }
+
+// M232 (Jacob, 2026-09-08: "in the fit memory we are only specifying a node's
+// connection with its parents and child, but there may be non-linear links
+// that are not captured" — and the typed-link table held zero rows): KIN.
+// The nodes OUTSIDE a node's own top-level branch that share two or more rare
+// words with it. No model call; the fit writer says why they relate.
+export function kinOf(store: Store, projectId: string, nodeId: string, limit = 3): { id: string; shared: string[] }[] {
+  const live = store.getNodes(projectId).filter((n) => n.status !== 'removed');
+  const byId = new Map(live.map((n) => [n.id, n]));
+  const me = byId.get(nodeId); if (!me) return [];
+  const branchOf = (id: string): string => { let p: any = byId.get(id); const seen = new Set<string>(); while (p && p.parentId && byId.get(p.parentId)?.parentId && !seen.has(p.id)) { seen.add(p.id); p = byId.get(p.parentId); } return p?.id ?? id; };
+  const myBranch = branchOf(nodeId);
+  const sets = new Map(live.map((n) => [n.id, wordSet(`${n.title ?? ''} ${n.content}`)]));
+  const mine = [...(sets.get(nodeId) ?? [])].filter((w) => w.length > 3 && !MATCH_STOP.has(w));
+  const cap = Math.max(3, Math.ceil(live.length * 0.05));
+  const rare = mine.filter((t) => { let d = 0; for (const ws of sets.values()) { if (ws.has(t)) { d++; if (d > cap) break; } } return d <= cap; });
+  if (rare.length < 2) return [];
+  const out: { id: string; shared: string[]; score: number }[] = [];
+  for (const n of live) {
+    if (n.id === nodeId || branchOf(n.id) === myBranch) continue;
+    const ws = sets.get(n.id)!; const shared = rare.filter((t) => ws.has(t));
+    if (shared.length >= 2) out.push({ id: n.id, shared, score: shared.length });
+  }
+  out.sort((a, b) => b.score - a.score);
+  return out.slice(0, limit).map(({ id, shared }) => ({ id, shared }));
+}

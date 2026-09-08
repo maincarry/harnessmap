@@ -1,4 +1,5 @@
 import { Store } from '../store/db.js';
+import { kinOf } from '../map/match.js';
 import { call } from '../inference.js';
 import type { MapNode } from '../types.js';
 
@@ -64,9 +65,11 @@ export async function describeRelations(store: Store, nodeId: string): Promise<{
   if (row && row.nb_hash === hash) return { text: row.text, cached: true };
 
   const { parent, grand, children, grandkids } = neighborhood(store, n);
+  // M232: kin — nodes elsewhere on the map that share rare words with this one; the fit says why they relate.
+  const kin = kinOf(store, n.projectId, n.id, 3).map((k) => ({ k, node: store.getNode(k.id) })).filter((x) => x.node);
   try {
     const text0 = await call({
-      task: 'relations', system: SYSTEM, maxTokens: 250, timeoutMs: 90_000,
+      task: 'relations', system: SYSTEM + ' If KIN ELSEWHERE are given (nodes in other branches that share rare words with this one), end with one sentence "Elsewhere: …" naming each and WHY it relates (rests on, contradicts, same subject seen from another side); skip any that only share words.', maxTokens: 320, timeoutMs: 90_000,
       audit: (k, d) => store.audit(k, d),
       user: [
           `NODE: ${line(n)}`,
@@ -74,6 +77,7 @@ export async function describeRelations(store: Store, nodeId: string): Promise<{
           parent ? `PARENT: ${line(parent)}` : '(top-level node — no parent)',
           children.length ? `CHILDREN:\n${children.map((k) => `  - ${line(k)}`).join('\n')}` : '(no children)',
           grandkids.length ? `GRANDCHILDREN:\n${grandkids.map((g) => `  - ${line(g)}`).join('\n')}` : '',
+          kin.length ? `KIN ELSEWHERE (other branches, shared rare words):\n${kin.map((x) => `  - ${line(x.node!)} — shares: ${x.k.shared.join(', ')}`).join('\n')}` : '',
           'Describe how this node fits.',
         ].filter(Boolean).join('\n\n'),
     });

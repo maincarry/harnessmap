@@ -11,7 +11,7 @@ import { Translator } from './translator/translator.js';
 import { ChatSessionManager } from './agent/chat-session.js';
 import { composeParts } from './seed/composer.js';
 import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/render.js';
-import { matchNodes, rareTokens, coverageOf } from './map/match.js';
+import { matchNodes, rareTokens, coverageOf, kinOf } from './map/match.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
 import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
 import { listMinds, getAreaAdvice } from './translator/governors.js';
@@ -259,6 +259,15 @@ function reAnchorPanes(pid: string): void {
 // content FOR THAT TURN ONLY — the lit set is never touched. Discovery is
 // server-side and size-independent (M194 ruling 4).
 const pullupTokens = new Map<string, { nodeId: string; chatId: string; exp: number; used: boolean }>();
+// M232: the thread the question started continues to the served node's kin — its
+// relatives in other branches, one line each.
+function kinLines(pid: string, nodeId: string): string {
+  try {
+    const kin = kinOf(store, pid, nodeId, 3).map((k) => ({ k, n: store.getNode(k.id) })).filter((x) => x.n && x.n.status !== 'removed');
+    if (!kin.length) return '';
+    return `\n  related elsewhere on the map: ${kin.map((x) => `"${x.n!.title || x.n!.content.slice(0, 50)}" — ${getNodeCard(store, x.n!.id).minimal || x.n!.content.slice(0, 160)}`).join(' · ')}`;
+  } catch { return ''; }
+}
 function matchPullup(pid: string, chatId: string, promptText: string, includeLit: boolean): string {
   try {
     const q = (promptText ?? '').trim();
@@ -300,7 +309,7 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
       // any real node stays (an import root's 90k statement once rode along);
       // when it bites, the audit says so instead of a silent 2,500-char clip.
       if (String(best.n.content).length > 30_000) store.audit('pullup_ceiling', { node: best.n.id.slice(0, 8), chars: String(best.n.content).length });
-      outs.push(`[harnessmap] the message touches "${name}" (lit, far from focus) — served in full for this turn:\n${String(best.n.content).slice(0, 30_000)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}`.slice(0, 4000));
+      outs.push(`[harnessmap] the message touches "${name}" (lit, far from focus) — served in full for this turn:\n${String(best.n.content).slice(0, 30_000)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}${kinLines(pid, best.n.id)}`.slice(0, 4000));
       continue;
     }
     // Dim but named by the question: served in full for this turn (M230).
@@ -310,7 +319,7 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
       const full = (c as any).long && String((c as any).long).length > String(best.n.content).length ? String((c as any).long) : `${String(best.n.content).slice(0, 30_000)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}`;
       store.audit('pullup_served_by_question', { node: best.n.id.slice(0, 8), lit: false });
       store.metric(pid, 'interaction.pullup_served_by_question');
-      outs.push(`[harnessmap] the message names "${name}" — a SET-ASIDE topic, served in full for this turn because you asked about it (it stays set aside afterwards):\n${full.slice(0, 30_000)}`);
+      outs.push(`[harnessmap] the message names "${name}" — a SET-ASIDE topic, served in full for this turn because you asked about it (it stays set aside afterwards):\n${full.slice(0, 30_000)}${kinLines(pid, best.n.id)}`);
       continue;
     }
     }

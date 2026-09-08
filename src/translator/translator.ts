@@ -171,7 +171,7 @@ export class Translator {
         const existing = matchNodes(this.store, params.projectId, `${params.userText}\n${truncate(params.assistantText, 3000)}`, { limit: 6 })
           .map((m) => map.nodes.find((n) => n.id === m.id)).filter((n): n is MapNode => !!n && readScope.has(n.id));
         const existingNote = existing.length
-          ? `EXISTING NODES ON THIS ROUND'S SUBJECTS (word-matched; check before creating): ${existing.map((n) => `[${n.id}] ${n.title || n.content.slice(0, 60)}`).join(' · ')}\nIf the round refines, corrects or supersedes one of these, update_node THAT id (the node keeps its history); create a new node only for a subject none of them holds. When the round OVERTURNS part of a node's statement, REWRITE that part so the statement reads as the current rule — never leave the old clause standing beside the new one.`
+          ? `EXISTING NODES ON THIS ROUND'S SUBJECTS (word-matched; check before creating): ${existing.map((n) => `[${n.id}] ${n.title || n.content.slice(0, 60)}`).join(' · ')}\nIf the round refines, corrects or supersedes one of these, update_node THAT id (the node keeps its history); create a new node only for a subject none of them holds. When the round OVERTURNS part of a node's statement, REWRITE that part so the statement reads as the current rule — never leave the old clause standing beside the new one.${spansBranches(this.store, existing) ? `\nTHESE SIT IN DIFFERENT BRANCHES: when this round connects two of them (one rests on, answers, blocks or contradicts the other), emit create_link between them with the type that fits — the map holds no cross-links until you make them.` : ''}`
           : '';
         const parsed = await call({
           task: 'filer', system: SYSTEM + systemCard(this.store, params.projectId, 'the FILER'), maxTokens: 2048, schema: SCHEMA, timeoutMs: 60_000,
@@ -323,6 +323,12 @@ export class Translator {
 // The model sees 8-char id prefixes; expand them back to full ids, and mint
 // real UUIDs for newly created objects (mapping the model's ids to ours).
 // Brackets stripped defensively — models sometimes echo "[abcd1234]".
+// M232: the filer's link trigger — the round's matched nodes span two top-level branches.
+export function spansBranches(store: Store, nodes: { id: string; parentId: string | null }[]): boolean {
+  const tops = new Set<string>();
+  for (const n of nodes) { let p: any = n; const seen = new Set<string>(); while (p && p.parentId && !seen.has(p.id)) { seen.add(p.id); const q: any = store.getNode(p.parentId); if (!q || !q.parentId) break; p = q; } tops.add(p?.id ?? n.id); }
+  return tops.size >= 2;
+}
 export function normalizeIds(alterations: Alteration[], map: MapView): Alteration[] {
   const known = new Map<string, string>();
   for (const n of map.nodes) known.set(n.id.slice(0, 8), n.id);

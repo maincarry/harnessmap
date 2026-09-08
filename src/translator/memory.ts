@@ -1,4 +1,5 @@
 import { Store } from '../store/db.js';
+import { kinOf } from '../map/match.js';
 import { call } from '../inference.js';
 
 // Per-node chat memory (M41, Jacob): the third layer of a node's state —
@@ -95,12 +96,13 @@ export function organsInput(store: Store, n: { id: string; type?: string | null;
   const sibs = n.parentId ? store.childrenOf(n.parentId).filter((k) => k.id !== n.id && k.status !== 'removed').slice(0, 6).map((k) => k.title || k.content.slice(0, 40)) : [];
   const kids = store.childrenOf(n.id).filter((k) => k.status !== 'removed').slice(0, 8).map((k) => k.title || k.content.slice(0, 40));
   const cached = (store as any).getCachedRelation?.(n.id) ?? null;
+  const pidOf = (store.getNode(n.id) as any)?.projectId; const kin = pidOf ? kinOf(store, pidOf, n.id, 3).map((k) => `${name(k.id)} (shares: ${k.shared.join(', ')})`) : []; // M232
   const hist = (store as any).nodeHistory?.(n.id) ?? [];
   const versions = hist.filter((v: any) => v.content).map((v: any) => `  ${String(v.at).slice(0, 10)}${v.dated ? '' : ' (map change)'}: ${String(v.content).slice(0, 300)}`);
   const rounds = nodeRounds(store, n.id).slice(-4).map((r) => `  [${r.at.slice(0, 10)}] USER: ${r.user.slice(0, 400)}\n  AGENT: ${r.agent.slice(0, 400)}`);
   return [
     `NODE [${n.id}]: ${n.title ? `NAME: ${n.title}\n` : ''}${n.type ? `${n.type}: ` : ''}${n.content}`,
-    `FIT: under ${chain.length ? chain.join(' › ') : '(top level)'}${sibs.length ? ` · beside ${sibs.join(', ')}` : ''}${kids.length ? ` · holds ${kids.join(', ')}` : ''}${cached ? `\n  ${String(cached).split('\n')[0].slice(0, 300)}` : ''}`,
+    `FIT: under ${chain.length ? chain.join(' › ') : '(top level)'}${sibs.length ? ` · beside ${sibs.join(', ')}` : ''}${kids.length ? ` · holds ${kids.join(', ')}` : ''}${kin.length ? ` · KIN ELSEWHERE: ${kin.join('; ')}` : ''}${cached ? `\n  ${String(cached).split('\n')[0].slice(0, 300)}` : ''}`,
     versions.length > 1 ? `HISTORY OF THE STATEMENT (oldest first):\n${versions.join('\n')}` : '',
     rounds.length ? `WHAT WAS SAID (the rounds that touched this node):\n${rounds.join('\n')}` : '',
     renderExisting((store as any).db, n.id).text,
