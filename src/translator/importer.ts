@@ -10,7 +10,7 @@
 import { Store } from '../store/db.js';
 import { call, modelFor } from '../inference.js';
 import { statusConsult } from './mapstatus.js';
-import { matchItems } from '../map/match.js';
+import { matchItems, matchNodes } from '../map/match.js';
 import { loadMap, renderTree } from '../map/render.js';
 import { SCHEMA, normalizeIds } from './translator.js';
 import { systemCard } from './cast.js';
@@ -67,43 +67,120 @@ export function adoptSeedRoot(alterations: any[], rootId: string | null, seed: {
   return seed.id;
 }
 
-export interface ImportProposal { summary: string; alterations: any[]; rootId: string | null }
+// M216 (Mark, 2026-09-08: "let's also build the second import placement"):
+// an import into a map that already holds content PLACES its material —
+// each branch goes under the EXISTING node whose subject it continues
+// (referenced by [id]); only material with no home on the map goes under
+// the import's own container, created only if something needs it. One
+// reviewable proposal still (propose → approve), but its creates may
+// parent onto existing nodes and its updates may rewrite them (the filer's
+// job over history, M190c). The map is pristine → the seed root is adopted
+// instead (M215). Empty map → the old single-container behaviour.
+export function placementMode(store: Store, projectId: string): boolean {
+  if (seedRootOf(store, projectId)) return false;
+  return store.getNodes(projectId).some((n) => n.status !== 'removed' && !(n.parentId === null && ((n.title ?? n.content) ?? '').startsWith('to sort')));
+}
+
+// The existing map as placement targets: every node with its [id], rolled
+// up to a depth that fits the cap (deeper levels become "+N inside").
+export function outlineWithIds(nodes: { id: string; parentId: string | null; title?: string | null; content: string; status?: string }[], cap = 12_000): string {
+  const live = nodes.filter((n) => n.status !== 'removed');
+  const kids = new Map<string | null, typeof live>();
+  for (const n of live) { const k = kids.get(n.parentId) ?? []; k.push(n); kids.set(n.parentId, k); }
+  const countBelow = (id: string): number => (kids.get(id) ?? []).reduce((s, k) => s + 1 + countBelow(k.id), 0);
+  const render = (maxDepth: number): string => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const walk = (pid: string | null, depth: number) => {
+      for (const n of kids.get(pid) ?? []) {
+        if (seen.has(n.id)) continue; seen.add(n.id);
+        const below = countBelow(n.id);
+        const rolled = depth >= maxDepth && below > 0;
+        out.push(`${'  '.repeat(depth)}- [${n.id.slice(0, 8)}] ${(n.title || n.content).slice(0, 90)}${rolled ? ` (+${below} inside)` : ''}`);
+        if (!rolled) walk(n.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return out.join('\n');
+  };
+  for (let d = 8; d >= 1; d--) { const r = render(d); if (r.length <= cap || d === 1) return r.slice(0, cap + 2_000); }
+  return '';
+}
+
+// The placement sweep (pure, tested): a create's parent may be a node of
+// this batch, a node built earlier in this import, or an EXISTING map node;
+// anything else re-homes under the import's container, else under the map's
+// single main root, else stays top-level (a multi-root map). Returns the
+// ids of existing nodes that received material.
+export function placeCreates(alts: any[], rootId: string | null, known: Set<string>, existing: Set<string>, mainRoot: string | null): Set<string> {
+  const placed = new Set<string>();
+  for (const a of alts) {
+    if (a.op !== 'create_node' || a.id === rootId) continue;
+    if (a.parentId && existing.has(a.parentId)) { placed.add(a.parentId); continue; }
+    if (a.parentId && known.has(a.parentId)) continue;
+    a.parentId = rootId ?? mainRoot ?? null;
+    if (a.parentId && existing.has(a.parentId)) placed.add(a.parentId);
+  }
+  return placed;
+}
+
+// What the user previews: the import's container (if any) plus every
+// existing area that received material.
+export function importPreviewRoots(store: Store, alterations: any[], rootId: string | null): string[] {
+  const roots: string[] = rootId ? [rootId] : [];
+  const created = new Set(alterations.filter((a) => a.op === 'create_node').map((a) => a.id));
+  for (const a of alterations) {
+    if (a.op !== 'create_node' || !a.parentId || created.has(a.parentId) || roots.includes(a.parentId)) continue;
+    if (store.getNode(a.parentId)) roots.push(a.parentId);
+  }
+  return roots.slice(0, 12);
+}
+
+const PLACEMENT_RULE = `PLACEMENT — THE MAP ALREADY HOLDS CONTENT (shown with [ids]): put each branch where it belongs. When the map already has the subject, attach under that EXISTING node (parentId = its [id]) and update_node it when the material continues, corrects or supersedes it — never twin an existing subject under a new name. Create ONE new top-level container (parentId null) only for material that has no home on the map; if everything has a home, create no container at all.`;
+
+export interface ImportProposal { summary: string; alterations: any[]; rootId: string | null; placed?: string[] }
 
 export async function proposeImport(
   store: Store, projectId: string, sourceLabel: string, text: string,
   feedback?: string, priorSummary?: string,
 ): Promise<ImportProposal | { error: string }> {
   const map = loadMap(store, projectId);
-  const existing = renderTree(map, { ids: false });
+  const placing = placementMode(store, projectId);
+  const existing = placing ? outlineWithIds(map.nodes as any, 16_000) : renderTree(map, { ids: false });
   const capped = text.length > 60_000
     ? text.slice(0, 40_000) + `\n\n[… ${text.length - 60_000} characters omitted …]\n\n` + text.slice(-20_000)
     : text;
   try {
     const parsed = await call({
-      task: 'import', system: SYSTEM + systemCard(store, projectId, 'the IMPORT agent'),
+      task: 'import', system: SYSTEM + (placing ? `\n\n${PLACEMENT_RULE}` : '') + systemCard(store, projectId, 'the IMPORT agent'),
       maxTokens: 8000, schema: SCHEMA as any, timeoutMs: 300_000,
       audit: (k, d) => store.audit(k, d),
       user: [
-        `THE MAP AS IT STANDS (read-only — match its vocabulary and tone, do not touch it):\n${existing || '(empty map)'}`,
+        placing ? `THE MAP AS IT STANDS (with [ids] — place under these where the subject already lives):\n${existing}` : `THE MAP AS IT STANDS (read-only — match its vocabulary and tone, do not touch it):\n${existing || '(empty map)'}`,
         `SOURCE: ${sourceLabel}${text.length > 60_000 ? ` (long — middle omitted, ${text.length} chars total)` : ''}`,
         `MATERIAL TO IMPORT:\n${capped}`,
         ...(feedback ? [`THE USER SAW YOUR PREVIOUS PROPOSAL (${priorSummary ?? 'summarized'}) AND WANTS IT DIFFERENT: ${feedback}\nRebuild the whole subtree around their direction.`] : []),
         'Propose the import subtree.',
       ].join('\n\n'),
     });
-    let alterations: any[] = normalizeIds(parsed.alterations ?? [], map).filter((a: any) => a.op === 'create_node');
-    if (!alterations.length) return { error: 'the import agent produced no nodes' };
-    // Exactly one root: the first parentless create is the container; any
-    // other parentless strays are re-homed under it (never litter top level).
-    const rootId = alterations.find((a: any) => !a.parentId)?.id ?? null;
-    if (rootId) for (const a of alterations) { if (!a.parentId && a.id !== rootId) a.parentId = rootId; }
-    // Parent refs must resolve within the batch (model-made ids).
-    const ids = new Set(alterations.map((a: any) => a.id));
-    for (const a of alterations) if (a.parentId && !ids.has(a.parentId)) a.parentId = rootId;
+    const existingIds = new Set(map.nodes.filter((n) => n.status !== 'removed').map((n) => n.id));
+    // M216: in placement mode the model may also update existing nodes.
+    let alterations: any[] = normalizeIds(parsed.alterations ?? [], map).filter((a: any) => a.op === 'create_node' || (placing && a.op === 'update_node' && existingIds.has(a.id) && (a.content || a.title || a.status)));
+    if (!alterations.some((a) => a.op === 'create_node')) return { error: 'the import agent produced no nodes' };
+    // Exactly one container: the first parentless create; other parentless
+    // strays re-home under it (never litter the top level).
+    const rootId = alterations.find((a: any) => a.op === 'create_node' && !a.parentId)?.id ?? null;
+    const tops = map.nodes.filter((n) => n.status !== 'removed' && n.parentId === null && !((n.title ?? n.content) ?? '').startsWith('to sort'));
+    const mainRoot = tops.length === 1 ? tops[0].id : null;
+    const ids = new Set(alterations.filter((a: any) => a.op === 'create_node').map((a: any) => a.id));
+    const placedSet = placeCreates(alterations, rootId, ids, placing ? existingIds : new Set(), placing ? mainRoot : null);
     const seed = seedRootOf(store, projectId);
     const finalRoot = adoptSeedRoot(alterations, rootId, seed);
     if (seed && finalRoot === seed.id) store.audit('import_adopted_seed_root', { seed: seed.name.slice(0, 40) });
-    return { summary: parsed.summary ?? `imported: ${sourceLabel}`, alterations, rootId: finalRoot };
+    const placed = [...placedSet];
+    let summary = parsed.summary ?? `imported: ${sourceLabel}`;
+    if (placed.length) { const names = placed.map((id) => store.getNode(id)).filter(Boolean).map((n) => (n!.title || n!.content).slice(0, 30)); summary += ` · placed under ${placed.length} existing area(s): ${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}`; store.audit('import_placed', { areas: placed.length, container: !!finalRoot }); }
+    return { summary, alterations, rootId: finalRoot, placed };
   } catch (err) {
     console.error('[import] failed:', err);
     return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
@@ -267,6 +344,14 @@ export async function proposeImportLarge(
   // run on the filer's own cheap tier (live-use parity); the reconciling
   // finish pass keeps the smart model.
   const chunks = splitChunks(text, 8_000);
+  const placing = placementMode(store, projectId);
+  const existingNodes = map.nodes.filter((n) => n.status !== 'removed');
+  const existingIds = new Set(existingNodes.map((n) => n.id));
+  const existingById = new Map(existingNodes.map((n) => [n.id, n]));
+  const existingOutline = placing ? outlineWithIds(existingNodes as any, 8_000) : '';
+  const topsNow = existingNodes.filter((n) => n.parentId === null && !((n.title ?? n.content) ?? '').startsWith('to sort'));
+  const mainRoot = placing && topsNow.length === 1 ? topsNow[0].id : null;
+  const placedAreas = new Set<string>();
   const accum: { id: string; parentId: string | null; content: string; title?: string }[] = [];
   const memories: Record<string, string> = {};
   const alterations: any[] = [];
@@ -293,6 +378,9 @@ export async function proposeImportLarge(
         }
       };
       walk(null, 0);
+      // M216: material placed under EXISTING map nodes, grouped by its home.
+      const homes = [...kids.keys()].filter((k): k is string => !!k && !accum.some((n) => n.id === k) && existingIds.has(k));
+      for (const h of homes) { const e = existingById.get(h)!; out.push(`- under existing [${h.slice(0, 8)}] ${(e.title || e.content).slice(0, 60)}:`); walk(h, 1); }
       return out.join('\n');
     };
     for (let d = 12; d >= 2; d--) {
@@ -309,23 +397,31 @@ export async function proposeImportLarge(
   // FULL statements — the outline shows 90-char names, which is not enough
   // to notice that a later entry supersedes an earlier node.
   const touched = (chunk: string): string => {
-    if (!accum.length) return '';
-    const hits = matchItems(accum.map((n) => ({ id: n.id, title: n.title, content: n.content, medium: memories[n.id] ?? '' })), chunk, { limit: 10, minHits: 3 });
-    if (!hits.length) return '';
-    const byId = new Map(accum.map((n) => [n.id, n]));
-    return `NODES THIS CHUNK LIKELY TOUCHES (full statements — update_node these when the chunk continues, corrects or supersedes them):\n${hits.map((h) => { const n = byId.get(h.id)!; return `- [${n.id.slice(0, 8)}] ${n.title ? n.title + ' — ' : ''}${n.content.slice(0, 240)}`; }).join('\n')}`;
+    const parts: string[] = [];
+    if (accum.length) {
+      const hits = matchItems(accum.map((n) => ({ id: n.id, title: n.title, content: n.content, medium: memories[n.id] ?? '' })), chunk, { limit: 10, minHits: 3 });
+      const byId = new Map(accum.map((n) => [n.id, n]));
+      if (hits.length) parts.push(`NODES THIS CHUNK LIKELY TOUCHES (full statements — update_node these when the chunk continues, corrects or supersedes them):\n${hits.map((h) => { const n = byId.get(h.id)!; return `- [${n.id.slice(0, 8)}] ${n.title ? n.title + ' — ' : ''}${n.content.slice(0, 240)}`; }).join('\n')}`);
+    }
+    // M216: the existing map's nodes on this chunk's subjects — placement
+    // targets, with full statements (the outline shows names only).
+    if (placing) {
+      const hits = matchNodes(store, projectId, chunk, { limit: 8, minHits: 3 });
+      if (hits.length) parts.push(`EXISTING MAP NODES ON THIS CHUNK'S SUBJECTS (place under these, or update_node them when the chunk continues or corrects them):\n${hits.map((h) => { const n = existingById.get(h.id); return n ? `- [${n.id.slice(0, 8)}] ${n.title ? n.title + ' — ' : ''}${n.content.slice(0, 240)}` : ''; }).filter(Boolean).join('\n')}`);
+    }
+    return parts.join('\n\n');
   };
   try {
     for (let i = 0; i < chunks.length; i++) {
       onProgress?.({ phase: 'chunk', done: i, total: chunks.length });
       const askChunk = () => call({
         task: 'import', modelOverride: modelFor('filer'),
-        system: EXTEND_SYSTEM + systemCard(store, projectId, 'the IMPORT agent'),
+        system: EXTEND_SYSTEM + (placing ? `\n\n${PLACEMENT_RULE} (This overrides the last rule above: parentId may reference an existing map [id].)` : '') + systemCard(store, projectId, 'the IMPORT agent'),
         maxTokens: 8000, schema: IMPORT_SCHEMA as any, timeoutMs: 300_000,
         audit: (k, d) => store.audit(k, d),
         user: [
-          i === 0 ? `THE MAP THIS LANDS IN (read-only, for tone):\n${renderTree(map, { ids: false }).slice(0, 4000) || '(empty map)'}` : '',
-          `THE IMPORTED SUBTREE SO FAR (${accum.length} nodes):\n${renderAccum() || '(nothing yet — this is the first chunk; your first node becomes the ROOT container for the whole import, named 2-4 words for what the source IS)'}`,
+          placing ? `THE MAP THIS LANDS IN (with [ids] — place under these where the subject already lives):\n${existingOutline}` : i === 0 ? `THE MAP THIS LANDS IN (read-only, for tone):\n${renderTree(map, { ids: false }).slice(0, 4000) || '(empty map)'}` : '',
+          `THE IMPORTED SUBTREE SO FAR (${accum.length} nodes):\n${renderAccum() || (placing ? '(nothing yet — this is the first chunk; attach under existing map nodes where the subject lives; a parentless node becomes the container for material with no home)' : '(nothing yet — this is the first chunk; your first node becomes the ROOT container for the whole import, named 2-4 words for what the source IS)')}`,
           touched(chunks[i]),
           sourceSummary ? `THE WHOLE SOURCE, SUMMARIZED (file this chunk against the global picture, by subject):\n${sourceSummary.slice(0, 12_000)}` : '',
           `SOURCE: ${sourceLabel} — CHUNK ${i + 1} of ${chunks.length}`,
@@ -357,11 +453,12 @@ export async function proposeImportLarge(
       for (const a of (parsed.alterations ?? []) as any[]) {
         if (a.op !== 'update_node') continue;
         const raw = String(a.id ?? '').replace(/[\[\]]/g, '');
-        const id = shortIds.get(raw) ?? (accum.some((n) => n.id === raw) ? raw : undefined);
+        const exShort = placing ? existingNodes.find((n) => n.id.slice(0, 8) === raw || n.id === raw)?.id : undefined;
+        const id = shortIds.get(raw) ?? (accum.some((n) => n.id === raw) ? raw : exShort);
         if (!id || (!a.content && !a.title && !a.status)) continue;
-        const n = accum.find((x) => x.id === id)!;
-        if (a.content) n.content = String(a.content);
-        if (a.title) n.title = String(a.title);
+        const n = accum.find((x) => x.id === id);
+        if (n) { if (a.content) n.content = String(a.content); if (a.title) n.title = String(a.title); }
+        else placedAreas.add(id); // M216: an existing map node rewritten by the import (its earlier statement stays as a version)
         if (a.memory) memories[id] = `${memories[id] ? memories[id] + '\n' : ''}${String(a.memory)}`.slice(-1500);
         alterations.push({ op: 'update_node', id, ...(a.content ? { content: String(a.content) } : {}), ...(a.title ? { title: String(a.title) } : {}), ...(a.status ? { status: String(a.status) } : {}), ...(/^\d{4}-\d{2}-\d{2}$/.test(String(a.date ?? '')) ? { date: String(a.date) } : {}) });
         updates++;
@@ -372,7 +469,8 @@ export async function proposeImportLarge(
       for (const a of alts as any[]) {
         if (!rootId && !a.parentId) rootId = a.id;
         else if (!a.parentId && a.id !== rootId) a.parentId = rootId;
-        if (a.parentId && !batchIds.has(a.parentId) && !accumIds.has(a.parentId)) a.parentId = rootId;
+        if (a.parentId && !batchIds.has(a.parentId) && !accumIds.has(a.parentId) && !(placing && existingIds.has(a.parentId))) a.parentId = rootId ?? mainRoot;
+        if (a.parentId && existingIds.has(a.parentId)) placedAreas.add(a.parentId);
         if (a.memory) { memories[a.id] = String(a.memory).slice(0, 1500); delete a.memory; }
         accum.push({ id: a.id, parentId: a.parentId ?? null, content: a.content, title: a.title });
         alterations.push(a);
@@ -395,8 +493,10 @@ export async function proposeImportLarge(
         const id = short.get(String(a.id).replace(/[\[\]]/g, '')) ?? a.id;
         if (!accumIds.has(id)) continue;
         if (a.op === 'move_node') {
-          const pid = short.get(String(a.parentId).replace(/[\[\]]/g, '')) ?? a.parentId;
-          if (!accumIds.has(pid) || pid === id) continue;
+          const rawP = String(a.parentId).replace(/[\[\]]/g, '');
+          const pid = short.get(rawP) ?? (placing ? existingNodes.find((n) => n.id.slice(0, 8) === rawP || n.id === rawP)?.id : undefined) ?? a.parentId;
+          if ((!accumIds.has(pid) && !(placing && existingIds.has(pid))) || pid === id) continue;
+          if (existingIds.has(pid)) placedAreas.add(pid);
           alterations.push({ op: 'move_node', id, parentId: pid });
         } else if (a.op === 'update_node' && (a.content || a.title)) {
           alterations.push({ op: 'update_node', id, ...(a.content ? { content: a.content } : {}), ...(a.title ? { title: a.title } : {}) });
@@ -435,7 +535,7 @@ export async function proposeImportLarge(
       const createdIds = new Set(alterations.filter((a) => a.op === 'create_node').map((a: any) => a.id));
       for (const a of alterations as any[]) {
         if (a.op !== 'create_node' || a.id === rootId) continue;
-        if (!a.parentId || !createdIds.has(a.parentId)) {
+        if (!a.parentId || !(createdIds.has(a.parentId) || (placing && existingIds.has(a.parentId)))) {
           store.audit('import_orphan_rehomed', { id: String(a.id).slice(0, 8), badParent: String(a.parentId ?? 'none').slice(0, 8) });
           a.parentId = rootId;
         }
@@ -446,7 +546,9 @@ export async function proposeImportLarge(
     const seed = seedRootOf(store, projectId);
     const finalRoot = adoptSeedRoot(alterations, rootId, seed, memories);
     if (seed && finalRoot === seed.id) store.audit('import_adopted_seed_root', { seed: seed.name.slice(0, 40) });
-    return { summary, alterations, rootId: finalRoot, memories, chunks: chunks.length, skipped, sourceSummary };
+    const placed = [...placedAreas];
+    if (placed.length) { const names = placed.map((id) => existingById.get(id)).filter(Boolean).map((n) => (n!.title || n!.content).slice(0, 30)); summary += ` · placed under ${placed.length} existing area(s): ${names.slice(0, 5).join(', ')}${names.length > 5 ? '…' : ''}${finalRoot ? '' : ' (no new container: everything had a home)'}`; store.audit('import_placed', { areas: placed.length, container: !!finalRoot }); }
+    return { summary, alterations, rootId: finalRoot, memories, chunks: chunks.length, skipped, sourceSummary, placed };
   } catch (err) {
     console.error('[import-large] failed:', err);
     return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };

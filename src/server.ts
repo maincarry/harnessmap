@@ -23,7 +23,7 @@ import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
-import { proposeImport, proposeImportLarge, extractTranscript } from './translator/importer.js';
+import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots } from './translator/importer.js';
 import { setTraceSink, setMetricsSink, callHealth, call, modelFor } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
@@ -1753,9 +1753,22 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         try { (store as any).db.prepare('DELETE FROM pending_proposals WHERE job_id = ?').run(jobId); } catch {}
         importJobs.delete(jobId);
       }
+      // M216: which EXISTING areas this import places material into (judged
+      // before apply — afterwards the new nodes exist too).
+      const placedAreas = origin === 'import' ? [...new Set((alterations as any[]).filter((a) => a.op === 'create_node' && a.parentId && store.getNode(a.parentId)).map((a) => a.parentId as string))] : [];
       const tidyInverse = inverseOfAlterations(alterations);
       const tidyMeta = captureFocusLit(alterations.map((a: any) => a.id).filter(Boolean));
       store.applyAlterations(applyPid, alterations, { kind: 'reorganize' });
+      if (placedAreas.length) {
+        // The big-picture step (Mark): an import placed across the map is
+        // followed by an offer to look at the whole — a ⟳ tidy suggestion on
+        // the map's root (or the first area touched), propose → approve as ever.
+        const tops = store.getNodes(applyPid).filter((n) => n.status !== 'removed' && n.parentId === null && !((n.title ?? n.content) ?? '').startsWith('to sort'));
+        const at = tops.length === 1 ? tops[0].id : placedAreas[0];
+        const names = placedAreas.map((id) => store.getNode(id)).filter(Boolean).map((n) => (n!.title || n!.content).slice(0, 30));
+        store.upsertSuggestion(applyPid, at, `an import just placed material under ${placedAreas.length} existing area(s) (${names.slice(0, 4).join(', ')}${names.length > 4 ? '…' : ''}) — a ⟳ tidy of the whole map would reconcile twins and regroup`);
+        store.audit('import_placed_applied', { areas: placedAreas.length });
+      }
       store.pushUndo(applyPid, `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))`, tidyInverse, tidyMeta);
       store.metric(applyPid, 'interaction.tidy_apply', alterations.length);
       // M191/Q4 (Mark): an IMPORT lands dim — the user chooses focus and may
@@ -1972,7 +1985,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       if (!j) return json({ error: 'unknown job' }, 404);
       if (j.status !== 'done') return json({ status: j.status, label: j.label, error: j.error });
       const p = j.proposal;
-      const preview = store.previewAlterations(projectId, p.alterations, () => p.rootId ? renderSubtreeFull(store, p.rootId) : '');
+      const preview = store.previewAlterations(projectId, p.alterations, () => importPreviewRoots(store, p.alterations, p.rootId).map((id) => renderSubtreeFull(store, id)).join('\n\n'));
       return json({ status: 'done', label: j.label, summary: p.summary, alterations: p.alterations, rootId: p.rootId, memories: p.memories, chunks: p.chunks, preview });
     }
 
@@ -2006,7 +2019,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       if (!text || text.length < 20) return json({ error: 'nothing to import — the source is empty' }, 400);
       const p = await proposeImport(store, projectId, label, text, b.feedback, b.priorSummary);
       if ('error' in p) return json({ error: p.error }, 502);
-      const preview = store.previewAlterations(projectId, p.alterations, () => p.rootId ? renderSubtreeFull(store, p.rootId) : '');
+      const preview = store.previewAlterations(projectId, p.alterations, () => importPreviewRoots(store, p.alterations, p.rootId).map((id) => renderSubtreeFull(store, id)).join('\n\n'));
       store.audit('import_preview', { label: label.slice(0, 40), nodes: p.alterations.length, chars: text.length });
       return json({ summary: p.summary, alterations: p.alterations, rootId: p.rootId, preview, label, chars: text.length });
     }

@@ -3,7 +3,7 @@
 // later maps (one seed node named after the map + the "to sort" tray), a
 // fake import proposal shaped like the model's, adoption, apply, assert.
 import { Store } from '../store/db.js';
-import { seedRootOf, adoptSeedRoot } from '../translator/importer.js';
+import { seedRootOf, adoptSeedRoot, placementMode, outlineWithIds, placeCreates, importPreviewRoots } from '../translator/importer.js';
 import { measureMap, shapeFindings } from '../translator/mapstatus.js';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
@@ -87,6 +87,41 @@ const inst1 = measureMap(store, pid);  // the adopted map: one root with chapter
 ok('a folded map has no shape finding', shapeFindings(inst1).length === 0 && inst1.topLevel.count === 1);
 const instT = measureMap(store, pid3); // two filled roots
 ok('two roots without an empty one is the split-trees finding', shapeFindings(instT).length === 1 && /2 roots/.test(shapeFindings(instT)[0].what));
+
+// 6. M216 placement: a filled map is in placement mode; a pristine one and an empty one are not
+ok('filled map → placement mode', placementMode(store, pid) === true);
+const pid5 = store.createProject('empty'); 
+ok('empty map → no placement', placementMode(store, pid5) === false);
+const pid6 = store.createProject('pristine'); const s6 = randomUUID();
+store.applyAlterations(pid6, [{ op: 'create_node', id: s6, parentId: null, content: 'pristine', status: 'live', author: 'user' } as any], { kind: 'system' });
+ok('pristine map → seed adoption, not placement', placementMode(store, pid6) === false && seedRootOf(store, pid6)?.id === s6);
+// outline with ids rolls up under a cap and shows every id
+const outline = outlineWithIds(store.getNodes(pid) as any, 400);
+ok('outline shows ids', outline.includes(`[${seedId.slice(0, 8)}]`) && outline.split('\n').length >= 2);
+const c1id = store.getNodes(pid).find((n) => n.title === 'Chapter one')!.id;
+store.applyAlterations(pid, [{ op: 'create_node', id: randomUUID(), parentId: c1id, content: 'a grandchild', status: 'live', author: 'user' } as any], { kind: 'system' });
+const tiny = outlineWithIds(store.getNodes(pid) as any, 10);
+ok('outline under a tiny cap rolls deeper levels up', /Chapter one \(\+1 inside\)/.test(tiny) && !tiny.includes('a grandchild'));
+ok('outline under a roomy cap shows everything', outlineWithIds(store.getNodes(pid) as any, 5000).includes('a grandchild'));
+// the sweep: existing parents kept, batch/known parents kept, strays → container, else main root
+const chapters = store.getNodes(pid).filter((n) => n.parentId === seedId);
+const exIds = new Set(store.getNodes(pid).map((n) => n.id));
+const batch: any[] = [
+  { op: 'create_node', id: 'k1', parentId: chapters[0].id, content: 'placed under an existing chapter' },
+  { op: 'create_node', id: 'k2', parentId: 'k1', content: 'under a batch node' },
+  { op: 'create_node', id: 'k3', parentId: 'nowhere', content: 'stray' },
+  { op: 'create_node', id: 'k4', parentId: null, content: 'parentless' },
+];
+const placed = placeCreates(batch, null, new Set(['k1', 'k2', 'k3', 'k4']), exIds, seedId);
+ok('existing parent kept and reported', batch[0].parentId === chapters[0].id && placed.has(chapters[0].id));
+ok('batch parent kept', batch[1].parentId === 'k1');
+ok('stray and parentless go to the main root when there is no container', batch[2].parentId === seedId && batch[3].parentId === seedId);
+const batch2: any[] = [{ op: 'create_node', id: 'c0', parentId: null, content: 'container' }, { op: 'create_node', id: 'k5', parentId: 'nowhere', content: 'stray' }];
+placeCreates(batch2, 'c0', new Set(['c0', 'k5']), exIds, seedId);
+ok('with a container, strays go under it', batch2[1].parentId === 'c0' && batch2[0].parentId === null);
+// preview roots: the container plus every existing area touched
+const roots = importPreviewRoots(store, [...batch2, batch[0]], 'c0');
+ok('preview roots = container + touched areas', roots[0] === 'c0' && roots.includes(chapters[0].id) && roots.length === 2);
 
 console.log(`seed-root: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
