@@ -121,3 +121,14 @@ bun run src/eval/ui-smoke.ts     # 124 UI checks — boots the real page and cli
 bun run src/eval/install-smoke.ts # fresh-machine install simulation (hooks → spawn → announce)
 bun run eval essay               # the judgment gate: corpus replay, graded
 ```
+
+## Contributing: what never goes to GitHub
+
+Conversation history, run artifacts (checkpoints, cells, briefs), logs and databases stay on the
+machine they were made on — `docs/archive/`, `src/eval/*segment*.json`, `*.log`, `*.sqlite`, `*.jsonl`
+are ignored, `bun run src/eval/repo-hygiene.ts` checks the tracked files, and a pre-commit guard
+refuses such files and key-like strings. Enable it once per clone:
+
+```sh
+git config core.hooksPath .githooks
+```

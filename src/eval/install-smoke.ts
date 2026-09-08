@@ -113,6 +113,14 @@ console.log('\n== 6. restart path: hook revives a stopped server ==');
   check('server is back with the same data', !!st && st.projects.some((p: any) => p.name === 'my-fresh-project'));
 }
 
+console.log('\n== 6b. repo hygiene: no conversation history, logs or databases tracked (M222) ==');
+{
+  const h = Bun.spawnSync(['bun', 'run', 'src/eval/repo-hygiene.ts'], { stdout: 'pipe', stderr: 'pipe' });
+  check('repo hygiene passes', h.exitCode === 0, h.stdout.toString().slice(-300));
+  const hook = await Bun.file('.githooks/pre-commit').text();
+  check('the pre-commit guard exists and names the archive and transcript patterns', /docs\/archive/.test(hook) && /transcript/.test(hook) && /sk-ant-/.test(hook));
+}
+
 console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');
 {
   // Codex's payloads match Claude Code's — prove OUR hooks serve both.
