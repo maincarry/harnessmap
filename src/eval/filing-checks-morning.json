@@ -164,14 +164,13 @@
   "id": "C01",
   "kind": "currency",
   "m": "Z2→M105",
-  "what": "zoom no longer dims: 'zoom dims everything outside' must not stand as live",
+  "what": "zoom no longer dims: 'zoom dims everything outside' must not stand as live (earlier = ZOOM doing the dimming; the dim-all-outside button dimming outside the zoom is the current rule)",
   "must": [
    "zoom",
    "view.?only|only changes the view|pure view|does not dim|no longer dims|never dims"
   ],
   "earlier": [
-   "zoom",
-   "dims? (everything|all) outside|also dims|dims outside"
+   "zoom(ing)?\\s+(also\\s+|automatically\\s+|still\\s+)?(dims?|darkens?)\\b|zoom\\s*=\\s*dim|zoom (and|\\+) dim (are |were )?(fused|one|the same)"
   ]
  },
  {
