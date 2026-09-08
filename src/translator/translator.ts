@@ -59,6 +59,7 @@ Other rules:
 - CHOOSING RETIRES RIVALS: when the user picks one option, mark it chosen AND mark the competing options of that same choice dropped — a decided question leaves no live alternatives behind.
 - Flip-flops apply in utterance order ("scratch it — wait no, keep as maybe" ends parked).
 - Generate ids as short random strings for new nodes; reference existing map ids exactly as given in [brackets].
+- DATE: when the round states WHEN a ruling or fact happened ("yesterday", "on Aug 23", a dated entry), put it on the alteration as date "YYYY-MM-DD"; leave it out when the round does not say — never invent one. The node's timeline shows that date; without it, the day the map changed.
 - For create_node at the top level, OMIT parentId entirely; otherwise set parentId to the node this is about (any node works as a parent).`;
 
 // Schema notes (hard-won, 2026-08-12):
@@ -88,8 +89,8 @@ export const SCHEMA = {
       items: {
         anyOf: [
           // type omitted or '' = plain heading node.
-          variant('create_node', { id: str, content: str, status: str, author }, ['id', 'content', 'status', 'author'], { parentId: str, type: str, title: str }),
-          variant('update_node', { id: str }, ['id'], { content: str, status: str, type: str, title: str }),
+          variant('create_node', { id: str, content: str, status: str, author }, ['id', 'content', 'status', 'author'], { parentId: str, type: str, title: str, date: str }),
+          variant('update_node', { id: str }, ['id'], { content: str, status: str, type: str, title: str, date: str }),
           variant('move_node', { id: str, parentId: str }, ['id', 'parentId']),
           variant('create_link', { id: str, type: linkType, fromItemId: str, toId: str }, ['id', 'type', 'fromItemId', 'toId']),
           variant('suggest_restructure', { nodeId: str, note: str }, ['nodeId', 'note']),

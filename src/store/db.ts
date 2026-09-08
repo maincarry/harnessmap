@@ -165,14 +165,18 @@ export class Store {
   // M203 (Jacob): a node's timeline from the event log — its create and every
   // update that changed content, title or status, oldest first. No new
   // storage: the map has been event-sourced since the nodes migration.
-  nodeHistory(id: string): { seq: number; at: string; source: string; content?: string; title?: string; status?: string }[] {
+  nodeHistory(id: string): { seq: number; at: string; changedAt: string; dated: boolean; source: string; content?: string; title?: string; status?: string }[] {
     const rows = this.db.prepare("SELECT seq, alteration, source_kind, created_at FROM map_events WHERE alteration LIKE ? ORDER BY seq ASC").all(`%"id":"${id}"%`) as any[];
-    const out: { seq: number; at: string; source: string; content?: string; title?: string; status?: string }[] = [];
+    const out: { seq: number; at: string; changedAt: string; dated: boolean; source: string; content?: string; title?: string; status?: string }[] = [];
     for (const r of rows) {
       let a: any; try { a = JSON.parse(r.alteration); } catch { continue; }
       if (a.id !== id || (a.op !== 'create_node' && a.op !== 'update_node')) continue;
       if (a.content === undefined && a.title === undefined && a.status === undefined) continue;
-      const v: any = { seq: r.seq, at: r.created_at, source: r.source_kind ?? '' };
+      // M211: `at` = the source date when the alteration carries one (when the
+      // fact happened), else the event time (when the map changed); `changedAt`
+      // always the event time, `dated` says which one `at` is.
+      const sd = /^\d{4}-\d{2}-\d{2}$/.test(String(a.date ?? '')) ? String(a.date) : null;
+      const v: any = { seq: r.seq, at: sd ?? r.created_at, changedAt: r.created_at, dated: Boolean(sd), source: r.source_kind ?? '' };
       if (a.content !== undefined) v.content = String(a.content);
       if (a.title !== undefined) v.title = String(a.title);
       if (a.status !== undefined) v.status = String(a.status);
@@ -189,7 +193,8 @@ export class Store {
     for (const r of rows) {
       let a: any; try { a = JSON.parse(r.alteration); } catch { continue; }
       if ((a.op !== 'create_node' && a.op !== 'update_node') || typeof a.content !== 'string' || !a.id) continue;
-      const l = all.get(a.id); const v = { at: r.created_at, content: a.content };
+      const sd = /^\d{4}-\d{2}-\d{2}$/.test(String(a.date ?? '')) ? String(a.date) : null;
+      const l = all.get(a.id); const v = { at: sd ?? r.created_at, content: a.content };
       if (l) l.push(v); else all.set(a.id, [v]);
     }
     for (const [k, l] of all) if (l.length < 2) all.delete(k);

@@ -85,8 +85,8 @@ export interface Link {
 // Canonical ops are node ops. Legacy container/item ops remain REPLAY-ONLY
 // aliases so old map_events rebuild into nodes (the event-sourced migration).
 export type Alteration =
-  | { op: 'create_node'; id: string; parentId?: string | null; content: string; title?: string; type?: string | null; status: string; author: Author }
-  | { op: 'update_node'; id: string; content?: string; title?: string; type?: string; status?: string } // status 'removed' = delete (whole subtree hides)
+  | { op: 'create_node'; id: string; parentId?: string | null; content: string; title?: string; type?: string | null; status: string; author: Author; date?: string } // date = when the fact/ruling happened (YYYY-MM-DD), if the source says; the event time is when the MAP changed
+  | { op: 'update_node'; id: string; content?: string; title?: string; type?: string; status?: string; date?: string } // status 'removed' = delete (whole subtree hides); date as above
   | { op: 'move_node'; id: string; parentId: string | null }
   | { op: 'create_link'; id: string; type: LinkType; fromItemId: string; toId: string; toKind?: 'item' | 'container' }
   | { op: 'set_focus'; containerId: string }

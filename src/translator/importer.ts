@@ -120,11 +120,11 @@ const IMPORT_SCHEMA = {
       items: {
         anyOf: [
           v2('create_node', { id: s2, content: s2, status: s2, author: { type: 'string' as const, enum: ['user', 'agent'] } },
-            ['id', 'content', 'status', 'author'], { parentId: s2, type: s2, title: s2, memory: s2 }),
+            ['id', 'content', 'status', 'author'], { parentId: s2, type: s2, title: s2, memory: s2, date: s2 }),
           // M205 (Jacob): an import UPDATES a node it already built when a
           // later part of the source continues, corrects or reverses it —
           // the node keeps its earlier statement as a version (event log).
-          v2('update_node', { id: s2 }, ['id'], { content: s2, title: s2, status: s2, memory: s2 }),
+          v2('update_node', { id: s2 }, ['id'], { content: s2, title: s2, status: s2, memory: s2, date: s2 }),
         ],
       },
     },
@@ -160,6 +160,7 @@ RULES:
 - DENSITY: roughly one node per coherent point in the source. Do not compress a rich chunk into a handful of lines; do not pad a thin one. A chunk holding a few deliberations typically deserves a handful of nodes; a thin connective chunk may deserve one or none.
 - DEPTH — the structure carries the substance: where the source has layers (a claim with its supporting facts, an option with its tradeoffs, a decision with its reasons and the rejected alternative, a correction superseding an earlier state), file those layers as CHILD NODES — evidence under the claim, objections under the option, reasons under the decision — three or four levels deep where the material earns it. Never flatten a layered discussion into a list of siblings whose detail hides in memory fields: a reader of the TREE alone should be able to follow the argument.
 - NAMES: topic/heading nodes 2-5 words; statement nodes one tight sentence. Depth does NOT go in the name.
+- DATE: every create_node and update_node carries date "YYYY-MM-DD" = when the ruling or fact HAPPENED according to the source (an entry's own date, a dated heading), not today; omit it only when the source gives no date. The node's timeline is built from these.
 - MEMORY: nodes carrying source detail worth quoting SHOULD include a "memory" field — specifics, numbers, exact quotes, and a provenance tag naming where in the source it came from (a heading, a date, an entry id). Up to ~1200 characters. Memory is for provenance and texture; it is NOT the home of substance — anything a future reader needs in order to follow the discussion belongs in nodes.
 - Types where they fit (claim, question, option, decision, constraint, evidence, task), statuses honestly; short random strings for new ids; parentId must reference an existing [id] or an id created earlier in THIS list. Do not reference anything outside the import subtree.`;
 
@@ -323,7 +324,7 @@ export async function proposeImportLarge(
         if (a.content) n.content = String(a.content);
         if (a.title) n.title = String(a.title);
         if (a.memory) memories[id] = `${memories[id] ? memories[id] + '\n' : ''}${String(a.memory)}`.slice(-1500);
-        alterations.push({ op: 'update_node', id, ...(a.content ? { content: String(a.content) } : {}), ...(a.title ? { title: String(a.title) } : {}), ...(a.status ? { status: String(a.status) } : {}) });
+        alterations.push({ op: 'update_node', id, ...(a.content ? { content: String(a.content) } : {}), ...(a.title ? { title: String(a.title) } : {}), ...(a.status ? { status: String(a.status) } : {}), ...(/^\d{4}-\d{2}-\d{2}$/.test(String(a.date ?? '')) ? { date: String(a.date) } : {}) });
         updates++;
       }
       const alts = normalizeIds((parsed.alterations ?? []) as any[], synthetic).filter((a: any) => a.op === 'create_node');
