@@ -12,3 +12,6 @@ backups/
 # M183 (Mark): design rationale stays local — the judgment record is not for the public repo
 /DESIGN.md
 /docs/
+
+# raw conversation transcripts archived for runs — local only (M220: a key rode in one)
+docs/archive/**/raw-source-*
