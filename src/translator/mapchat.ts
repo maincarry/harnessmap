@@ -43,7 +43,7 @@ HOW TO ANSWER:
   * kind "autolight" (no other fields): they want the background sorted but DIDN'T name nodes ("fix my lighting", "set up the background for what I'm doing") — the light specialist will pick, for approval.
   * kind "autozoom" (no other fields): they want the view decluttered but DIDN'T name a subtree ("too much on screen", "zoom to whatever I'm doing") — the zoom specialist will pick, for approval.
   * kind "search" + instruction (the search words): they're LOOKING for a node ("find my node about X", "where did we put Y") — opens the search view with results. Single-step only.
-  * kind "favorite" + nodeId: they want a node pinned ("favorite X", "pin Y") — applies on approval. Single-step only.
+  * kind "favorite" + nodeId: they want a node pinned ("favorite X", "pin Y") — applies on approval. kind "unfavorite" + nodeId: they want it unpinned ("remove X from favorites", "unpin all the pending ones" = one unfavorite step per node, ids from the FAVORITES list).
   * kind "merge" + nodeId + intoId: they want two nodes combined ("merge X into Y", "these two are the same") — nodeId disappears into intoId. If they named only the duplicates without a survivor, pick the better-worded one as intoId. Single-step only.
   * kind "mergeproject" + projectName (one of OTHER MAPS): they want that whole map folded into THIS one as a topic. Warn in the answer that it is irreversible. Single-step only.
   * kind "feedback" + instruction: the user has hit what looks like a SERIOUS BUG in this product (something clearly broken, data loss, wrong behavior they demonstrated) or made an important product suggestion — and ONLY then. instruction = a crisp report in their words (what happened / what they expected). In your answer, offer to send it to the developers — it opens a GitHub issue THEY review and submit themselves; nothing is sent automatically and usage is never monitored. Never use this for ordinary questions or map operations. Single-step only.
@@ -73,7 +73,7 @@ const SCHEMA = {
       additionalProperties: false,
       required: ['kind'],
       properties: {
-        kind: { type: 'string' as const, enum: ['focus', 'light', 'tidy', 'zoom', 'autofocus', 'autolight', 'autozoom', 'search', 'favorite', 'merge', 'mergeproject', 'pref', 'feedback'] },
+        kind: { type: 'string' as const, enum: ['focus', 'light', 'tidy', 'zoom', 'autofocus', 'autolight', 'autozoom', 'search', 'favorite', 'unfavorite', 'merge', 'mergeproject', 'pref', 'feedback'] },
         nodeId: { type: 'string' as const, description: 'For focus: the deepest node whose content matches what the user named — NEVER its parent. For tidy: the subtree root to clean. For merge: the node that disappears.' },
         intoId: { type: 'string' as const, description: 'merge only: the surviving node' },
         projectName: { type: 'string' as const, description: 'mergeproject only: the other map to fold into this one' },
@@ -95,13 +95,13 @@ const SCHEMA = {
     },
     actions: {
       type: 'array' as const,
-      description: 'Ordered plan for complex requests needing several operations, up to 40 steps: focus/light/tidy/zoom, or a favorite per node ("favorite all X" = one favorite step per node).',
+      description: 'Ordered plan for complex requests needing several operations, up to 40 steps: focus/light/tidy/zoom, or a favorite/unfavorite per node ("favorite all X" = one favorite step per node).',
       items: {
         type: 'object' as const,
         additionalProperties: false,
         required: ['kind'],
         properties: {
-          kind: { type: 'string' as const, enum: ['focus', 'light', 'tidy', 'zoom', 'favorite'] },
+          kind: { type: 'string' as const, enum: ['focus', 'light', 'tidy', 'zoom', 'favorite', 'unfavorite'] },
           nodeId: { type: 'string' as const },
           lit: { type: 'array' as const, items: { type: 'string' as const } },
           dim: { type: 'array' as const, items: { type: 'string' as const } },
@@ -216,7 +216,7 @@ export function runGuideQuery(store: Store, projectId: string, chatId: string | 
 }
 
 export interface MapChatAction {
-  kind: 'focus' | 'light' | 'tidy' | 'zoom' | 'autofocus' | 'autolight' | 'autozoom' | 'search' | 'favorite' | 'merge' | 'mergeproject' | 'pref' | 'feedback';
+  kind: 'focus' | 'light' | 'tidy' | 'zoom' | 'autofocus' | 'autolight' | 'autozoom' | 'search' | 'favorite' | 'unfavorite' | 'merge' | 'mergeproject' | 'pref' | 'feedback';
   nodeId?: string; nodeName?: string;
   lit?: { id: string; name: string }[];
   dim?: { id: string; name: string }[];
@@ -335,10 +335,10 @@ export async function answerMapQuestion(
         const query = (a.instruction ?? a.query ?? '').slice(0, 120);
         return query ? { kind: 'search', instruction: query } : undefined;
       }
-      if (a?.kind === 'favorite') {
+      if (a?.kind === 'favorite' || a?.kind === 'unfavorite') {
         const n = resolve(a.nodeId);
         if (!n) return undefined;
-        return { kind: 'favorite', nodeId: n.id, nodeName: n.title || n.content.slice(0, 60) };
+        return { kind: a.kind, nodeId: n.id, nodeName: n.title || n.content.slice(0, 60) };
       }
       if (a?.kind === 'merge') {
         const src = resolve(a.nodeId), dst = resolve(a.intoId);

@@ -2709,6 +2709,7 @@ function openMapChat(seed) {
   // M81: multi-step plans — one card, steps applied in order on approve.
   // Tidy comes last (server-sorted) and opens its own before/after approval.
   const stepDesc = (st) => st.kind === 'favorite' ? `★ pin “${st.nodeName}” to favorites`
+    : st.kind === 'unfavorite' ? `☆ unpin “${st.nodeName}” from favorites`
     : st.kind === 'focus' ? `focus on “${st.nodeName}”`
     : st.kind === 'zoom' ? `zoom the view into “${st.nodeName}” (view only)`
     : st.kind === 'light' ? [st.lit?.length ? `light ${st.lit.map(x => `“${x.name}”`).join(', ')}` : '', st.dim?.length ? `dim ${st.dim.map(x => `“${x.name}”`).join(', ')}` : ''].filter(Boolean).join('; ')
@@ -2740,6 +2741,9 @@ function openMapChat(seed) {
           } else if (st.kind === 'favorite') {
             await post(`/api/nodes/${st.nodeId}/favorite`, { on: true });
             doneLines.push(`✓ pinned “${st.nodeName}” to favorites`);
+          } else if (st.kind === 'unfavorite') {
+            await post(`/api/nodes/${st.nodeId}/favorite`, { on: false });
+            doneLines.push(`✓ unpinned “${st.nodeName}”`);
           } else if (st.kind === 'tidy') {
             doneLines.push('→ tidy proposal opened for your approval');
             ov.remove(); openReorganize(st.nodeId, st.nodeName, { hint: st.instruction, skipConfirm: true });
@@ -2794,6 +2798,14 @@ function openMapChat(seed) {
       card.textContent = `proposal: search the map for “${a.instruction}”`;
       const b = btn('🔍 open the search');
       b.onclick = () => { done('opened search ↗'); openSearch(a.instruction); };
+      card.appendChild(b);
+    } else if (a.kind === 'unfavorite') {
+      card.textContent = `proposal: unpin “${a.nodeName}” from favorites`;
+      const b = btn('☆ approve — unpin it');
+      b.onclick = async () => {
+        try { await post(`/api/nodes/${a.nodeId}/favorite`, { on: false }); done(`✓ unpinned “${a.nodeName}”`); }
+        catch (e) { done(`failed: ${e.message}`); }
+      };
       card.appendChild(b);
     } else if (a.kind === 'favorite') {
       card.textContent = `proposal: pin “${a.nodeName}” to favorites (shown first when searching)`;
@@ -2975,7 +2987,7 @@ async function openReorganize(nodeId, name, opts = {}) {
   const changeRow = (a, idx) => {
     const wrap = (mark, html, color) => `<div style="padding:3px 0;display:flex;gap:8px;align-items:baseline"><span style="color:${color};min-width:14px">${mark}</span><span>${html}</span></div>`;
     if (a.op === 'create_node') return wrap('+', `new node “${esc(clip(a.content))}”${a.parentId ? ` under “${esc(nameOf(a.parentId))}”` : ''}`, 'var(--accent)');
-    if (a.op === 'move_node') return wrap('→', `move “${esc(nameOf(a.id))}” ${a.parentId ? `under “${esc(nameOf(a.parentId))}”` : 'to the top level'}`, 'var(--accent)');
+    if (a.op === 'move_node') return wrap('→', `${(S.favorites || []).includes(a.id) ? '★ ' : ''}move “${esc(nameOf(a.id))}” ${a.parentId ? `under “${esc(nameOf(a.parentId))}”` : 'to the top level'}`, 'var(--accent)');
     if (a.op === 'update_node' && a.status === 'removed') {
       const subDel = new Set(subtreeIds(a.id));
       const hits = (S.chats || []).filter(c => subDel.has(c.focusContainerId)).length;
@@ -2993,6 +3005,7 @@ async function openReorganize(nodeId, name, opts = {}) {
     <div class="modal">
       <h3>${isExpand ? `⟳ file the earlier discussion — “${esc(name)}”` : `⟳ tidy proposal — “${esc(name)}”`}</h3>
       <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">the tidy agent proposes ${p.alterations.length} ${isExpand ? 'new node(s) from what was discussed here' : 'change(s) to this subtree'} — nothing changes until you apply</div>
+      ${(() => { const favs = new Set(S.favorites || []); if (!favs.size) return ''; const hit = new Map(); for (const a of p.alterations) { if (a.op === 'move_node' && favs.has(a.id)) hit.set(a.id, 'moved'); else if (a.op === 'update_node' && a.status === 'removed') { for (const id of subtreeIds(a.id)) if (favs.has(id)) hit.set(id, id === a.id ? 'removed' : 'removed with its parent'); } else if (a.op === 'update_node' && favs.has(a.id) && (a.content !== undefined || a.title !== undefined)) hit.set(a.id, 'reworded'); } return hit.size ? `<div style="font-size:12px;margin:0 0 8px;padding:6px 8px;border:1px solid var(--danger);border-radius:8px"><b>⚠ ${hit.size} favorite${hit.size > 1 ? 's' : ''} touched:</b> ${[...hit].map(([id, how]) => `★ “${esc(nameOf(id))}” ${how}`).join(' · ')} — a favorite that moves stays pinned at its new place; a removed one is unpinned.</div>` : ''; })()}
       <div style="font-size:13px">${p.alterations.length ? p.alterations.map((a, i) => changeRow(a, i)).join('')
         : `<div style="color:var(--muted)">${isExpand ? 'the earlier discussion holds nothing worth filing that isn’t already on the map.' : ''}${isExpand ? '' : `the tidy agent proposes NO changes ${isRoot ? 'to the top level' : 'inside this subtree'}.`}${!isExpand && !isRoot && node(nodeId)?.parentId === null ? ' If the suggestion was about grouping the top-level threads themselves, that needs the top level as the target — use the button below.' : ''}</div>
           ${!isExpand && !isRoot && node(nodeId)?.parentId === null ? `<button id="ro-root-bridge" class="hbtn" style="margin-top:8px" title="re-run this cleanup with the whole top level as the target — only there can threads be grouped under new containers">⟳ run tidy top level instead</button>` : ''}`}</div>
