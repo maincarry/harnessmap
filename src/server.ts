@@ -14,6 +14,7 @@ import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/r
 import { matchNodes } from './map/match.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
 import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
+import { listMinds, getAreaAdvice } from './translator/governors.js';
 import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
@@ -1589,7 +1590,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
           .map((r: any) => { const n = store.getNode(r.chapter_id); return { id: r.chapter_id, name: (n?.title || n?.content || '?').slice(0, 60), text: r.text, ts: r.updated_at }; });
       } catch { return []; }
     };
-      return json({ status: getMapStatus(store, projectId), understanding: getUnderstanding(store, projectId), chapters: chapterReport(), importCheck: getImportCheck(store, projectId), tuning: store.getSetting(`braintuning:${projectId}`) ?? '' });
+      const governors = listMinds(store, projectId).map((m) => { const n = store.getNode(m.nodeId); const adv = getAreaAdvice(store, projectId)[m.nodeId]; return { id: m.nodeId, name: (n?.title || n?.content || '?').slice(0, 60), status: m.status, text: m.understanding, log: m.log, disagreements: m.disagreements, predecessors: m.predecessors, ts: m.updatedAt, retiredAt: m.retiredAt, advice: adv?.advice ?? null, adviceTs: adv?.ts ?? null }; });
+      return json({ status: getMapStatus(store, projectId), understanding: getUnderstanding(store, projectId), chapters: chapterReport(), governors, importCheck: getImportCheck(store, projectId), tuning: store.getSetting(`braintuning:${projectId}`) ?? '' });
     }
     // M195c (founders): ⟲ refresh — the user hands every session on this map
     // a fresh FULL view on its next message. /compact in the terminal is the

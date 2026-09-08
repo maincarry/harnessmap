@@ -2,6 +2,7 @@ import { Store } from '../store/db.js';
 import { systemCard } from './cast.js';
 import { call, modelFor } from '../inference.js';
 import { loadMap, renderTree, renderTieredTreeForSubtree, descendantNodes } from '../map/render.js';
+import { getMind, upsertMind, listMinds, seedFromAssessments, settleEstates, estateOf, mergeAreaAdvice, adviceForNode, getAreaAdvice } from './governors.js';
 
 // M192 (Jacob): "a professional map structure monitoring agent that the map
 // consults to when reorganizing… should be a function called 'map status' in
@@ -212,9 +213,13 @@ export function statusConsult(store: Store, projectId: string, forNodeId?: strin
       let chapter: string | null = null;
       const hops = new Set<string>();
       while (p && !hops.has(p)) { hops.add(p); const n = store.getNode(p); if (!n) break; if (!n.parentId || !store.getNode(n.parentId)?.parentId) { chapter = n.parentId ? p : p; break; } p = n.parentId; }
-      if (chapter) {
-        const a = (db.prepare('SELECT text FROM chapter_assessments WHERE project_id = ? AND chapter_id = ?').get(projectId, chapter) as any);
-        if (a?.text) parts.push(`THIS AREA'S ASSESSMENT: ${a.text}`);
+      // M227 (Jacob: only the dictator speaks): the king's advice for the
+      // nearest governed area — the governor's own text never reaches an agent.
+      const adv = adviceForNode(store, projectId, forNodeId);
+      if (adv) parts.push(`THE CENTRAL MIND'S ADVICE FOR THIS AREA (${adv.ts.slice(0, 10)}): ${adv.advice}`);
+      else if (chapter) {
+        // Before the king has spoken about an area (first sitting after a governor is born), nothing local is served.
+        void chapter;
       }
     }
   }
@@ -333,13 +338,13 @@ export function runContentScan(store: Store, projectId: string): ContentScan {
 // length now follows the area's size, and a chapter that dominates the map
 // is assessed by its parts (one level down), so depth never has to fit
 // through a fixed keyhole.
-const ASSESS_SYSTEM = `You are the content-status agent for a goal map — one of the map status agent's reporters. For each AREA given, write its chapter assessment at the size given for it (larger areas deserve longer assessments — never pad a small one), covering: what this area holds (name the actual subjects, not categories), how current it is (are settled things marked settled; is anything contested), where it is thin (little remembered detail), and anything odd. Ground every claim in the material shown. Plain words. Return one assessment per area.`;
+const ASSESS_SYSTEM = `You are the GOVERNOR of one area of a goal map — a persistent local mind reporting up to the central mind (docs/BRAIN-DESIGN.md, M227). For the AREA given, write its report at the size given (larger areas deserve longer reports — never pad a small one), covering: what this area holds (name the actual subjects, not categories), how current it is (are settled things marked settled; is anything contested), where it is thin (little remembered detail), and anything odd. Ground every claim in the material shown, which carries dates: REGENERATE the report from the dated material — never keep a sentence the material no longer supports; where your previous report still holds, keep its wording (continuity). If a PREDECESSOR's belief is given (this area inherited an estate), read it as history and say what of it still stands. Then: one LOG line — what changed in this area since your last report (or "born" the first time); and DISAGREEMENTS with the central mind's last advice for this area, each citing the dated node that changed — leave empty when you agree. You own knowledge of this area; the centre owns judgment. Plain words.`;
 
 const ASSESS_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['assessments'],
   properties: { assessments: { type: 'array', items: {
     type: 'object', additionalProperties: false, required: ['chapterId', 'text'],
-    properties: { chapterId: { type: 'string' }, text: { type: 'string' } },
+    properties: { chapterId: { type: 'string' }, text: { type: 'string' }, log: { type: 'string' }, disagreements: { type: 'array', items: { type: 'string' } } },
   } } },
 } as const;
 
@@ -361,7 +366,10 @@ export async function assessChapters(store: Store, projectId: string, chapterIds
     const sz = sizing(nodeCount);
     const slice = renderTieredSlice(store, projectId, cid, sz.slice);
     const stats = scan?.chapters.find((c) => c.id === cid);
-    const prev = (db.prepare('SELECT text FROM chapter_assessments WHERE project_id = ? AND chapter_id = ?').get(projectId, cid) as any)?.text ?? '';
+    const mind = getMind(store, projectId, cid);
+    const prev = mind?.understanding || ((db.prepare('SELECT text FROM chapter_assessments WHERE project_id = ? AND chapter_id = ?').get(projectId, cid) as any)?.text ?? '');
+    const estate = estateOf(store, projectId, cid);
+    const kingsAdvice = getAreaAdvice(store, projectId)[cid]?.advice ?? '';
     try {
       const parsed = await call({
         task: 'mapcheck', system: ASSESS_SYSTEM, maxTokens: sz.maxTokens, schema: ASSESS_SCHEMA as any, timeoutMs: 120_000,
@@ -371,15 +379,20 @@ export async function assessChapters(store: Store, projectId: string, chapterIds
           `SIZE FOR THIS ASSESSMENT: ${sz.words} (the area holds ${nodeCount} nodes).`,
           stats ? `MEASURED: ${stats.nodes} nodes, ${stats.withMinimal} with one-line versions, ${stats.details} remembered specifics, ${stats.settled} settled, ${stats.staleMinimals} with stale compressions, newest change ${stats.newestChange}` : '',
           extra ?? '',
-          `THE AREA (tiered):\n${slice}`,
-          prev ? `YOUR PREVIOUS ASSESSMENT (integrate, don't append):\n${prev}` : '',
-          'Write the chapter assessment.',
+          `THE AREA (tiered, dated):\n${slice}`,
+          prev ? `YOUR PREVIOUS REPORT (keep what the material still supports; regenerate the rest):\n${prev}` : '',
+          mind?.log ? `YOUR LOG (newest last):\n${mind.log.split('\n').slice(-8).join('\n')}` : '',
+          estate ? `THE ESTATE YOU INHERITED:\n${estate}` : '',
+          kingsAdvice ? `THE CENTRAL MIND'S LAST ADVICE FOR THIS AREA (disagree only with a dated citation):\n${kingsAdvice}` : '',
+          "Write the governor's report, the log line, and any disagreements.",
         ].filter(Boolean).join('\n\n'),
       });
       const a = (parsed.assessments ?? [])[0];
       if (a?.text) {
         db.prepare(`INSERT INTO chapter_assessments (project_id, chapter_id, text, updated_at) VALUES (?, ?, ?, datetime('now'))
                     ON CONFLICT(project_id, chapter_id) DO UPDATE SET text = excluded.text, updated_at = datetime('now')`).run(projectId, cid, String(a.text).slice(0, sz.cap));
+        // M227: the governor keeps its memory — understanding, a dated log line, disagreements with the centre.
+        upsertMind(store, projectId, cid, { understanding: String(a.text).slice(0, sz.cap), logLine: String(a.log ?? (mind ? 'refreshed' : 'born')).slice(0, 300), disagreements: Array.isArray(a.disagreements) ? a.disagreements.map((d: any) => String(d).slice(0, 400)) : [] });
         return true;
       }
     } catch (err) { console.error('[assess] chapter failed:', err); }
@@ -429,7 +442,7 @@ export interface Understanding {
 
 const OVERALL_SYSTEM = `You are the map status agent writing the OVERALL MAP STATUS REPORT — the one coherent judgment of a goal map. Your reporters hand you: the structure report, chapter assessments covering every area, a taste note (what the user has accepted and rejected lately), THE USER'S OWN RECENT EDITS (the highest authority in this system — a user edit outranks every other input including your prior text and stale assessments), and your own previous overall report. Reconcile them — where reports pull opposite ways, decide; where nothing changed, keep your prior text — but keeping prior text is NEVER allowed to preserve a claim that any current input contradicts, and a user edit that settles or reverses something must update every section that mentioned it, this cycle, even if the chapter assessments have not caught up yet.
 
-Write the overall report as these sections, each self-contained, plain words, grounded in the reports (never invent):
+Write the overall report as these sections, each self-contained, plain words, grounded in the reports (never invent). Also write advice_by_area: for every area whose governor dispatched this sitting (its [id] as given), ONE paragraph of YOUR advice for agents working in that area — what to protect, what is settled there, what to watch — written from the whole map; a governor's disagreement you reject becomes a sentence here saying why, not a silent overrule.
 - essence: what this project IS — its thesis and standing doctrine. Stable; amend only on real change.
 - arc: what the work is converging toward; which open question actually blocks; what the user keeps returning to.
 - tensions: places the map asserts incompatible things, worst first. Empty is a fine answer.
@@ -454,7 +467,7 @@ Then write your ACTUAL ADVICE, per job. Each working agent is consulted with a t
 
 const OVERALL_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['reconciliation', 'essence', 'arc', 'tensions', 'keystones', 'gaps', 'trust', 'advice_filing', 'advice_lighting', 'advice_review', 'advice_chat'],
-  properties: { reconciliation: { type: 'string' }, essence: { type: 'string' }, arc: { type: 'string' }, tensions: { type: 'string' }, keystones: { type: 'string' }, gaps: { type: 'string' }, trust: { type: 'string' }, advice_filing: { type: 'string' }, advice_lighting: { type: 'string' }, advice_review: { type: 'string' }, advice_chat: { type: 'string' } },
+  properties: { advice_by_area: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['rootId', 'advice'], properties: { rootId: { type: 'string' }, advice: { type: 'string' } } } }, reconciliation: { type: 'string' }, essence: { type: 'string' }, arc: { type: 'string' }, tensions: { type: 'string' }, keystones: { type: 'string' }, gaps: { type: 'string' }, trust: { type: 'string' }, advice_filing: { type: 'string' }, advice_lighting: { type: 'string' }, advice_review: { type: 'string' }, advice_chat: { type: 'string' } },
 } as const;
 
 export function getUnderstanding(store: Store, projectId: string): Understanding | null {
@@ -466,6 +479,9 @@ export async function synthesizeOverallStatus(store: Store, projectId: string, e
   const db = (store as any).db;
   const status = getMapStatus(store, projectId);
   const assessments = (db.prepare('SELECT chapter_id, text, updated_at FROM chapter_assessments WHERE project_id = ? ORDER BY updated_at DESC').all(projectId) as any[]);
+  // M227: the governors' dispatches — memory, log tail, disagreements — beside the assessments they now carry.
+  const minds = listMinds(store, projectId, 'active');
+  const dispatches = minds.map((m) => { const n = store.getNode(m.nodeId); return `[${m.nodeId.slice(0, 8)}] ${(n?.title || n?.content || '?').slice(0, 40)} (refreshed ${m.updatedAt.slice(0, 10)}${m.predecessors.length ? `, inherited ${m.predecessors.length} estate(s)` : ''}):\nLOG: ${m.log.split('\n').slice(-3).join(' | ')}${m.disagreements.length ? `\nDISAGREES WITH YOUR LAST ADVICE: ${m.disagreements.join(' · ')}` : ''}`; }).join('\n\n');
   const taste = store.getSetting(`taste:${projectId}`) ?? '';
   const prev = getUnderstanding(store, projectId);
   const prefs = store.getSetting(`prefs:${projectId}`) ?? '';
@@ -488,7 +504,8 @@ export async function synthesizeOverallStatus(store: Store, projectId: string, e
       user: [
         (() => { try { const sc = JSON.parse(store.getSetting(`contentscan:${projectId}`) ?? 'null'); return sc ? `THE MEASURED NUMBERS (mechanical scan, ${sc.ts} — check every claim against these):\n${sc.chapters.map((c: any) => `${c.name}: ${c.nodes} nodes, ${c.withMinimal} with one-line versions, ${c.withMedium} with summaries, ${c.details} remembered specifics, ${c.settled} settled, newest change ${c.newestChange}`).join('\n')}` : ''; } catch { return ''; } })(),
         status ? `STRUCTURE REPORT (${status.ts}):\n${status.health}\n${status.findings.map((f) => `- ${f.what} (fix: ${f.fix})`).join('\n')}\n${status.opinion}` : 'STRUCTURE REPORT: none yet.',
-        `CHAPTER ASSESSMENTS (every area):\n${assessments.map((a) => {
+        dispatches ? `THE GOVERNORS' DISPATCHES (each area's persistent mind: its log and its disagreements with your last advice — weigh them; you take the final call, and you may read the area's material below when a governor disagrees):\n${dispatches}` : '',
+        `CHAPTER ASSESSMENTS (every area — each governor's current report):\n${assessments.map((a) => {
           const n = store.getNode(a.chapter_id);
           return `[${(n?.title || n?.content || a.chapter_id).slice(0, 40)}] (${a.updated_at}): ${a.text}`;
         }).join('\n\n').slice(0, 120_000) || '(none yet)'}`,
@@ -515,6 +532,8 @@ export async function synthesizeOverallStatus(store: Store, projectId: string, e
     }
     const u: Understanding = { sections };
     store.setSetting(`understanding:${projectId}`, JSON.stringify(u));
+    // M227: the king's advice per area — resolved against the outline's ids; unknown ids dropped.
+    { const raw: any[] = Array.isArray((parsed as any).advice_by_area) ? (parsed as any).advice_by_area : []; const ok = raw.map((e) => { const id = String(e?.rootId ?? '').replace(/[\[\]]/g, ''); const n = store.getNodes(projectId).find((x) => x.id === id || x.id.startsWith(id)); return n ? { rootId: n.id, advice: String(e.advice ?? '') } : null; }).filter(Boolean) as { rootId: string; advice: string }[]; if (ok.length) mergeAreaAdvice(store, projectId, ok); if (raw.length !== ok.length) store.audit('area_advice_dropped', { n: raw.length - ok.length }); }
     store.audit('overall_status_synthesis', { chapters: assessments.length });
     return u;
   } catch (err) {
@@ -551,6 +570,11 @@ export async function tasteDigest(store: Store, projectId: string): Promise<void
 // synthesize if anything changed (smart). Debounced by the caller.
 export async function brainCycle(store: Store, projectId: string): Promise<{ assessed: number; synthesized: boolean }> {
   const db = (store as any).db;
+  // M227: governors — migrate existing assessments once; settle estates of
+  // governors whose area is gone (after a user-approved structural change).
+  seedFromAssessments(store, projectId);
+  const estates = settleEstates(store, projectId);
+  if (estates) store.audit('governor_estates_settled', { n: estates });
   const scan = runContentScan(store, projectId);
   const have = new Map<string, string>((db.prepare('SELECT chapter_id, updated_at FROM chapter_assessments WHERE project_id = ?').all(projectId) as any[]).map((r: any) => [r.chapter_id, r.updated_at]));
   const changed = scan.chapters

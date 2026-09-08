@@ -6,6 +6,7 @@ import { statusConsult } from './mapstatus.js';
 import { loadMap, descendantNodes } from '../map/render.js';
 import { matchNodes } from '../map/match.js';
 import { outlineWithIds } from './importer.js';
+import { nearestGovernor } from './governors.js';
 
 // M77 (Jacob): when there are map-related issues, the user talks to the MAP
 // AGENT directly — the chat agent refers them here, and the map agent answers
@@ -50,7 +51,7 @@ HOW TO ANSWER:
   * kind "pref" + instruction: they express a LASTING preference about how the map should be managed ("keep containers broad", "never propose deleting my exploratory notes", "name nodes in my language") — instruction is the preference as ONE short standing rule. It is saved (with their approval) into the map preferences that EVERY map agent receives. Only for durable taste — not one-off requests. Single-step only.
 - STATUS QUESTIONS ("what is unsolved / open / still pending / active?"): the STATUS INDEX block is mechanical and complete — answer from it with its count and its items; never estimate from the tree.
 - WHAT YOU SEE: the map as an OUTLINE (deeper levels rolled up as "(+N inside)"), the STATUS INDEX (complete), the nodes whose words match the user's sentence (full statements), the focus, the lit set, the favorites, the open dots, and the brain's standing report. You do NOT see every node's statement, memory or history.
-- ASK THE MAP: when the answer needs what you cannot see, return "queries" (up to 4) instead of guessing — the server answers them mechanically and re-runs you ONCE with RESULTS: {kind "status", status?: one status or omitted for every unsettled node}, {kind "search", words}, {kind "subtree", nodeId} (everything inside a node, with ids), {kind "history", nodeId} (the node's versions and dates), {kind "memory", nodeId} (what the map remembers about it), {kind "lit"}, {kind "favorites"}. Give your best partial answer alongside. Never query what is already in front of you.
+- ASK THE MAP: when the answer needs what you cannot see, return "queries" (up to 4) instead of guessing — the server answers them mechanically and re-runs you ONCE with RESULTS: {kind "status", status?: one status or omitted for every unsettled node}, {kind "search", words}, {kind "subtree", nodeId} (everything inside a node, with ids), {kind "history", nodeId} (the node's versions and dates), {kind "memory", nodeId} (what the map remembers about it), {kind "lit"}, {kind "favorites"}, {kind "area", nodeId} (what the AREA's governor believes about the area around that node — a local, unreconciled belief with a date; the central report outranks it). Give your best partial answer alongside. Never query what is already in front of you.
 - IDS: every id you use in an action must be one you were SHOWN (outline, index, matches, results). To act on something you cannot see yet, query first.
 - Pick the LEVEL by the system's division of labor: attention → focus/light, structure → tidy. Named targets → focus/light with ids; unnamed → autofocus/autolight delegation.
 - COMPLEX REQUESTS: when one operation isn't enough, emit an ORDERED PLAN — an "actions" array of up to 40 focus/light/zoom/tidy/favorite steps, in the order they should apply ("favorite all the open questions" = one favorite step per node, each with its exact id from the STATUS INDEX; if there are more than 40, say so and take the first 40). Example: "let's work on A and get B and C out of the background" → [{kind focus, nodeId A}, {kind light, dim [B, C]}]. Steps must not contradict each other (never light and dim the same node). autofocus/autolight/autozoom are single-step only — never inside a plan.
@@ -87,7 +88,7 @@ const SCHEMA = {
       items: {
         type: 'object' as const, additionalProperties: false, required: ['kind'],
         properties: {
-          kind: { type: 'string' as const, enum: ['status', 'search', 'subtree', 'history', 'memory', 'lit', 'favorites'] },
+          kind: { type: 'string' as const, enum: ['status', 'search', 'subtree', 'history', 'memory', 'lit', 'favorites', 'area'] },
           status: { type: 'string' as const }, words: { type: 'string' as const }, nodeId: { type: 'string' as const },
         },
       },
@@ -154,7 +155,7 @@ export function statusIndex(nodes: any[]): { counts: Record<string, number>; uns
 // results and may only act on ids it was shown. New capability = a new query
 // kind here, not prompt surgery; the prompt no longer grows with the map,
 // so the model is free to be a strong one.
-export interface GuideQuery { kind: 'status' | 'search' | 'subtree' | 'history' | 'memory' | 'lit' | 'favorites'; status?: string; words?: string; nodeId?: string }
+export interface GuideQuery { kind: 'status' | 'search' | 'subtree' | 'history' | 'memory' | 'lit' | 'favorites' | 'area'; status?: string; words?: string; nodeId?: string }
 export function runGuideQuery(store: Store, projectId: string, chatId: string | null, q: GuideQuery, shown: Set<string>): string {
   const map = loadMap(store, projectId);
   const live = map.nodes.filter((n) => n.status !== 'removed');
@@ -198,6 +199,13 @@ export function runGuideQuery(store: Store, projectId: string, chatId: string | 
       const lit = chatId ? store.getLit(chatId) : [];
       const ns = lit.map((id) => live.find((n) => n.id === id)).filter(Boolean) as any[];
       return `RESULT lit — ${ns.length} node(s):\n${ns.slice(0, 120).map(line).join('\n') || '(nothing lit)'}`;
+    }
+    case 'area': {
+      const n = find(q.nodeId); if (!n) return `RESULT area: unknown node ${q.nodeId ?? ''}`;
+      const g = nearestGovernor(store, projectId, n.id);
+      if (!g) return `RESULT area: no governor holds the area around "${nm(n)}" yet`;
+      const root = live.find((x) => x.id === g.nodeId); if (root) shown.add(root.id);
+      return `RESULT area — the governor of "${root ? nm(root) : g.nodeId.slice(0, 8)}" [${g.nodeId.slice(0, 8)}] believes (local, unreconciled, refreshed ${g.updatedAt.slice(0, 10)}; the central report outranks this):\n${g.understanding.slice(0, 2500)}${g.disagreements.length ? `\nIt disagrees with the centre on: ${g.disagreements.join(' · ')}` : ''}`;
     }
     case 'favorites': {
       const ns = store.getFavorites().map((id) => live.find((n) => n.id === id)).filter(Boolean) as any[];
@@ -285,7 +293,7 @@ export async function answerMapQuestion(
         audit: (k, d) => store.audit(k, d),
         user: [...baseParts, ...extras, ...tailParts].join('\n\n'),
       });
-      const queries: GuideQuery[] = Array.isArray(parsed.queries) ? parsed.queries.filter((q: any) => q && ['status', 'search', 'subtree', 'history', 'memory', 'lit', 'favorites'].includes(q.kind)).slice(0, 4) : [];
+      const queries: GuideQuery[] = Array.isArray(parsed.queries) ? parsed.queries.filter((q: any) => q && ['status', 'search', 'subtree', 'history', 'memory', 'lit', 'favorites', 'area'].includes(q.kind)).slice(0, 4) : [];
       if (pass === 1 && queries.length) {
         extras = queries.map((q) => runGuideQuery(store, projectId, chatId, q, shown));
         store.audit('guide_queries', { kinds: queries.map((q) => q.kind) });
