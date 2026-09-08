@@ -230,7 +230,7 @@ export async function convertMemories(store: Store, batch = 20, nodeIds?: string
   if (!nodes.length) return 0;
   try {
     const parsed = await call({
-      task: 'memory', system: CONVERT_SYSTEM, maxTokens: 3000, schema: BATCH_SCHEMA as any, timeoutMs: 120_000,
+      task: 'memory', system: CONVERT_SYSTEM, maxTokens: 6000, schema: BATCH_SCHEMA as any, timeoutMs: 300_000, // M214 deploy: 20-node batches timed out at 120 s; 8 nodes, 300 s
       audit: (k, d) => store.audit(k, d),
       user: [
         ...nodes.map((n) => organsInput(store, n)),
