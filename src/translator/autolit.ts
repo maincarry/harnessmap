@@ -64,7 +64,7 @@ const SCHEMA = {
   },
 } as const;
 
-export interface AutolitResult { summary: string; lit: string[]; dim: string[]; cost?: { nodes: number; chars: number }; overBudget?: { nodes: number; chars: number; cap: number } }
+export interface AutolitResult { summary: string; lit: string[]; dim: string[]; cost?: { nodes: number; chars: number }; overBudget?: { nodes: number; chars: number; cap: number }; overFloor?: { nodes: number; chars: number; cap: number } }
 
 export async function proposeAutolit(
   store: Store, projectId: string, focusId: string | null, currentLit: string[],
@@ -88,6 +88,7 @@ export async function proposeAutolit(
     `Currently lit: ${now.nodes} nodes ≈ ${now.chars} characters (${now.chars > cap ? `OVER the limit by ${now.chars - cap}` : `${cap - now.chars} to spare`}).`,
     `What each chapter costs if lit (with its subtree):
 ${chapterCosts.join('\n')}`,
+    `USE THE ROOM (Jacob, 2026-09-08): a proposal that leaves more than a third of the limit unused wastes the turn — after lighting what the focus needs, light the next most relevant chapters or topics until the lit set is within about 15% of the limit, unless nothing relevant is left dark.`,
     `Your proposal must leave the lit set at or under ${cap} characters. Over the limit, nothing gets depth and most names fold out of sight — a lit node the agent cannot see is not lit. Prefer lighting the specific topics the focus needs over whole eras or chapters.`,
   ].join('\n');
 
@@ -133,8 +134,15 @@ ${chapterCosts.join('\n')}`,
           `[budget] Your previous proposal would leave ${after.nodes} nodes ≈ ${after.chars} characters lit, over the ${cap}-character limit by ${after.chars - cap}. Choose again: light specific topics, not chapters; dim what does not fit.`,
           parsed.summary ?? '');
       }
-      store.audit('guard_lit_budget', { nodes: after.nodes, chars: after.chars, cap });
-      return { summary: `OVER BUDGET — ${after.nodes} nodes ≈ ${after.chars} chars lit, limit ${cap}. Not applied. ${parsed.summary ?? ''}`, lit, dim, overBudget: { nodes: after.nodes, chars: after.chars, cap } };
+      // M199 amended (Jacob, 2026-09-08 03:35: "by trim I don't mean dim, but
+      // trim to medium or minimum"): after the one retry, an over-budget
+      // proposal is APPLIED as proposed — nothing is dimmed by the guard. The
+      // block fits by resolution: tiered attention serves the lit set at
+      // long → medium → minimal as room allows, and folds deeper levels into
+      // "+N inside" counts with the ❗ mark when even one line each will not
+      // fit. The guard's job is the numbers and the audit.
+      store.audit('guard_lit_over', { nodes: after.nodes, chars: after.chars, cap });
+      return { summary: `${parsed.summary ?? ''} — the lit floor is ${after.chars} chars against a ${cap} limit; the block will fold the deepest levels to fit (❗ marks what did not fit)`, lit, dim, cost: after, overFloor: { nodes: after.nodes, chars: after.chars, cap } };
     }
     return { summary: parsed.summary ?? '', lit, dim, cost: after };
   } catch (err) {

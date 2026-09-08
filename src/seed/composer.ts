@@ -1,5 +1,5 @@
 import { Store } from '../store/db.js';
-import { getNodeMemory, getAllNodeMemories, getAllMinimals, getAllCurrentDetails } from '../translator/memory.js';
+import { getNodeMemory, getAllNodeMemories, getAllMinimals, getAllCurrentDetails, getAllLongs, nodeFull } from '../translator/memory.js';
 import { chatAwareness } from '../translator/mapstatus.js';
 import {
   ancestors, descendantNodes, renderNodeBrief,
@@ -251,6 +251,7 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   if (SERVING !== 'legacy') {
     const minBy = getAllMinimals(store);
     const detailsBy = getAllCurrentDetails(store);
+    const longBy = getAllLongs(store); // M214: the long resolution written by the memory agent
     const historyBy = store.contentHistoryAll(project); // M203: timeline of changed nodes
     const marks = store.getMarks(project);
     // Warmth (M191, Mark: "focus proximity strongest, same tree first"):
@@ -322,11 +323,19 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     const longExtra = (e: LitEntry): string | null => {
       // LONG is the whole node (Jacob): full statement, the medium text, and
       // the dated specifics together — never a subset.
-      const details = (detailsBy.get(e.id) ?? []).slice(0, 5);
+      // M213 (Jacob): "Long is literally everything in their full versions" —
+      // no clipping at long: the whole statement, the whole medium text, every
+      // current detail. The budget is the only limiter (a node that would not
+      // fit at long stays at medium and the branch is marked ❗, M162).
+      const details = detailsBy.get(e.id) ?? [];
       const lines = [...e.substance];
-      const med = memByNode.get(e.id);
-      if (med) lines.push(`${pads(e)}  (${med.slice(0, 700)})`);
-      if (details.length) lines.push(`${pads(e)}  remembered: ${details.map((f) => f.date ? `${f.text} (${f.date})` : f.text).join(' · ')}`.slice(0, 900));
+      const longText = longBy.get(e.id);
+      if (longText) lines.push(`${pads(e)}  (${longText})`); // M214: all five organs in full, one text
+      else {
+        const med = memByNode.get(e.id);
+        if (med) lines.push(`${pads(e)}  (${med})`);
+        if (details.length) lines.push(`${pads(e)}  remembered: ${details.map((f) => f.date ? `${f.text} (${f.date})` : f.text).join(' · ')}`);
+      }
       // M203 (Jacob): the node's timeline — how many times its statement
       // changed and what it said before the latest change, so a later ruling
       // reads as an update of this topic.
@@ -352,10 +361,23 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       flat.push({ b: b.id, e, w: warmth(e.id) });
     }
     const chosen = new Map<string, 0 | 1 | 2>(); // 0 minimal · 1 medium · 2 long
+    // M214 (Jacob, 2026-09-08): the FOCUS is always at LONG, with priority —
+    // long is written and bounded, so it is budgeted before the floor; FULL
+    // (raw, open-ended) follows the floor and the promotions, under a ceiling.
+    const fullBy = new Map<string, string>();
+    let focusFullNote = '';
+    const BLOCK = BUDGET_CHARS;
     for (const f of flat) { chosen.set(f.e.id, 0); budget -= minimal(f.e).length + 1; }
+    const focusEntry = focusId ? flat.find((f) => f.e.id === focusId) : undefined;
+    if (focusEntry) {
+      const exM = mediumExtra(focusEntry.e), exL = longExtra(focusEntry.e);
+      if (exM) { budget -= exM.length + 1; chosen.set(focusEntry.e.id, 1); }
+      if (exL) { budget -= exL.length + 1; chosen.set(focusEntry.e.id, 2); }
+    }
     // Promote by warmth (stable within tree order): minimal→medium, then →long.
     const byWarmth = [...flat].sort((a, b2) => b2.w - a.w);
     for (const f of byWarmth) {
+      if (focusEntry && f.e.id === focusEntry.e.id) continue; // already at long, with priority
       const ex = mediumExtra(f.e);
       if (!ex) continue;
       if (budget - ex.length - 1 < 0) continue;
@@ -363,11 +385,32 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       chosen.set(f.e.id, 1);
     }
     for (const f of byWarmth) {
+      if (focusEntry && f.e.id === focusEntry.e.id) continue;
       const ex = longExtra(f.e);
       if (!ex) continue;
       if (budget - ex.length - 1 < 0) continue;
       budget -= ex.length + 1;
       chosen.set(f.e.id, 2);
+    }
+    // M214 (Jacob): "the fill is fetched if there is budget room" — after the
+    // floor and the promotions: the focus's FULL rides if it fits under a
+    // ceiling (40% of the block), else the block says it is available on
+    // request; then full for the warmest lit nodes while room remains.
+    const FULL_CEILING = Math.round(BLOCK * 0.4);
+    if (focusEntry) {
+      const full = nodeFull(store, focusEntry.e.id);
+      if (full && full.length >= 200) {
+        if (full.length <= FULL_CEILING && budget - full.length - 1 >= 0) { budget -= full.length + 1; fullBy.set(focusEntry.e.id, full); }
+        else focusFullNote = `full material available on request (${full.length} chars${full.length > FULL_CEILING ? ", over the block's ceiling" : ', no room this turn'})`;
+      }
+    }
+    for (const f of byWarmth) {
+      if (budget < 1_500) break;
+      if (fullBy.has(f.e.id) || (chosen.get(f.e.id) ?? 0) < 2) continue;
+      const full = nodeFull(store, f.e.id);
+      if (!full || full.length < 200 || full.length > FULL_CEILING) continue;
+      if (budget - full.length - 1 < 0) continue;
+      budget -= full.length + 1; fullBy.set(f.e.id, full);
     }
     // Emit in tree order, each node once at its zoom.
     const staysMinimal = new Set<string>();
@@ -378,6 +421,9 @@ export function composeParts(store: Store, chatId: string, manipulations: string
         resolved.push(minimal(e));
         if (r === 1) { const m = mediumExtra(e); if (m) resolved.push(m); }
         if (r >= 2) { const l = longExtra(e); if (l) resolved.push(l); }
+        const fullText = fullBy.get(e.id);
+        if (fullText) resolved.push(`${pads(e)}  in full (the raw material):\n${fullText.split('\n').map((x) => `${pads(e)}    ${x}`).join('\n')}`);
+        else if (focusFullNote && e.id === focusId) resolved.push(`${pads(e)}  ${focusFullNote}`);
         if (r === 0 && (memByNode.get(e.id) || (detailsBy.get(e.id) ?? []).length)) staysMinimal.add(b.id);
       }
       // ❗ semantics under graceful degradation: mark a branch when depth was
@@ -451,6 +497,12 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     if (subKept.length) litLines.push('', '  in full:', ...subKept);
     if (memKept.length) litLines.push('', '  earlier discussion:', ...memKept);
   }
+
+  // M214 (Jacob, 2026-09-08 02:44): NO FILL. Room the map does not need is
+  // Claude's (the session's own transcript); dim nodes reach the block only
+  // through the per-question offer or the lighter, which reads the brain's
+  // advice at every re-aim. The M195 boundary stands: dim = withheld, name
+  // only on an offer. (A minimal-line fill was built and withdrawn tonight.)
 
   // 2. OPEN QUESTIONS — only from visible (focus+lit) parts of the map.
   const visible = new Set([...focusSubtree, ...store.getLit(chatId)]);
