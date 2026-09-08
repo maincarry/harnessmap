@@ -54,34 +54,33 @@ Open the map page and press **?** for the guided tutorial. The short version:
 | `/map:stop` | stop the server (all data stays in `~/.harnessmap`) |
 | `/map:restart` | restart it (after an update, or if the map looks stuck) |
 
-## Codex (beta)
+## Codex (CLI and app)
 
-The same map works beside [OpenAI's Codex CLI](https://developers.openai.com/codex) — Codex's
-hook dialect matches Claude Code's, so the identical hooks serve both. Codex has
-no plugin system, so setup is three terminal steps instead of two slash commands:
+The same map works beside [OpenAI's Codex](https://developers.openai.com/codex) — Codex's hook
+dialect matches Claude Code's, so the identical hooks serve both, and the map's own agents can run
+on your ChatGPT plan through `codex exec` (the ⚙ models page shows the OpenAI ids). One command:
 
 ```sh
-# 1. put harnessmap on your machine (the engine lives here; you never work in it)
-git clone https://github.com/maincarry/harnessmap ~/harnessmap
-cd ~/harnessmap && bun install
-
-# 2. connect it to Codex (writes the hooks into ~/.codex/hooks.json, merge-safe)
-bun run hooks/enable-codex.ts
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/main/install-codex.sh | bash
 ```
 
-3. Codex ships hooks disabled — opt in by adding to `~/.codex/config.toml`:
-
-```toml
-[features]
-hooks = true
-additional_context_limit = 8000   # our map needs more room than Codex's default
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/maincarry/harnessmap/main/install-codex.ps1 | iex
 ```
 
-Then run `codex` in any project folder as usual and open the map at
-**http://localhost:8790** — each project gets its own map, and it fills itself
-in as you talk. Codex hooks are experimental on their side (no Windows), so
-treat this as beta. One map, both agents — and if you use Claude Code and Codex
-in the same folder, they share one memory.
+It installs bun if needed, puts the app in `~/.harnessmap/app`, registers it as a Codex plugin
+(marketplace `harnessmap`, plugin `map` — skills and hooks bundled), and tells you the two things
+Codex asks of you: start a **new session** (or restart the Codex app) and **accept the hook trust
+prompt** once (hooks you add yourself are never run before you trust them). The app and the CLI
+share `~/.codex`, so one install serves both. Then open **http://localhost:8790** — each project
+gets its own map, and it fills itself in as you talk.
+
+If the map does not appear after a new session, register the hooks at the user level instead
+(`bun run ~/.harnessmap/app/hooks/enable-codex.ts --force`, and `codex plugin remove map@harnessmap`
+so rounds never file twice). Everything stays local in `~/.harnessmap`, same as with Claude Code —
+and if you use Claude Code and Codex in the same folder, they share one memory.
 
 ## Privacy & data
 

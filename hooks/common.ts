@@ -2,6 +2,7 @@
 // every failure path degrades to "do nothing".
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 
 // M91: installed life. All user data lives in ONE place (told to the user):
@@ -19,7 +20,7 @@ export async function readHookInput(): Promise<any> {
 
 // The plugin root is this file's grandparent; the app (src/, public/,
 // package.json) ships inside the same repo the plugin lives in.
-const APP_ROOT = new URL('..', import.meta.url).pathname;
+const APP_ROOT = fileURLToPath(new URL('..', import.meta.url)); // M220: fileURLToPath — a Windows path is not a URL pathname
 
 function pluginVersion(): string {
   try { return JSON.parse(readFileSync(join(APP_ROOT, 'package.json'), 'utf8')).version ?? '0.0.0'; } catch { return '0.0.0'; }

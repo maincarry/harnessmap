@@ -1,0 +1,62 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run \"${PLUGIN_ROOT}/hooks/session-start.ts\"",
+            "timeout": 60,
+            "additionalContextLimit": 16000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run \"${PLUGIN_ROOT}/hooks/on-prompt.ts\"",
+            "timeout": 60,
+            "additionalContextLimit": 16000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run \"${PLUGIN_ROOT}/hooks/on-stop.ts\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run \"${PLUGIN_ROOT}/hooks/post-compact.ts\"",
+            "timeout": 60,
+            "additionalContextLimit": 16000
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run \"${PLUGIN_ROOT}/hooks/pre-compact.ts\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

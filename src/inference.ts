@@ -42,6 +42,11 @@ const SMART = process.env.HARNESSMAP_SMART_MODEL ?? 'claude-sonnet-4-6';
 // M142 (Jacob): import is the first-impression reorganization — it gets the
 // fancy model. Overridable (tests pin a cheap one).
 const FANCY = process.env.HARNESSMAP_IMPORT_MODEL ?? 'claude-opus-4-8';
+// M220: the same three tiers on the codex backend (OpenAI ids; overridable —
+// verified per machine, the ⚙ models page shows what answers).
+const CODEX_CHEAP = process.env.HARNESSMAP_CODEX_CHEAP ?? 'gpt-5.4-mini';
+const CODEX_SMART = process.env.HARNESSMAP_CODEX_SMART ?? 'gpt-5.6-terra';
+const CODEX_FANCY = process.env.HARNESSMAP_CODEX_FANCY ?? 'gpt-5.6-sol';
 // M217 (Mark, 2026-09-08): one model per ROLE, chosen by the user in ⚙ models
 // (settings `model:<task>`) over these defaults. The catalog below is what
 // the settings page shows; the resolver is installed by the server.
@@ -69,7 +74,7 @@ export const ROLES: RoleInfo[] = [
   { task: 'brain', label: 'the brain (overall report)', what: 'the overall map status report, import verification, the history report', tier: 'fancy', perTurn: false, group: 'brain' },
   { task: 'import', label: 'import agent', what: 'the source summary and the finish pass of an import (chunks file on the filer tier)', tier: 'fancy', perTurn: false, group: 'on-demand' },
 ];
-export const MODEL_CATALOG: { id: string; note: string }[] = [
+const CLAUDE_CATALOG: { id: string; note: string }[] = [
   { id: 'claude-haiku-4-5', note: 'fastest, cheapest' },
   { id: 'claude-sonnet-4-6', note: 'the balanced default of the 4.x line' },
   { id: 'claude-sonnet-5', note: 'balanced, newer' },
@@ -77,7 +82,17 @@ export const MODEL_CATALOG: { id: string; note: string }[] = [
   { id: 'claude-opus-5', note: 'strongest, newer' },
   { id: 'claude-fable-5-1', note: 'most capable available' },
 ];
-const tierModel = (t: Tier): string => (t === 'fancy' ? FANCY : t === 'smart' ? SMART : CHEAP);
+const CODEX_CATALOG: { id: string; note: string }[] = [
+  { id: 'gpt-5.4-mini', note: 'small and cheap' },
+  { id: 'gpt-5.6-luna', note: 'most cost-efficient of the 5.6 line' },
+  { id: 'gpt-5.6-terra', note: 'balanced, everyday work' },
+  { id: 'gpt-5.6-sol', note: 'flagship' },
+];
+export const MODEL_CATALOG: { id: string; note: string }[] = new Proxy([] as any, { get: (_t, k) => (backendName() === 'codex' ? CODEX_CATALOG : CLAUDE_CATALOG)[k as any] }) as any;
+export function modelCatalog(): { id: string; note: string }[] { return backendName() === 'codex' ? CODEX_CATALOG : CLAUDE_CATALOG; }
+const tierModel = (t: Tier): string => backendName() === 'codex'
+  ? (t === 'fancy' ? CODEX_FANCY : t === 'smart' ? CODEX_SMART : CODEX_CHEAP)
+  : (t === 'fancy' ? FANCY : t === 'smart' ? SMART : CHEAP);
 export function defaultModelFor(task: Task): string {
   const r = ROLES.find((x) => x.task === task);
   return tierModel(r?.tier ?? 'cheap');
@@ -89,8 +104,19 @@ export function modelFor(task: Task): string {
   return chosen && /^[a-z0-9.-]{3,60}$/.test(chosen) ? chosen : defaultModelFor(task);
 }
 
-export function backendName(): 'api' | 'subscription' {
-  return process.env.HARNESSMAP_INFERENCE === 'api' ? 'api' : 'subscription';
+// M220 (Mark: Codex users): three backends. 'subscription' = claude -p on the
+// user's Claude plan; 'api' = ANTHROPIC_API_KEY; 'codex' = `codex exec` on
+// the user's ChatGPT plan (or CODEX_API_KEY). Explicit via HARNESSMAP_INFERENCE;
+// otherwise auto: codex when the codex CLI is on PATH and claude is not.
+export type Backend = 'api' | 'subscription' | 'codex';
+let detected: Backend | null = null;
+const onPath = (bin: string): boolean => { try { return Bun.spawnSync(['sh', '-c', `command -v ${bin}`], { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0 || Bun.spawnSync(['where', bin], { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0; } catch { return false; } };
+export function backendName(): Backend {
+  const e = process.env.HARNESSMAP_INFERENCE;
+  if (e === 'api' || e === 'codex' || e === 'subscription') return e;
+  if (detected) return detected;
+  detected = !onPath('claude') && onPath('codex') ? 'codex' : 'subscription';
+  return detected;
 }
 
 export interface CallOpts {
@@ -130,7 +156,7 @@ export async function call(opts: CallOpts): Promise<any> {
   const model = opts.modelOverride ?? modelFor(opts.task);
   const t0 = Date.now();
   try {
-    const out = backend === 'api' ? await apiCall(opts, model) : await subCall(opts, model);
+    const out = backend === 'api' ? await apiCall(opts, model) : backend === 'codex' ? await codexCall(opts, model) : await subCall(opts, model);
     opts.audit?.('inference', { task: opts.task, backend, model, ms: Date.now() - t0, ok: true });
     try { traceSink?.({ kind: 'call', task: opts.task, model, backend, ms: Date.now() - t0, ok: true, system: opts.system, user: opts.user, response: typeof out === 'string' ? out : JSON.stringify(out, null, 1) }); } catch {}
     callHealth.lastOkAt = Date.now();
@@ -156,6 +182,45 @@ async function apiCall(opts: CallOpts, model: string): Promise<any> {
   } as any);
   const text = (response as any).content.find((b: any) => b.type === 'text')?.text ?? '';
   return opts.schema ? JSON.parse(text || '{}') : text;
+}
+
+// M220: the codex backend — `codex exec` on the user's ChatGPT plan. The
+// prompt goes in on stdin, the final message comes back through a file
+// (-o), a schema is enforced by --output-schema; ephemeral (no session
+// rollout), read-only sandbox, no git check. Same two-attempt JSON discipline
+// as the subscription path.
+async function codexCall(opts: CallOpts, model: string): Promise<any> {
+  const { mkdtempSync, writeFileSync, readFileSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'hm-codex-'));
+  const outFile = join(dir, 'out.txt');
+  const schemaFile = opts.schema ? join(dir, 'schema.json') : null;
+  if (schemaFile) writeFileSync(schemaFile, JSON.stringify(opts.schema));
+  const jsonNote = opts.schema ? `\n\nRESPOND WITH JSON ONLY — a single JSON object matching this schema (no prose, no code fences):\n${JSON.stringify(opts.schema)}` : '';
+  let lastErr = '';
+  try {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const user = attempt === 1 ? opts.user : `${opts.user}\n\n(Your previous reply was not valid JSON for the schema: ${lastErr}. Reply again with ONLY the JSON object.)`;
+      const prompt = `SYSTEM INSTRUCTIONS:\n${opts.system}${jsonNote}\n\n---\n\n${user}`;
+      const args = ['codex', 'exec', '-', '-m', model, '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '-C', dir, '-o', outFile, ...(schemaFile ? ['--output-schema', schemaFile] : [])];
+      const env: Record<string, string> = {}; for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v;
+      const p = Bun.spawn(args, { stdin: new Response(prompt), stdout: 'pipe', stderr: 'pipe', env });
+      const limitMs = opts.timeoutMs ?? 120_000;
+      let timedOut = false;
+      const timer = setTimeout(() => { timedOut = true; try { p.kill(); } catch {} }, limitMs);
+      const [stdout, stderr] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
+      const code = await p.exited; clearTimeout(timer);
+      if (process.env.HARNESSMAP_CLI_STDERR === '1' && stderr) console.error('[codex stderr]', stderr.slice(0, 800));
+      if (timedOut) throw new Error(`codex exec timed out after ${limitMs}ms`);
+      let text = ''; try { text = readFileSync(outFile, 'utf8'); } catch {}
+      if (!text.trim()) text = stdout;
+      if (code !== 0 && !text.trim()) throw new Error(`codex exec exited ${code}: ${stderr.slice(-300)}`);
+      if (!opts.schema) return text.trim();
+      try { return JSON.parse(text.replace(/^[\s\S]*?(\{)/, '$1').replace(/\}[^}]*$/, '}')); } catch (e) { lastErr = String(e).slice(0, 120); }
+    }
+    throw new Error(`codex returned invalid JSON twice: ${lastErr}`);
+  } finally { try { rmSync(dir, { recursive: true, force: true }); } catch {} }
 }
 
 async function subCall(opts: CallOpts, model: string): Promise<any> {

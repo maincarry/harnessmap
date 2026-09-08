@@ -130,6 +130,37 @@ console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');
   await p2.exited;
   const hj2 = JSON.parse(await Bun.file(join(CODEX_HOME, 'hooks.json')).text());
   check('re-running does not duplicate entries', JSON.stringify(hj2).length === JSON.stringify(hj).length);
+  // M220: the context limit rides the context-bearing hooks; --remove cleans
+  check('user-level hooks carry additionalContextLimit', hj.hooks.UserPromptSubmit[0].hooks[0].additionalContextLimit >= 10_000);
+  check('commands run bun directly (no sh — Windows)', String(hj.hooks.UserPromptSubmit[0].hooks[0].command).startsWith('bun run '));
+  const p3 = Bun.spawn(['bun', 'run', join('hooks', 'enable-codex.ts'), '--remove'], { env: { ...HOOK_ENV, CODEX_HOME } as any, stdout: 'pipe', stderr: 'pipe' });
+  await p3.exited;
+  const hj3 = JSON.parse(await Bun.file(join(CODEX_HOME, 'hooks.json')).text());
+  check('--remove takes our hooks out and leaves the file valid', !JSON.stringify(hj3).includes('/hooks/on-prompt.ts'));
+  Bun.spawnSync(['bun', 'run', join('hooks', 'enable-codex.ts')], { env: { ...HOOK_ENV, CODEX_HOME } as any });
+  // (a2) the plugin package: manifest, derived hooks in sync, marketplace
+  const before = await Bun.file(join('hooks', 'codex-hooks.json')).text();
+  Bun.spawnSync(['bun', 'run', join('hooks', 'build-codex-hooks.ts')], { stdout: 'ignore', stderr: 'ignore' });
+  const derived = JSON.parse(await Bun.file(join('hooks', 'codex-hooks.json')).text());
+  check('hooks/codex-hooks.json is derived from hooks/hooks.json (in sync)', JSON.stringify(derived) === JSON.stringify(JSON.parse(before)));
+  check('derived hooks use ${PLUGIN_ROOT} and the context limit', JSON.stringify(derived).includes('${PLUGIN_ROOT}/hooks/on-prompt.ts') && derived.hooks.UserPromptSubmit[0].hooks[0].additionalContextLimit >= 10_000);
+  const man = JSON.parse(await Bun.file(join('.codex-plugin', 'plugin.json')).text());
+  check('.codex-plugin/plugin.json names the plugin, skills and hooks', man.name === 'map' && man.skills === './skills/' && man.hooks === './hooks/codex-hooks.json' && await Bun.file(join('hooks', 'codex-hooks.json')).exists());
+  const mk = JSON.parse(await Bun.file(join('.agents', 'plugins', 'marketplace.json')).text());
+  check('.agents/plugins/marketplace.json lists the plugin from the repo root', mk.name === 'harnessmap' && mk.plugins?.[0]?.name === 'map' && mk.plugins[0].source?.source === 'local');
+  // (a3) the codex inference backend, driven through a shim `codex` on PATH
+  const shimDir = join(TMP, 'codex-shim'); await Bun.write(join(shimDir, 'codex'), `#!/bin/sh
+# shim: find -o <file>, read stdin, answer with JSON that matches the smoke schema
+out=""; while [ $# -gt 0 ]; do if [ "$1" = "-o" ]; then out="$2"; fi; shift; done
+cat > /dev/null
+printf '{"title":"shimmed %s"}' "ok" > "$out"
+`);
+  Bun.spawnSync(['chmod', '+x', join(shimDir, 'codex')]);
+  const probe = Bun.spawnSync(['bun', '-e', `import { call, backendName } from './src/inference.ts'; const r = await call({ task: 'title', system: 's', user: 'u', maxTokens: 50, schema: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] } }); console.log(JSON.stringify({ backend: backendName(), r }));`], {
+    env: { ...process.env, HARNESSMAP_INFERENCE: 'codex', PATH: `${shimDir}:${process.env.PATH}` } as any, stdout: 'pipe', stderr: 'pipe' });
+  const probeOut = probe.stdout.toString().trim().split('\n').pop() ?? '';
+  let probeJ: any = null; try { probeJ = JSON.parse(probeOut); } catch {}
+  check('codex backend: prompt on stdin, JSON back through -o, parsed against the schema', probeJ?.backend === 'codex' && probeJ?.r?.title === 'shimmed ok', probe.stderr.toString().slice(-300));
 
   // (b) Codex-shaped payloads drive the SAME hooks (extra fields tolerated)
   const r = await runHook('session-start.ts', { session_id: 'codex-1', cwd: PROJ, hook_event_name: 'SessionStart', model: 'gpt-x', permission_mode: 'default', source: 'startup' });

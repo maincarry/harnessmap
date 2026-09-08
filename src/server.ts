@@ -25,7 +25,7 @@ import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots } from './translator/importer.js';
-import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, MODEL_CATALOG, defaultModelFor, setModelResolver, backendName } from './inference.js';
+import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, setModelResolver, backendName } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync } from 'node:fs';
@@ -2096,7 +2096,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // additions (approved in the UI, which appends here).
     // M217 (Mark): one model per role, chosen here; empty = the default.
     if (path === '/api/models' && req.method === 'GET') {
-      return json({ groups: ROLE_GROUPS, roles: ROLES.map((r) => ({ ...r, default: defaultModelFor(r.task), chosen: store.getSetting(`model:${r.task}`) || '', current: modelFor(r.task) })), catalog: MODEL_CATALOG, backend: backendName() });
+      return json({ groups: ROLE_GROUPS, roles: ROLES.map((r) => ({ ...r, default: defaultModelFor(r.task), chosen: store.getSetting(`model:${r.task}`) || '', current: modelFor(r.task) })), catalog: modelCatalog(), backend: backendName() });
     }
     if (path === '/api/models' && req.method === 'POST') {
       const b = await req.json() as { task?: string; model?: string; reset?: boolean };
