@@ -285,7 +285,12 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
     // to three hits ride along instead of one.
     // M203: shared word matcher — whole words over title, statement, and the
     // node's minimal/medium memory, title weighted ×2 (see src/map/match.ts).
-    const scored = matchNodes(store, pid, q, { exclude: focusSet as Set<string> }).map((m) => ({ n: store.getNode(m.id)!, sc: m.score, hits: m.hits }));
+    // M230 fix: excluding the focus subtree is right when the focus is a topic
+    // (already served in full); when the focus is the map's root (a fresh
+    // session) it would exclude the whole map and nothing could ever ride along.
+    const liveCount = store.getNodes(pid).filter((n) => n.status !== 'removed').length;
+    const exclude = focusSet.size > liveCount * 0.5 ? new Set<string>([chat.focusContainerId]) : (focusSet as Set<string>);
+    const scored = matchNodes(store, pid, q, { exclude }).map((m) => ({ n: store.getNode(m.id)!, sc: m.score, hits: m.hits }));
     scored.sort((x, y) => y.sc - x.sc);
     // M230 (Jacob, 2026-09-08 3:02 pm ET, after his note that the brain works
     // before the turn while the miss happens in the turn): the question IS the
@@ -2661,13 +2666,14 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
             let unfolded = 0;
             if (cov.share < 0.6) {
               const litSet = new Set(store.getLit(ctxChatId));
-              const cands = matchNodes(store, ctxPid, promptText, { limit: 10, minHits: 1 }).map((m) => store.getNode(m.id)!).filter((n) => n && litSet.has(n.id) && !context.includes(n.content.slice(0, 80)));
+              // Lit or set aside: a node that carries a missing rare word is unfolded — the question named it (M230's consent); a set-aside one is marked.
+              const cands = matchNodes(store, ctxPid, promptText, { limit: 10, minHits: 1 }).map((m) => store.getNode(m.id)!).filter((n) => n && n.status !== 'removed' && !context.includes(n.content.slice(0, 80)));
               const adds: string[] = [];
               for (const n of cands) {
                 const text = `${n.title ?? ''} ${n.content}`.toLowerCase();
                 if (!cov.missing.some((t) => text.includes(t))) continue;
                 const c = getNodeCard(store, n.id);
-                adds.push(`• ${n.title || n.content.slice(0, 60)}: ${n.content.slice(0, 1200)}${c.minimal ? `\n  ${c.minimal}` : ''}`);
+                adds.push(`• ${n.title || n.content.slice(0, 60)}${litSet.has(n.id) ? '' : ' (set aside — served because your question names it)'}: ${n.content.slice(0, 1200)}${c.minimal ? `\n  ${c.minimal}` : ''}`);
                 unfolded++; if (adds.join('\n').length > 6000) break;
               }
               if (adds.length) { context = `[harnessmap — unfolded because your question names them]\n${adds.join('\n')}\n\n${context}`; cov = coverageOf(context, rare); }
