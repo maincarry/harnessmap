@@ -22,7 +22,7 @@ import { CAST_GRAPH } from './translator/cast.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend, HARNESSES, harnessAvailability } from './term.js';
 import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
-import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories } from './translator/memory.js';
+import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories, nodeFull } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots } from './translator/importer.js';
 import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, setModelResolver, backendName } from './inference.js';
@@ -285,10 +285,13 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
       if (!includeLit) continue;
       // Lit but distant: serve the card directly — authorization exists.
       const c = getNodeCard(store, best.n.id);
-      const details = c.details.filter((f: any) => f.status === 'current').slice(0, 6).map((f: any) => `  - ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n');
+      const details = c.details.filter((f: any) => f.status === 'current').map((f: any) => `  - ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n');
       store.audit('pullup_served_lit', { node: best.n.id.slice(0, 8) });
-      // Guard: a served hit is a node, not a document — cap it (an import root's content once rode along at 90k chars).
-      outs.push(`[harnessmap] the message touches "${name}" (lit, far from focus) — served in full for this turn:\n${String(best.n.content).slice(0, 2500)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}`.slice(0, 4000));
+      // M213 (Jacob): served in full means in full. A sanity ceiling far above
+      // any real node stays (an import root's 90k statement once rode along);
+      // when it bites, the audit says so instead of a silent 2,500-char clip.
+      if (String(best.n.content).length > 30_000) store.audit('pullup_ceiling', { node: best.n.id.slice(0, 8), chars: String(best.n.content).length });
+      outs.push(`[harnessmap] the message touches "${name}" (lit, far from focus) — served in full for this turn:\n${String(best.n.content).slice(0, 30_000)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}`.slice(0, 4000));
       continue;
     }
     // Dim: a consented offer, never content.
@@ -1629,6 +1632,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // demand instead of pre-paid in the injection. Server-guarded: obeys the
     // light (dim → set-aside, no content), refuses when map influence is
     // closed (M143 silence goes both directions), rate-capped, audited.
+    const mFull = path.match(/^\/api\/nodes\/([^/]+)\/full$/);
+    if (mFull && req.method === 'GET') { const n = store.getNode(decodeURIComponent(mFull[1])); if (!n) return json({ error: 'unknown node' }, 404); return json({ id: n.id, name: n.title || n.content, full: nodeFull(store, n.id) }); }
     const mHist = path.match(/^\/api\/nodes\/([^/]+)\/history$/);
     if (mHist && req.method === 'GET') {
       const n = store.getNode(decodeURIComponent(mHist[1]));
@@ -1636,7 +1641,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ id: n.id, name: n.title || n.content, versions: store.nodeHistory(n.id) });
     }
     if (path === '/api/recall' && req.method === 'POST') {
-      const b = await req.json() as { nodeId?: string; name?: string; depth?: 'card' | 'evidence' | 'around'; chatId?: string; pullupToken?: string };
+      const b = await req.json() as { nodeId?: string; name?: string; depth?: 'card' | 'evidence' | 'around' | 'full'; chatId?: string; pullupToken?: string };
       if (!b.nodeId && !b.name) return json({ error: 'nodeId or name required' }, 400);
       if (influenceOff(projectId)) return json({ error: 'map influence is closed — recall refused' }, 403);
       // Agents reference topics by NAME (the injection shows names, not ids):
@@ -1689,6 +1694,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         return { id: n.id, name: n.title || n.content, statement: n.content, type: n.type ?? null, status: n.status, minimal: c.minimal, details: c.details.filter((f) => f.status === 'current').map((f) => ({ text: f.text, date: f.date, prov: f.prov })) };
       };
       const out: any = { card: card(rn.id) };
+      out.card.long = getNodeCard(store, rn.id).long ?? null; // M214
+      if (depth === 'full') out.full = nodeFull(store, rn.id); // M214: the raw material, on request
       // M203 (Jacob): a node's timeline — every content/title/status change
       // from the event log, oldest first, so a later ruling is seen AS a
       // change of the same topic, not a twin node.
