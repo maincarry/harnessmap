@@ -1,6 +1,12 @@
 // M218: the map guide's mechanical parts — the rescue rule, the status index —
 // against the exact sentences that misfired on 2026-09-08.
-import { rescueTarget, contentTokens, statusIndex } from '../translator/mapchat.js';
+import { rescueTarget, contentTokens, statusIndex, runGuideQuery } from '../translator/mapchat.js';
+import { Store } from '../store/db.js';
+import { setNodeMemory } from '../translator/memory.js';
+import { randomUUID } from 'node:crypto';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 let pass = 0, fail = 0;
 const ok = (name: string, cond: boolean) => { if (cond) pass++; else { fail++; console.log('FAIL', name); } };
 const nodes: any[] = [
@@ -27,5 +33,33 @@ ok('removed nodes are never a rescue target', rescueTarget('focus on the old ide
 const idx = statusIndex(nodes);
 ok('counts exclude removed', !('removed' in idx.counts) && idx.counts.decided === 3);
 ok('unsettled = pending + open question, not "active" chapters', idx.unsettled.map((n) => n.id).sort().join() === ['dddd4444', '99999999'].sort().join());
+// M219: the map queries, mechanical, on a temp store
+const store = new Store(join(mkdtempSync(join(tmpdir(), 'guide-')), 'map.sqlite'));
+const pid = store.createProject('q'); const root = randomUUID(), tidy = randomUUID(), amber = randomUUID(), task = randomUUID();
+store.applyAlterations(pid, [
+  { op: 'create_node', id: root, parentId: null, content: 'HarnessMap', title: 'HarnessMap', status: 'live', author: 'user' } as any,
+  { op: 'create_node', id: tidy, parentId: root, content: 'Tidy agent', title: 'Tidy agent', status: 'active', author: 'agent' } as any,
+  { op: 'create_node', id: amber, parentId: tidy, content: 'The amber dot was replaced by a relight suggestion', title: 'Amber dot replaced', status: 'decided', author: 'agent', date: '2026-08-20' } as any,
+  { op: 'create_node', id: task, parentId: tidy, content: 'Cap tidy proposals at 40 moves', status: 'pending', type: 'task', author: 'agent' } as any,
+], { kind: 'system' });
+store.applyAlterations(pid, [{ op: 'update_node', id: amber, content: 'The amber dot is gone: relight suggestions replaced it', date: '2026-08-22' } as any], { kind: 'reorganize' });
+setNodeMemory(store, amber, 'Jacob ruled the amber dot out on 2026-08-20.');
+store.setFavorite(task, true);
+const chatId = randomUUID(); store.createChat({ id: chatId, projectId: pid, focusContainerId: root, sdkSessionId: null } as any); store.setLit(chatId, tidy, true);
+const shown = new Set<string>();
+const r1 = runGuideQuery(store, pid, chatId, { kind: 'status' }, shown);
+ok('status query lists the pending task with its id, not the active chapter', r1.includes(task.slice(0, 8)) && !r1.includes(tidy.slice(0, 8)) && /1 node/.test(r1));
+ok('status query with a status filters by it', runGuideQuery(store, pid, chatId, { kind: 'status', status: 'decided' }, shown).includes(amber.slice(0, 8)));
+ok('search query finds the amber dot by words', runGuideQuery(store, pid, chatId, { kind: 'search', words: 'amber dot' }, shown).includes(amber.slice(0, 8)));
+const sub = runGuideQuery(store, pid, chatId, { kind: 'subtree', nodeId: tidy.slice(0, 8) }, shown);
+ok('subtree query shows the children indented with ids', sub.includes(amber.slice(0, 8)) && sub.includes(task.slice(0, 8)) && /\n  \[/.test(sub));
+const hist = runGuideQuery(store, pid, chatId, { kind: 'history', nodeId: amber }, shown);
+ok('history query shows two dated versions', /2 version/.test(hist) && hist.includes('2026-08-20') && hist.includes('2026-08-22'));
+ok('memory query returns what the map remembers', runGuideQuery(store, pid, chatId, { kind: 'memory', nodeId: amber }, shown).includes('Jacob ruled'));
+ok('lit query lists the lit set', runGuideQuery(store, pid, chatId, { kind: 'lit' }, shown).includes(tidy.slice(0, 8)));
+ok('favorites query lists the favorite', runGuideQuery(store, pid, chatId, { kind: 'favorites' }, shown).includes(task.slice(0, 8)));
+ok('every result id is now "shown"', [amber, task, tidy].every((id) => shown.has(id)));
+ok('unknown node in a query is reported, not thrown', /unknown node/.test(runGuideQuery(store, pid, chatId, { kind: 'subtree', nodeId: 'zzzz' }, shown)));
+
 console.log(`guide: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
