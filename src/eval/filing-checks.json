@@ -197,5 +197,33 @@
    "two modes",
    "switch(es)? (where|which) sessions|sessions run"
   ]
+ },
+ {
+  "id": "C05",
+  "kind": "currency",
+  "m": "M134 (question resolved)",
+  "what": "once the toggle was dropped, 'delete or keep the toggle?' must not stand as an OPEN question",
+  "must": [
+   "toggle",
+   "drop|park|removed"
+  ],
+  "earlier": [
+   "toggle",
+   "(delete|keep|drop)[^.]{0,40}\\?|keep or delete|delete or keep|keep vs\\.? delete"
+  ],
+  "deadStatus": [
+   "answered",
+   "resolved",
+   "decided",
+   "done",
+   "removed",
+   "dropped",
+   "parked",
+   "closed",
+   "superseded",
+   "reversed",
+   "rejected",
+   "completed"
+  ]
  }
 ]

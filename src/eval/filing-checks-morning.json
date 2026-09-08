@@ -1,0 +1,245 @@
+[
+ {
+  "id": "R01",
+  "kind": "ruling",
+  "m": "M104-REWOUND",
+  "what": "the whole UI redesign was rewound; the design is parked in git, not live",
+  "must": [
+   "rewind|rewound|revert",
+   "design|redesign|UI"
+  ]
+ },
+ {
+  "id": "R02",
+  "kind": "ruling",
+  "m": "M104-REWOUND lesson",
+  "what": "visual changes land one decision at a time (slow path), unlike mechanics",
+  "must": [
+   "one (change|decision|step) at a time|slow(ly)?|small(er)? (steps|batches)",
+   "visual|design|UI"
+  ]
+ },
+ {
+  "id": "R03",
+  "kind": "ruling",
+  "m": "focus frame",
+  "what": "the focus row carries a bright accent frame (Jacob's 框)",
+  "must": [
+   "focus",
+   "frame|框|border|outline"
+  ]
+ },
+ {
+  "id": "R04",
+  "kind": "ruling",
+  "m": "focus chip",
+  "what": "a focus chip is always visible in the breadcrumb bar; clicking offers to zoom to it",
+  "must": [
+   "focus",
+   "chip|indicator|breadcrumb",
+   "zoom"
+  ]
+ },
+ {
+  "id": "R05",
+  "kind": "ruling",
+  "m": "M105",
+  "what": "zoom is view-only; dim-all-outside is its own explicit action",
+  "must": [
+   "zoom",
+   "view.?only|only changes the view|pure view|does not dim|no longer dims|never dims"
+  ]
+ },
+ {
+  "id": "R06",
+  "kind": "ruling",
+  "m": "M105b",
+  "what": "dim all outside is always present in the toolbar like zoom out; an un-zoomed click explains itself",
+  "must": [
+   "dim (all )?outside",
+   "always|toolbar|permanent"
+  ]
+ },
+ {
+  "id": "R07",
+  "kind": "ruling",
+  "m": "M106",
+  "what": "what-changed: clicking the status line opens the change list; last-update nodes are marked",
+  "must": [
+   "what changed|change list|last update|changed",
+   "click|panel|status line|mark"
+  ]
+ },
+ {
+  "id": "R08",
+  "kind": "ruling",
+  "m": "M106b",
+  "what": "words instead of color codes: new / changed chips",
+  "must": [
+   "chip",
+   "new|changed"
+  ]
+ },
+ {
+  "id": "R09",
+  "kind": "ruling",
+  "m": "M106b style",
+  "what": "the chips follow the app's quiet vocabulary (hairline, no solid fills)",
+  "must": [
+   "chip",
+   "hairline|style|consisten|vocabulary|quiet"
+  ]
+ },
+ {
+  "id": "R10",
+  "kind": "ruling",
+  "m": "M107",
+  "what": "marks persist until the user touches the node; click-to-clear plus clear-all; smaller chip",
+  "must": [
+   "persist|until (you|the user) (touch|click|interact)|click.to.clear",
+   "clear"
+  ]
+ },
+ {
+  "id": "R11",
+  "kind": "ruling",
+  "m": "M108",
+  "what": "the ? button is a guided spotlight tutorial over the real UI, ending in a reference card",
+  "must": [
+   "tutorial|tour",
+   "spotlight|real (UI|interface)|steps|guided"
+  ]
+ },
+ {
+  "id": "R12",
+  "kind": "ruling",
+  "m": "header",
+  "what": "the manage button moved into the ⋯ other menu",
+  "must": [
+   "manage",
+   "other"
+  ]
+ },
+ {
+  "id": "R13",
+  "kind": "ruling",
+  "m": "M109",
+  "what": "to-sort: the amber relight indirection and the 'true home is dimmed' category are dropped; exits become direct move proposals",
+  "must": [
+   "to.?sort|amber",
+   "relight|placement|move proposal|true home|drop"
+  ]
+ },
+ {
+  "id": "R14",
+  "kind": "ruling",
+  "m": "M108b",
+  "what": "the tutorial covers every element (map switcher, heartbeat/lag, chat agent's view, add node), circles the element, one highlight",
+  "must": [
+   "tutorial|tour",
+   "switcher|heartbeat|circle|highlight|all elements|15 steps|every element"
+  ]
+ },
+ {
+  "id": "R15",
+  "kind": "ruling",
+  "m": "naming",
+  "what": "'agent's view' renamed 'chat agent's view' because agent is ambiguous in a two-agent product",
+  "must": [
+   "chat agent.s view|chat agent",
+   "view|ambigu|rename"
+  ]
+ },
+ {
+  "id": "R16",
+  "kind": "ruling",
+  "m": "M108b card",
+  "what": "the reference card is reorganized: governance first, categories and statuses demoted to fine print",
+  "must": [
+   "reference card|card",
+   "governance|seeing|steering|fine print|reorganiz|demot"
+  ]
+ },
+ {
+  "id": "C01",
+  "kind": "currency",
+  "m": "Z2→M105",
+  "what": "zoom no longer dims: 'zoom dims everything outside' must not stand as live",
+  "must": [
+   "zoom",
+   "view.?only|only changes the view|pure view|does not dim|no longer dims|never dims"
+  ],
+  "earlier": [
+   "zoom",
+   "dims? (everything|all) outside|also dims|dims outside"
+  ]
+ },
+ {
+  "id": "C02",
+  "kind": "currency",
+  "m": "M106→M107",
+  "what": "recency marks persist until touched; time-decay (fade after N rounds) must not stand as live",
+  "must": [
+   "persist|until (you|the user) (touch|click|interact)|click.to.clear"
+  ],
+  "earlier": [
+   "time.?decay|last (3|three) rounds|fade|decay",
+   "mark|chip|recency|new|changed"
+  ]
+ },
+ {
+  "id": "C03",
+  "kind": "currency",
+  "m": "M104→REWOUND",
+  "what": "the redesign's warm-row/brass-edge focus encoding was rewound; the bright frame is current",
+  "must": [
+   "focus",
+   "frame|框"
+  ],
+  "earlier": [
+   "warm|brass|beam|lamp|glow",
+   "focus|lit"
+  ]
+ },
+ {
+  "id": "C04",
+  "kind": "currency",
+  "m": "M106→M106b",
+  "what": "the blue edge was replaced by word chips; 'blue edge' must not stand as the live encoding",
+  "must": [
+   "chip",
+   "new|changed"
+  ],
+  "earlier": [
+   "blue edge"
+  ]
+ },
+ {
+  "id": "C05",
+  "kind": "currency",
+  "m": "M105 visibility",
+  "what": "dim-all-outside is always present; 'only appears while zoomed' must not stand as live",
+  "must": [
+   "dim (all )?outside",
+   "always|toolbar|permanent"
+  ],
+  "earlier": [
+   "dim (all )?outside",
+   "only (appears|renders|shows|visible) (while|when) zoomed"
+  ]
+ },
+ {
+  "id": "C06",
+  "kind": "currency",
+  "m": "M109",
+  "what": "the amber relight indirection is dropped; it must not stand as the live to-sort exit",
+  "must": [
+   "to.?sort|amber",
+   "drop|placement|move proposal|direct move"
+  ],
+  "earlier": [
+   "amber",
+   "relight|re-?light"
+  ]
+ }
+]

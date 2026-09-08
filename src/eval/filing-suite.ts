@@ -14,6 +14,7 @@ const SEG = flag('segment') ?? 'src/eval/filing-segment.json';
 const CHECKS = flag('checks') ?? 'src/eval/filing-checks.json';
 const RUNS = Number(flag('runs') ?? 3);
 const FLOOR_R = Number(flag('floor-ruling') ?? 0.7), FLOOR_C = Number(flag('floor-currency') ?? 0.8);
+const TAG = flag('tag') ?? 'default'; // names the per-run temp dirs so segments do not overwrite each other
 const PORT = 8794; const BASE = `http://127.0.0.1:${PORT}`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const get = async (p: string) => (await fetch(BASE + p)).json();
@@ -60,7 +61,7 @@ const results: any[] = [];
 // check that misfired (the grading is code; the map is the measurement).
 if (flag('regrade')) {
   for (let run = 1; run <= RUNS; run++) {
-    const f = `/tmp/claude-1000/filing-suite-${run}/map.json`;
+    const f = `/tmp/claude-1000/filing-suite-${TAG}-${run}/map.json`;
     let saved: any; try { saved = JSON.parse(readFileSync(f, 'utf8')); } catch { console.log(`run ${run}: no saved map at ${f}`); continue; }
     const g = grade(saved.nodes, saved.history ?? {});
     console.log(`run ${run} (regraded): ${saved.nodes.filter((n: NodeRow) => n.status !== 'removed').length} live nodes · ruling ${g.ruling.pass}/${g.ruling.total} · currency ${g.currency.pass}/${g.currency.total}`);
@@ -69,7 +70,7 @@ if (flag('regrade')) {
   }
 }
 for (let run = 1; run <= (flag('regrade') ? 0 : RUNS); run++) {
-  const TMP = `/tmp/claude-1000/filing-suite-${run}`; rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
+  const TMP = `/tmp/claude-1000/filing-suite-${TAG}-${run}`; rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
   try { writeFileSync(join(TMP, 'home', '.claude', '.credentials.json'), readFileSync(join(process.env.HOME ?? '', '.claude', '.credentials.json')), { mode: 0o600 }); } catch {}
   const env: Record<string, string> = { ...process.env as any, HARNESSMAP_DB: join(TMP, 't1.sqlite'), PORT: String(PORT), HOME: join(TMP, 'home'), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0' };
   delete env.ANTHROPIC_API_KEY; delete env.ANTHROPIC_AUTH_TOKEN;
