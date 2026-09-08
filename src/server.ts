@@ -18,13 +18,14 @@ import { proposeAutolit, litSetCost, litCap, resultingLit } from './translator/a
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion } from './translator/mapchat.js';
+import { CAST_GRAPH } from './translator/cast.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend } from './term.js';
 import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots } from './translator/importer.js';
-import { setTraceSink, setMetricsSink, callHealth, call, modelFor } from './inference.js';
+import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, MODEL_CATALOG, defaultModelFor, setModelResolver, backendName } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync } from 'node:fs';
@@ -53,6 +54,8 @@ if (process.env.HARNESSMAP_HOME) {
 }
 
 const store = new Store(DB_PATH);
+// M217: the user's per-role model choice (⚙ models) resolves ahead of the defaults.
+setModelResolver((task) => store.getSetting(`model:${task}`) || undefined);
 // A parent cycle in the data (2026-09-06: two find-and-file nodes as each
 // other's parent) sent every tree walk into an endless loop and the OOM
 // killer took the server, the tmux scope and the Claude session. Broken on
@@ -2069,6 +2072,25 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // M124: per-project map preferences — governed memory every specialist
     // receives via the system card. User-editable; the map guide may propose
     // additions (approved in the UI, which appends here).
+    // M217 (Mark): one model per role, chosen here; empty = the default.
+    if (path === '/api/models' && req.method === 'GET') {
+      return json({ roles: ROLES.map((r) => ({ ...r, default: defaultModelFor(r.task), chosen: store.getSetting(`model:${r.task}`) || '', current: modelFor(r.task) })), catalog: MODEL_CATALOG, backend: backendName() });
+    }
+    if (path === '/api/models' && req.method === 'POST') {
+      const b = await req.json() as { task?: string; model?: string; reset?: boolean };
+      if (b.reset) { for (const r of ROLES) store.setSetting(`model:${r.task}`, ''); store.audit('models_reset', {}); return json({ ok: true }); }
+      const role = ROLES.find((r) => r.task === b.task);
+      if (!role) return json({ error: 'unknown role' }, 400);
+      const model = String(b.model ?? '').trim();
+      if (model && !/^[a-z0-9.-]{3,60}$/.test(model)) return json({ error: 'model ids are lowercase letters, digits, dots and dashes' }, 400);
+      store.setSetting(`model:${role.task}`, model);
+      store.audit('model_chosen', { role: role.task, model: model || '(default)' });
+      return json({ ok: true, task: role.task, current: modelFor(role.task) });
+    }
+    // The cast as a network — dev mode's roadmap of who reads what and writes what.
+    if (path === '/api/cast' && req.method === 'GET') {
+      return json({ ...CAST_GRAPH, models: Object.fromEntries(ROLES.map((r) => [r.task, modelFor(r.task)])) });
+    }
     if (path === '/api/prefs' && req.method === 'GET') {
       return json({ text: store.getSetting(`prefs:${projectId}`) ?? '' });
     }

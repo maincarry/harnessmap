@@ -16,7 +16,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 
 export type Task =
   | 'filer' | 'memory' | 'relations' | 'title' | 'summary' | 'autolit' | 'recommend' | 'place' | 'mapchat'
-  | 'tidy' | 'mapcheck' | 'import';
+  | 'tidy' | 'mapcheck' | 'import' | 'brain';
 
 // M185 (Mark got billed): the M103 promise — the subscription path NEVER
 // bills an API key — was enforced only at the specialist spawn site, while
@@ -42,11 +42,44 @@ const SMART = process.env.HARNESSMAP_SMART_MODEL ?? 'claude-sonnet-4-6';
 // M142 (Jacob): import is the first-impression reorganization — it gets the
 // fancy model. Overridable (tests pin a cheap one).
 const FANCY = process.env.HARNESSMAP_IMPORT_MODEL ?? 'claude-opus-4-8';
-const HEAVY_TASKS: Task[] = ['tidy', 'mapcheck'];
-
+// M217 (Mark, 2026-09-08): one model per ROLE, chosen by the user in ⚙ models
+// (settings `model:<task>`) over these defaults. The catalog below is what
+// the settings page shows; the resolver is installed by the server.
+export type Tier = 'cheap' | 'smart' | 'fancy';
+export interface RoleInfo { task: Task; label: string; what: string; tier: Tier; perTurn: boolean }
+export const ROLES: RoleInfo[] = [
+  { task: 'filer', label: 'filer', what: 'files each exchange onto the map — every turn, the only writer that acts without approval (within the lit scope); import chunks file on this tier too', tier: 'cheap', perTurn: true },
+  { task: 'memory', label: 'memory agent', what: "writes and updates node memory (the organs), the taste digest, merge memories", tier: 'cheap', perTurn: true },
+  { task: 'summary', label: 'rolling summary', what: "the running conversation summary the chat agent's block carries", tier: 'cheap', perTurn: true },
+  { task: 'autolit', label: 'lighting and focus agents', what: 'propose focus and light for approval; under re-aim they run before every question', tier: 'cheap', perTurn: true },
+  { task: 'recommend', label: 'recommendation agent', what: 'the red-dot focus suggestions', tier: 'cheap', perTurn: false },
+  { task: 'place', label: 'placement agent', what: 'suggests homes for "to sort" items', tier: 'cheap', perTurn: false },
+  { task: 'relations', label: 'fit writer', what: 'how a node fits its surroundings (the fit organ)', tier: 'cheap', perTurn: false },
+  { task: 'title', label: 'naming agent', what: 'short display names', tier: 'cheap', perTurn: false },
+  { task: 'mapchat', label: 'map guide (talk to map)', what: 'answers your questions about the map and drafts proposals; interactive, a few calls a day', tier: 'smart', perTurn: false },
+  { task: 'tidy', label: 'tidy agent', what: 'restructures a subtree — a proposal you approve', tier: 'smart', perTurn: false },
+  { task: 'mapcheck', label: "the brain's reporters", what: 'the structural review and the per-area assessments', tier: 'smart', perTurn: false },
+  { task: 'brain', label: 'the brain (overall report)', what: 'the overall map status report, import verification, the history report', tier: 'fancy', perTurn: false },
+  { task: 'import', label: 'import agent', what: 'the source summary and the finish pass of an import (chunks file on the filer tier)', tier: 'fancy', perTurn: false },
+];
+export const MODEL_CATALOG: { id: string; note: string }[] = [
+  { id: 'claude-haiku-4-5', note: 'fastest, cheapest' },
+  { id: 'claude-sonnet-4-6', note: 'the balanced default of the 4.x line' },
+  { id: 'claude-sonnet-5', note: 'balanced, newer' },
+  { id: 'claude-opus-4-8', note: 'strongest of the 4.x line' },
+  { id: 'claude-opus-5', note: 'strongest, newer' },
+  { id: 'claude-fable-5-1', note: 'most capable available' },
+];
+const tierModel = (t: Tier): string => (t === 'fancy' ? FANCY : t === 'smart' ? SMART : CHEAP);
+export function defaultModelFor(task: Task): string {
+  const r = ROLES.find((x) => x.task === task);
+  return tierModel(r?.tier ?? 'cheap');
+}
+let modelResolver: ((task: Task) => string | undefined) | null = null;
+export function setModelResolver(fn: ((task: Task) => string | undefined) | null): void { modelResolver = fn; }
 export function modelFor(task: Task): string {
-  if (task === 'import') return FANCY;
-  return HEAVY_TASKS.includes(task) ? SMART : CHEAP;
+  const chosen = modelResolver?.(task);
+  return chosen && /^[a-z0-9.-]{3,60}$/.test(chosen) ? chosen : defaultModelFor(task);
 }
 
 export function backendName(): 'api' | 'subscription' {

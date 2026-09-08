@@ -448,6 +448,7 @@
           <button id="lit-all" title="light every node in the current view — all of it enters the chat agent's background">☀ light all (this view)</button>
           <button id="dim-all" title="dim every node in the current view — the chat agent stops seeing all of it (you still see everything)">◐ dim all (this view)</button>
           <button id="prefs-btn" title="standing preferences every map agent follows — how to group, name, and clean your maps; edit anytime">☰ map preferences</button>
+          <button id="models-btn" title="choose the model behind each role — the filer that runs every turn, the map guide, the brain, the import…">⚙ models</button>
           <button id="lit-mgr-btn" title="manage focus and background for the whole map in one list">▶☀ manage</button>
           <button id="other-settings-btn" title="rare, set-and-forget: the agent's view, sessions overview, updates, influence, dev mode">＋ more…</button>
           <div id="other-settings" hidden>
@@ -1074,6 +1075,7 @@ function openDrawer() {
     <div class="dr-h">more</div>
     ${act('auto-rename', '✎', 'auto-rename')}
     ${act('prefs-btn', '☰', 'map preferences')}
+    ${act('models-btn', '⚙', 'models per role')}
     ${act('legend-btn', '?', 'tutorial & reference')}
     ${act('dev-btn', '🔧', 'dev mode')}
   </div>`;
@@ -2256,6 +2258,50 @@ $('prefs-btn').onclick = async () => {
     catch (err) { $('round-line').textContent = `save failed: ${err.message}`; }
   };
 };
+// M217 (Mark): one model per role. Empty choice = the default for the role's tier.
+$('models-btn').onclick = async () => {
+  $('other-menu').hidden = true;
+  let d; try { d = await post2get('/api/models'); } catch (err) { $('round-line').textContent = `could not load models: ${err.message}`; return; }
+  const ov = document.createElement('div');
+  ov.className = 'overlay';
+  const opt = (r) => {
+    const ids = d.catalog.map((c) => c.id);
+    const custom = r.chosen && !ids.includes(r.chosen);
+    return `<option value="">default (${esc(r.default)})</option>` + d.catalog.map((c) => `<option value="${c.id}" ${r.chosen === c.id ? 'selected' : ''}>${c.id} — ${esc(c.note)}</option>`).join('') + `<option value="__custom" ${custom ? 'selected' : ''}>custom id…</option>`;
+  };
+  ov.innerHTML = `
+    <div class="modal" style="width:min(760px,96vw);max-height:90vh;overflow:auto">
+      <h3>⚙ models per role</h3>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 10px;line-height:1.5">Every role is a one-shot call; choose its model here. Roles marked <b>every turn</b> run on each exchange — their model sets the running cost. Changes apply from the next call; nothing restarts. Backend: <b>${esc(d.backend)}</b>${d.backend === 'subscription' ? ' (your Claude subscription; the ids are the ones Claude Code accepts)' : ''}.</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em"><th style="padding:4px 6px">role</th><th style="padding:4px 6px">what it does</th><th style="padding:4px 6px">model</th></tr></thead>
+        <tbody>${d.roles.map((r) => `<tr data-task="${r.task}" style="border-top:1px solid var(--hair);vertical-align:top">
+          <td style="padding:8px 6px;white-space:nowrap"><b>${esc(r.label)}</b>${r.perTurn ? '<div style="font-size:11px;color:var(--accent,#c8a24a)">every turn</div>' : ''}</td>
+          <td style="padding:8px 6px;color:var(--muted);line-height:1.4">${esc(r.what)}</td>
+          <td style="padding:8px 6px;min-width:220px"><select class="m-sel" style="width:100%;font:inherit;font-size:12px;padding:4px;background:var(--bg);color:var(--ink);border:1px solid var(--hair);border-radius:6px">${opt(r)}</select>
+            <input class="m-custom" placeholder="model id" value="${esc(r.chosen && !d.catalog.some((c) => c.id === r.chosen) ? r.chosen : '')}" style="width:100%;margin-top:4px;font:inherit;font-size:12px;padding:4px;background:var(--bg);color:var(--ink);border:1px solid var(--hair);border-radius:6px" ${r.chosen && !d.catalog.some((c) => c.id === r.chosen) ? '' : 'hidden'}>
+            <div class="m-now" style="font-size:11px;color:var(--muted);margin-top:3px">now: ${esc(r.current)}</div></td>
+        </tr>`).join('')}</tbody>
+      </table>
+      <div class="actions">
+        <button id="m-reset" title="every role back to its default">reset all</button>
+        <button id="m-close" class="primary">close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  const save = async (tr, model) => {
+    try { const r = await post('/api/models', { task: tr.dataset.task, model }); tr.querySelector('.m-now').textContent = `now: ${r.current}`; $('round-line').textContent = `${tr.dataset.task}: ${r.current} from the next call on`; }
+    catch (err) { $('round-line').textContent = `could not save: ${err.message}`; }
+  };
+  ov.querySelectorAll('tr[data-task]').forEach((tr) => {
+    const sel = tr.querySelector('.m-sel'), cus = tr.querySelector('.m-custom');
+    sel.onchange = () => { if (sel.value === '__custom') { cus.hidden = false; cus.focus(); } else { cus.hidden = true; save(tr, sel.value); } };
+    cus.onchange = () => { const v = cus.value.trim(); if (v) save(tr, v); };
+  });
+  ov.querySelector('#m-reset').onclick = async () => { try { await post('/api/models', { reset: true }); ov.remove(); $('round-line').textContent = 'every role back to its default'; } catch (err) { $('round-line').textContent = `reset failed: ${err.message}`; } };
+  ov.querySelector('#m-close').onclick = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+};
 $('map-check').onclick = async () => {
   const stop = opWatch('reviewing the whole map', Math.round(8 + S.nodes.length * 0.4));
   try {
@@ -3429,6 +3475,7 @@ async function openDevPanel() {
   <div style="display:flex;gap:6px;flex-wrap:wrap;padding:2px 0 8px;border-bottom:1px solid var(--hair)">
     <button id="dev-ctx" class="hbtn" data-tip="the exact map description the chat agent receives on its next turn — verbatim">👁 agent's view</button>
     <button id="dev-mobile" class="hbtn" data-tip="open the app in an iPhone-sized frame (402×874) — the real mobile presentation, live on this same map">📱 test mobile</button>
+    <button id="dev-cast" class="hbtn" data-tip="the roadmap of every agent as a network — what each one reads, what it writes, what it only proposes, and which model it runs on">🕸 agent network</button>
     <button id="dev-off" class="hbtn" data-tip="stop recording traces and close dev mode">■ stop recording</button>
   </div>
   <div id="dev-fb-wrap" hidden>
@@ -3492,6 +3539,43 @@ async function openDevPanel() {
   })();
   $('dev-close').onclick = closeDevPanel;
   $('dev-off').onclick = async () => { await post('/api/dev/toggle', {}); closeDevPanel(); $('round-line').textContent = 'dev mode off — recording stopped (traces kept until restart cap)'; };
+  // M217 (Jacob): the cast as a network. Three columns — what is read (left),
+  // the agents (middle), what is written or proposed (right); a store appears
+  // on both sides when it is both read and written. Lines: gray = reads,
+  // solid accent = writes directly, dashed accent = proposes (needs approval).
+  $('dev-cast').onclick = async () => {
+    let g; try { g = await post2get('/api/cast'); } catch (err) { $('round-line').textContent = `could not load the cast: ${err.message}`; return; }
+    const rows = $('dev-rows');
+    const W = Math.max(720, rows.clientWidth - 8), colW = 230, rowH = 34, pad = 12;
+    const agents = g.agents, stores = g.stores;
+    const storeById = Object.fromEntries(stores.map((s) => [s.id, s]));
+    const readIds = [...new Set(agents.flatMap((a) => a.reads))], outIds = [...new Set(agents.flatMap((a) => [...a.writes, ...a.proposes]))];
+    const H = pad * 2 + rowH * Math.max(agents.length, readIds.length, outIds.length) + 40;
+    const xL = pad, xM = W / 2 - colW / 2, xR = W - colW - pad;
+    const yOf = (i, n) => pad + 30 + i * rowH + (Math.max(agents.length, readIds.length, outIds.length) - n) * rowH / 2;
+    const yL = Object.fromEntries(readIds.map((id, i) => [id, yOf(i, readIds.length)]));
+    const yA = Object.fromEntries(agents.map((a, i) => [a.id, yOf(i, agents.length)]));
+    const yR = Object.fromEntries(outIds.map((id, i) => [id, yOf(i, outIds.length)]));
+    const box = (x, y, label, sub, kind) => `<g><rect x="${x}" y="${y - 13}" width="${colW}" height="28" rx="6" fill="${kind === 'agent' ? 'var(--bg)' : 'transparent'}" stroke="${kind === 'agent' ? 'var(--accent,#c8a24a)' : 'var(--hair)'}" stroke-width="${kind === 'agent' ? 1.2 : 1}"/><text x="${x + 8}" y="${y + 4}" font-size="11.5" fill="var(--ink)">${esc(label)}</text>${sub ? `<text x="${x + colW - 6}" y="${y + 4}" font-size="9.5" text-anchor="end" fill="var(--muted)">${esc(sub)}</text>` : ''}</g>`;
+    const curve = (x1, y1, x2, y2, stroke, dash) => `<path d="M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}" fill="none" stroke="${stroke}" stroke-width="1" ${dash ? 'stroke-dasharray="4 3"' : ''} opacity="${dash ? 0.9 : 0.55}"/>`;
+    let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="font-family:inherit;max-width:100%">`;
+    svg += `<text x="${xL}" y="${pad + 8}" font-size="10.5" fill="var(--muted)" letter-spacing=".05em">READS</text><text x="${xM}" y="${pad + 8}" font-size="10.5" fill="var(--muted)" letter-spacing=".05em">AGENTS · model</text><text x="${xR}" y="${pad + 8}" font-size="10.5" fill="var(--muted)" letter-spacing=".05em">WRITES (solid) · PROPOSES (dashed)</text>`;
+    for (const a of agents) {
+      for (const r of a.reads) svg += curve(xL + colW, yL[r], xM, yA[a.id], 'var(--muted)', false);
+      for (const w of a.writes) svg += curve(xM + colW, yA[a.id], xR, yR[w], 'var(--accent,#c8a24a)', false);
+      for (const w of a.proposes) svg += curve(xM + colW, yA[a.id], xR, yR[w], 'var(--accent,#c8a24a)', true);
+    }
+    for (const id of readIds) svg += box(xL, yL[id], storeById[id].label, '', 'store');
+    for (const a of agents) svg += box(xM, yA[a.id], a.label, a.model ? (g.models[a.task] || '') : 'mechanical', 'agent');
+    for (const id of outIds) svg += box(xR, yR[id], storeById[id].label, '', 'store');
+    svg += '</svg>';
+    const legend = `<div style="font-size:12px;color:var(--muted);line-height:1.5;margin:6px 0 10px">${esc(g.rule)} Hover a row below for what each store holds; change a model in ⚙ models.</div>`;
+    const table = `<table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>${agents.map((a) => `<tr style="border-top:1px solid var(--hair);vertical-align:top"><td style="padding:5px 6px;white-space:nowrap"><b>${esc(a.label)}</b><div style="color:var(--muted);font-size:11px">${a.model ? esc(g.models[a.task] || '') : 'mechanical'}</div></td><td style="padding:5px 6px;color:var(--muted)">${esc(a.what)}</td><td style="padding:5px 6px;white-space:nowrap;color:var(--muted);font-size:11px">reads: ${a.reads.map((r) => esc(storeById[r].label)).join(', ')}<br>${a.writes.length ? 'writes: ' + a.writes.map((r) => esc(storeById[r].label)).join(', ') : ''}${a.proposes.length ? (a.writes.length ? '<br>' : '') + 'proposes: ' + a.proposes.map((r) => esc(storeById[r].label)).join(', ') : ''}</td></tr>`).join('')}</tbody></table>`;
+    const storesTable = `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px">the stores (the only shared ground)</div><table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>${stores.map((s) => `<tr style="border-top:1px solid var(--hair)"><td style="padding:4px 6px;white-space:nowrap"><b>${esc(s.label)}</b></td><td style="padding:4px 6px;color:var(--muted)">${esc(s.what)}</td></tr>`).join('')}</tbody></table>`;
+    rows.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><b style="font-size:12px">🕸 the agents as a network</b><button id="dev-cast-back" class="hbtn" style="margin-left:auto">← back to traces</button></div><div style="overflow-x:auto">${svg}</div>${legend}${table}${storesTable}`;
+    if (devTimer) { clearInterval(devTimer); devTimer = null; }
+    $('dev-cast-back').onclick = () => openDevPanel();
+  };
   await refresh();
   devTimer = setInterval(refresh, 2500);
 }

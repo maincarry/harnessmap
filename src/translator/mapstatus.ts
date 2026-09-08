@@ -481,7 +481,7 @@ export async function synthesizeOverallStatus(store: Store, projectId: string, e
     const parsed = await call({
       // Jacob's ruling: the brain gets the smartest model — synthesis is the
       // one judgment everything else consults.
-      task: 'mapcheck', modelOverride: modelFor('import'),
+      task: 'brain',
       // Jacob: the understanding gets a much larger budget.
       system: OVERALL_SYSTEM, maxTokens: 16000, schema: OVERALL_SCHEMA as any, timeoutMs: 240_000,
       audit: (k, d) => store.audit(k, d),
@@ -610,7 +610,7 @@ export async function verifyImport(store: Store, projectId: string): Promise<Imp
     const report = Object.entries(u.sections).filter(([k]) => !k.startsWith('advice_') && k !== 'reconciliation').map(([k, v]) => `${k}: ${v.text}`).join('\n\n');
     try {
       const parsed = await call({
-        task: 'mapcheck', modelOverride: modelFor('import'),
+        task: 'brain',
         system: VERIFY_SYSTEM, maxTokens: 3000, schema: VERIFY_SCHEMA as any, timeoutMs: 240_000,
         audit: (k, d) => store.audit(k, d),
         user: `THE SOURCE SUMMARY (the standard):\n${sourceSummary}\n\nTHE OVERALL MAP STATUS REPORT (the map now):\n${report}\n\nJudge.`,
@@ -654,7 +654,7 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   const tuning = store.getSetting(`braintuning:${projectId}`) ?? '';
   try {
     const parsed = await call({
-      task: 'mapcheck', modelOverride: modelFor('import'),
+      task: 'brain',
       system: BRAIN_CHAT_SYSTEM, maxTokens: 2000, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
       audit: (k, d) => store.audit(k, d),
       user: [
