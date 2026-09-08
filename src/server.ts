@@ -26,7 +26,7 @@ import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories, nodeFull } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
-import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots } from './translator/importer.js';
+import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots, outlineWithIds } from './translator/importer.js';
 import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, backendName } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
@@ -2628,6 +2628,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     if (path === '/api/harness/context' && req.method === 'GET') {
       const sessionId = url.searchParams.get('session_id');
       const promptText = url.searchParams.get('prompt') ?? '';
+      const sharp = url.searchParams.get('mode') === 'sharp' || process.env.HARNESSMAP_SHARP === '1'; // M233 experiment: size the block by the question
       // The context fetch IS the "user just sent a message" signal — let the
       // map UI show that the host agent is thinking (M61).
       if (sessionId) { health.promptAt = Date.now(); broadcast({ type: 'host_prompt' }); }
@@ -2656,6 +2657,18 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         let context = chats.harnessContext(ctxChatId, promptText);
         const pullF = matchPullup(ctxPid, ctxChatId, promptText, true); // M199: lit hits ride along on the first turn too — lit no longer means in-the-block once lit nodes fold
         if (pullF) context = `[harnessmap — what you just asked about]\n${pullF}\n\n${context}`; // M230: at the top, before the standing view
+        // M233 (Jacob: "just do one round and tell me what it solves"): the SHARP
+        // block — when the question names nodes, serve those in full, the focus
+        // in full, and the map as names only; the standing view only when the
+        // question names nothing.
+        if (sharp && pullF) {
+          const chat = store.getChat(ctxChatId); const f = chat ? store.getNode(chat.focusContainerId) : null;
+          const fc = f ? getNodeCard(store, f.id) : null;
+          const focusFull = f ? `[harnessmap — the focus, in full]\n${f.title || f.content.slice(0, 60)}\n${(fc as any)?.long || `${f.content}${fc?.medium ? `\n${fc.medium}` : ''}`}` : '';
+          const names = outlineWithIds(store.getNodes(ctxPid) as any, 5000).replace(/\[[0-9a-f]{8}\] /g, '');
+          context = [`[harnessmap — what you just asked about]\n${pullF}`, focusFull, `[harnessmap — the rest of the map, names only; ask to pull any of them up]\n${names}`].filter(Boolean).join('\n\n');
+          store.audit('inject_sharp', { session: sessionId.slice(0, 8), chars: context.length });
+        }
         // M231: the coverage check — does the served block carry the question's
         // rare words? If not: unfold the lit-but-folded topics that carry them
         // (authorized already); if words are still missing, say so hard.

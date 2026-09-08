@@ -35,6 +35,7 @@ const PROJECT = flag('project'); // project id to pin active (guards against ses
 // then died at the finish line — nothing reached the ledger.
 const CKPT = flag('checkpoint') ?? `/tmp/recall-bank-ckpt.json`;
 const REAIM = args.includes('--reaim') || args.includes('--reaim=merged');
+const SHARP = args.includes('--sharp'); // M233: the sharp block experiment
 const REAIM_MERGED = args.includes('--reaim=merged') || flag('reaim') === 'merged'; // M218: one aiming call instead of focus + light (+ retry) // product mode only: auto-focus + auto-light before EVERY question (the question as the conversation's tail)
 if (REAIM && LIGHTING !== 'product') { console.error('REFUSED: --reaim needs --lighting product (it re-aims through auto-focus and auto-light).'); process.exit(2); }
 
@@ -130,7 +131,7 @@ const PRE = 'You are the assistant working with a two-founder team on their soft
 const briefing = async (question: string, cellId: string): Promise<string> => {
   if (PROJECT) await fetch(`${BASE}/api/projects/${PROJECT}/activate`, { method: 'POST' }).catch(() => {});
   const q = encodeURIComponent(question.slice(0, 1900));
-  const r = await (await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(cellId)}&prompt=${q}`)).json();
+  const r = await (await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(cellId)}&prompt=${q}${SHARP ? '&mode=sharp' : ''}`)).json();
   return r.context ?? '';
 };
 // The consent turn, automated (founder ruling: full automation — a user who
@@ -388,7 +389,7 @@ for (const it of items) {
 }
 
 const lines: string[] = [];
-lines.push(`lighting=${LIGHTING}${REAIM ? `+reaim${REAIM_MERGED ? '=merged' : ''}(${reaimRefusals} refusals)` : ''}${flag('transcript-budget') ? ` transcript-budget=${flag('transcript-budget')}` : ''} briefing≈${briefN ? Math.round(briefChars / briefN) : 0}ch n_items=${items.length} reps=${REPS} kappa=${kappa.toFixed(2)} (${pairs.length} double-graded) noise=${noise.toFixed(2)}`);
+lines.push(`lighting=${LIGHTING}${SHARP ? '+sharp' : ''}${REAIM ? `+reaim${REAIM_MERGED ? '=merged' : ''}(${reaimRefusals} refusals)` : ''}${flag('transcript-budget') ? ` transcript-budget=${flag('transcript-budget')}` : ''} briefing≈${briefN ? Math.round(briefChars / briefN) : 0}ch n_items=${items.length} reps=${REPS} kappa=${kappa.toFixed(2)} (${pairs.length} double-graded) noise=${noise.toFixed(2)}`);
 for (const arm of ARMS) lines.push(`arm ${arm}: mean ${armMean(arm).toFixed(2)}`);
 if (RAW_ARMS.length && ARMS.includes('raw')) {
   // M212: every other arm against the raw baseline, paired per item, with a
