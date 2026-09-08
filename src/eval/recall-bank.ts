@@ -263,6 +263,20 @@ const checkpoint = async () => { await Bun.write(CKPT, JSON.stringify({ cells, b
 const armOrder = [...ARMS].sort((x, y) => (x === 'transcript' ? 1 : 0) - (y === 'transcript' ? 1 : 0));
 for (const arm of armOrder) {
   if (arm !== 'transcript') await setServing(arm);
+  if (arm === 'raw') {
+    const todo = items.filter((it: any) => cells.filter((c) => c.arm === arm && c.item === it.id).length < REPS);
+    for (let i = 0; i < todo.length; i += 3) {
+      await Promise.all(todo.slice(i, i + 3).map(async (it: any) => {
+        const brief = `[your session so far — the most recent ${WINDOW} characters of the conversation]\n` + rawText.slice(-WINDOW);
+        briefChars += brief.length; briefN++;
+        const answers = await Promise.all(Array.from({ length: REPS }, () => sealed('claude-sonnet-4-6', [PRE, brief, `USER: ${it.question}`].join('\n\n---\n\n'))));
+        answers.forEach((answer, rep) => cells.push({ item: it.id, arm, rep, answer, score: null, ...(rep === 0 ? { brief } : {}) }));
+        console.log(`${arm}/${it.id} answered ×${REPS}`);
+      }));
+      await checkpoint();
+    }
+    continue;
+  }
   for (const it of items) {
     if (cells.filter((c) => c.arm === arm && c.item === it.id).length >= REPS) continue; // resumed
     let brief: string; let pulled = '';
@@ -293,10 +307,13 @@ for (const arm of armOrder) {
       pulled = await consentPull(brief);
     }
     briefChars += brief.length; briefN++;
-    for (let rep = 0; rep < REPS; rep++) {
-      const answer = await sealed('claude-sonnet-4-6', [PRE, brief, `USER: ${it.question}`, pulled].filter(Boolean).join('\n\n---\n\n'));
-      cells.push({ item: it.id, arm, rep, answer, score: null, ...(rep === 0 ? { brief, pulled } : {}) }); // the briefing is kept on rep 0: dev_traces hold only 200 rows, so this is the durable record of what the cell saw
-    }
+    // M212: the REPS of one item share one briefing, so they answer at once
+    // (a 50k-token answer takes minutes on the subscription path; sequential
+    // reps doubled the night). Raw-arm items need no aiming and are answered
+    // in batches of three (see below); map arms stay one item at a time
+    // because the aiming state on the server is per question.
+    const answers = await Promise.all(Array.from({ length: REPS }, () => sealed('claude-sonnet-4-6', [PRE, brief, `USER: ${it.question}`, pulled].filter(Boolean).join('\n\n---\n\n'))));
+    answers.forEach((answer, rep) => cells.push({ item: it.id, arm, rep, answer, score: null, ...(rep === 0 ? { brief, pulled } : {}) })); // the briefing is kept on rep 0: the durable record of what the cell saw
     console.log(`${arm}/${it.id} answered ×${REPS}${pulled ? ' (consented pull-up served)' : ''}`);
     await checkpoint();
   }
