@@ -110,11 +110,21 @@ Map preferences govern the MAP. Rules about the conversation itself ("answer in
 Chinese", "be terse") belong to the user's own harness (CLAUDE.md) and are out of scope;
 the filer's capture duty says so when it sees one.
 
-## 3. UI
-The chapter renders like any chapter with a ✎ badge and always-lit styling; rows carry
-status, scope chips and usage; the editor is the chapter (add / edit / park); proposal
-cards show followed / conflicts; the what-changed panel lists applied preferences per
-round; the brain's report gains a "preferences ignored" line when §2.4 fires.
+## 3. UI — the same two gestures as today; the map does the placing; the tree stays clean
+(Jacob, 2026-09-08: "are you saying the user need to put preferences in their places? or
+are they interfering with the UI?" — no, and no.)
+- **Placement is proposed, never asked.** The card carries one extra line, "applies to:
+  the whole map" by default, or "applies to: Kant" when the rule names a topic (the
+  placement agent's existing home-finding). The user may change that line on the card or
+  later; nobody drags a preference anywhere.
+- **Preferences never appear among the topics.** They are nodes for what nodes give
+  (history, scope by placement, serving), but they render in exactly one place — the ✎
+  preferences list (today's editor, now with status, scope and "applied N×" per rule) —
+  plus a small ✎ badge on a topic that has a rule attached (hover to read it). They are
+  never lit, dimmed, tidied, moved by an agent, counted in the budget, or shown in the
+  tree: a system tray, like "to sort", not a topic.
+- Proposal cards show followed / conflicts; the what-changed panel lists the preferences
+  applied per round; the brain's report gains a "preferences ignored" line when §2.4 fires.
 
 ## 4. Migration
 `prefs:` text → split on bullets → live preference nodes authored by the user. Taste →
