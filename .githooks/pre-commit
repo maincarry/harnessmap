@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# harnessmap repo hygiene (M222, Mark: "make sure we don't commit any chat history / logs to github").
+# Refuses a commit that stages conversation history, run artifacts, logs, databases, or key-like strings.
+# Enable once per clone:  git config core.hooksPath .githooks
+set -u
+bad=0
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  case "$f" in
+    docs/archive/*|*/raw-source-*|*transcript*|*.jsonl|*.log|*.sqlite|*.sqlite-wal|*.sqlite-shm|*ckpt*.json|*checkpoint*.json|src/eval/*segment*.json|backups/*)
+      echo "✗ refusing $f — conversation history, run artifacts, logs and databases stay local"; bad=1; continue;;
+  esac
+  case "$f" in *.json|*.md|*.txt|*.ts|*.html|*.csv)
+    if git show ":$f" | grep -qE "sk-ant-(api|oat)[0-9]{2}-[A-Za-z0-9_-]{16,}|sk-proj-[A-Za-z0-9_-]{20,}|ghp_[A-Za-z0-9]{30,}"; then echo "✗ refusing $f — it carries a key"; bad=1; fi
+    if [ "$(git show ":$f" | grep -cE '^(USER|ASSISTANT): ')" -gt 8 ] || git show ":$f" | grep -qE '"(userText|assistantText|last_assistant_message|transcript_path)"\s*:'; then echo "✗ refusing $f — it reads like a conversation transcript"; bad=1; fi;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACMR)
+[ $bad -eq 0 ] || { echo "(to commit anyway, which you should not: git commit --no-verify)"; exit 1; }

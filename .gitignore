@@ -15,3 +15,13 @@ backups/
 
 # raw conversation transcripts archived for runs — local only (M220: a key rode in one)
 docs/archive/**/raw-source-*
+
+# M222 (Mark): conversation history, run artifacts, logs and databases never go to GitHub
+docs/archive/
+src/eval/*segment*.json
+*.jsonl
+*ckpt*.json
+*checkpoint*.json
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
