@@ -177,13 +177,12 @@
   "id": "C02",
   "kind": "currency",
   "m": "M106→M107",
-  "what": "recency marks persist until touched; time-decay (fade after N rounds) must not stand as live",
+  "what": "recency marks persist until touched; time-decay (fade after N rounds) must not stand as live (earlier = the fading rule stated as the rule; a rewind description or a theory note is not that)",
   "must": [
    "persist|until (you|the user) (touch|click|interact)|click.to.clear"
   ],
   "earlier": [
-   "time.?decay|last (3|three) rounds|fade|decay",
-   "mark|chip|recency|new|changed"
+   "(marks?|chips?|tints?|highlights?) (fade|decay|expire)|time.?decay (stays|remains|is right|kept|as.is)|(after|for) (the )?(last )?(3|three|two|2) rounds"
   ]
  },
  {
