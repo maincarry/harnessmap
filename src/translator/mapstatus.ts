@@ -1,7 +1,7 @@
 import { Store } from '../store/db.js';
 import { systemCard } from './cast.js';
 import { call, modelFor } from '../inference.js';
-import { loadMap, renderTieredTreeForSubtree, descendantNodes } from '../map/render.js';
+import { loadMap, renderTree, renderTieredTreeForSubtree, descendantNodes } from '../map/render.js';
 
 // M192 (Jacob): "a professional map structure monitoring agent that the map
 // consults to when reorganizing… should be a function called 'map status' in
@@ -30,6 +30,7 @@ export interface MapInstruments {
   offlistTypes: string[];
   toSortSize: number;
   settledStatuses: number;      // reversed/superseded/dropped/rejected still on the map
+  topLevel: { count: number; names: string[]; empty: string[] }; // M215: the map's roots ("to sort" excluded) and which of them are childless
 }
 
 const TYPE_LIST = new Set(['claim', 'question', 'option', 'decision', 'constraint', 'evidence', 'task']);
@@ -102,7 +103,26 @@ export function measureMap(store: Store, projectId: string): MapInstruments {
     offlistTypes: [...offlist],
     toSortSize: toSort ? subtreeSize(toSort.id) - 1 : 0,
     settledStatuses: settled,
+    topLevel: { count: tops.length, names: tops.map(name).slice(0, 8), empty: tops.filter((t) => !kids.get(t.id)).map(name).slice(0, 8) },
   };
+}
+
+// M215 (Jacob: "Shouldn't the brain address this?"): the shape defects the
+// instruments can PROVE are findings whether or not the reviewer model
+// names them — the v6 map carried an empty root named after itself beside
+// the import's container through two tidies and a full brain cycle, and the
+// understanding reported it as a fact ("HarnessMap = 1 node"), never as a
+// defect. One map = one root: a childless top-level node beside another
+// root is a defect with a named fix.
+export function shapeFindings(i: MapInstruments): { what: string; fix: string }[] {
+  const out: { what: string; fix: string }[] = [];
+  const others = i.topLevel.names.filter((n) => !i.topLevel.empty.includes(n));
+  for (const e of i.topLevel.empty) {
+    if (i.topLevel.count === 1) out.push({ what: `"${e}" is the map's only root and it is empty — the map has no content under its own name`, fix: `file or import under "${e}" (an import into an empty map adopts it as its container)` });
+    else out.push({ what: `"${e}" is a top-level node with no children beside ${others.length ? `"${others[0]}"` : `${i.topLevel.count - 1} other root(s)`} — an empty root`, fix: others.length ? `fold "${others[0]}" into "${e}" (move its chapters under "${e}" and remove it) or remove "${e}"; one map = one root` : `remove "${e}" or file under it; one map = one root` });
+  }
+  if (!i.topLevel.empty.length && i.topLevel.count > 1) out.push({ what: `the map has ${i.topLevel.count} roots (${i.topLevel.names.slice(0, 4).join(', ')}) — subjects split across separate trees`, fix: `group them under one root, or accept it deliberately in the map preferences` });
+  return out;
 }
 
 const SYSTEM = `You are the map status specialist — the professional structural reviewer of a goal map. You do not file, rename, or move anything; you render an expert opinion on the map's STRUCTURE, which the user reads and the working agents (tidy, the reviewer, import finishing) consult before they propose changes.
@@ -115,6 +135,7 @@ Judge like an information architect:
 - DEPTH is earned by material, never padded; width past ~15 children usually wants grouping.
 - The tree carries the substance: names-plus-buried-prose is a defect; statements should let a reader follow the argument from the tree alone.
 - Settled statuses (reversed/superseded) belong on the map but must not read as current.
+- ONE MAP = ONE ROOT: the map's top-level node is the map itself; a childless top-level node beside another root (typically the map's own name node next to an import's container) is a defect — the fix is to fold one into the other. Two or more roots is a choice the user must have made on purpose.
 - Respect the user's preferences file over any of the above when they conflict.
 
 Return:
@@ -220,7 +241,7 @@ export async function runMapStatus(store: Store, projectId: string, outline: str
     const status: MapStatus = {
       ts: new Date().toISOString(),
       health: String(parsed.health ?? '').slice(0, 300),
-      findings: (parsed.findings ?? []).slice(0, 4).map((f: any) => ({ what: String(f.what ?? '').slice(0, 300), fix: String(f.fix ?? '').slice(0, 300) })),
+      findings: [...shapeFindings(instruments), ...(parsed.findings ?? []).map((f: any) => ({ what: String(f.what ?? '').slice(0, 300), fix: String(f.fix ?? '').slice(0, 300) }))].slice(0, 5),
       opinion: String(parsed.opinion ?? '').slice(0, 900),
       instruments,
     };
@@ -537,6 +558,12 @@ export async function brainCycle(store: Store, projectId: string): Promise<{ ass
     .sort((a, b) => (b.newestChange > a.newestChange ? 1 : -1))
     .map((c) => c.id);
   const assessed = changed.length ? await assessChapters(store, projectId, changed) : 0;
+  // M215: the structural review used to run only from the map-status button —
+  // v6 never had one. The cycle now renders it whenever an area changed or
+  // none exists, so the shape findings reach the understanding and the advice.
+  if (assessed > 0 || !getMapStatus(store, projectId)) {
+    try { await runMapStatus(store, projectId, renderTree(loadMap(store, projectId), { ids: false }).slice(0, 20_000)); } catch (err) { console.error('[brain] structural review failed:', err); }
+  }
   await historyStatus(store, projectId);
   let synthesized = false;
   if (assessed > 0 || !getUnderstanding(store, projectId)) {
@@ -678,8 +705,17 @@ export async function historyStatus(store: Store, projectId: string): Promise<vo
         'Write the historical-status report.',
       ].filter(Boolean).join('\n\n'),
     });
-    if (typeof text === 'string' && text) {
-      store.setSetting(`historystatus:${projectId}`, text.slice(0, 1800));
+    let report = typeof text === 'string' ? text : '';
+    // M215: v6's stored report was a 130-char preamble ("I'll analyze the recent
+    // events…") — the M205 failure again. A report that short is not a report.
+    if (report.length < 300) {
+      store.audit('history_status_retry', { chars: report.length });
+      const again = await call({ task: 'memory', system: HISTORY_SYSTEM + ' Write the report NOW, in full, in this single reply — no preamble, no offer to proceed.', maxTokens: 500, timeoutMs: 90_000, audit: (k, d) => store.audit(k, d),
+        user: [`RECENT EVENTS:\n${recent}`, `COMPLETE DAILY AGGREGATES:\n${aggregates.slice(0, 4000)}`, `IMPORT RECORDS:\n${imports || '(none recorded)'}`, 'Write the historical-status report.'].join('\n\n') });
+      if (typeof again === 'string' && again.length > report.length) report = again;
+    }
+    if (report.length >= 300) {
+      store.setSetting(`historystatus:${projectId}`, report.slice(0, 1800));
       store.setSetting(`historyseq:${projectId}`, String(maxSeq));
     }
   } catch (err) { console.error('[history-status] failed:', err); }

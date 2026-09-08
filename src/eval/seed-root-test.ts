@@ -4,6 +4,7 @@
 // fake import proposal shaped like the model's, adoption, apply, assert.
 import { Store } from '../store/db.js';
 import { seedRootOf, adoptSeedRoot } from '../translator/importer.js';
+import { measureMap, shapeFindings } from '../translator/mapstatus.js';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -60,11 +61,32 @@ ok('no seed → rootId unchanged', adoptSeedRoot(alts2, 'r2', null) === 'r2' && 
 
 // 4. two top-level nodes besides to sort → not pristine
 const pid3 = store.createProject('two tops');
+const ta = randomUUID(), tb = randomUUID();
 store.applyAlterations(pid3, [
-  { op: 'create_node', id: randomUUID(), parentId: null, content: 'a', status: 'live', author: 'user' } as any,
-  { op: 'create_node', id: randomUUID(), parentId: null, content: 'b', status: 'live', author: 'user' } as any,
+  { op: 'create_node', id: ta, parentId: null, content: 'a', status: 'live', author: 'user' } as any,
+  { op: 'create_node', id: tb, parentId: null, content: 'b', status: 'live', author: 'user' } as any,
+  { op: 'create_node', id: randomUUID(), parentId: ta, content: 'under a', status: 'live', author: 'user' } as any,
+  { op: 'create_node', id: randomUUID(), parentId: tb, content: 'under b', status: 'live', author: 'user' } as any,
 ], { kind: 'system' });
 ok('two tops → no adoption', seedRootOf(store, pid3) === null);
+
+// 5. M215 brain: the instruments see the roots; an empty root beside a container is a finding
+const pid4 = store.createProject('v6 shape');
+const seed4 = randomUUID(), cont4 = randomUUID();
+store.applyAlterations(pid4, [
+  { op: 'create_node', id: randomUUID(), parentId: null, content: 'to sort', title: 'to sort', status: 'live', author: 'agent' } as any,
+  { op: 'create_node', id: seed4, parentId: null, content: 'HarnessMap', title: 'HarnessMap', status: 'live', author: 'user' } as any,
+  { op: 'create_node', id: cont4, parentId: null, content: 'Design requests', title: 'Design requests', status: 'live', author: 'agent' } as any,
+  { op: 'create_node', id: randomUUID(), parentId: cont4, content: 'chapter', status: 'live', author: 'agent' } as any,
+], { kind: 'system' });
+const inst = measureMap(store, pid4);
+ok('instruments count two roots, one empty', inst.topLevel.count === 2 && inst.topLevel.empty.length === 1 && inst.topLevel.empty[0] === 'HarnessMap');
+const sf = shapeFindings(inst);
+ok('empty root is a finding with the fold as its fix', sf.length === 1 && /empty root/.test(sf[0].what) && /fold "Design requests" into "HarnessMap"/.test(sf[0].fix));
+const inst1 = measureMap(store, pid);  // the adopted map: one root with chapters
+ok('a folded map has no shape finding', shapeFindings(inst1).length === 0 && inst1.topLevel.count === 1);
+const instT = measureMap(store, pid3); // two filled roots
+ok('two roots without an empty one is the split-trees finding', shapeFindings(instT).length === 1 && /2 roots/.test(shapeFindings(instT)[0].what));
 
 console.log(`seed-root: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
