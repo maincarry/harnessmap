@@ -7,10 +7,10 @@ integration of the preference — think through the map designs and give a propo
 
 - One free text per map, `prefs:<project>`, capped at 1,200 characters (silently truncated).
 - Writers: the ✎ editor in ⋯ other (replaces the text); the map-chat, when the user
-  states a lasting preference, proposes a proposal "save a standing preference" and the
+  states a lasting preference, proposes "save a standing preference" and the
   approved line is appended as a bullet. Nothing else writes it: the filer never turns
   a statement in the user's own session into a preference.
-- Readers: every map agent, verbatim, in its system proposal (filer, tidy, expand, memory,
+- Readers: every map agent, verbatim, in its system card (filer, tidy, expand, memory,
   naming, auto-focus, auto-light, import, reviewer) — "standing instructions, follow
   unless this round says otherwise"; the brain in its structural review ("their taste
   outranks doctrine") and in every synthesis. The chat agent never sees it.
@@ -65,7 +65,7 @@ rulebook, not material.
    restatements of a rule the user set count as evidence for the same proposal.
 
 ### 2.3 Delivery — composed, scoped, counted
-`preferencesFor(role, context)` replaces the blob in the system proposal: the rules on the
+`preferencesFor(role, context)` replaces the blob in the system card: the rules on the
 path from the node the call touches (the focus, the tidy target, the import root) up to
 the map's top — nearest first — plus the global chapter, filtered by role where a role is
 set. Each rule carries a short id `[p-a1b2]`. Delivery is
