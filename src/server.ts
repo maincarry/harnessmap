@@ -26,7 +26,7 @@ import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories, nodeFull } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots } from './translator/importer.js';
-import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, setModelResolver, backendName } from './inference.js';
+import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, backendName } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync } from 'node:fs';
@@ -2135,6 +2135,24 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       store.setSetting(`model:${role.task}`, model);
       store.audit('model_chosen', { role: role.task, model: model || '(default)' });
       return json({ ok: true, task: role.task, current: modelFor(role.task) });
+    }
+    // M225: cost per role — calls and approximate tokens from the metrics every
+    // successful call reports (M184), with a rough dollar figure at list prices.
+    if (path === '/api/cost' && req.method === 'GET') {
+      const win = url.searchParams.get('window') ?? '24h';
+      const since = win === 'all' ? '1970-01-01' : win === '7d' ? "datetime('now', '-7 days')" : "datetime('now', '-24 hours')";
+      const rows = ((store as any).db.prepare(`SELECT json_extract(detail, '$.task') task, json_extract(detail, '$.model') model, COUNT(*) calls, SUM(n) tokens FROM metrics WHERE kind = 'cost.call' AND ts > ${win === 'all' ? "'1970-01-01'" : since} GROUP BY task, model ORDER BY tokens DESC`).all() as any[]);
+      const byTask: Record<string, { calls: number; tokens: number; usd: number; models: string[] }> = {};
+      let total = { calls: 0, tokens: 0, usd: 0 };
+      for (const r of rows) {
+        const usd = estimateUsd(String(r.model), Number(r.tokens)) ?? 0;
+        const t = (byTask[r.task] ??= { calls: 0, tokens: 0, usd: 0, models: [] });
+        t.calls += r.calls; t.tokens += r.tokens; t.usd += usd; if (!t.models.includes(r.model)) t.models.push(r.model);
+        total.calls += r.calls; total.tokens += r.tokens; total.usd += usd;
+      }
+      const roles = ROLES.map((ro) => ({ task: ro.task, label: ro.label, group: ro.group, perTurn: ro.perTurn, ...(byTask[ro.task] ?? { calls: 0, tokens: 0, usd: 0, models: [] }) }));
+      const other = Object.entries(byTask).filter(([t]) => !ROLES.some((ro) => ro.task === t)).map(([task, v]) => ({ task, label: task, group: 'other', perTurn: false, ...v }));
+      return json({ window: win, roles: [...roles, ...other], total, backend: backendName(), note: 'tokens ≈ prompt chars / 4 (output assumed 8%); dollars at list prices — on a subscription or codex backend the plan pays instead. Calls made by scripts outside the server (test runs, conversions) are not counted.' });
     }
     // The cast as a network — dev mode's roadmap of who reads what and writes what.
     if (path === '/api/cast' && req.method === 'GET') {

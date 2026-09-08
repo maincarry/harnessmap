@@ -90,6 +90,20 @@ const CODEX_CATALOG: { id: string; note: string }[] = [
 ];
 export const MODEL_CATALOG: { id: string; note: string }[] = new Proxy([] as any, { get: (_t, k) => (backendName() === 'codex' ? CODEX_CATALOG : CLAUDE_CATALOG)[k as any] }) as any;
 export function modelCatalog(): { id: string; note: string }[] { return backendName() === 'codex' ? CODEX_CATALOG : CLAUDE_CATALOG; }
+// M225 (Jacob: "do we have a cost monitoring function?"): list prices per
+// million tokens, input / output, for the rough dollar figure the cost page
+// shows. approxTokens is chars/4 of the prompt (M184); output is assumed at
+// 8% of input. On the subscription and codex backends the plan pays, not
+// dollars — the figure is what the same calls would cost on the API.
+export const PRICES: Record<string, { in: number; out: number }> = {
+  'claude-haiku-4-5': { in: 1, out: 5 }, 'claude-sonnet-4-6': { in: 3, out: 15 }, 'claude-sonnet-5': { in: 3, out: 15 },
+  'claude-opus-4-8': { in: 15, out: 75 }, 'claude-opus-5': { in: 15, out: 75 }, 'claude-fable-5-1': { in: 25, out: 125 },
+  'gpt-5.4-mini': { in: 0.75, out: 4.5 }, 'gpt-5.6-luna': { in: 0.2, out: 1.2 }, 'gpt-5.6-terra': { in: 2, out: 8 }, 'gpt-5.6-sol': { in: 10, out: 40 },
+};
+export function estimateUsd(model: string, approxTokens: number): number | null {
+  const pr = PRICES[model]; if (!pr) return null;
+  return (approxTokens * pr.in + approxTokens * 0.08 * pr.out) / 1_000_000;
+}
 const tierModel = (t: Tier): string => backendName() === 'codex'
   ? (t === 'fancy' ? CODEX_FANCY : t === 'smart' ? CODEX_SMART : CODEX_CHEAP)
   : (t === 'fancy' ? FANCY : t === 'smart' ? SMART : CHEAP);
