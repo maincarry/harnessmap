@@ -6,6 +6,7 @@
 // tables are frozen (read-only backup); the projection now targets `nodes`,
 // and legacy map_events ops replay into nodes — which IS the migration.
 import { Database } from 'bun:sqlite';
+import { guardTitle } from '../map/vocab.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -314,6 +315,13 @@ export class Store {
   ): void {
     const tx = this.db.transaction(() => {
       for (const a of alterations) {
+        // M224: an agent-written name never carries a glossary word the user
+        // corrected — the user's word replaces it here, for every source but
+        // the user's own edits. Never blocks.
+        if (source.kind !== 'user_edit' && (a.op === 'create_node' || a.op === 'update_node') && typeof (a as any).title === 'string' && (a as any).title) {
+          const g = guardTitle(this as any, projectId, (a as any).title);
+          if (g.changed.length) { (a as any).title = g.title; this.audit('glossary_guard', { id: String((a as any).id ?? '').slice(0, 8), changed: g.changed }); }
+        }
         // M123 (Jacob): the top-level "to sort" tray is a permanent system
         // node — no alteration may remove, move, or rewrite it, from ANY
         // source (tidy applies, filer rounds, user edits alike).

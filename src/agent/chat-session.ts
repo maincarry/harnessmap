@@ -1,6 +1,7 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../store/db.js';
+import { recordUserWords } from '../map/vocab.js';
 import { composeState, composeParts } from '../seed/composer.js';
 import { getFullAnchor, setFullAnchor, currentSeq, renderDelta } from './harness-adapter.js';
 import { getConversationSummary } from './rolling-summary.js';
@@ -201,6 +202,7 @@ export class ChatSessionManager {
 
     const userTurnId = randomUUID();
     this.store.appendTurn({ id: userTurnId, chatId, role: 'user', content: userText, raw: null });
+    try { recordUserWords(this.store as any, this.store.getChat(chatId)?.projectId ?? '', userText); } catch {} // M224
 
     const composed = this.paneContext(chatId, manipulations, userText);
     this.traceAttention(userText, composed.thinking);

@@ -19,6 +19,7 @@ import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion } from './translator/mapchat.js';
 import { CAST_GRAPH } from './translator/cast.js';
+import { recordUserWords, learnFromRename, parseGlossaryLine, addGlossary, removeGlossary, glossary, userWords } from './map/vocab.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend, HARNESSES, harnessAvailability } from './term.js';
 import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
@@ -1400,6 +1401,11 @@ const server = Bun.serve({
         return json({ error: '"to sort" is a system folder — its name can\'t be edited' }, 400);
       }
       store.clearMark(id);
+      // M224: a user rename is a ruling on vocabulary — learn agent-word → user-word.
+      if (patch.title !== undefined && before.title && patch.title.trim() && patch.title.trim() !== before.title) {
+        const e = learnFromRename(store as any, projectId, before.title, patch.title.trim());
+        if (e) store.audit('glossary_learned', { from: e.from, to: e.to, how: 'rename' });
+      }
       store.applyAlterations(projectId, [
         // An explicit title wins; a content edit without one clears the stale
         // label so the translator re-titles from the new meaning next round.
@@ -2135,11 +2141,27 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ ...CAST_GRAPH, models: Object.fromEntries(ROLES.map((r) => [r.task, modelFor(r.task)])) });
     }
     if (path === '/api/prefs' && req.method === 'GET') {
-      return json({ text: store.getSetting(`prefs:${projectId}`) ?? '' });
+      return json({ text: store.getSetting(`prefs:${projectId}`) ?? '', glossary: glossary(store as any, projectId), words: userWords(store as any, projectId, 40, 2) });
+    }
+    // M224: the glossary — visible, editable, user-governed.
+    if (path === '/api/glossary' && req.method === 'POST') {
+      const b = await req.json() as { from?: string; to?: string; remove?: string };
+      if (b.remove) return json({ ok: true, glossary: removeGlossary(store as any, projectId, b.remove) });
+      if (!b.from?.trim() || !b.to?.trim()) return json({ error: 'both words are needed' }, 400);
+      const g = addGlossary(store as any, projectId, b.from, b.to, 'user'); store.audit('glossary_learned', { from: b.from.slice(0, 40), to: b.to.slice(0, 40), how: 'user' });
+      return json({ ok: true, glossary: g });
     }
     if (path === '/api/prefs' && req.method === 'POST') {
       const b = await req.json() as { text?: string; append?: string };
       let text = b.text ?? store.getSetting(`prefs:${projectId}`) ?? '';
+      // M224: a vocabulary correction ("glossary: session instead of chat") goes to the glossary, not the prose.
+      if (b.append && /^\s*glossary:/i.test(b.append)) {
+        const g = parseGlossaryLine(b.append);
+        if (!g) return json({ error: 'say it as: glossary: <your word> instead of <the agent\'s word>' }, 400);
+        addGlossary(store as any, projectId, g.from, g.to, 'chat'); store.audit('glossary_learned', { from: g.from, to: g.to, how: 'chat' });
+        broadcast({ type: 'map', ...state() });
+        return json({ ok: true, glossary: glossary(store as any, projectId) });
+      }
       if (b.append?.trim()) text = (text ? text.replace(/\n*$/, '') + '\n' : '') + '- ' + b.append.trim();
       text = text.slice(0, 1200);
       store.setSetting(`prefs:${projectId}`, text);
@@ -2529,6 +2551,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       health.observedAt = Date.now();
       store.audit('observe', { session: (body.session_id ?? '').slice(0, 8), user_chars: userText.length, tools: slice?.toolRefs.length ?? 0 });
       const { chatId: obsChatId } = sessionPair(body.session_id);
+      try { if (userText) recordUserWords(store as any, store.getChat(obsChatId)?.projectId ?? projectId, userText); } catch {} // M224
       const userTurnId = randomUUID();
       store.appendTurn({ id: userTurnId, chatId: obsChatId, role: 'user', content: userText, raw: null });
       store.appendTurn({ id: randomUUID(), chatId: obsChatId, role: 'assistant', content: assistantText, raw: null });

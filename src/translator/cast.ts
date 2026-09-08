@@ -1,4 +1,5 @@
 import { Store } from '../store/db.js';
+import { vocabBlock } from '../map/vocab.js';
 
 // M124 (Jacob): coordination. Every decision-making specialist receives the
 // same SYSTEM CARD — the cast and each role's jurisdiction — so no agent
@@ -17,8 +18,11 @@ Map agents never talk to each other — the map is the only shared ground. Work 
 
 export function systemCard(store: Store, projectId: string, self: string): string {
   const prefs = (store.getSetting(`prefs:${projectId}`) ?? '').trim();
+  // M224: the user's own words and their glossary ride the card — every writer gets them.
+  let vocab = ''; try { vocab = vocabBlock(store as any, projectId); } catch {}
   return `\n\n${CAST_ROLES}\nYou are ${self}.`
-    + (prefs ? `\n\nUSER'S MAP PREFERENCES (standing instructions for every map agent — follow unless this round says otherwise):\n${prefs}` : '');
+    + (prefs ? `\n\nUSER'S MAP PREFERENCES (standing instructions for every map agent — follow unless this round says otherwise):\n${prefs}` : '')
+    + (vocab ? `\n\n${vocab}` : '');
 }
 
 

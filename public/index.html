@@ -2256,13 +2256,20 @@ $('enrich-btn').onclick = async () => {
 // receives. Editable here; the map guide can propose additions you approve.
 $('prefs-btn').onclick = async () => {
   $('other-menu').hidden = true;
-  let cur = '';
-  try { cur = (await post2get('/api/prefs')).text || ''; } catch {}
+  let cur = '', gl = [], uw = [];
+  try { const p = await post2get('/api/prefs'); cur = p.text || ''; gl = p.glossary || []; uw = p.words || []; } catch {}
   const ov = document.createElement('div');
   ov.className = 'overlay';
+  const glRow = (e) => `<div data-from="${esc(e.from)}" style="display:flex;gap:8px;align-items:center;padding:3px 0;border-top:1px solid var(--hair)"><span style="flex:1">say <b>${esc(e.to)}</b>, not <span style="color:var(--muted)">${esc(e.from)}</span> <span style="font-size:11px;color:var(--muted)">(${e.how === 'rename' ? 'from your rename' : e.how === 'chat' ? 'told to the guide' : 'added here'}, ${esc(e.at)})</span></span><button class="gl-rm hbtn" title="forget this correction">✕</button></div>`;
   ov.innerHTML = `
-    <div class="modal" style="width:min(520px,94vw)">
+    <div class="modal" style="width:min(560px,94vw);max-height:90vh;overflow:auto">
       <h3>☰ map preferences</h3>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px">your words</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;margin:2px 0 8px">${uw.length ? 'counted from what you typed on this map — every agent is told to use them, never a synonym: <span style="color:var(--ink)">' + uw.slice(0, 30).map((w) => esc(w.word)).join(', ') + '</span>' : 'fills in as you talk on this map — every agent is told to use your words, never a synonym'}</div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">glossary — your corrections, binding</div>
+      <div id="gl-list" style="font-size:13px;margin:2px 0 6px">${gl.map(glRow).join('') || '<div style="color:var(--muted);font-size:12px;padding:3px 0">none yet — rename a node the map named wrongly, or tell the guide "we call it X, not Y"</div>'}</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><span style="font-size:12px;color:var(--muted)">say</span><input id="gl-to" placeholder="your word" style="flex:1;border:1px solid var(--hair);border-radius:8px;padding:5px 8px;background:var(--bg);color:var(--ink);font:inherit;font-size:12px"><span style="font-size:12px;color:var(--muted)">not</span><input id="gl-from" placeholder="the map's word" style="flex:1;border:1px solid var(--hair);border-radius:8px;padding:5px 8px;background:var(--bg);color:var(--ink);font:inherit;font-size:12px"><button id="gl-add" class="hbtn">add</button></div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">standing instructions</div>
       <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">standing instructions EVERY map agent follows for this map — how to group, name, clean, what never to touch. The map guide can also save these for you when you tell it a lasting preference.</div>
       <textarea id="pf-text" style="width:100%;min-height:140px;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px" placeholder="e.g.\n- keep top-level containers broad, few of them\n- never propose deleting exploratory notes\n- name nodes in plain everyday words">${esc(cur)}</textarea>
       <div class="actions">
@@ -2273,6 +2280,10 @@ $('prefs-btn').onclick = async () => {
   document.body.appendChild(ov);
   ov.querySelector('#pf-cancel').onclick = () => ov.remove();
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  // M224: the glossary is user-governed — add and forget here
+  const refreshGl = (g) => { const l = ov.querySelector('#gl-list'); l.innerHTML = g.map(glRow).join('') || '<div style="color:var(--muted);font-size:12px;padding:3px 0">none yet</div>'; l.querySelectorAll('.gl-rm').forEach((b) => { b.onclick = async () => { try { const r = await post('/api/glossary', { remove: b.closest('[data-from]').dataset.from }); refreshGl(r.glossary); } catch (err) { $('round-line').textContent = `could not forget: ${err.message}`; } }; }); };
+  refreshGl(gl);
+  ov.querySelector('#gl-add').onclick = async () => { const to = ov.querySelector('#gl-to').value.trim(), from = ov.querySelector('#gl-from').value.trim(); if (!to || !from) return; try { const r = await post('/api/glossary', { from, to }); refreshGl(r.glossary); ov.querySelector('#gl-to').value = ''; ov.querySelector('#gl-from').value = ''; $('round-line').textContent = `glossary: say "${to}", not "${from}" — every agent follows it from the next call on`; } catch (err) { $('round-line').textContent = `could not add: ${err.message}`; } };
   ov.querySelector('#pf-save').onclick = async () => {
     try { await post('/api/prefs', { text: ov.querySelector('#pf-text').value.slice(0, 1200) }); ov.remove(); $('round-line').textContent = 'map preferences saved — every map agent follows them from now on'; }
     catch (err) { $('round-line').textContent = `save failed: ${err.message}`; }
