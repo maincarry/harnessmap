@@ -19,7 +19,7 @@ import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion } from './translator/mapchat.js';
 import { CAST_GRAPH } from './translator/cast.js';
-import { createTerm, getTerm, listTerms, killTerm, ptyBackend } from './term.js';
+import { createTerm, getTerm, listTerms, killTerm, ptyBackend, HARNESSES, harnessAvailability } from './term.js';
 import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories } from './translator/memory.js';
@@ -1851,16 +1851,20 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
 
     // M97 (Mark): embedded Claude Code session tabs.
     if (path === '/api/term' && req.method === 'GET') {
-      return json({ terms: listTerms().map((t) => ({ ...t, chatId: (getTerm(t.id) as any)?.chatId ?? null })), backend: ptyBackend });
+      const avail = harnessAvailability();
+      return json({ terms: listTerms().map((t) => ({ ...t, chatId: (getTerm(t.id) as any)?.chatId ?? null })), backend: ptyBackend, harnesses: HARNESSES.map((h) => ({ id: h.id, label: h.label, note: h.note, resume: h.resume, available: !!avail[h.id] })), defaultHarness: store.getSetting('harness:default') || (avail.claude ? 'claude' : avail.codex ? 'codex' : 'claude') });
     }
     if (path === '/api/term' && req.method === 'POST') {
-      const body = await req.json() as { cwd?: string; cols?: number; rows?: number; chatId?: string };
+      const body = await req.json() as { cwd?: string; cols?: number; rows?: number; chatId?: string; harness?: string };
       const cwd = body.cwd?.trim();
-      if (!cwd || !cwd.startsWith('/')) return json({ error: 'absolute cwd required' }, 400);
+      if (!cwd || !(cwd.startsWith('/') || /^[A-Za-z]:[\\/]/.test(cwd))) return json({ error: 'absolute cwd required' }, 400);
       if (body.chatId && !store.getChat(body.chatId)) return json({ error: 'unknown session' }, 404);
       const id = randomUUID();
-      const t = createTerm(id, cwd, body.cols, body.rows);
+      // M221: the harness is the user's choice per session; the last choice is the default.
+      const harness = body.harness ?? store.getSetting('harness:default') ?? 'claude';
+      const t = createTerm(id, cwd, body.cols, body.rows, harness);
       if ('error' in t) return json({ error: t.error }, 400);
+      if (body.harness) store.setSetting('harness:default', body.harness);
       if (body.chatId) {
         (t as any).chatId = body.chatId;
         const q = pendingChatClaims.get(cwd) ?? [];
@@ -1870,8 +1874,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // Follow mode: if this directory is already bound to a map, show it.
       const pid = store.projectForCwd(cwd);
       if (pid && pid !== projectId) setActive(pid);
-      store.audit('term_created', { cwd: cwd.slice(-50), backend: ptyBackend, view: body.chatId?.slice(0, 8) ?? null });
-      return json({ ok: true, id, backend: ptyBackend });
+      store.audit('term_created', { cwd: cwd.slice(-50), backend: ptyBackend, harness, view: body.chatId?.slice(0, 8) ?? null });
+      return json({ ok: true, id, backend: ptyBackend, harness });
     }
     const termKillMatch = path.match(/^\/api\/term\/([\w-]+)$/);
     if (termKillMatch && req.method === 'DELETE') {
@@ -2430,7 +2434,11 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ ok: true, version: VERSION });
     }
     if (path === '/api/harness/session-start' && req.method === 'POST') {
-      const body = await req.json() as { session_id: string; transcript_path?: string; cwd?: string };
+      const body = await req.json() as { session_id: string; transcript_path?: string; cwd?: string; model?: string; harness?: string };
+      // M221: which harness is talking — Codex's payload carries an OpenAI
+      // model slug; Claude Code's a claude one (or none). Recorded per session.
+      const harness = body.harness ?? (String(body.model ?? '').startsWith('gpt') ? 'codex' : 'claude');
+      store.setSetting(`harness:session:${body.session_id}`, harness);
       // M91 binding policy (Mark's grill): subtree-inclusive lookup, then
       // auto-create a project per new directory — each repo gets its own map
       // by default; merges are the escape hatch. The boot placeholder

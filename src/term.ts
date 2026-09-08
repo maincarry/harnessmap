@@ -14,6 +14,7 @@ import { existsSync } from 'node:fs';
 export interface TermSession {
   id: string;
   cwd: string;
+  harness: string;
   alive: boolean;
   createdAt: number;
   write: (data: string) => void;
@@ -25,7 +26,30 @@ export interface TermSession {
   exitListeners: Set<() => void>;
 }
 
+// M221 (Mark: "a clear way for user to select using claude code or codex when
+// create a new session"): the harness is a choice per session. Each entry is
+// the fixed binary the tab runs (never a shell); availability is whether it
+// is on PATH. Adding a harness = one entry here + its hook dialect served by
+// the same hook scripts (M160/M220).
+export interface Harness { id: string; label: string; cmd: string; resume: string; note: string }
+export const HARNESSES: Harness[] = [
+  { id: 'claude', label: 'Claude Code', cmd: 'claude', resume: 'claude --resume', note: 'the real CLI in this tab, full fidelity' },
+  { id: 'codex', label: 'Codex', cmd: 'codex', resume: 'codex resume', note: 'OpenAI\'s CLI in this tab; the map attaches through its hooks' },
+];
 const CMD = process.env.HARNESSMAP_TERM_CMD ?? 'claude';
+const onPath = (bin: string): boolean => { try { return Bun.spawnSync(process.platform === 'win32' ? ['where', bin] : ['sh', '-c', `command -v ${bin}`], { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0; } catch { return false; } };
+let availCache: { at: number; map: Record<string, boolean> } | null = null;
+export function harnessAvailability(): Record<string, boolean> {
+  if (availCache && Date.now() - availCache.at < 30_000) return availCache.map;
+  const map: Record<string, boolean> = {};
+  for (const h of HARNESSES) map[h.id] = process.env.HARNESSMAP_TERM_CMD ? true : onPath(h.cmd);
+  availCache = { at: Date.now(), map };
+  return map;
+}
+export function harnessCmd(id?: string): string {
+  if (process.env.HARNESSMAP_TERM_CMD) return process.env.HARNESSMAP_TERM_CMD;
+  return HARNESSES.find((h) => h.id === (id ?? 'claude'))?.cmd ?? CMD;
+}
 const MAX_BUFFER = 200_000;
 
 let nodePty: any = null;
@@ -54,10 +78,13 @@ function ended(t: TermSession) {
   for (const fn of t.exitListeners) { try { fn(); } catch {} }
 }
 
-export function createTerm(id: string, cwd: string, cols = 120, rows = 32): TermSession | { error: string } {
+export function createTerm(id: string, cwd: string, cols = 120, rows = 32, harness = 'claude'): TermSession | { error: string } {
   if (!existsSync(cwd)) return { error: `directory does not exist: ${cwd}` };
+  if (!HARNESSES.some((h) => h.id === harness)) return { error: `unknown harness: ${harness}` };
+  if (!harnessAvailability()[harness]) return { error: `${HARNESSES.find((h) => h.id === harness)!.label} is not installed on this machine ("${harnessCmd(harness)}" is not on PATH)` };
+  const CMD = harnessCmd(harness);
   const t: TermSession = {
-    id, cwd, alive: true, createdAt: Date.now(),
+    id, cwd, harness, alive: true, createdAt: Date.now(),
     write: () => {}, resize: () => {}, kill: () => {},
     buffer: [], bufferBytes: 0, listeners: new Set(), exitListeners: new Set(),
   };
@@ -114,7 +141,7 @@ export function createTerm(id: string, cwd: string, cols = 120, rows = 32): Term
 }
 
 export const getTerm = (id: string) => sessions.get(id);
-export const listTerms = () => [...sessions.values()].map((t) => ({ id: t.id, cwd: t.cwd, alive: t.alive, createdAt: t.createdAt }));
+export const listTerms = () => [...sessions.values()].map((t) => ({ id: t.id, cwd: t.cwd, harness: t.harness, alive: t.alive, createdAt: t.createdAt }));
 export function killTerm(id: string): boolean {
   const t = sessions.get(id);
   if (!t) return false;

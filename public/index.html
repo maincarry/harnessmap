@@ -854,7 +854,7 @@ $('tab-add').onclick = () => {
       <label><input type="radio" name="nc-mode" value="fork"> ⑂ fork this view — same focus and lighting as now</label>
       <label><input type="radio" name="nc-mode" value="fresh"> ✳ start fresh — everything dimmed (cold start)</label>
       <div style="margin-top:10px;border-top:1px solid var(--hair);padding-top:8px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">talk via</div>
-      <label><input type="radio" name="nc-talk" value="term"> ⌨ Claude Code terminal — the real CLI in this tab, full fidelity</label>
+      <div id="nc-harnesses"><label><input type="radio" name="nc-talk" value="term" data-harness="claude"> ⌨ Claude Code terminal — the real CLI in this tab, full fidelity</label></div>
       <label><input type="radio" name="nc-talk" value="chat"> 💬 chat — our streamlined interface; the conversation stays with the map</label>
       <p id="nc-term-note" style="font-size:11px;color:var(--muted);margin:2px 0 0"></p>
       <div class="actions">
@@ -865,6 +865,13 @@ $('tab-add').onclick = () => {
   document.body.appendChild(ov);
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   ov.querySelector('#nc-cancel').onclick = () => ov.remove();
+  // M221: one radio per harness (Claude Code, Codex, …) from the server — installed ones
+  // enabled, the rest greyed with why; the last choice is preselected.
+  post2get('/api/term').then((ti) => {
+    const box = ov.querySelector('#nc-harnesses'); if (!box || !ti.harnesses) return;
+    box.innerHTML = ti.harnesses.map((h) => `<label style="${h.available ? '' : 'opacity:.55'}"><input type="radio" name="nc-talk" value="term" data-harness="${h.id}" ${h.available ? '' : 'disabled'} ${h.available && h.id === ti.defaultHarness ? 'checked' : ''}> ⌨ ${esc(h.label)} terminal — ${esc(h.note)}${h.available ? '' : ' <span style="color:var(--muted)">(not installed on this machine)</span>'}</label>`).join('');
+    if (!ov.querySelector('input[name="nc-talk"]:checked')) { const c = ov.querySelector('input[name="nc-talk"][value="chat"]'); if (c) c.checked = true; }
+  }).catch(() => {});
   const input = ov.querySelector('#nc-topic'), results = ov.querySelector('#nc-results'), preview = ov.querySelector('#nc-preview');
   const focusBlock = ov.querySelector('#nc-focus-block');
   for (const r of ov.querySelectorAll('input[name="nc-mode"]')) r.onchange = () => { focusBlock.style.display = r.value === 'focus' ? '' : 'none'; };
@@ -929,13 +936,13 @@ $('tab-add').onclick = () => {
       sessionRoot = (d.dirs || [])[0] || null;
       ov.querySelector('#nc-term-note').textContent = sessionRoot
         ? `terminal starts in this map's folder: ${sessionRoot}`
-        : 'this map has no bound folder yet — chat only (start claude in a folder to enable the terminal)';
-      const termRadio = ov.querySelector('input[name="nc-talk"][value="term"]');
+        : 'this map has no bound folder yet — chat only (start claude or codex in a folder to enable the terminal)';
+      const termRadios = [...ov.querySelectorAll('input[name="nc-talk"][value="term"]')];
       const chatRadio = ov.querySelector('input[name="nc-talk"][value="chat"]');
       const remembered = localStorage.getItem('hm-talk');
-      if (!sessionRoot) { termRadio.disabled = true; chatRadio.checked = true; }
+      if (!sessionRoot) { for (const r of termRadios) r.disabled = true; chatRadio.checked = true; }
       else if (remembered === 'chat') chatRadio.checked = true;
-      else termRadio.checked = true;
+      else if (!ov.querySelector('input[name="nc-talk"]:checked')) { const first = termRadios.find((r) => !r.disabled); if (first) first.checked = true; else chatRadio.checked = true; }
     } catch {}
   })();
   ov.querySelector('#nc-create').onclick = async () => {
@@ -947,7 +954,9 @@ $('tab-add').onclick = () => {
       return;
     }
     const mode = chosen === 'fresh' ? 'fresh' : 'fork';
-    const talk = ov.querySelector('input[name="nc-talk"]:checked')?.value ?? 'chat';
+    const talkEl = ov.querySelector('input[name="nc-talk"]:checked');
+    const talk = talkEl?.value ?? 'chat';
+    const harness = talkEl?.dataset.harness || 'claude'; // M221: which CLI the tab runs
     localStorage.setItem('hm-talk', talk);
     const wantTerm = talk === 'term' && sessionRoot;
     try {
@@ -956,7 +965,7 @@ $('tab-add').onclick = () => {
       $('round-line').textContent = r.focusName
         ? `new ${mode} session — ${r.createdTopic ? 'created and ' : ''}focused on “${r.focusName}”`
         : `new ${mode} session${mode === 'fresh' ? ' — everything dimmed; the map will suggest contexts as you go' : ''}`;
-      if (wantTerm) await openTerminalFor(r.chatId, sessionRoot);
+      if (wantTerm) await openTerminalFor(r.chatId, sessionRoot, harness);
       else showSession(r.chatId);
     } catch (err) { $('round-line').textContent = `session creation failed: ${err.message}`; }
   };
@@ -3158,7 +3167,7 @@ function attachTerm(chatId, termId, cwd) {
   host.appendChild(fitBtn);
   return t;
 }
-async function openTerminalFor(chatId, cwd) {
+async function openTerminalFor(chatId, cwd, harness) {
   // Measure-first: mount, fit, then create the PTY at the exact grid.
   const t = attachTerm(chatId, 'pending-' + chatId, cwd);
   document.querySelectorAll('.termhost').forEach(el => el.classList.toggle('on', el === t.el));
@@ -3166,12 +3175,12 @@ async function openTerminalFor(chatId, cwd) {
   try { t.fit.fit(); } catch {}
   try { t.ws.close(); } catch {}
   let r;
-  try { r = await post('/api/term', { cwd, cols: t.xt.cols, rows: t.xt.rows, chatId }); }
+  try { r = await post('/api/term', { cwd, cols: t.xt.cols, rows: t.xt.rows, chatId, ...(harness ? { harness } : {}) }); }
   catch (err) {
     $('round-line').textContent = `terminal failed: ${err.message} — session kept as a view`;
     t.el.remove(); chatTerms.delete(chatId); showSession(chatId); return;
   }
-  t.termId = r.id; t.el.dataset.term = r.id;
+  t.termId = r.id; t.el.dataset.term = r.id; t.harness = r.harness;
   const ws = new WebSocket(`ws://${location.host}/term?id=${r.id}`);
   ws.onmessage = (ev) => t.xt.write(typeof ev.data === 'string' ? ev.data : new Uint8Array(ev.data));
   t.xt.onData((d) => { try { ws.send(JSON.stringify({ t: 'in', d })); } catch {} });
@@ -3182,7 +3191,7 @@ async function openTerminalFor(chatId, cwd) {
 async function closeSessionTab(chatId) {
   const t = chatTerms.get(chatId);
   const msg = t
-    ? 'Close this session? Its terminal ends (claude --resume in its folder can continue it) and the tab is put away. Everything it filed stays on the map.'
+    ? `Close this session? Its terminal ends (${t.harness === 'codex' ? 'codex resume' : 'claude --resume'} in its folder can continue it) and the tab is put away. Everything it filed stays on the map.`
     : 'Close this session tab? Everything it filed stays on the map.';
   if (!(await uiConfirm(msg, 'close session'))) return;
   if (t) {
