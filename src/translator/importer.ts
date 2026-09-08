@@ -174,6 +174,9 @@ export async function proposeImport(
     const mainRoot = tops.length === 1 ? tops[0].id : null;
     const ids = new Set(alterations.filter((a: any) => a.op === 'create_node').map((a: any) => a.id));
     const placedSet = placeCreates(alterations, rootId, ids, placing ? existingIds : new Set(), placing ? mainRoot : null);
+    // One map = one root (M215): on a single-root map the import's container
+    // is a new CHAPTER under that root, never a second root beside it.
+    if (placing && rootId && mainRoot) { const c = alterations.find((a: any) => a.op === 'create_node' && a.id === rootId); if (c) c.parentId = mainRoot; }
     const seed = seedRootOf(store, projectId);
     const finalRoot = adoptSeedRoot(alterations, rootId, seed);
     if (seed && finalRoot === seed.id) store.audit('import_adopted_seed_root', { seed: seed.name.slice(0, 40) });
@@ -543,6 +546,7 @@ export async function proposeImportLarge(
     }
     if (skipped.length) summary += ` (${skipped.length} of ${chunks.length} chunks could not be filed and were skipped)`;
     if (updates) summary += ` · ${updates} node(s) updated in place by later entries (earlier statements kept as versions)`;
+    if (placing && rootId && mainRoot) { const c = alterations.find((a: any) => a.op === 'create_node' && a.id === rootId); if (c) c.parentId = mainRoot; } // one map = one root: the container is a chapter under it
     const seed = seedRootOf(store, projectId);
     const finalRoot = adoptSeedRoot(alterations, rootId, seed, memories);
     if (seed && finalRoot === seed.id) store.audit('import_adopted_seed_root', { seed: seed.name.slice(0, 40) });

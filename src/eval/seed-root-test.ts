@@ -123,5 +123,8 @@ ok('with a container, strays go under it', batch2[1].parentId === 'c0' && batch2
 const roots = importPreviewRoots(store, [...batch2, batch[0]], 'c0');
 ok('preview roots = container + touched areas', roots[0] === 'c0' && roots.includes(chapters[0].id) && roots.length === 2);
 
+// importPreviewRoots must not double-list a container that sits under the main root
+ok('preview roots: a container under the main root lists once', importPreviewRoots(store, [{ op: 'create_node', id: 'c9', parentId: seedId, content: 'chapter container' }], 'c9').join() === ['c9', seedId].join());
+
 console.log(`seed-root: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
