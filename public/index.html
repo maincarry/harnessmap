@@ -1974,6 +1974,8 @@ function openNodeDetail(id) {
       <div id="nd-min" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Medium — the whole node in up to 150 words</label>
       <div id="nd-mem" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Everything — the whole node with its five organs (name · description · fit · modlog · chat memory), in full <button id="nd-long-toggle" class="hbtn" style="margin-left:6px;font-size:11px">show</button></label>
+      <pre id="nd-long" hidden style="border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);font:inherit;font-size:13px;line-height:1.5;color:var(--muted);white-space:pre-wrap;max-height:48vh;overflow:auto;margin:0">loading…</pre>
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Remembered specifics (dated; struck through = superseded) — long serves everything above together</label>
       <div id="nd-det" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
       <button id="nd-expand" class="hbtn" style="display:none;margin-top:6px" title="the tidy agent proposes child nodes from this discussion — preview first, nothing changes until you apply">⟳ file this discussion onto the map</button>
@@ -2001,6 +2003,15 @@ function openNodeDetail(id) {
     if (mn) {
       mn.textContent = r.minimal ?? 'nothing yet — written as the map digests discussion here';
       if (r.minimal) { mn.style.fontStyle = 'normal'; mn.style.color = 'var(--ink)'; }
+    }
+    // M223 (Jacob: "you didn't fix the node description???"): the long organ
+    // text — the whole node — shows here in full; it was served to the agent
+    // but never to the page.
+    const lg = ov.querySelector('#nd-long'), lt = ov.querySelector('#nd-long-toggle');
+    if (lg) {
+      lg.textContent = r.long ?? 'not written yet — the memory agent writes the long text as the map digests discussion here (or ⚙ convert)';
+      if (r.long) { lg.style.color = 'var(--ink)'; lg.hidden = false; if (lt) lt.textContent = 'hide'; }
+      if (lt) lt.onclick = () => { lg.hidden = !lg.hidden; lt.textContent = lg.hidden ? 'show' : 'hide'; };
     }
     const dt = ov.querySelector('#nd-det');
     if (dt) {

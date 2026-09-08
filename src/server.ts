@@ -2372,7 +2372,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // (superseded ones included, marked). What the agent sees, the user
       // sees (M20).
       const card = getNodeCard(store, memMatch[1]);
-      return json({ text: card.medium, minimal: card.minimal, details: card.details });
+      return json({ text: card.medium, minimal: card.minimal, long: card.long ?? null, details: card.details }); // M214/M223: the long organ text shows on the page too
     }
 
     // Suggested minimal title (M40): the detail panel offers it; user adopts.
