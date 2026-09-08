@@ -42,10 +42,14 @@ rulebook, not material.
 - `type: 'preference'`; statement = the rule in the user's own words; status
   `live | superseded | parked`; children allowed (reasons, examples, exceptions as child
   nodes, so a rule can carry its why).
-- Scope in a small side table `preference_scope(node_id, roles, chapter_ids, guard_kind,
-  guard_param)`: roles ⊂ {filer, tidy, naming, memory, lighting, focus, import, brain,
-  guide}; chapters = node ids the rule governs (empty = global); guard = a mechanical
-  form when the rule has one (§2.5).
+- **Scope is placement** (Jacob, 2026-09-08: a scope table "seems unnecessary when
+  preference becomes complex"). A preference node in the top-level chapter is global; a
+  preference node placed under a chapter governs that subtree; one placed under a single
+  node governs that node — exactly how everything else on the map already scopes. Per-node
+  rules come free. The side table shrinks to `preference_meta(node_id, role, guard_kind,
+  guard_param)`: an optional role the rule speaks to (naming, lighting, filing, memory,
+  tidy, import, brain, guide — inferred from the wording when not set) and the mechanical
+  guard form when the rule has one (§2.5).
 - Versions come for free: a changed preference is `update_node` with history; a new
   preference on the same subject UPDATES the existing one (the filer's update rule, M204),
   and the previous wording is the version below it.
@@ -61,9 +65,10 @@ rulebook, not material.
    restatements of a rule the user set count as evidence for the same card.
 
 ### 2.3 Delivery — composed, scoped, counted
-`preferencesFor(role, context)` replaces the blob in the system card: global rules +
-rules scoped to this role + rules scoped to the chapter the call touches (the focus,
-the tidy target, the import root). Each rule carries a short id `[p-a1b2]`. Delivery is
+`preferencesFor(role, context)` replaces the blob in the system card: the rules on the
+path from the node the call touches (the focus, the tidy target, the import root) up to
+the map's top — nearest first — plus the global chapter, filtered by role where a role is
+set. Each rule carries a short id `[p-a1b2]`. Delivery is
 capped by COUNT (≈12), ranked by scope specificity then recency; the remainder is one
 line, "N more general preferences (see the chapter)". The brain receives the whole
 chapter with statuses. Parked rules are never delivered.
@@ -134,9 +139,8 @@ call drops from a 1,200-char blob to ≈12 short lines that apply.
 - C (1–2 days): mechanical guards + usage counts + brain "ignored" report + learning cards.
 - D (½ day): Test 1 adherence class; update-suite case.
 
-## 8. Rulings requested
+## 8. Rulings requested (ruling 4 on day-one scope withdrawn 2026-09-08: scope is placement)
 1. Always-served regardless of light — confirm (the rulebook is not content).
 2. Guards refuse rather than auto-fix — confirm.
 3. Capture from the host agent's own restatements — allow or not.
-4. Scope on day one: roles + chapters only; no per-node rules yet — confirm.
-5. Slot: after Test 1's second segment and before Test 3 (my recommendation), or after Test 3.
+4. Slot: after Test 1's second segment and before Test 3 (my recommendation), or after Test 3.
