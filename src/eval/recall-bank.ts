@@ -233,8 +233,13 @@ for (const arm of armOrder) {
     if (cells.filter((c) => c.arm === arm && c.item === it.id).length >= REPS) continue; // resumed
     let brief: string; let pulled = '';
     if (arm === 'transcript') {
-      const budget = mapBudget[it.id] ?? Math.round(briefChars / Math.max(1, briefN));
-      brief = `[conversation record — most recent portion]\n` + transcriptText.slice(-budget);
+      // --transcript-budget (M210, Jacob: "same amount" answers the mechanism
+      // question, not the product one — the user's real opponent is the harness
+      // with ITS amount): 'full' = the whole record in context; a number = a
+      // fixed character budget; absent = paired to the map's briefing (TEST-DESIGN §2).
+      const tb = flag('transcript-budget');
+      const budget = tb === 'full' ? transcriptText.length : tb ? Number(tb) : (mapBudget[it.id] ?? Math.round(briefChars / Math.max(1, briefN)));
+      brief = `[conversation record — ${tb === 'full' ? 'complete' : 'most recent portion'}]\n` + transcriptText.slice(-budget);
     } else {
       if (REAIM) console.log(`  re-aim ${it.id}: ${await reaimFor(it.question)}`);
       brief = await briefing(it.question, `rb-${arm}-${it.id}`);
@@ -313,7 +318,7 @@ for (const it of items) {
 }
 
 const lines: string[] = [];
-lines.push(`lighting=${LIGHTING}${REAIM ? `+reaim(${reaimRefusals} refusals)` : ''} briefing≈${briefN ? Math.round(briefChars / briefN) : 0}ch n_items=${items.length} reps=${REPS} kappa=${kappa.toFixed(2)} (${pairs.length} double-graded) noise=${noise.toFixed(2)}`);
+lines.push(`lighting=${LIGHTING}${REAIM ? `+reaim(${reaimRefusals} refusals)` : ''}${flag('transcript-budget') ? ` transcript-budget=${flag('transcript-budget')}` : ''} briefing≈${briefN ? Math.round(briefChars / briefN) : 0}ch n_items=${items.length} reps=${REPS} kappa=${kappa.toFixed(2)} (${pairs.length} double-graded) noise=${noise.toFixed(2)}`);
 for (const arm of ARMS) lines.push(`arm ${arm}: mean ${armMean(arm).toFixed(2)}`);
 if (ARMS.length === 2) {
   const [a, b] = ARMS;
