@@ -31,6 +31,42 @@ STRUCTURE RULES:
 - If part of the material is genuinely unclassifiable, put it under one child branch named "unsorted from import" INSIDE your container — never outside it.
 - Use short random strings for new ids; parentId chains must reference ids you created earlier in the list.`;
 
+// M215 (Mark, 2026-09-08: "yes we should fix the single root node issue"):
+// one map = one root. A new map is born with ONE seed node named after the
+// map (server bootstrap); the import then created a SECOND top-level
+// container beside it and nothing ever filed under the seed — every map
+// version (v3…v6) showed an empty root named after itself. When the map is
+// pristine (no live top-level node besides the seed and the "to sort" tray,
+// and the seed has no children), the import ADOPTS the seed as its
+// container: the model's container create becomes an update of the seed
+// (its name and statement carry over), its children re-home under the seed,
+// and rootId IS the seed. The first map's tutorial ("getting started", with
+// children) is not pristine and keeps its own container beside it.
+export function seedRootOf(store: Store, projectId: string): { id: string; name: string } | null {
+  const nodes = store.getNodes(projectId).filter((n) => n.status !== 'removed');
+  const tops = nodes.filter((n) => n.parentId === null && !((n.title ?? n.content) ?? '').startsWith('to sort'));
+  if (tops.length !== 1) return null;
+  const seed = tops[0];
+  if (nodes.some((n) => n.parentId === seed.id)) return null;
+  return { id: seed.id, name: seed.title || seed.content };
+}
+
+export function adoptSeedRoot(alterations: any[], rootId: string | null, seed: { id: string; name: string } | null, memories?: Record<string, string>): string | null {
+  if (!rootId || !seed) return rootId;
+  const idx = alterations.findIndex((a) => a.op === 'create_node' && a.id === rootId);
+  if (idx < 0) return rootId;
+  const c = alterations[idx];
+  const upd: any = { op: 'update_node', id: seed.id, ...(c.title ? { title: String(c.title) } : {}), ...(c.content ? { content: String(c.content) } : {}) };
+  alterations[idx] = upd;
+  for (const a of alterations) {
+    if (a === upd) continue;
+    if (a.parentId === rootId) a.parentId = seed.id;
+    if (a.id === rootId) a.id = seed.id;
+  }
+  if (memories && memories[rootId] !== undefined) { memories[seed.id] = memories[rootId]; delete memories[rootId]; }
+  return seed.id;
+}
+
 export interface ImportProposal { summary: string; alterations: any[]; rootId: string | null }
 
 export async function proposeImport(
@@ -64,7 +100,10 @@ export async function proposeImport(
     // Parent refs must resolve within the batch (model-made ids).
     const ids = new Set(alterations.map((a: any) => a.id));
     for (const a of alterations) if (a.parentId && !ids.has(a.parentId)) a.parentId = rootId;
-    return { summary: parsed.summary ?? `imported: ${sourceLabel}`, alterations, rootId };
+    const seed = seedRootOf(store, projectId);
+    const finalRoot = adoptSeedRoot(alterations, rootId, seed);
+    if (seed && finalRoot === seed.id) store.audit('import_adopted_seed_root', { seed: seed.name.slice(0, 40) });
+    return { summary: parsed.summary ?? `imported: ${sourceLabel}`, alterations, rootId: finalRoot };
   } catch (err) {
     console.error('[import] failed:', err);
     return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
@@ -404,7 +443,10 @@ export async function proposeImportLarge(
     }
     if (skipped.length) summary += ` (${skipped.length} of ${chunks.length} chunks could not be filed and were skipped)`;
     if (updates) summary += ` · ${updates} node(s) updated in place by later entries (earlier statements kept as versions)`;
-    return { summary, alterations, rootId, memories, chunks: chunks.length, skipped, sourceSummary };
+    const seed = seedRootOf(store, projectId);
+    const finalRoot = adoptSeedRoot(alterations, rootId, seed, memories);
+    if (seed && finalRoot === seed.id) store.audit('import_adopted_seed_root', { seed: seed.name.slice(0, 40) });
+    return { summary, alterations, rootId: finalRoot, memories, chunks: chunks.length, skipped, sourceSummary };
   } catch (err) {
     console.error('[import-large] failed:', err);
     return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
