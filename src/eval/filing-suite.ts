@@ -55,7 +55,20 @@ function grade(nodes: NodeRow[], history: Record<string, string[]>): { ruling: {
 }
 
 const results: any[] = [];
-for (let run = 1; run <= RUNS; run++) {
+// --regrade: grade the maps saved by an earlier measurement (map.json per run)
+// against the CURRENT checks without re-running the filer — for tightening a
+// check that misfired (the grading is code; the map is the measurement).
+if (flag('regrade')) {
+  for (let run = 1; run <= RUNS; run++) {
+    const f = `/tmp/claude-1000/filing-suite-${run}/map.json`;
+    let saved: any; try { saved = JSON.parse(readFileSync(f, 'utf8')); } catch { console.log(`run ${run}: no saved map at ${f}`); continue; }
+    const g = grade(saved.nodes, saved.history ?? {});
+    console.log(`run ${run} (regraded): ${saved.nodes.filter((n: NodeRow) => n.status !== 'removed').length} live nodes · ruling ${g.ruling.pass}/${g.ruling.total} · currency ${g.currency.pass}/${g.currency.total}`);
+    for (const x of [...g.ruling.fails, ...g.currency.fails]) console.log('    ✗', x.slice(0, 220));
+    results.push({ run, nodes: saved.nodes.length, ruling: g.ruling.pass / g.ruling.total, currency: g.currency.pass / g.currency.total, rulingPass: g.ruling.pass, currencyPass: g.currency.pass });
+  }
+}
+for (let run = 1; run <= (flag('regrade') ? 0 : RUNS); run++) {
   const TMP = `/tmp/claude-1000/filing-suite-${run}`; rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
   try { writeFileSync(join(TMP, 'home', '.claude', '.credentials.json'), readFileSync(join(process.env.HOME ?? '', '.claude', '.credentials.json')), { mode: 0o600 }); } catch {}
   const env: Record<string, string> = { ...process.env as any, HARNESSMAP_DB: join(TMP, 't1.sqlite'), PORT: String(PORT), HOME: join(TMP, 'home'), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0' };
