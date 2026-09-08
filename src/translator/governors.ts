@@ -34,7 +34,8 @@ export function upsertMind(store: Store, projectId: string, nodeId: string, patc
   const db = ensure(store);
   const prev = getMind(store, projectId, nodeId);
   const day = new Date().toISOString().slice(0, 10);
-  const log = [prev?.log ?? '', patch.logLine ? `${day}: ${patch.logLine.replace(/\s+/g, ' ').trim()}` : ''].filter(Boolean).join('\n');
+  const line = (patch.logLine ?? '').replace(/\s+/g, ' ').trim().replace(/^(\d{4}-\d{2}-\d{2}:?\s*)+/, ''); // the model often dates its own line — one date, ours
+  const log = [prev?.log ?? '', line ? `${day}: ${line}` : ''].filter(Boolean).join('\n');
   const logTrim = log.split('\n').slice(-40).join('\n');
   const preds = [...new Set([...(prev?.predecessors ?? []), ...(patch.predecessors ?? [])])];
   db.prepare(`INSERT INTO area_minds (project_id, node_id, status, understanding, log, disagreements, predecessors, created_at, updated_at)

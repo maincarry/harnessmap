@@ -345,6 +345,19 @@
   #other-more[hidden] { display: none; }
   #other-more-btn { color: var(--muted); }
   #other-menu[hidden] { display: none; }
+  /* M229 (Jacob: "make it a big board instead… like Mac Settings"): the ⋯ other menu as a board of big buttons, grouped by job. */
+  .cb-modal { width: min(880px, 96vw); max-height: 88vh; }
+  .cb-search { width: 100%; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 10px; padding: 9px 12px; background: var(--bg); color: var(--ink); font: inherit; font-size: 14px; margin: 4px 0 12px; }
+  .cb-group { margin: 6px 0 14px; }
+  .cb-group h4 { margin: 0 0 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .cb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .cb-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; padding: 12px 12px 10px; border: 1px solid var(--hair); border-radius: 12px; background: var(--bg); color: var(--ink); cursor: pointer; font: inherit; min-height: 84px; }
+  .cb-tile:hover, .cb-tile:focus-visible { border-color: var(--accent, #c8a24a); outline: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #c8a24a) 30%, transparent); }
+  .cb-tile .g { font-size: 22px; line-height: 1; }
+  .cb-tile b { font-size: 13px; }
+  .cb-tile small { font-size: 11px; color: var(--muted); line-height: 1.35; }
+  .cb-tile[hidden] { display: none; }
+
   /* M96c: instant styled tooltips replacing the slow native title bubble */
   #tip { position: fixed; z-index: 200; max-width: 280px; background: var(--panel); color: var(--ink);
          border: 1px solid var(--hair); border-radius: 10px; padding: 6px 10px; font-size: 12px;
@@ -1590,7 +1603,68 @@ function openRowSheet(nodeId) {
   for (const btn of ov.querySelectorAll('[data-shi]')) btn.onclick = () => { ov.remove(); entries[Number(btn.dataset.shi)].click(); };
 }
 
-$('other-btn').onclick = (e) => { e.stopPropagation(); const m = $('other-menu'); m.hidden = !m.hidden; $('other-more').hidden = true; $('other-more-btn').hidden = false; $('other-settings').hidden = true; $('other-settings-btn').hidden = false; };
+$('other-btn').onclick = (e) => { e.stopPropagation(); $('other-menu').hidden = true; openControlsBoard(); }; // M229 (Jacob): the ⋯ menu became a board
+// M229 (Jacob, 2026-09-08): "as we have so many functions in other, the + and + again list does not seem to be
+// working anymore, what about making it a big board instead? … like Mac Settings. Make them big buttons and
+// reorganize them properly." Every tile proxies to the existing (hidden) button, so every handler, permission
+// and nudge stays exactly as it was; the board only changes how they are found. Grouped by the job they do.
+const CONTROLS = [
+  { g: 'Aim the agent', sub: 'what the chat agent sees and works on', items: [
+    ['auto-focus', '▶', 'auto-focus', 'the map proposes where the conversation should aim; you approve'],
+    ['auto-lit', '☀', 'auto-light', 'the map proposes the background for the current focus; you approve'],
+    ['auto-zoom', '◱', 'auto-zoom', 'declutter the view to where you are working; view only'],
+    ['lit-mgr-btn', '▶☀', 'manage focus & light', 'the whole map in one list: focus, lit, dim'],
+    ['lit-all', '☀', 'light all (this view)', 'everything in the current view enters the background'],
+    ['dim-all', '◐', 'dim all (this view)', 'the agent stops seeing everything in this view'],
+    ['dim-outside', '◐', 'dim all outside', 'keep the zoomed subtree, dim the rest'],
+    ['ctx-refresh-btn', '⟲', 'refresh agent context', 'every session gets a fresh full view on its next message'],
+    ['agent-view-btn', '👁', 'what the agent sees', 'the block the chat agent receives each turn, verbatim'],
+  ] },
+  { g: 'Keep the map', sub: 'structure, names, and what goes onto it', items: [
+    ['map-check', '⟳', 'tidy map', 'review the whole map; problems land as dots you approve'],
+    ['tidy-top', '⟳', 'tidy top level', 'group and clean the top level — the only place containers are made'],
+    ['auto-rename', '✎', 'auto-rename', 'short display names for long-named nodes; applies directly'],
+    ['enrich-btn', '✚', 'enrich map', 'deepen thin nodes from this map’s own conversation record'],
+    ['import-btn', '⇪', 'import', 'notes, documents, or past sessions — one proposal you approve'],
+    ['undo-btn', '↩', 'undo', 'take back the last change'],
+  ] },
+  { g: 'The map’s mind', sub: 'the brain, its governors, and how the agents are told to behave', items: [
+    ['mapstatus-btn', '🩺', 'map status', 'the central mind’s report, the governors, structural findings'],
+    ['prefs-btn', '☰', 'preferences & glossary', 'your words, your corrections, standing instructions for every agent'],
+    ['models-btn', '⚙', 'models & cost', 'which model runs each role, and what the last 24 hours cost'],
+  ] },
+  { g: 'Sessions', sub: '', items: [
+    ['tab-add', '＋', 'new session', 'focus on a topic, fork this view, or start fresh — Claude Code, Codex, or chat'],
+    ['sessions-btn', '▦', 'all sessions', 'every session on this map: pin, close, jump'],
+  ] },
+  { g: 'Setup & help', sub: '', items: [
+    ['legend-btn', '?', 'tutorial & reference', 'a guided walk through every part of the map'],
+    ['font-btn', '🔠', 'text size', 'normal, large, larger'],
+    ['authinfo-btn', '🔑', 'sign-in & billing', 'how the agents sign in, who gets billed, whether calls work'],
+    ['update-btn', '⬆', 'check for updates', 'is there a newer harnessmap'],
+    ['influence-btn', '⏻', 'map influence', 'close or reopen the map’s influence on your sessions'],
+    ['feedback-btn', '🐞', 'send feedback', 'report a problem or an idea to the developers'],
+    ['dev-btn', '🔧', 'dev mode', 'record every agent call; the agent network; for the developers'],
+  ] },
+];
+function openControlsBoard() {
+  const ov = document.createElement('div'); ov.className = 'overlay';
+  const tile = ([id, g, label, sub]) => $(id) ? `<button class="cb-tile" data-cb="${id}" data-text="${esc((label + ' ' + sub).toLowerCase())}"><span class="g">${g}</span><b>${esc(label)}</b><small>${esc(sub)}</small></button>` : '';
+  ov.innerHTML = `<div class="modal cb-modal"><h3>⋯ all controls</h3>
+    <input class="cb-search" id="cb-search" placeholder="find a control… (type to filter)" autocomplete="off">
+    ${CONTROLS.map((grp) => `<div class="cb-group" data-cbg><h4>${esc(grp.g)}${grp.sub ? ` <span style="text-transform:none;letter-spacing:0;font-weight:400">— ${esc(grp.sub)}</span>` : ''}</h4><div class="cb-grid">${grp.items.map(tile).join('')}</div></div>`).join('')}
+    <div class="actions"><button id="cb-close">close</button></div></div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.querySelector('#cb-close').onclick = close;
+  ov.querySelectorAll('.cb-tile').forEach((b) => { b.onclick = () => { const id = b.dataset.cb; close(); const target = $(id); if (target) target.click(); }; });
+  const q = ov.querySelector('#cb-search');
+  q.oninput = () => { const v = q.value.trim().toLowerCase(); ov.querySelectorAll('.cb-tile').forEach((b) => { b.hidden = !!v && !b.dataset.text.includes(v); }); ov.querySelectorAll('[data-cbg]').forEach((grp) => { grp.hidden = ![...grp.querySelectorAll('.cb-tile')].some((b) => !b.hidden); }); };
+  q.onkeydown = (e) => { if (e.key === 'Escape') close(); if (e.key === 'Enter') { const first = [...ov.querySelectorAll('.cb-tile')].find((b) => !b.hidden); if (first) first.click(); } };
+  setTimeout(() => q.focus(), 30);
+}
+
 $('other-more-btn').onclick = (e) => { e.stopPropagation(); $('other-more').hidden = false; $('other-more-btn').hidden = true; };
 $('other-settings-btn').onclick = (e) => { e.stopPropagation(); $('other-settings').hidden = false; $('other-settings-btn').hidden = true; };
 document.addEventListener('click', (e) => { if (!$('other-wrap').contains(e.target)) $('other-menu').hidden = true; });

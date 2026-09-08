@@ -238,14 +238,21 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
 }
 
 async function subCall(opts: CallOpts, model: string): Promise<any> {
+  // M227 finding: the king (opus, 16k output) answered "I'll check the measured
+  // numbers against my inputs, then write the report." and then, on the retry,
+  // nothing — it meant to use tools it does not have. The JSON note now says
+  // so, a preamble-only reply is named as such on the retry, and a third
+  // attempt exists for the schema tasks (the M205/M215 short-reply failure).
   const jsonNote = opts.schema
-    ? `\n\nRESPOND WITH JSON ONLY — a single JSON object matching this schema (no prose, no code fences):\n${JSON.stringify(opts.schema)}`
+    ? `\n\nRESPOND WITH JSON ONLY — a single JSON object matching this schema (no prose, no code fences). You have NO tools and this is your only turn: do not announce what you will do, do not ask to proceed — write the finished object now.\n${JSON.stringify(opts.schema)}`
     : '';
   let lastErr = '';
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  const ATTEMPTS = opts.schema ? 3 : 2;
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    const preamble = /preamble/.test(lastErr);
     const prompt = attempt === 1
       ? opts.user
-      : `${opts.user}\n\n(Your previous reply was not valid JSON for the schema: ${lastErr}. Reply again with ONLY the JSON object.)`;
+      : `${opts.user}\n\n(Your previous reply was ${preamble ? 'a sentence announcing work instead of the answer — you have no tools and no further turn' : `not valid JSON for the schema: ${lastErr}`}. Reply with ONLY the JSON object, complete, now.)`;
     // M103 (Mark): the subscription path must NEVER bill the API key. The
     // SDK's spawned CLI prefers ANTHROPIC_API_KEY from env when present, so
     // strip it (and AUTH_TOKEN) — the CLI then uses the logged-in
@@ -306,7 +313,7 @@ async function subCall(opts: CallOpts, model: string): Promise<any> {
         opts.audit?.('parse_repaired', { task: opts.task, attempt });
         return out;
       } catch { /* fall through to retry */ }
-      lastErr = String(e).slice(0, 120);
+      lastErr = (!/\{/.test(text) && text.trim().length < 400) ? `preamble only: ${text.trim().slice(0, 80)}` : String(e).slice(0, 120);
       // Keep the raw head — without it the failing decision is unlearnable.
       opts.audit?.('parse_retry', { task: opts.task, attempt, error: lastErr, raw: stripped.slice(0, 1500) });
     }
