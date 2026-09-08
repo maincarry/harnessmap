@@ -98,14 +98,24 @@ export function settleEstates(store: Store, projectId: string): number {
   for (const m of listMinds(store, projectId, 'active')) {
     const n = store.getNode(m.nodeId);
     if (n && n.status !== 'removed') continue;
-    // where did its material go? the former children now live under some parent; take the most common one
-    const heirs = new Map<string, number>();
-    for (const e of (store as any).db.prepare("SELECT alteration FROM map_events WHERE project_id = ? AND alteration LIKE '%move_node%' ORDER BY seq DESC LIMIT 400").all(projectId) as any[]) {
-      try { const a = JSON.parse(e.alteration); if (a.op === 'move_node' && a.parentId && a.parentId !== m.nodeId) { const child = store.getNode(a.id); if (child) { /* count parents of moved nodes */ heirs.set(a.parentId, (heirs.get(a.parentId) ?? 0) + 1); } } } catch {}
+    // Where did its material go? The nodes that EVER lived under this root
+    // (created there or moved there, per the event log) are found where they
+    // are now; the governor holding most of them is the heir. (The first
+    // e2e used "the most common parent among recent moves" and named a
+    // bystander chapter the heir — moves elsewhere in the log outnumbered
+    // the fold's own.)
+    const everHere = new Set<string>();
+    for (const e of (store as any).db.prepare("SELECT alteration FROM map_events WHERE project_id = ? AND (alteration LIKE '%create_node%' OR alteration LIKE '%move_node%')").all(projectId) as any[]) {
+      try { const a = JSON.parse(e.alteration); if ((a.op === 'create_node' || a.op === 'move_node') && a.parentId === m.nodeId && a.id) everHere.add(a.id); } catch {}
     }
-    let successor: string | null = null;
-    const ranked = [...heirs.entries()].sort((a, b) => b[1] - a[1]);
-    for (const [pid] of ranked) { const g = nearestGovernor(store, projectId, pid); if (g && g.nodeId !== m.nodeId) { successor = g.nodeId; break; } if (store.getNode(pid) && store.getNode(pid)!.status !== 'removed') { successor = pid; break; } }
+    const heirs = new Map<string, number>();
+    for (const id of everHere) {
+      const x = store.getNode(id); if (!x || x.status === 'removed') continue;
+      const g = x.parentId ? nearestGovernor(store, projectId, x.parentId) : null;
+      if (g && g.nodeId !== m.nodeId) heirs.set(g.nodeId, (heirs.get(g.nodeId) ?? 0) + 1);
+      else if (x.parentId && store.getNode(x.parentId)) heirs.set(x.parentId, (heirs.get(x.parentId) ?? 0) + 1);
+    }
+    let successor: string | null = [...heirs.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     if (!successor && n?.parentId) { const g = nearestGovernor(store, projectId, n.parentId); successor = g?.nodeId ?? null; }
     retireMind(store, projectId, m.nodeId, successor ? [successor] : []);
     settled++;

@@ -33,10 +33,14 @@ mergeAreaAdvice(store, pid, [{ rootId: chA, advice: 'Protect the 40-move cap; th
 ok('advice for a leaf is the king\'s advice for its area', adviceForNode(store, pid, leafA)?.advice.startsWith('Protect') === true && adviceForNode(store, pid, leafB) === null);
 ok('the consult serves the king\'s advice, never the governor\'s text', /CENTRAL MIND'S ADVICE FOR THIS AREA/.test(statusConsult(store, pid, leafA, 'filing')) && !/proposals capped at 40 moves; modal side by side/.test(statusConsult(store, pid, leafA, 'filing')));
 ok('no advice yet → nothing local in the consult', !/ADVICE FOR THIS AREA|ASSESSMENT/.test(statusConsult(store, pid, leafB, 'filing')));
-// an estate: fold Import into Tidy (children move, the chapter is removed), then settle
+// an estate: fold Import into Tidy (children move, the chapter is removed), then settle —
+// with a DISTRACTOR: unrelated moves into a third governed chapter outnumber the fold's own
+const chD = randomUUID(); store.applyAlterations(pid, [{ op: 'create_node', id: chD, parentId: root, content: 'Sessions', title: 'Sessions', status: 'active', author: 'agent' } as any], { kind: 'system' });
+upsertMind(store, pid, chD, { understanding: 'Sessions: tabs and terminals.' });
+for (let i = 0; i < 3; i++) { const x = randomUUID(); store.applyAlterations(pid, [{ op: 'create_node', id: x, parentId: chA, content: `stray ${i}`, status: 'live', author: 'agent' } as any, { op: 'move_node', id: x, parentId: chD } as any], { kind: 'reorganize' }); }
 store.applyAlterations(pid, [{ op: 'move_node', id: leafB, parentId: chA } as any, { op: 'update_node', id: chB, status: 'removed' } as any], { kind: 'reorganize' });
 ok('settle retires the governor whose area is gone', settleEstates(store, pid) === 1 && getMind(store, pid, chB)!.status === 'retired');
-ok('the successor carries the estate', getMind(store, pid, chA)!.predecessors.includes(chB) && /Import: chunks/.test(estateOf(store, pid, chA)));
+ok('the heir is where the folded material went, not the busiest chapter', getMind(store, pid, chA)!.predecessors.includes(chB) && !getMind(store, pid, chD)!.predecessors.includes(chB) && /Import: chunks/.test(estateOf(store, pid, chA)));
 ok('retired text stays readable and the log says where it went', /estate passed to/.test(getMind(store, pid, chB)!.log) && getMind(store, pid, chB)!.understanding.startsWith('Import'));
 ok('settle is idempotent', settleEstates(store, pid) === 0);
 ok('a leaf that moved routes to its new governor', nearestGovernor(store, pid, leafB)?.nodeId === chA);
