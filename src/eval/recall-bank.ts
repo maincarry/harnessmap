@@ -51,6 +51,21 @@ if (ARMS.includes('transcript') && !TRANSCRIPT) {
   process.exit(2);
 }
 const transcriptText = TRANSCRIPT ? await Bun.file(TRANSCRIPT).text() : '';
+// M212 (Jacob): the HARNESS ARMS — the product test. `raw` = Claude alone: the
+// most recent WINDOW characters of the raw session transcript. `mapN+raw` =
+// the map block aimed for the question, capped at N% of the window (the
+// map_budget setting is set to that share), and every remaining character
+// goes to the raw tail — "when the map does not use the full thing, leave the
+// rest for Claude". --raw-source is the dated human transcript; --window the
+// harness window in characters; --sample N --seed S a lot-drawn subset.
+const RAW = flag('raw-source'); const WINDOW = Number(flag('window') ?? 0);
+const RAW_ARMS = ARMS.filter((a) => a === 'raw' || /^map\d+\+raw$/.test(a));
+if (RAW_ARMS.length && (!RAW || !WINDOW)) { console.error('REFUSED: raw / mapN+raw arms need --raw-source <dated human transcript> and --window <chars>.'); process.exit(2); }
+const rawText = RAW ? await Bun.file(RAW).text() : '';
+const dateIn = (s: string) => (s.match(/\[(\d{4}-\d{2}-\d{2})/) ?? [])[1] ?? null;
+const tailStart = rawText && WINDOW ? dateIn(rawText.slice(-WINDOW)) : null;
+const rawEnd = rawText ? (() => { const all = [...rawText.matchAll(/\[(\d{4}-\d{2}-\d{2})/g)]; return all.length ? all[all.length - 1][1] : null; })() : null;
+const setMapBudget = async (chars: number | null) => { await fetch(`${BASE}/api/dev/setting`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: 'map_budget', value: chars ? String(chars) : '' }) }); };
 if (ARMS.length === 1 && !EXPLORATORY && !H1) {
   console.error('REFUSED: single-arm runs must declare --exploratory (they support no confirmatory claim) or carry --h1 against a stated floor.');
   process.exit(2);
@@ -60,6 +75,25 @@ const bankFile = JSON.parse(await Bun.file(new URL('./bank.json', import.meta.ur
 let items = bankFile.items.filter((it: any) => !EXCLUDE.some((d: string) => String(it.doctrine).includes(d)));
 const LIMIT = Number(flag('limit') ?? 0); // smoke seam: first N items (exploratory only)
 if (LIMIT > 0) items = items.slice(0, LIMIT);
+const SAMPLE = Number(flag('sample') ?? 0);
+if (SAMPLE > 0 && SAMPLE < items.length) {
+  // lot-drawn subset, deterministic in --seed: the short protocol (M212)
+  let x = Number(flag('seed') ?? 20260908) >>> 0; const rnd = () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; };
+  const shuffled = [...items]; for (let i = shuffled.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]; }
+  items = shuffled.slice(0, SAMPLE).sort((a: any, b: any) => a.id.localeCompare(b.id));
+  console.log(`sample of ${SAMPLE} (seed ${flag('seed') ?? 20260908}): ${items.map((it: any) => it.id).join(' ')}`);
+}
+// Age class per item (M212): when the fact happened vs the raw tail's reach.
+const RECORD = flag('record') ?? 'docs/archive/recall-run-2026-09-06/modlog-at-a27a94f.md';
+const entryDates = new Map<string, string>();
+try { for (const m of (await Bun.file(RECORD).text()).matchAll(/^## (M\d+[a-z]?)\b.*?(\d{4}-\d{2}-\d{2})/gm)) entryDates.set(m[1], m[2]); } catch {}
+const ageOf = (it: any): string => {
+  const ms = [...`${it.ruling ?? ''} ${it.provenance ?? ''} ${it.doctrine ?? ''}`.matchAll(/\bM(\d{1,3}[a-z]?)\b/g)].map((m) => 'M' + m[1]);
+  const ds = ms.map((k) => entryDates.get(k)).filter(Boolean) as string[];
+  if (!ds.length) return 'undated'; const d = ds.sort()[ds.length - 1];
+  if (!tailStart || !rawEnd) return 'undated';
+  return d < tailStart ? 'older' : d > rawEnd ? 'beyond' : 'in-tail';
+};
 console.log(`bank v${bankFile.meta.version}: ${items.length} items (${bankFile.items.length - items.length} excluded by doctrine tag) · arms: ${ARMS.join(', ')} · reps: ${REPS}`);
 console.log(H1 ? `REGISTERED: ${H1}` : 'EXPLORATORY RUN — no confirmatory claim will be made from this.');
 
@@ -232,7 +266,19 @@ for (const arm of armOrder) {
   for (const it of items) {
     if (cells.filter((c) => c.arm === arm && c.item === it.id).length >= REPS) continue; // resumed
     let brief: string; let pulled = '';
-    if (arm === 'transcript') {
+    if (arm === 'raw') {
+      brief = `[your session so far — the most recent ${WINDOW} characters of the conversation]\n` + rawText.slice(-WINDOW);
+    } else if (/^map(\d+)\+raw$/.test(arm)) {
+      const share = Number(/^map(\d+)\+raw$/.exec(arm)![1]) / 100;
+      await setMapBudget(Math.round(WINDOW * share));
+      if (REAIM) console.log(`  re-aim ${it.id}: ${await reaimFor(it.question)}`);
+      const block = await briefing(it.question, `rb-${arm}-${it.id}`);
+      pulled = await consentPull(block);
+      const used = block.length + pulled.length; mapBudget[it.id] = used;
+      const rest = Math.max(0, WINDOW - used);
+      brief = [block, pulled, `[your session so far — the most recent ${rest} characters of the conversation]\n` + rawText.slice(-rest)].filter(Boolean).join('\n\n---\n\n');
+      pulled = ''; // already inside the brief for this arm
+    } else if (arm === 'transcript') {
       // --transcript-budget (M210, Jacob: "same amount" answers the mechanism
       // question, not the product one — the user's real opponent is the harness
       // with ITS amount): 'full' = the whole record in context; a number = a
@@ -256,6 +302,7 @@ for (const arm of armOrder) {
   }
 }
 await setServing('on'); // restore default
+if (RAW_ARMS.length) await setMapBudget(null); // restore the product's derived budget
 if (LIGHTING !== 'dark') { const stR = await (await fetch(`${BASE}/api/state`)).json(); for (const id of stR.chats.find((c: any) => c.id === stR.mainChatId)?.lit ?? []) await setLit(id, false); } // restore dark
 
 // grading: shuffled, blind (grader never sees the arm)
@@ -320,7 +367,36 @@ for (const it of items) {
 const lines: string[] = [];
 lines.push(`lighting=${LIGHTING}${REAIM ? `+reaim(${reaimRefusals} refusals)` : ''}${flag('transcript-budget') ? ` transcript-budget=${flag('transcript-budget')}` : ''} briefing≈${briefN ? Math.round(briefChars / briefN) : 0}ch n_items=${items.length} reps=${REPS} kappa=${kappa.toFixed(2)} (${pairs.length} double-graded) noise=${noise.toFixed(2)}`);
 for (const arm of ARMS) lines.push(`arm ${arm}: mean ${armMean(arm).toFixed(2)}`);
-if (ARMS.length === 2) {
+if (RAW_ARMS.length && ARMS.includes('raw')) {
+  // M212: every other arm against the raw baseline, paired per item, with a
+  // bootstrap CI and the age classes reported apart.
+  lines.push(`window=${WINDOW} raw-source=${(RAW ?? '').split('/').pop()} tail-from=${tailStart} raw-end=${rawEnd} sample=${items.map((it: any) => it.id).join(',')}`);
+  const cls: Record<string, string[]> = {}; for (const it of items) (cls[ageOf(it)] ??= []).push(it.id);
+  lines.push(`age classes: ${Object.entries(cls).map(([k, v]) => `${k} ${v.length}`).join(' · ')}`);
+  const minEff = Number((/([\d.]+)/.exec(H1 ?? '') ?? [])[1] ?? 0.3);
+  let first = true;
+  for (const arm of ARMS) {
+    if (arm === 'raw') continue;
+    const pairsA = items.map((it: any) => [itemMean(arm, it.id), itemMean('raw', it.id), it]).filter(([x, y]: any) => x !== null && y !== null);
+    const diffs = pairsA.map(([x, y]: any) => x - y);
+    if (!diffs.length) continue;
+    const mean = diffs.reduce((a: number, b: number) => a + b, 0) / diffs.length;
+    let seed = 7; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const bs: number[] = []; for (let b = 0; b < 2000; b++) { let s2 = 0; for (let i = 0; i < diffs.length; i++) s2 += diffs[Math.floor(rnd() * diffs.length)]; bs.push(s2 / diffs.length); } bs.sort((a, b) => a - b);
+    const wins = diffs.filter((d: number) => d > 0).length, losses = diffs.filter((d: number) => d < 0).length;
+    lines.push(`paired ${arm}-raw: Δmean ${mean.toFixed(2)} (95% CI ${bs[50].toFixed(2)} to ${bs[1949].toFixed(2)}), sign ${wins}-${losses}-${diffs.length - wins - losses}`);
+    for (const [k, ids] of Object.entries(cls)) {
+      const sub = pairsA.filter(([, , it]: any) => ids.includes(it.id));
+      if (sub.length) lines.push(`  ${k} (${sub.length}): ${arm} ${(sub.reduce((a: number, [x]: any) => a + x, 0) / sub.length).toFixed(2)} vs raw ${(sub.reduce((a: number, [, y]: any) => a + y, 0) / sub.length).toFixed(2)}`);
+    }
+    if (first) { lines.push(`VERDICT vs registered claim: ${H1} → ${mean >= minEff ? 'supported at face value (check CI before claiming)' : 'NOT supported'}`); first = false; }
+  }
+  const [a5, a20] = [ARMS.find((x) => /^map5\+raw$/.test(x)), ARMS.find((x) => /^map20\+raw$/.test(x))];
+  if (a5 && a20) {
+    const d = items.map((it: any) => [itemMean(a20, it.id), itemMean(a5, it.id)]).filter(([x, y]: any) => x !== null && y !== null).map(([x, y]: any) => x - y);
+    if (d.length) lines.push(`paired ${a20}-${a5}: Δmean ${(d.reduce((p: number, q: number) => p + q, 0) / d.length).toFixed(2)}, sign ${d.filter((x: number) => x > 0).length}-${d.filter((x: number) => x < 0).length}-${d.filter((x: number) => x === 0).length} (noise floor ${noise.toFixed(2)})`);
+  }
+} else if (ARMS.length === 2) {
   const [a, b] = ARMS;
   const diffs = items.map((it: any) => [itemMean(a, it.id), itemMean(b, it.id)]).filter(([x, y]: any) => x !== null && y !== null).map(([x, y]: any) => x - y);
   const mean = diffs.reduce((s: number, d: number) => s + d, 0) / diffs.length;
