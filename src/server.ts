@@ -278,7 +278,14 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
     // node's minimal/medium memory, title weighted ×2 (see src/map/match.ts).
     const scored = matchNodes(store, pid, q, { exclude: focusSet as Set<string> }).map((m) => ({ n: store.getNode(m.id)!, sc: m.score, hits: m.hits }));
     scored.sort((x, y) => y.sc - x.sc);
+    // M230 (Jacob, 2026-09-08 3:02 pm ET, after his note that the brain works
+    // before the turn while the miss happens in the turn): the question IS the
+    // consent. The nodes the user's message names are served IN FULL at the top
+    // of the block — lit or set aside — so the specific sentence, not its
+    // parent, is in front of the agent when it answers. Weaker matches stay an
+    // offer (a second turn). Dim nodes served this way are marked as set aside.
     const top = scored.slice(0, 3).filter((h, i) => i === 0 || h.sc >= scored[0].sc * 0.7);
+    const weaker = scored.slice(top.length, top.length + 2).filter((h) => h.sc >= scored[0].sc * 0.4);
     if (!top.length) return '';
     const outs: string[] = [];
     for (const best of top) {
@@ -296,7 +303,21 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
       outs.push(`[harnessmap] the message touches "${name}" (lit, far from focus) — served in full for this turn:\n${String(best.n.content).slice(0, 30_000)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}`.slice(0, 4000));
       continue;
     }
-    // Dim: a consented offer, never content.
+    // Dim but named by the question: served in full for this turn (M230).
+    {
+      const c = getNodeCard(store, best.n.id);
+      const details = c.details.filter((f: any) => f.status === 'current').map((f: any) => `  - ${f.text}${f.date ? ` (${f.date})` : ''}`).join('\n');
+      const full = (c as any).long && String((c as any).long).length > String(best.n.content).length ? String((c as any).long) : `${String(best.n.content).slice(0, 30_000)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}`;
+      store.audit('pullup_served_by_question', { node: best.n.id.slice(0, 8), lit: false });
+      store.metric(pid, 'interaction.pullup_served_by_question');
+      outs.push(`[harnessmap] the message names "${name}" — a SET-ASIDE topic, served in full for this turn because you asked about it (it stays set aside afterwards):\n${full.slice(0, 30_000)}`);
+      continue;
+    }
+    }
+    for (const best of weaker) {
+    const name = best.n.title || String(best.n.content).slice(0, 60);
+    if (litSet.has(best.n.id)) continue;
+    // Weaker dim matches: a consented offer, never content.
     const token = randomUUID().slice(0, 13);
     pullupTokens.set(token, { nodeId: best.n.id, chatId, exp: Date.now() + 10 * 60_000, used: false });
     store.audit('pullup_offered', { node: best.n.id.slice(0, 8) });
@@ -2620,7 +2641,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       if (anchor === null || (fullAnchor !== null && seq - fullAnchor > RE_ANCHOR_AFTER)) {
         let context = chats.harnessContext(ctxChatId, promptText);
         const pullF = matchPullup(ctxPid, ctxChatId, promptText, true); // M199: lit hits ride along on the first turn too — lit no longer means in-the-block once lit nodes fold
-        if (pullF) context += `\n\n${pullF}`;
+        if (pullF) context = `[harnessmap — what you just asked about]\n${pullF}\n\n${context}`; // M230: at the top, before the standing view
         if (refreshNotices.delete(sessionId)) {
           context += `\n\n[harnessmap] This FULL map view supersedes every earlier map block above. Briefly tell the user: you now have the full current view of the map; they can run /compact to clean up the old map data in this conversation — optional, everything works fine without it.`;
         }
@@ -2637,7 +2658,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // Focus/lighting shifts aren't map events — include pending notices via
       // the manipulations channel inside the delta when present.
       const manips = chats.consumeManipulations(ctxChatId);
-      const parts = [delta, pull, manips.length ? `[harnessmap — user actions]\n${manips.map((m) => `• ${m}`).join('\n')}` : ''].filter(Boolean);
+      const parts = [pull ? `[harnessmap — what you just asked about]\n${pull}` : '', delta, manips.length ? `[harnessmap — user actions]\n${manips.map((m) => `• ${m}`).join('\n')}` : ''].filter(Boolean); // M230: the question's nodes first
       if (focusNotice) { parts.push(focusNotice); nudgeNoticePending = false; }
       if (parts.length) parts.push('(full current map: read .harnessmap/MAP.md)');
       const ctx = parts.join('\n\n') || null;
