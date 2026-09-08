@@ -34,7 +34,8 @@ const PROJECT = flag('project'); // project id to pin active (guards against ses
 // (2026-09-05): a 2h12m run held all 414 answers and grades in memory only,
 // then died at the finish line — nothing reached the ledger.
 const CKPT = flag('checkpoint') ?? `/tmp/recall-bank-ckpt.json`;
-const REAIM = args.includes('--reaim'); // product mode only: auto-focus + auto-light before EVERY question (the question as the conversation's tail)
+const REAIM = args.includes('--reaim') || args.includes('--reaim=merged');
+const REAIM_MERGED = args.includes('--reaim=merged') || flag('reaim') === 'merged'; // M218: one aiming call instead of focus + light (+ retry) // product mode only: auto-focus + auto-light before EVERY question (the question as the conversation's tail)
 if (REAIM && LIGHTING !== 'product') { console.error('REFUSED: --reaim needs --lighting product (it re-aims through auto-focus and auto-light).'); process.exit(2); }
 
 // Doctrine: no comparison without a registered claim. Enforced, not advised.
@@ -240,6 +241,11 @@ const reaimFor = async (question: string): Promise<string> => {
   // failed proposal keeps the previous aim and is counted, never hidden.
   // A failed or slow aiming call keeps the previous aim and counts as a refusal — the run never dies on it.
   const post = async (path: string, body: any) => { try { return await (await fetch(`${BASE}${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(240_000) })).json(); } catch (e) { console.log(`  (aiming call ${path.split('/').pop()} failed: ${String(e).slice(0, 80)})`); return {}; } };
+  if (REAIM_MERGED) {
+    const mr: any = await post(`/api/chats/${st0.mainChatId}/reaim`, { tail: `USER: ${question}` });
+    if (!mr?.ok) { reaimRefusals++; return `merged re-aim failed (${mr?.error ?? 'no reply'}) · aim kept`; }
+    return `focus "${mr.name}" · lit ${mr.cost?.nodes ?? '?'} nodes ≈ ${mr.cost?.chars ?? '?'} chars${mr.overBudget ? ' (over budget, applied by resolution)' : ''} [merged]`;
+  }
   const fr: any = await post(`/api/chats/${st0.mainChatId}/recommend`, { kind: 'focus', tail: `USER: ${question}` });
   if (fr?.containerId) await post(`/api/chats/${st0.mainChatId}/focus`, { nodeId: fr.containerId });
   const lr: any = await post(`/api/chats/${st0.mainChatId}/autolit`, { preview: true, feedback: `The user's latest message: ${question}` });
@@ -382,7 +388,7 @@ for (const it of items) {
 }
 
 const lines: string[] = [];
-lines.push(`lighting=${LIGHTING}${REAIM ? `+reaim(${reaimRefusals} refusals)` : ''}${flag('transcript-budget') ? ` transcript-budget=${flag('transcript-budget')}` : ''} briefing≈${briefN ? Math.round(briefChars / briefN) : 0}ch n_items=${items.length} reps=${REPS} kappa=${kappa.toFixed(2)} (${pairs.length} double-graded) noise=${noise.toFixed(2)}`);
+lines.push(`lighting=${LIGHTING}${REAIM ? `+reaim${REAIM_MERGED ? '=merged' : ''}(${reaimRefusals} refusals)` : ''}${flag('transcript-budget') ? ` transcript-budget=${flag('transcript-budget')}` : ''} briefing≈${briefN ? Math.round(briefChars / briefN) : 0}ch n_items=${items.length} reps=${REPS} kappa=${kappa.toFixed(2)} (${pairs.length} double-graded) noise=${noise.toFixed(2)}`);
 for (const arm of ARMS) lines.push(`arm ${arm}: mean ${armMean(arm).toFixed(2)}`);
 if (RAW_ARMS.length && ARMS.includes('raw')) {
   // M212: every other arm against the raw baseline, paired per item, with a

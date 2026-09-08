@@ -2,6 +2,7 @@ import { Store } from '../store/db.js';
 import { systemCard } from './cast.js';
 import { getNodeMemory } from './memory.js';
 import { call } from '../inference.js';
+import { statusConsult } from './mapstatus.js';
 import { loadMap, renderTree, descendantNodes } from '../map/render.js';
 
 // M77 (Jacob): when there are map-related issues, the user talks to the MAP
@@ -44,9 +45,10 @@ HOW TO ANSWER:
   * kind "mergeproject" + projectName (one of OTHER MAPS): they want that whole map folded into THIS one as a topic. Warn in the answer that it is irreversible. Single-step only.
   * kind "feedback" + instruction: the user has hit what looks like a SERIOUS BUG in this product (something clearly broken, data loss, wrong behavior they demonstrated) or made an important product suggestion — and ONLY then. instruction = a crisp report in their words (what happened / what they expected). In your answer, offer to send it to the developers — it opens a GitHub issue THEY review and submit themselves; nothing is sent automatically and usage is never monitored. Never use this for ordinary questions or map operations. Single-step only.
   * kind "pref" + instruction: they express a LASTING preference about how the map should be managed ("keep containers broad", "never propose deleting my exploratory notes", "name nodes in my language") — instruction is the preference as ONE short standing rule. It is saved (with their approval) into the map preferences that EVERY map agent receives. Only for durable taste — not one-off requests. Single-step only.
+- STATUS QUESTIONS ("what is unsolved / open / still pending / active?"): the STATUS INDEX block is mechanical and complete — answer from it with its count and its items; never estimate from the tree.
 - MISSING CONTEXT: you see the map but NOT node memories or the map's change history. If the question genuinely cannot be answered without them ("why is this node here?", "what does the map remember about X?"), set need to what you require and give your best partial answer — the server re-runs you ONCE with those blocks added. Don't request context you don't need.
 - Pick the LEVEL by the system's division of labor: attention → focus/light, structure → tidy. Named targets → focus/light with ids; unnamed → autofocus/autolight delegation.
-- COMPLEX REQUESTS: when one operation isn't enough, emit an ORDERED PLAN — an "actions" array of up to 4 focus/light/zoom/tidy steps, in the order they should apply. Example: "let's work on A and get B and C out of the background" → [{kind focus, nodeId A}, {kind light, dim [B, C]}]. Steps must not contradict each other (never light and dim the same node). autofocus/autolight/autozoom are single-step only — never inside a plan.
+- COMPLEX REQUESTS: when one operation isn't enough, emit an ORDERED PLAN — an "actions" array of up to 40 focus/light/zoom/tidy/favorite steps, in the order they should apply ("favorite all the open questions" = one favorite step per node, each with its exact id from the STATUS INDEX; if there are more than 40, say so and take the first 40). Example: "let's work on A and get B and C out of the background" → [{kind focus, nodeId A}, {kind light, dim [B, C]}]. Steps must not contradict each other (never light and dim the same node). autofocus/autolight/autozoom are single-step only — never inside a plan.
 - Never emit actions for a pure question. Simple request → one action; complex → one plan.
 - In the answer text, say what the attached proposal does in one sentence — the user sees an approve button next to it.
 - Use node ids exactly as given in [brackets].
@@ -81,13 +83,13 @@ const SCHEMA = {
     },
     actions: {
       type: 'array' as const,
-      description: 'Ordered plan for complex requests needing several operations, up to 4 steps. focus/light/tidy steps only.',
+      description: 'Ordered plan for complex requests needing several operations, up to 40 steps: focus/light/tidy/zoom, or a favorite per node ("favorite all X" = one favorite step per node).',
       items: {
         type: 'object' as const,
         additionalProperties: false,
         required: ['kind'],
         properties: {
-          kind: { type: 'string' as const, enum: ['focus', 'light', 'tidy', 'zoom'] },
+          kind: { type: 'string' as const, enum: ['focus', 'light', 'tidy', 'zoom', 'favorite'] },
           nodeId: { type: 'string' as const },
           lit: { type: 'array' as const, items: { type: 'string' as const } },
           dim: { type: 'array' as const, items: { type: 'string' as const } },
@@ -97,6 +99,43 @@ const SCHEMA = {
     },
   },
 };
+
+// M218 (Mark, 2026-09-08 — "what is going on?"): the deepest-match rescue
+// re-targets a pick that shares NO words with the user's sentence to the
+// best word match anywhere on the map. It was built for "switch to the soil
+// mix" picking the parent; it also fired on "yes let's do the zoom" (zoomed
+// to a leaf whose text mentions "zoom") and on "let's favorite all active
+// nodes" (two of three favorites collapsed onto "Confirm view shows all five
+// elements"). Rule now: only the user's CONTENT words count — the product's
+// own vocabulary (zoom, favorite, active, nodes, yes…) never names a target;
+// no content words → the pick stands. Favorites are never rescued: their ids
+// come from the guide's own listing, not from a name the user typed.
+const STOP = new Set(['the', 'this', 'that', 'with', 'about', 'lets', 'let', 'want', 'switch', 'focus', 'conversation', 'topic', 'node', 'decision', 'question', 'work']);
+const UI_WORDS = new Set(['zoom', 'zooming', 'isolate', 'declutter', 'show', 'view', 'only', 'into', 'favorite', 'favorites', 'favourite', 'pin', 'star', 'light', 'lit', 'dim', 'active', 'inactive', 'nodes', 'node', 'unsolved', 'solved', 'open', 'closed', 'pending', 'decided', 'all', 'every', 'yes', 'yeah', 'sure', 'please', 'okay', 'now', 'them', 'those', 'these', 'ones', 'map', 'tree', 'agent', 'guide', 'can', 'have', 'get', 'set', 'make', 'give', 'find', 'list']);
+export const contentTokens = (t: string): Set<string> => new Set(t.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w) && !UI_WORDS.has(w)));
+export function rescueTarget(q: string, picked: any, nodes: any[], kind: 'focus' | 'zoom' | 'favorite' = 'focus'): any {
+  if (kind === 'favorite') return picked;
+  const verbs = kind === 'zoom' ? /zoom|isolate|show me only|declutter/i : /focus|work on|switch|aim|move to|go to|back to/i;
+  const clause = q.split(/,|;| and | then /i).find((c) => verbs.test(c)) ?? q;
+  const qt = contentTokens(clause);
+  if (!qt.size) return picked; // nothing named in the user's own words — the pick stands
+  const score = (n: any) => { const nt = contentTokens(`${n.title ?? ''} ${n.content}`); let c = 0; for (const w of qt) if (nt.has(w)) c++; return c; };
+  if (score(picked) > 0) return picked;
+  let best = picked, bestScore = 0;
+  for (const n of nodes) { if (n.status === 'removed') continue; const sc = score(n); if (sc > bestScore) { best = n; bestScore = sc; } }
+  return best;
+}
+
+// M218: the STATUS INDEX — what the guide can count instead of skim. Unsettled
+// = a status that says the matter is still open, or a question not answered.
+const SETTLED = new Set(['decided', 'completed', 'done', 'answered', 'resolved', 'closed', 'live', 'active', 'standing', 'designed', 'reversed', 'superseded', 'dropped', 'rejected', 'reverted', 'removed', 'constraint', 'noted', 'provisional']);
+export function statusIndex(nodes: any[]): { counts: Record<string, number>; unsettled: any[] } {
+  const live = nodes.filter((n) => n.status !== 'removed');
+  const counts: Record<string, number> = {};
+  for (const n of live) counts[n.status] = (counts[n.status] ?? 0) + 1;
+  const unsettled = live.filter((n) => !SETTLED.has(n.status) || (n.type === 'question' && !['answered', 'decided', 'resolved', 'closed'].includes(n.status)));
+  return { counts, unsettled };
+}
 
 export interface MapChatAction {
   kind: 'focus' | 'light' | 'tidy' | 'zoom' | 'autofocus' | 'autolight' | 'autozoom' | 'search' | 'favorite' | 'merge' | 'mergeproject' | 'pref' | 'feedback';
@@ -125,28 +164,7 @@ export async function answerMapQuestion(
   // for focus requests despite prompt+schema instructions (bench 4/4). When
   // a descendant's words match the question better than the picked node's,
   // re-target there — deterministic, no extra call.
-  const STOP = new Set(['the', 'this', 'that', 'with', 'about', 'lets', 'let', 'want', 'switch', 'focus', 'conversation', 'topic', 'node', 'decision', 'question', 'work']);
-  const toks = (t: string) => new Set(t.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)));
-  const deepestMatch = (q: string, picked: any, kind: 'focus' | 'zoom' = 'focus') => {
-    // Score against THIS STEP'S clause of the request, not the whole question —
-    // multi-step asks ("focus on A, zoom into B") made whole-question or
-    // wrong-clause scoring drag one step's target onto the other's (bench).
-    const verbs = kind === 'zoom' ? /zoom|isolate|show me only|declutter/i : /focus|work on|switch|aim|move to|go to|back to/i;
-    const clause = q.split(/,|;| and | then /i).find((c) => verbs.test(c)) ?? q;
-    const qt = toks(clause);
-    const score = (n: any) => { const nt = toks(`${n.title ?? ''} ${n.content}`); let c = 0; for (const w of qt) if (nt.has(w)) c++; return c; };
-    // Only rescue picks with ZERO overlap with that clause (parent-bias or
-    // wrong-branch picks). A pick that matches at all stands. Rescue searches
-    // the WHOLE map — the right node may not be under the wrong pick.
-    if (score(picked) > 0) return picked;
-    let best = picked, bestScore = 0;
-    for (const n of map.nodes) {
-      if (n.status === 'removed') continue;
-      const sc = score(n);
-      if (sc > bestScore) { best = n; bestScore = sc; }
-    }
-    return best;
-  };
+  const deepestMatch = (q: string, picked: any, kind: 'focus' | 'zoom' = 'focus') => rescueTarget(q, picked, map.nodes, kind);
   const resolve = (raw: unknown) => {
     const id = String(raw ?? '').replace(/[\[\]]/g, '');
     return id ? map.nodes.find((n) => n.id === id || n.id.startsWith(id)) : undefined;
@@ -171,14 +189,20 @@ export async function answerMapQuestion(
       });
       return `RECENT MAP HISTORY (requested, newest first):\n${evs.join('\n') || '(no events)'}`;
     };
+    const idx = statusIndex(map.nodes);
+    const favs = store.getFavorites().map((id) => map.nodes.find((n) => n.id === id)).filter(Boolean) as any[];
+    const litNames = [...litSet].map((id) => map.nodes.find((n) => n.id === id)).filter(Boolean).slice(0, 40).map((n: any) => `${nm(n)} [${n.id.slice(0, 8)}]`);
     const baseParts = [
           `THE MAP (▶ = focus; (dim) = dimmed; ids in [brackets]):\n${renderTree(map, { ids: true, focusId: chat?.focusContainerId })}`,
-          focus ? `CURRENT FOCUS: "${focus.title || focus.content}". Lit nodes: ${litSet.size}.` : '',
+          // M218: mechanical and complete — the guide answers "what is open" from here, never by skimming the tree.
+          `STATUS INDEX (mechanical, complete — answer questions about what is unsolved / open / pending / active FROM THIS, with its true count):\ncounts by status: ${Object.entries(idx.counts).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(' · ')}\nUNSETTLED (${idx.unsettled.length}): ${idx.unsettled.length ? idx.unsettled.slice(0, 80).map((n: any) => `[${n.id.slice(0, 8)}] ${nm(n)} (${n.type ? n.type + ', ' : ''}${n.status})`).join(' · ') + (idx.unsettled.length > 80 ? ` · … ${idx.unsettled.length - 80} more` : '') : '(none)'}\nNote: "active" is a status the import gives chapter headings; it does not mean unsolved.`,
+          focus ? `CURRENT FOCUS: "${focus.title || focus.content}". LIT (${litSet.size}): ${litNames.join(', ') || '(nothing)'}${litSet.size > 40 ? ' …' : ''}` : '',
+          `FAVORITES (${favs.length}): ${favs.map((n: any) => `${nm(n)} [${n.id.slice(0, 8)}]`).join(', ') || '(none)'}`,
           dots.length ? `OPEN DOTS:\n${dots.join('\n')}` : 'No open dots.',
           otherProjects.length ? `OTHER MAPS (completely separate): ${otherProjects.map((pr) => `"${pr.name}"`).join(', ')}` : '',
           ...history.slice(-4).map((h) => `EARLIER IN THIS CHAT:\nUSER: ${h.q}\nYOU: ${h.a}`),
     ].filter(Boolean);
-    const tailParts = [`THE USER ASKS:\n${question.slice(0, 1500)}`, 'Answer as the map guide.'];
+    const tailParts = [`THE USER ASKS:\n${question.slice(0, 1500)}`, 'Answer as the map guide.' + statusConsult(store, projectId, chat?.focusContainerId, 'full')];
     let parsed: any;
     let extras: string[] = [];
     for (let pass = 1; pass <= 2; pass++) {
@@ -230,9 +254,8 @@ export async function answerMapQuestion(
         return query ? { kind: 'search', instruction: query } : undefined;
       }
       if (a?.kind === 'favorite') {
-        const picked = resolve(a.nodeId);
-        if (!picked) return undefined;
-        const n = deepestMatch(question, picked);
+        const n = resolve(a.nodeId);
+        if (!n) return undefined;
         return { kind: 'favorite', nodeId: n.id, nodeName: n.title || n.content.slice(0, 60) };
       }
       if (a?.kind === 'merge') {
@@ -260,8 +283,11 @@ export async function answerMapQuestion(
     // cap 4, delegation kinds ejected from plans, tidy last (it opens its own
     // approval), cross-step lit/dim contradictions cancel (audited).
     const rawSteps: any[] = Array.isArray(parsed.actions) && parsed.actions.length ? parsed.actions : (parsed.action ? [parsed.action] : []);
-    let steps: MapChatAction[] = rawSteps.slice(0, 4).map((a: any) => resolveAction(a))
+    let steps: MapChatAction[] = rawSteps.slice(0, 40).map((a: any) => resolveAction(a))
       .filter((x: MapChatAction | undefined): x is MapChatAction => Boolean(x));
+    // M218: the same node twice in one plan is one step (two favorites once
+    // collapsed onto one node and the user saw "2 of 3").
+    { const seen = new Set<string>(); steps = steps.filter((st) => { const k = `${st.kind}:${st.nodeId ?? ''}`; if (st.nodeId && seen.has(k)) return false; seen.add(k); return true; }); }
     if (steps.length > 1) {
       steps = steps.filter((st) => !['autofocus', 'autolight', 'autozoom', 'search', 'merge', 'mergeproject'].includes(st.kind));
       steps.sort((x, y) => (x.kind === 'tidy' ? 1 : 0) - (y.kind === 'tidy' ? 1 : 0));

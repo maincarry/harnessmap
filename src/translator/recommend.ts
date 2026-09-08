@@ -26,6 +26,32 @@ const SCHEMA = {
   properties: { containerId: { type: 'string' }, reason: { type: 'string' } },
 } as const;
 
+// M200/M218: the word guards, shared with the merged re-aim. A question names
+// its topic in its own words: when the model's pick shares no words with the
+// text but some node shares two RARE ones (in under 5% of nodes), the aim
+// goes there; then the best-matching descendant of that node wins.
+export function retargetByWords(store: Store, map: { nodes: any[] }, text: string, pickedId: string): { id: string; whole: boolean } {
+  const STOP = new Set(['the', 'this', 'that', 'with', 'about', 'want', 'focus', 'work', 'stuff', 'not']);
+  const toks = (t: string) => new Set(t.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)));
+  const live = map.nodes.filter((n: any) => n.status !== 'removed');
+  const words = new Map<string, Set<string>>(); const df = new Map<string, number>();
+  for (const n of live) { const ws = toks(`${n.title ?? ''} ${n.content}`); words.set(n.id, ws); for (const w of ws) df.set(w, (df.get(w) ?? 0) + 1); }
+  const cap = Math.max(3, Math.ceil(live.length * 0.05));
+  const rare = [...toks(text)].filter((w) => (df.get(w) ?? 0) > 0 && (df.get(w) ?? 0) <= cap);
+  const pickedWords = words.get(pickedId) ?? new Set<string>();
+  let whole = pickedId;
+  if (rare.length >= 2 && !rare.some((w) => pickedWords.has(w))) {
+    let best = pickedId, bestN = 1;
+    for (const n of live) { const c = rare.filter((w) => words.get(n.id)!.has(w)).length; if (c > bestN) { best = n.id; bestN = c; } }
+    whole = best;
+  }
+  const qt = toks(text);
+  const score = (id: string) => { const n = store.getNode(id); if (!n || n.status === 'removed') return -1; const nt = toks(`${n.title ?? ''} ${n.content}`); let c = 0; for (const w of qt) if (nt.has(w)) c++; return c; };
+  let best = whole, bestScore = score(whole);
+  for (const id of descendantNodes(store, whole)) { const sc = score(id); if (sc > bestScore) { best = id; bestScore = sc; } }
+  return { id: best, whole: whole !== pickedId };
+}
+
 export interface TopicRec { containerId: string; name: string; reason: string }
 
 export async function proposeTopicRec(
@@ -39,33 +65,6 @@ export async function proposeTopicRec(
   const tail = tailOverride ?? store.getTurns(chatId).slice(-6)
     .map((t) => `${t.role.toUpperCase()}: ${t.content.slice(0, 400)}`).join('\n');
 
-  // Mechanical deepest-match guard (same haiku parent-bias as mapchat, bench-
-  // proven): when the user's direction names something more specific than the
-  // picked node, retarget to the best-matching descendant.
-  const STOP = new Set(['the', 'this', 'that', 'with', 'about', 'want', 'focus', 'work', 'stuff', 'not']);
-  const toks = (t: string) => new Set(t.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)));
-  // M200 guard: a question names its topic in its own words. When the model's
-  // pick shares no words with the latest turn but some node anywhere shares
-  // two RARE ones (rare = in under 5% of nodes), the focus goes there.
-  const wholeMapMatch = (text: string, pickedId: string): string => {
-    const live = map.nodes.filter((n: any) => n.status !== 'removed');
-    const words = new Map<string, Set<string>>(); const df = new Map<string, number>();
-    for (const n of live) { const ws = toks(`${n.title ?? ''} ${n.content}`); words.set(n.id, ws); for (const w of ws) df.set(w, (df.get(w) ?? 0) + 1); }
-    const cap = Math.max(3, Math.ceil(live.length * 0.05));
-    const rare = [...toks(text)].filter((w) => (df.get(w) ?? 0) > 0 && (df.get(w) ?? 0) <= cap);
-    const pickedWords = words.get(pickedId) ?? new Set<string>();
-    if (rare.length < 2 || rare.some((w) => pickedWords.has(w))) return pickedId;
-    let best = pickedId, bestN = 1;
-    for (const n of live) { const c = rare.filter((w) => words.get(n.id)!.has(w)).length; if (c > bestN) { best = n.id; bestN = c; } }
-    return best;
-  };
-  const deepestMatch = (text: string, pickedId: string): string => {
-    const qt = toks(text);
-    const score = (id: string) => { const n = store.getNode(id); if (!n || n.status === 'removed') return -1; const nt = toks(`${n.title ?? ''} ${n.content}`); let c = 0; for (const w of qt) if (nt.has(w)) c++; return c; };
-    let best = pickedId, bestScore = score(pickedId);
-    for (const id of descendantNodes(store, pickedId)) { const sc = score(id); if (sc > bestScore) { best = id; bestScore = sc; } }
-    return best;
-  };
   try {
     const parsed = await call({
       task: 'recommend', system: (kind === 'focus' ? FOCUS_SYSTEM : ZOOM_SYSTEM) + systemCard(store, projectId, kind === 'focus' ? 'the FOCUS agent' : 'the ZOOM agent'), maxTokens: 500, schema: SCHEMA as any, timeoutMs: 90_000,
@@ -76,7 +75,7 @@ export async function proposeTopicRec(
         'Recommend.'].join('\n\n') + statusConsult(store, projectId, undefined, 'lighting'),
     });
     const rawId = String(parsed.containerId ?? '').replace(/[\[\]]/g, '');
-    const c = map.nodes.find((x) => x.id === rawId || x.id.startsWith(rawId));
+    const c = map.nodes.find((x) => x.status !== 'removed' && (x.id === rawId || x.id.startsWith(rawId)));
     if (!c) {
       console.error(`[recommend:${kind}] unresolvable id from model:`, JSON.stringify(parsed));
       return { error: 'the model recommended an unknown topic — try again' };
@@ -84,9 +83,8 @@ export async function proposeTopicRec(
     let targetId = c.id;
     const direction = feedback || (kind === 'focus' ? (tailOverride ?? '') : '');
     if (direction) {
-      const whole = wholeMapMatch(direction, c.id);
-      const better = deepestMatch(direction, whole);
-      if (better !== c.id) { store.audit('recommend_retarget', { from: c.id.slice(0, 8), to: better.slice(0, 8), whole: whole !== c.id }); targetId = better; }
+      const r = retargetByWords(store, map, direction, c.id);
+      if (r.id !== c.id) { store.audit('recommend_retarget', { from: c.id.slice(0, 8), to: r.id.slice(0, 8), whole: r.whole }); targetId = r.id; }
     }
     const t = store.getNode(targetId)!;
     return { containerId: t.id, name: t.title || t.content, reason: parsed.reason ?? '' };

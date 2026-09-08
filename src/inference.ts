@@ -46,21 +46,28 @@ const FANCY = process.env.HARNESSMAP_IMPORT_MODEL ?? 'claude-opus-4-8';
 // (settings `model:<task>`) over these defaults. The catalog below is what
 // the settings page shows; the resolver is installed by the server.
 export type Tier = 'cheap' | 'smart' | 'fancy';
-export interface RoleInfo { task: Task; label: string; what: string; tier: Tier; perTurn: boolean }
+export type RoleGroup = 'per-turn' | 'brain' | 'on-demand' | 'helper';
+export interface RoleInfo { task: Task; label: string; what: string; tier: Tier; perTurn: boolean; group: RoleGroup }
+export const ROLE_GROUPS: { id: RoleGroup; label: string; what: string }[] = [
+  { id: 'per-turn', label: 'the per-turn agent', what: 'runs on every exchange without being asked — files the round, keeps memory and the summary current, re-aims focus and light (in product mode). Its model sets the running cost.' },
+  { id: 'brain', label: 'the brain', what: 'oversees the map in the background — measures it, reviews its structure, assesses every area, writes the overall report; proposes reorganizations (tidy is its hands, you approve)' },
+  { id: 'on-demand', label: 'on demand', what: 'runs when you act — talk to the map, import a source' },
+  { id: 'helper', label: 'helpers', what: 'small utilities: names, fit, homes for to-sort items, focus nudges' },
+];
 export const ROLES: RoleInfo[] = [
-  { task: 'filer', label: 'filer', what: 'files each exchange onto the map — every turn, the only writer that acts without approval (within the lit scope); import chunks file on this tier too', tier: 'cheap', perTurn: true },
-  { task: 'memory', label: 'memory agent', what: "writes and updates node memory (the organs), the taste digest, merge memories", tier: 'cheap', perTurn: true },
-  { task: 'summary', label: 'rolling summary', what: "the running conversation summary the chat agent's block carries", tier: 'cheap', perTurn: true },
-  { task: 'autolit', label: 'lighting and focus agents', what: 'propose focus and light for approval; under re-aim they run before every question', tier: 'cheap', perTurn: true },
-  { task: 'recommend', label: 'recommendation agent', what: 'the red-dot focus suggestions', tier: 'cheap', perTurn: false },
-  { task: 'place', label: 'placement agent', what: 'suggests homes for "to sort" items', tier: 'cheap', perTurn: false },
-  { task: 'relations', label: 'fit writer', what: 'how a node fits its surroundings (the fit organ)', tier: 'cheap', perTurn: false },
-  { task: 'title', label: 'naming agent', what: 'short display names', tier: 'cheap', perTurn: false },
-  { task: 'mapchat', label: 'map guide (talk to map)', what: 'answers your questions about the map and drafts proposals; interactive, a few calls a day', tier: 'smart', perTurn: false },
-  { task: 'tidy', label: 'tidy agent', what: 'restructures a subtree — a proposal you approve', tier: 'smart', perTurn: false },
-  { task: 'mapcheck', label: "the brain's reporters", what: 'the structural review and the per-area assessments', tier: 'smart', perTurn: false },
-  { task: 'brain', label: 'the brain (overall report)', what: 'the overall map status report, import verification, the history report', tier: 'fancy', perTurn: false },
-  { task: 'import', label: 'import agent', what: 'the source summary and the finish pass of an import (chunks file on the filer tier)', tier: 'fancy', perTurn: false },
+  { task: 'filer', label: 'filer', what: 'files each exchange onto the map — every turn, the only writer that acts without approval (within the lit scope); import chunks file on this tier too', tier: 'cheap', perTurn: true, group: 'per-turn' },
+  { task: 'memory', label: 'memory agent', what: "writes and updates node memory (the organs), the taste digest, merge memories", tier: 'cheap', perTurn: true, group: 'per-turn' },
+  { task: 'summary', label: 'rolling summary', what: "the running conversation summary the chat agent's block carries", tier: 'cheap', perTurn: true, group: 'per-turn' },
+  { task: 'autolit', label: 'lighting and focus agents', what: 'propose focus and light for approval; under re-aim they run before every question', tier: 'cheap', perTurn: true, group: 'per-turn' },
+  { task: 'recommend', label: 'recommendation agent', what: 'the red-dot focus suggestions', tier: 'cheap', perTurn: false, group: 'helper' },
+  { task: 'place', label: 'placement agent', what: 'suggests homes for "to sort" items', tier: 'cheap', perTurn: false, group: 'helper' },
+  { task: 'relations', label: 'fit writer', what: 'how a node fits its surroundings (the fit organ)', tier: 'cheap', perTurn: false, group: 'helper' },
+  { task: 'title', label: 'naming agent', what: 'short display names', tier: 'cheap', perTurn: false, group: 'helper' },
+  { task: 'mapchat', label: 'map guide (talk to map)', what: 'answers your questions about the map and drafts proposals; interactive, a few calls a day', tier: 'smart', perTurn: false, group: 'on-demand' },
+  { task: 'tidy', label: 'tidy agent', what: 'restructures a subtree — a proposal you approve', tier: 'smart', perTurn: false, group: 'brain' },
+  { task: 'mapcheck', label: "the brain's reporters", what: 'the structural review and the per-area assessments', tier: 'smart', perTurn: false, group: 'brain' },
+  { task: 'brain', label: 'the brain (overall report)', what: 'the overall map status report, import verification, the history report', tier: 'fancy', perTurn: false, group: 'brain' },
+  { task: 'import', label: 'import agent', what: 'the source summary and the finish pass of an import (chunks file on the filer tier)', tier: 'fancy', perTurn: false, group: 'on-demand' },
 ];
 export const MODEL_CATALOG: { id: string; note: string }[] = [
   { id: 'claude-haiku-4-5', note: 'fastest, cheapest' },

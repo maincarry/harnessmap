@@ -14,7 +14,7 @@ import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/r
 import { matchNodes } from './map/match.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
 import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
-import { proposeAutolit, litSetCost, litCap, resultingLit } from './translator/autolit.js';
+import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion } from './translator/mapchat.js';
@@ -25,7 +25,7 @@ import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots } from './translator/importer.js';
-import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, MODEL_CATALOG, defaultModelFor, setModelResolver, backendName } from './inference.js';
+import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, MODEL_CATALOG, defaultModelFor, setModelResolver, backendName } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync } from 'node:fs';
@@ -1329,6 +1329,28 @@ const server = Bun.serve({
 
     // Auto-lit (v0.3, Jacob's Z2): the model recommends AND applies background
     // lighting for the current focus.
+    // M218: merged re-aim — one call picks focus + lighting, applied through the same guard.
+    const reaimMatch = path.match(/^\/api\/chats\/([\w-]+)\/reaim$/);
+    if (reaimMatch && req.method === 'POST') {
+      const chatId = reaimMatch[1];
+      const chat = store.getChats(projectId).find((x) => x.id === chatId);
+      if (!chat) return json({ error: 'unknown chat' }, 404);
+      const body = await req.json().catch(() => ({})) as { tail?: string; apply?: boolean };
+      const r = await proposeReaim(store, projectId, chatId, body.tail ?? '');
+      if ('error' in r) return json({ error: r.error }, 502);
+      if (body.apply !== false) {
+        if (r.focus !== chat.focusContainerId) { store.setChatFocus(chatId, r.focus); chats.noteMapChange(chatId, `focus moved to "${r.focusName}"`); }
+        clearNudges();
+        const pathA = focusPathOf(chatId);
+        for (const id of r.dim) for (const d of [id, ...descendantNodes(store, id)]) { if (!pathA.has(d)) store.setLit(chatId, d, false); }
+        for (const id of r.lit) for (const d of [id, ...descendantNodes(store, id)]) store.setLit(chatId, d, true);
+        if (r.lit.length + r.dim.length > 0) chats.noteMapChange(chatId, `background lighting auto-adjusted: ${r.summary}`);
+        reAnchorSessions(projectId, 'auto-light applied');
+        broadcast({ type: 'map', ...state() });
+      }
+      store.audit('reaim_merged', { focus: r.focus.slice(0, 8), lit: r.lit.length, dim: r.dim.length, over: !!r.overBudget });
+      return json({ ok: true, focus: r.focus, name: r.focusName, reason: r.reason, summary: r.summary, cost: r.cost, overBudget: r.overBudget, lit: r.lit.length, dim: r.dim.length });
+    }
     const autolitMatch = path.match(/^\/api\/chats\/([\w-]+)\/autolit$/);
     if (autolitMatch && req.method === 'POST') {
       const chatId = autolitMatch[1];
@@ -2074,11 +2096,21 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // additions (approved in the UI, which appends here).
     // M217 (Mark): one model per role, chosen here; empty = the default.
     if (path === '/api/models' && req.method === 'GET') {
-      return json({ roles: ROLES.map((r) => ({ ...r, default: defaultModelFor(r.task), chosen: store.getSetting(`model:${r.task}`) || '', current: modelFor(r.task) })), catalog: MODEL_CATALOG, backend: backendName() });
+      return json({ groups: ROLE_GROUPS, roles: ROLES.map((r) => ({ ...r, default: defaultModelFor(r.task), chosen: store.getSetting(`model:${r.task}`) || '', current: modelFor(r.task) })), catalog: MODEL_CATALOG, backend: backendName() });
     }
     if (path === '/api/models' && req.method === 'POST') {
       const b = await req.json() as { task?: string; model?: string; reset?: boolean };
       if (b.reset) { for (const r of ROLES) store.setSetting(`model:${r.task}`, ''); store.audit('models_reset', {}); return json({ ok: true }); }
+      // A whole group at once ("the per-turn agent on haiku").
+      if (b.task?.startsWith('group:')) {
+        const g = b.task.slice(6); const members = ROLES.filter((r) => r.group === g);
+        if (!members.length) return json({ error: 'unknown group' }, 400);
+        const model = String(b.model ?? '').trim();
+        if (model && !/^[a-z0-9.-]{3,60}$/.test(model)) return json({ error: 'model ids are lowercase letters, digits, dots and dashes' }, 400);
+        for (const r of members) store.setSetting(`model:${r.task}`, model);
+        store.audit('model_chosen', { role: `group:${g}`, model: model || '(default)' });
+        return json({ ok: true, group: g, roles: members.map((r) => ({ task: r.task, current: modelFor(r.task) })) });
+      }
       const role = ROLES.find((r) => r.task === b.task);
       if (!role) return json({ error: 'unknown role' }, 400);
       const model = String(b.model ?? '').trim();
