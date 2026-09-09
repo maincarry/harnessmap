@@ -3,7 +3,7 @@
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 
 // M91: installed life. All user data lives in ONE place (told to the user):
 // ~/.harnessmap — db, server log, port file. Overridable for dev/playground.
@@ -18,6 +18,33 @@ function port(): string {
   try { return readFileSync(join(HOME, 'port'), 'utf8').trim() || '8790'; } catch { return '8790'; }
 }
 export const BASE = process.env.HARNESSMAP_URL ?? `http://127.0.0.1:${port()}`;
+
+// M239 (Jacob, 2026-09-09: "The map only functions with an explicit open map
+// command, and must be restricted to one host session"). Default OFF. The
+// user says "open map" in a session; that arms ~/.harnessmap/open-next; the
+// next hook from that session claims it and its session id becomes THE
+// opened session (~/.harnessmap/session). Every other session's hooks exit at
+// once: no injection, no filing. "close map" removes the session file.
+// HARNESSMAP_SESSION_GATE=open lets a test harness treat every session as
+// opened; the smoke suite proves the gate with it unset.
+export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmit' | 'Stop' | 'PreCompact' | 'PostCompact'): boolean {
+  if (process.env.HARNESSMAP_SESSION_GATE === 'open') return true;
+  const sid = String(input?.session_id ?? '');
+  const sessFile = join(HOME, 'session'), armFile = join(HOME, 'open-next');
+  let opened = ''; try { opened = readFileSync(sessFile, 'utf8').trim(); } catch {}
+  if (sid && opened && opened === sid) return true;
+  if (existsSync(armFile)) {
+    // the session that speaks first after "open map" is the one it was said in
+    try { mkdirSync(HOME, { recursive: true }); writeFileSync(sessFile, sid); } catch {}
+    try { unlinkSync(armFile); } catch {}
+    return true;
+  }
+  if (event === 'SessionStart' && !opened) {
+    // Installed but not attached: one line, once per session, so the user knows the command. It informs; it asks for nothing.
+    console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: '[harnessmap] The map is installed but not attached to this session. If you want it, say "open map" — it attaches to this session only.' } }));
+  }
+  return false;
+}
 
 export async function readHookInput(): Promise<any> {
   try { return await new Response(Bun.stdin.stream()).json(); } catch { return {}; }

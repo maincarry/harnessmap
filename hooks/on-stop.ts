@@ -1,7 +1,8 @@
 // Stop: the round is over — hand it to map-core (which slices the transcript
 // server-side, runs the filer, and records provenance).
-import { BASE, readHookInput } from './common.ts';
+import { BASE, readHookInput, gateSession } from './common.ts';
 const input = await readHookInput();
+if (!gateSession(input, 'Stop')) process.exit(0); // M239: only the opened session
 try {
   await fetch(`${BASE}/api/harness/observe`, {
     method: 'POST', headers: { 'content-type': 'application/json' },

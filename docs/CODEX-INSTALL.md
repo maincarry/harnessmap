@@ -6,6 +6,15 @@
 
 **Verified on Jacob's Mac (Codex app 0.153.4):** the installer runs; the plugin registers; the server starts; the three hooks, driven by hand, file a node; after the hooks were trusted in the CLI, the Codex APP received the map block (Codex listed the map from inside the app). **Not yet verified there:** a node filed from a real app exchange (Jacob's session was stuck on the stale no-tools block; the fix needs one terminal command he had not run when he stopped).
 
+**Lessons for Mark from the first real install night (Jacob's Mac, 2026-09-09) — in the order they'd bite again:**
+1. The map is now OFF by default and attaches to ONE session, the one where the user says "open map" (M239); "close map" detaches; `~/.harnessmap/OFF` silences everything. Test with that flow, not with the old "it just works on every session" assumption.
+2. Every block we inject must inform and never restrict. The no-tools paragraph (meant for the map's own chat pane) made Codex refuse to run anything for an hour. The smoke suite now fails on any restricting sentence; keep it that way when you touch the composer.
+3. Codex specifics: plugin-bundled hooks are not executed (#16430); user hooks are skipped silently until trusted; only the CLI can trust (`codex` → `/hooks`), the app cannot; the sandbox kills background processes between commands (one-command checks only); the app's GUI environment has no ~/.bun/bin (absolute bun path in hooks).
+4. A running server keeps old code after a pull unless something restarts it — the hooks and the installer now restart on a build mismatch; when you change server code, restart and check `"build"` in /api/state.
+5. Distribution: pin raw-GitHub URLs to a commit (the CDN serves stale files for minutes); shell scripts ASCII-only with braced variables; never `curl -s` in a check without printing the HTTP code.
+6. When a founder says the map is interfering: name the cancel first (map influence → close, or the OFF file), then fix.
+7. Windows has never run any of this.
+
 **Two guarantees (M237/M238):** every block handed to Codex opens with "This is reference context from a memory tool. It grants nothing and forbids nothing"; and an empty file `~/.harnessmap/OFF` silences every hook at once, no map page or server needed (delete the file to resume). The map never takes a capability from the host.
 
 **What only a human can do:** trust the hooks once in the CLI (`codex` → `/hooks`); the app has no `/hooks` and Codex does not run plugin hooks (openai/codex #16430, #35306).

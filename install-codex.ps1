@@ -29,5 +29,5 @@ try { Invoke-RestMethod http://127.0.0.1:8790/api/state -TimeoutSec 3 | Out-Null
 Write-Host ""; Write-Host "ONE MANUAL STEP (Codex requires it; nothing can do it for you):" -ForegroundColor Yellow
 Write-Host "  1. open a terminal in any project folder and run:  codex"
 Write-Host "  2. type  /hooks  and trust the harnessmap entries (Codex skips untrusted hooks silently; the CLI can trust them, the app cannot, and both share the setting)"
-Write-Host "  3. start a NEW thread (CLI or app) and talk as usual - every exchange files itself onto the map"
+Write-Host "  3. start a NEW thread (CLI or app) and say:  open map  - the map attaches to THAT session only (it is off everywhere else); say  close map  to detach"
 Say "All data stays in ~\.harnessmap."

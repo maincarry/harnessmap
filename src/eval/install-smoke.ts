@@ -32,6 +32,7 @@ const HOOK_ENV: Record<string, string | undefined> = {
   ...process.env,
   HARNESSMAP_HOME: HOME,
   HARNESSMAP_URL: BASE,
+  HARNESSMAP_SESSION_GATE: 'open', // M239: the harness treats every session as opened; §6d proves the gate with it unset
   PORT: String(PORT),
   ANTHROPIC_API_KEY: undefined,      // fresh machines have no key; nothing may require one
   ANTHROPIC_AUTH_TOKEN: undefined,
@@ -134,6 +135,26 @@ console.log('\n== 6c. the host block informs, never restricts (M235 rule) ==');
   const off = await runHook('on-prompt.ts', { session_id: 'rule-2', prompt: 'anything', cwd: PROJ });
   ul(join(HOME, 'OFF'));
   check('with ~/.harnessmap/OFF present a hook injects nothing', off.code === 0 && !ctxOf(off.out));
+}
+
+console.log('\n== 6d. default OFF: the map attaches only to the session that said "open map" (M239) ==');
+{
+  const gatedEnv = { ...HOOK_ENV, HARNESSMAP_SESSION_GATE: undefined } as any;
+  const run = (file: string, payload: any) => { const p = Bun.spawnSync(['bun', 'run', join('hooks', file)], { env: gatedEnv, stdin: new TextEncoder().encode(JSON.stringify(payload)), stdout: 'pipe', stderr: 'pipe' }); return { code: p.exitCode, out: p.stdout.toString() }; };
+  const { unlinkSync: ul2, existsSync: ex2, writeFileSync: wf2, readFileSync: rf2 } = await import('node:fs');
+  try { ul2(join(HOME, 'session')); } catch {} try { ul2(join(HOME, 'open-next')); } catch {}
+  const a = run('on-prompt.ts', { session_id: 'gate-A', prompt: 'a real question about the work', cwd: PROJ });
+  check('an un-opened session gets NO injection', a.code === 0 && !ctxOf(a.out));
+  const s0 = run('session-start.ts', { session_id: 'gate-A', cwd: PROJ });
+  check('an un-opened session start gets only the one-line hint', /say "open map"/.test(ctxOf(s0.out)) && !/map state/.test(ctxOf(s0.out)));
+  wf2(join(HOME, 'open-next'), '');
+  const b = run('on-prompt.ts', { session_id: 'gate-B', prompt: 'a real question about the work', cwd: PROJ });
+  check('"open map" arms the next session that speaks: it is claimed and served', b.code === 0 && ctxOf(b.out).length > 50 && rf2(join(HOME, 'session'), 'utf8').trim() === 'gate-B' && !ex2(join(HOME, 'open-next')));
+  const c = run('on-prompt.ts', { session_id: 'gate-C', prompt: 'a real question about the work', cwd: PROJ });
+  check('a second session stays out while the first holds the map', c.code === 0 && !ctxOf(c.out));
+  const st = run('on-stop.ts', { session_id: 'gate-C', turn_id: 't1', last_assistant_message: 'this must not be filed' });
+  check('an un-opened session\'s rounds are not filed either', st.code === 0);
+  try { ul2(join(HOME, 'session')); } catch {}
 }
 
 console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');

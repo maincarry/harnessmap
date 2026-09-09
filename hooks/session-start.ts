@@ -3,9 +3,10 @@
 // announcements (first-run intro / new-project line / update note) as
 // additionalContext so the AGENT tells the user. The full map block is
 // injected per-turn via UserPromptSubmit — not here, to avoid doubling.
-import { BASE, readHookInput, ensureServer } from './common.ts';
+import { BASE, readHookInput, ensureServer, gateSession } from './common.ts';
 
 const input = await readHookInput();
+if (!gateSession(input, 'SessionStart')) process.exit(0); // M239: only the opened session
 const { up, updateNote } = await ensureServer();
 if (!up) {
   // M176: a warning may still need to reach the user (e.g. the port is a

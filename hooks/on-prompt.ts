@@ -1,8 +1,9 @@
 // UserPromptSubmit: map context rides along — FULL block on the session's
 // first turn, deltas after, nothing when nothing changed (M59: the
 // append-only transcript must not accumulate snapshots).
-import { BASE, readHookInput } from './common.ts';
+import { BASE, readHookInput, gateSession } from './common.ts';
 const input = await readHookInput();
+if (!gateSession(input, 'UserPromptSubmit')) process.exit(0); // M239: only the opened session
 // M99: stash the user's prompt server-side — the ROUND's user text now comes
 // from the hook itself, not from parsing CC's transcript files (whose format
 // and location keep changing; a format change silently blanked user turns).
