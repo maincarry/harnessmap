@@ -44,7 +44,8 @@ const SMART = process.env.HARNESSMAP_SMART_MODEL ?? 'claude-sonnet-4-6';
 const FANCY = process.env.HARNESSMAP_IMPORT_MODEL ?? 'claude-opus-4-8';
 // M220: the same three tiers on the codex backend (OpenAI ids; overridable —
 // verified per machine, the ⚙ models page shows what answers).
-const CODEX_CHEAP = process.env.HARNESSMAP_CODEX_CHEAP ?? 'gpt-5.4-mini';
+// gpt-5.4-mini retired from Codex with ChatGPT sign-in on 2026-08-31 (Mark's Windows run hit the 400); luna is the 5.6 budget tier
+const CODEX_CHEAP = process.env.HARNESSMAP_CODEX_CHEAP ?? 'gpt-5.6-luna';
 const CODEX_SMART = process.env.HARNESSMAP_CODEX_SMART ?? 'gpt-5.6-terra';
 const CODEX_FANCY = process.env.HARNESSMAP_CODEX_FANCY ?? 'gpt-5.6-sol';
 // M217 (Mark, 2026-09-08): one model per ROLE, chosen by the user in ⚙ models
@@ -84,7 +85,6 @@ const CLAUDE_CATALOG: { id: string; note: string }[] = [
   { id: 'claude-fable-5-1', note: 'most capable available' },
 ];
 const CODEX_CATALOG: { id: string; note: string }[] = [
-  { id: 'gpt-5.4-mini', note: 'small and cheap' },
   { id: 'gpt-5.6-luna', note: 'most cost-efficient of the 5.6 line' },
   { id: 'gpt-5.6-terra', note: 'balanced, everyday work' },
   { id: 'gpt-5.6-sol', note: 'flagship' },
@@ -224,6 +224,8 @@ async function apiCall(opts: CallOpts, model: string): Promise<any> {
 // (-o), a schema is enforced by --output-schema; ephemeral (no session
 // rollout), read-only sandbox, no git check. Same two-attempt JSON discipline
 // as the subscription path.
+const codexUnsupported = new Set<string>(); // model ids this account's Codex has refused (M242)
+export const codexRefusedModels = (): string[] => [...codexUnsupported];
 async function codexCall(opts: CallOpts, model: string): Promise<any> {
   const { mkdtempSync, writeFileSync, readFileSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
@@ -234,11 +236,12 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
   if (schemaFile) writeFileSync(schemaFile, JSON.stringify(opts.schema));
   const jsonNote = opts.schema ? `\n\nRESPOND WITH JSON ONLY — a single JSON object matching this schema (no prose, no code fences):\n${JSON.stringify(opts.schema)}` : '';
   let lastErr = '';
+  let useModel: string | null = codexUnsupported.has(model) ? null : model; // null = the account's default model
   try {
     for (let attempt = 1; attempt <= 2; attempt++) {
       const user = attempt === 1 ? opts.user : `${opts.user}\n\n(Your previous reply was not valid JSON for the schema: ${lastErr}. Reply again with ONLY the JSON object.)`;
       const prompt = `SYSTEM INSTRUCTIONS:\n${opts.system}${jsonNote}\n\n---\n\n${user}`;
-      const args = ['codex', 'exec', '-', '-m', model, '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '-C', dir, '-o', outFile, ...(schemaFile ? ['--output-schema', schemaFile] : [])];
+      const args = ['codex', 'exec', '-', ...(useModel ? ['-m', useModel] : []), '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '-C', dir, '-o', outFile, ...(schemaFile ? ['--output-schema', schemaFile] : [])];
       const env: Record<string, string> = {}; for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v;
       const p = Bun.spawn(args, { stdin: new Response(prompt), stdout: 'pipe', stderr: 'pipe', env });
       const limitMs = opts.timeoutMs ?? 120_000;
@@ -248,6 +251,14 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
       const code = await p.exited; clearTimeout(timer);
       if (process.env.HARNESSMAP_CLI_STDERR === '1' && stderr) console.error('[codex stderr]', stderr.slice(0, 800));
       if (timedOut) throw new Error(`codex exec timed out after ${limitMs}ms`);
+      // M242 (Mark, Windows): a ChatGPT sign-in allows only some model ids
+      // (plan-dependent; ids retire). When Codex refuses the id, remember it
+      // and run this call on the account's default model instead of failing.
+      if (useModel && code !== 0 && /model is not supported/i.test(stderr)) {
+        codexUnsupported.add(useModel);
+        console.error(`[inference] codex refuses model '${useModel}' on this account — using the account's default model for it from now on (pick another in ⚙ models)`);
+        useModel = null; attempt--; continue;
+      }
       let text = ''; try { text = readFileSync(outFile, 'utf8'); } catch {}
       if (!text.trim()) text = stdout;
       if (code !== 0 && !text.trim()) throw new Error(`codex exec exited ${code}: ${stderr.slice(-300)}`);

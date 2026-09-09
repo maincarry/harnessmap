@@ -19,9 +19,9 @@ $st = State; if ($st -and $st.machine -and ($st.machine.ToLower() -ne $env:COMPU
 $st = State; if ($st) { "state OK: build $($st.build)  running from $($st.appRoot)"; Add "state" "PASS" "build $($st.build) from $($st.appRoot)" } else { "state: no answer"; Add "state" "FAIL" "server did not answer" }
 Say "3. models"; try { $mo = Invoke-RestMethod "$B/api/models" -TimeoutSec 5; "models OK: $(($mo | ConvertTo-Json -Compress -Depth 3).Substring(0, [Math]::Min(300, ($mo | ConvertTo-Json -Compress -Depth 3).Length)))"; Add "models" "PASS" "" } catch { "models: $($_.Exception.Message)"; Add "models" "FAIL" $_.Exception.Message }
 Say "4. hooks, driven by hand (SessionStart, UserPromptSubmit, Stop) - gate opened for the probe session"
-$env:HARNESSMAP_SESSION_GATE = 'open'; Push-Location $App; $sid = "probe-$PID"
+$env:HARNESSMAP_SESSION_GATE = 'open'; Push-Location $App; $sid = "probe-$PID-$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"  # unique per run: a repeated id gets an empty delta, not the block
 $s1 = ('{"session_id":"' + $sid + '","cwd":"' + ($HOME -replace '\\','/') + '/maptest-probe","hook_event_name":"SessionStart"}' | bun run hooks/session-start.ts 2>&1 | Out-String)
-"session-start: $($s1.Substring(0, [Math]::Min(300, $s1.Length)))"; Add "session-start hook" $(if ($s1 -match 'additionalContext') { 'PASS' } else { 'FAIL' }) ""
+"session-start: $(if ($s1.Trim()) { $s1.Substring(0, [Math]::Min(300, $s1.Length)) } else { '(silent - the project is already known; the intro shows once)' })"; Add "session-start hook" $(if ($s1 -match 'additionalContext' -or -not $s1.Trim()) { 'PASS' } else { 'FAIL' }) $(if ($s1 -match 'NOT connected') { 'foreign server' } else { '' })
 $p1 = ('{"session_id":"' + $sid + '","turn_id":"t1","hook_event_name":"UserPromptSubmit","prompt":"we decided the header will be blue because it is calmer"}' | bun run hooks/on-prompt.ts 2>&1 | Out-String)
 "on-prompt: $($p1.Substring(0, [Math]::Min(120, $p1.Length)))"; Add "on-prompt hook" $(if ($p1 -match 'additionalContext') { 'PASS' } else { 'FAIL (no context returned)' }) ""
 ('{"session_id":"' + $sid + '","turn_id":"t1","hook_event_name":"Stop","last_assistant_message":"Noted: blue header, chosen for calm."}' | bun run hooks/on-stop.ts 2>&1) | Out-Null
