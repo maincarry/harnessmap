@@ -23,4 +23,11 @@ if ($pluginOk) {
   Say "registering user-level hooks (plugin install did not succeed, or codex is missing)."
   Push-Location $App; bun run hooks/enable-codex.ts --force; Pop-Location
 }
-Say "The map lives at http://127.0.0.1:8790 once a session starts. All data stays in ~\.harnessmap."
+$srv = Start-Process -FilePath "bun" -ArgumentList "run","src/server.ts" -WorkingDirectory $App -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $HOME ".harnessmap\server.log") -RedirectStandardError (Join-Path $HOME ".harnessmap\server.err.log") -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 6
+try { Invoke-RestMethod http://127.0.0.1:8790/api/state -TimeoutSec 3 | Out-Null; Say "the map is up at http://127.0.0.1:8790"; Start-Process "http://127.0.0.1:8790" } catch { Say "the map server did not answer - see ~\.harnessmap\server.err.log" }
+Write-Host ""; Write-Host "ONE MANUAL STEP (Codex requires it; nothing can do it for you):" -ForegroundColor Yellow
+Write-Host "  1. open a terminal in any project folder and run:  codex"
+Write-Host "  2. type  /hooks  and trust the harnessmap entries (Codex skips untrusted hooks silently; the CLI can trust them, the app cannot, and both share the setting)"
+Write-Host "  3. start a NEW thread (CLI or app) and talk as usual - every exchange files itself onto the map"
+Say "All data stays in ~\.harnessmap."
