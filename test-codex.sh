@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HarnessMap on Codex — the whole verification in ONE command, output made for pasting back:
+# HarnessMap on Codex - the whole verification in ONE command, output made for pasting back:
 #   bash <(curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/main/test-codex.sh)
 # Starts the map server detached, checks state and models, drives the three hooks the way Codex does,
 # waits for the filer, and prints a summary table. Touches nothing in ~/.codex.
@@ -19,4 +19,4 @@ echo '{"session_id":"probe-'$$'","turn_id":"t1","hook_event_name":"Stop","last_a
 N=$(curl -s -m 5 "$B/api/state" | grep -o '"content":"[^"]*[Bb]lue[^"]*"' | head -1); echo "node: ${N:-none yet}"; add "filing (a node about the blue header)" "$([ -n "$N" ] && echo PASS || echo 'FAIL (check the log below)')"
 say "5. log tail"; tail -15 "$LOG" 2>/dev/null | cut -c1-200
 say "SUMMARY (paste this back)"; printf '%s\n' "${res[@]}"
-echo "server left running on $B (log $LOG). Next: quit the Codex app fully, reopen, new thread, say hello — the reply should mention the map."
+echo "server left running on $B (log $LOG). Next: quit the Codex app fully, reopen, new thread, say hello - the reply should mention the map."
