@@ -8,6 +8,7 @@ try {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       session_id: input.session_id,
+      cwd: input.cwd, // M244
       transcript_path: input.transcript_path,
       last_assistant_message: input.last_assistant_message,
     }),

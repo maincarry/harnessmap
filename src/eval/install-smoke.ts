@@ -155,6 +155,13 @@ console.log('\n== 6d. default OFF: the map attaches only to the session that sai
   const st = run('on-stop.ts', { session_id: 'gate-C', turn_id: 't1', last_assistant_message: 'this must not be filed' });
   check('an un-opened session\'s rounds are not filed either', st.code === 0);
   try { ul2(join(HOME, 'session')); } catch {}
+  // M244: a session claimed at its first prompt (its SessionStart ran gated) binds to ITS cwd, not the active project
+  const PROJ2 = join(TMP, 'other-repo'); mkdirSync(PROJ2, { recursive: true });
+  wf2(join(HOME, 'open-next'), '');
+  const d = run('on-prompt.ts', { session_id: 'gate-D', prompt: 'a question from another repo', cwd: PROJ2 });
+  const st2 = await (await fetch(`${BASE}/api/state`)).json();
+  check('a session claimed mid-way is bound to its own cwd project (no SessionStart ever ran for it)', d.code === 0 && ctxOf(d.out).length > 50 && st2.projects.some((p: any) => p.name === 'other-repo'));
+  try { ul2(join(HOME, 'session')); } catch {}
 }
 
 console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');

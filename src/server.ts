@@ -207,6 +207,46 @@ function sessionChat(sessionId: string): string | null {
   const row = (store as any).db.prepare('SELECT chat_id FROM harness_sessions WHERE session_id = ?').get(sessionId) as any;
   return row?.chat_id && store.getChat(row.chat_id) ? row.chat_id : null;
 }
+// M91 binding policy (Mark's grill): subtree-inclusive lookup, then
+// auto-create a project per new directory — each repo gets its own map
+// by default; merges are the escape hatch. The boot placeholder
+// 'default' is ADOPTED (renamed) by the first directory ever bound, so
+// no ghost project lingers in the switcher.
+function projectForCwdOrCreate(cwd: string): string {
+  let pid = store.projectForCwd(cwd);
+  if (!pid) {
+    for (let d = cwd; ; ) { const up = dirname(d); if (up === d) break; d = up; const hit = store.projectForCwd(d); if (hit) { pid = hit; break; } }
+  }
+  if (!pid) {
+    const pname = basename(cwd) || 'workspace';
+    const all = store.listProjects();
+    const adoptable = all.length === 1 && all[0].name === 'default'
+      && store.getNodes(all[0].id).filter((n) => n.status !== 'removed'
+        && n.author !== 'system' // tutorial seeds + tray are furniture, not content (M123/M178)
+        && !((n.title ?? n.content) ?? '').startsWith('to sort')).length <= 1;
+    if (adoptable) { pid = all[0].id; store.renameProject(pid, pname); }
+    else { pid = store.createProject(pname); bootstrapProject(pid); }
+    store.bindCwd(cwd, pid);
+    setActive(pid);
+    store.audit('project_bound', { name: pname, adopted: adoptable });
+  } else if (!store.projectForCwd(cwd)) store.bindCwd(cwd, pid);
+  return pid;
+}
+// M244 (Mark, Windows Codex, 2026-09-10): under the session gate (M239) a
+// session is claimed at its first PROMPT after "open map" — its SessionStart
+// ran gated and never bound a cwd. Such a session fell through sessionPair
+// to the ACTIVE project, so Mark's helloworld turns landed in the check's
+// probe project. Every hook now carries cwd, and a session the server has no
+// cwd for is bound the moment it speaks.
+function ensureSessionBound(sessionId: string | null | undefined, cwd: string | null | undefined): void {
+  if (!sessionId || !cwd) return;
+  if (sessionChat(sessionId)) return;
+  const row = (store as any).db.prepare('SELECT cwd FROM harness_sessions WHERE session_id = ?').get(sessionId) as any;
+  if (row?.cwd) return;
+  const pid = projectForCwdOrCreate(cwd);
+  recordSessionStart(store, sessionId, null, null, cwd);
+  store.metric(pid, 'session.start');
+}
 // A terminal session belongs to its CLAIMED view when it has one; otherwise
 // to the active chat of the project its cwd is bound to.
 function sessionPair(sessionId: string | null | undefined): { pid: string; chatId: string } {
@@ -2540,23 +2580,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // no ghost project lingers in the switcher.
       let announce = '';
       if (body.cwd) {
-        let pid = store.projectForCwd(body.cwd);
-        if (!pid) {
-          for (let d = body.cwd; ; ) { const up = dirname(d); if (up === d) break; d = up; const hit = store.projectForCwd(d); if (hit) { pid = hit; break; } }
-        }
-        if (!pid) {
-          const pname = basename(body.cwd) || 'workspace';
-          const all = store.listProjects();
-          const adoptable = all.length === 1 && all[0].name === 'default'
-            && store.getNodes(all[0].id).filter((n) => n.status !== 'removed'
-              && n.author !== 'system' // tutorial seeds + tray are furniture, not content (M123/M178)
-              && !((n.title ?? n.content) ?? '').startsWith('to sort')).length <= 1;
-          if (adoptable) { pid = all[0].id; store.renameProject(pid, pname); }
-          else { pid = store.createProject(pname); bootstrapProject(pid); }
-          store.bindCwd(body.cwd, pid);
-          setActive(pid);
-          store.audit('project_bound', { name: pname, adopted: adoptable });
-        } else if (!store.projectForCwd(body.cwd)) store.bindCwd(body.cwd, pid);
+        const pid = projectForCwdOrCreate(body.cwd);
         // Once-ever full intro; once-per-project short line (Mark's Q1).
         // M143: a closed map never announces itself.
         if (!influenceOff(pid) && !store.getSetting(`announced:${pid}`)) {
@@ -2592,12 +2616,14 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // append to our log, run the filer, record provenance when it lands.
     // M99: per-session pending prompt (see hooks/on-prompt.ts).
     if (path === '/api/harness/prompt' && req.method === 'POST') {
-      const body = await req.json() as { session_id?: string; text?: string };
+      const body = await req.json() as { session_id?: string; text?: string; cwd?: string };
+      ensureSessionBound(body.session_id, body.cwd);
       if (body.session_id && body.text) pendingPrompts.set(body.session_id, body.text.slice(0, 20_000));
       return json({ ok: true });
     }
     if (path === '/api/harness/observe' && req.method === 'POST') {
-      const body = await req.json() as { session_id?: string; transcript_path?: string; last_assistant_message?: string; user_text?: string; assistant_text?: string };
+      const body = await req.json() as { session_id?: string; transcript_path?: string; last_assistant_message?: string; user_text?: string; assistant_text?: string; cwd?: string };
+      ensureSessionBound(body.session_id, body.cwd);
       let userText = body.user_text ?? '';
       let assistantText = body.assistant_text ?? '';
       let slice: RoundSlice | null = null;
@@ -2642,6 +2668,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // The context fetch IS the "user just sent a message" signal — let the
       // map UI show that the host agent is thinking (M61).
       if (sessionId) { health.promptAt = Date.now(); broadcast({ type: 'host_prompt' }); }
+      ensureSessionBound(sessionId, url.searchParams.get('cwd'));
       const { pid: ctxPid, chatId: ctxChatId } = sessionPair(sessionId);
       if (influenceOff(ctxPid)) {
         // One final directive only for sessions that already carry map
