@@ -43,7 +43,7 @@ export const CAST_GRAPH = {
     { id: 'block', label: "the chat agent's block", what: 'the composed map context injected into the next turn' },
   ],
   agents: [
-    { id: 'chat', label: 'chat agent (Claude Code)', model: false, task: null, what: 'the user\'s session; the server never prompts it', reads: ['block'], writes: ['rounds'], proposes: [] },
+    { id: 'chat', label: 'host session (Claude Code or Codex)', model: false, task: null, what: 'the user\'s session; the server never prompts it', reads: ['block'], writes: ['rounds'], proposes: [] },
     { id: 'composer', label: 'composer', model: false, task: null, what: 'tiered attention: light is the law; focus at full, lit nodes by warmth, the rest as names; pull-up offers', reads: ['tree', 'memory', 'light', 'brain', 'prefs'], writes: ['block'], proposes: [] },
     { id: 'pullup', label: 'pull-up (word matcher)', model: false, task: null, what: 'a set-aside node the chat agent asked for, served once', reads: ['tree', 'memory', 'rounds'], writes: ['block'], proposes: [] },
     { id: 'filer', label: 'filer', model: true, task: 'filer', what: 'files each exchange; rewrites overturned statements; the only writer without approval (lit scope)', reads: ['rounds', 'tree', 'memory', 'brain', 'prefs', 'light'], writes: ['tree', 'memory'], proposes: [] },

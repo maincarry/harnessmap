@@ -14,6 +14,7 @@ import { matchItems, matchNodes } from '../map/match.js';
 import { loadMap, renderTree } from '../map/render.js';
 import { SCHEMA, normalizeIds } from './translator.js';
 import { systemCard } from './cast.js';
+import { codexTurnOf } from '../agent/harness-adapter.js';
 
 const SYSTEM = `You are the IMPORT agent for a goal map made of NODES (one kind of thing: every line has content, an optional type, a status, and children — a topic is just a node whose children matter most). The user is importing OUTSIDE MATERIAL — a document, notes, or the transcript of a past AI conversation — and you turn it into ONE well-organized subtree they will approve onto their map.
 
@@ -190,7 +191,7 @@ export async function proposeImport(
   }
 }
 
-// Tolerant extractor for Claude Code session transcripts (JSONL): user and
+// Tolerant extractor for host session transcripts (JSONL — Claude Code's, or a Codex rollout, M245): user and
 // assistant text turns, tool noise dropped. Survives format drift by simply
 // skipping lines it cannot read.
 export function extractTranscript(jsonl: string): string {
@@ -199,6 +200,8 @@ export function extractTranscript(jsonl: string): string {
     if (!line.trim()) continue;
     try {
       const m = JSON.parse(line);
+      const ct = codexTurnOf(m); // M245: a Codex rollout line
+      if (ct) { out.push(`${ct.role === 'user' ? 'USER' : 'ASSISTANT'}: ${ct.text}`); continue; }
       const role = m.type === 'user' ? 'USER' : m.type === 'assistant' ? 'ASSISTANT' : null;
       if (!role || m.isMeta) continue;
       const content = m.message?.content;

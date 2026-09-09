@@ -29,7 +29,7 @@ import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots, outlineWithIds } from './translator/importer.js';
 import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, backendName } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
-import { sliceRound, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
+import { sliceRound, codexSessionMeta, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync } from 'node:fs';
 import { basename } from 'node:path';
 import { authUser, authEnabled, unauthorized } from './auth.js';
@@ -207,6 +207,41 @@ function sessionChat(sessionId: string): string | null {
   const row = (store as any).db.prepare('SELECT chat_id FROM harness_sessions WHERE session_id = ?').get(sessionId) as any;
   return row?.chat_id && store.getChat(row.chat_id) ? row.chat_id : null;
 }
+// M245: is the codex CLI signed in? `codex login status` exits 0 when it is.
+// Asked only for the auth panel and only when codex is the backend.
+function codexSignIn(ask: boolean): { onPath: boolean; signedIn: boolean | null } {
+  const onPath = (() => { try { return Bun.spawnSync(process.platform === 'win32' ? ['where', 'codex'] : ['sh', '-c', 'command -v codex'], { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0; } catch { return false; } })();
+  if (!ask || !onPath) return { onPath, signedIn: null };
+  try { return { onPath, signedIn: Bun.spawnSync(['codex', 'login', 'status'], { stdout: 'pipe', stderr: 'pipe', timeout: 8000 }).exitCode === 0 }; } catch { return { onPath, signedIn: null }; }
+}
+// M245: Codex's past sessions live under ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl;
+// the first line (session_meta) names the cwd. Newest 400 files, first line each.
+function codexRolloutsFor(dirs: string[]): { file: string; dir: string; sizeKB: number; mtime: string; harness: 'codex' }[] {
+  const root = join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'sessions');
+  const found: { file: string; dir: string; sizeKB: number; mtime: string; harness: 'codex' }[] = [];
+  const want = new Set(dirs.map((d) => d.replace(/[\\/]+$/, '')));
+  const files: { fp: string; mtime: number }[] = [];
+  const walk = (d: string, depth: number) => {
+    let ents: string[] = []; try { ents = readdirSync(d); } catch { return; }
+    for (const f of ents.sort().reverse()) {
+      const fp = join(d, f);
+      if (files.length >= 400) return;
+      try { const st = statSync(fp); if (st.isDirectory()) { if (depth < 3) walk(fp, depth + 1); } else if (f.startsWith('rollout-') && f.endsWith('.jsonl')) files.push({ fp, mtime: st.mtimeMs }); } catch {}
+    }
+  };
+  walk(root, 0);
+  for (const { fp, mtime } of files) {
+    try {
+      const head = readFileSync(fp, { encoding: 'utf8', flag: 'r' }).slice(0, 4000).split('\n')[0];
+      const meta = codexSessionMeta([JSON.parse(head)]);
+      const cwd = String(meta?.cwd ?? '').replace(/[\\/]+$/, '');
+      if (!cwd || !want.has(cwd)) continue;
+      const st = statSync(fp);
+      found.push({ file: basename(fp), dir: dirname(fp), sizeKB: Math.round(st.size / 1024), mtime: new Date(mtime).toISOString(), harness: 'codex' });
+    } catch {}
+  }
+  return found;
+}
 // M91 binding policy (Mark's grill): subtree-inclusive lookup, then
 // auto-create a project per new directory — each repo gets its own map
 // by default; merges are the escape hatch. The boot placeholder
@@ -238,8 +273,9 @@ function projectForCwdOrCreate(cwd: string): string {
 // to the ACTIVE project, so Mark's helloworld turns landed in the check's
 // probe project. Every hook now carries cwd, and a session the server has no
 // cwd for is bound the moment it speaks.
-function ensureSessionBound(sessionId: string | null | undefined, cwd: string | null | undefined): void {
+function ensureSessionBound(sessionId: string | null | undefined, cwd: string | null | undefined, harness?: string | null): void {
   if (!sessionId || !cwd) return;
+  if (harness && !store.getSetting(`harness:session:${sessionId}`)) store.setSetting(`harness:session:${sessionId}`, harness === 'codex' ? 'codex' : 'claude');
   if (sessionChat(sessionId)) return;
   const row = (store as any).db.prepare('SELECT cwd FROM harness_sessions WHERE session_id = ?').get(sessionId) as any;
   if (row?.cwd) return;
@@ -1992,7 +2028,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const dirs = store.cwdsForProject(projectId);
       const files: any[] = [];
       for (const d of dirs) {
-        for (const cand of ['CLAUDE.md', 'README.md', 'readme.md', 'NOTES.md', 'TODO.md']) {
+        for (const cand of ['CLAUDE.md', 'AGENTS.md', 'README.md', 'readme.md', 'NOTES.md', 'TODO.md']) {
           const fp = join(d, cand);
           try { const st = statSync(fp); if (st.isFile() && st.size < 512_000) files.push({ path: fp, name: cand, dir: d, sizeKB: Math.round(st.size / 1024) }); } catch {}
         }
@@ -2030,6 +2066,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
           }
         } catch {}
       }
+      // M245: Codex rollouts for this project's folders (session_meta.cwd) — newest 400 files scanned, first line only
+      for (const f of codexRolloutsFor(dirs)) sessions.push(f);
       sessions.sort((a, b) => b.mtime.localeCompare(a.mtime));
       return json({ files: files.slice(0, 20), sessions: sessions.slice(0, 15), memories: memories.slice(0, 20), sourceRetained: !!(store.getSetting(`importsource:${projectId}`) && store.getSetting(`importroot:${projectId}`)) });
     }
@@ -2049,6 +2087,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         for (const d of store.cwdsForProject(projectId)) {
           try { raw = readFileSync(join(homedir(), '.claude', 'projects', d.replace(/\//g, '-'), base), 'utf8'); break; } catch {}
         }
+        if (!raw) { const cx = codexRolloutsFor(store.cwdsForProject(projectId)).find((r) => r.file === base); if (cx) { try { raw = readFileSync(join(cx.dir, cx.file), 'utf8'); } catch {} } } // M245
         if (!raw) return json({ error: 'session transcript not found for this project' }, 400);
         text = extractTranscript(raw);
         label = `past session: ${base.slice(0, 12)}…`;
@@ -2304,6 +2343,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         lastOkAt: callHealth.lastOkAt,
         lastErrAt: callHealth.lastErrAt,
         lastErr: callHealth.lastErr,
+        codex: codexSignIn(backend === 'codex'), // M245
       });
     }
 
@@ -2322,7 +2362,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // M161: menu-triggered update check.
     if (path === '/api/update-check' && req.method === 'POST') {
       await checkLatest(true);
-      return json({ current: VERSION, latest: latestKnown, updateAvailable: updateAvailable() });
+      return json({ current: VERSION, latest: latestKnown, updateAvailable: updateAvailable(), backend: backendName(), harnesses: Object.keys(harnessAvailability()).filter((k) => (harnessAvailability() as any)[k]) });
     }
 
     // M159b: feedback log — local record of what the user chose to report.
@@ -2571,7 +2611,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const body = await req.json() as { session_id: string; transcript_path?: string; cwd?: string; model?: string; harness?: string };
       // M221: which harness is talking — Codex's payload carries an OpenAI
       // model slug; Claude Code's a claude one (or none). Recorded per session.
-      const harness = body.harness ?? (String(body.model ?? '').startsWith('gpt') ? 'codex' : 'claude');
+      const harness = body.harness ?? (String(body.model ?? '').startsWith('gpt') || /[\\/]\.codex[\\/]/.test(String(body.transcript_path ?? '')) ? 'codex' : 'claude');
       store.setSetting(`harness:session:${body.session_id}`, harness);
       // M91 binding policy (Mark's grill): subtree-inclusive lookup, then
       // auto-create a project per new directory — each repo gets its own map
@@ -2600,7 +2640,9 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const today = new Date().toISOString().slice(0, 10);
       if (uv && store.getSetting('update_nudged') !== today && !influenceOff((body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId)) {
         store.setSetting('update_nudged', today);
-        announce = [announce, `[harnessmap] upgrade available (v${uv}): run /plugin update map@harnessmap (then restart) to upgrade. Tell the user in one short line.`].filter(Boolean).join('\n');
+        announce = [announce, harness === 'codex'
+          ? `[harnessmap] upgrade available (v${uv}): rerun the one-line installer from the README (it pulls the update and restarts the map server). Tell the user in one short line.`
+          : `[harnessmap] upgrade available (v${uv}): run /plugin update map@harnessmap (then restart) to upgrade. Tell the user in one short line.`].filter(Boolean).join('\n');
       }
       const pid2 = (body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId;
       store.metric(pid2, 'session.start');
@@ -2616,8 +2658,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // append to our log, run the filer, record provenance when it lands.
     // M99: per-session pending prompt (see hooks/on-prompt.ts).
     if (path === '/api/harness/prompt' && req.method === 'POST') {
-      const body = await req.json() as { session_id?: string; text?: string; cwd?: string };
-      ensureSessionBound(body.session_id, body.cwd);
+      const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string };
+      ensureSessionBound(body.session_id, body.cwd, body.harness);
       if (body.session_id && body.text) pendingPrompts.set(body.session_id, body.text.slice(0, 20_000));
       return json({ ok: true });
     }
@@ -2668,7 +2710,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // The context fetch IS the "user just sent a message" signal — let the
       // map UI show that the host agent is thinking (M61).
       if (sessionId) { health.promptAt = Date.now(); broadcast({ type: 'host_prompt' }); }
-      ensureSessionBound(sessionId, url.searchParams.get('cwd'));
+      ensureSessionBound(sessionId, url.searchParams.get('cwd'), url.searchParams.get('harness'));
       const { pid: ctxPid, chatId: ctxChatId } = sessionPair(sessionId);
       if (influenceOff(ctxPid)) {
         // One final directive only for sessions that already carry map

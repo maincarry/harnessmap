@@ -10,6 +10,7 @@
 // Run: env -u ANTHROPIC_API_KEY -u HARNESSMAP_INFERENCE bun run src/eval/install-smoke.ts
 
 import { rmSync, mkdirSync, existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 const TMP = '/tmp/claude-1000/harnessmap-install';
@@ -162,6 +163,33 @@ console.log('\n== 6d. default OFF: the map attaches only to the session that sai
   const st2 = await (await fetch(`${BASE}/api/state`)).json();
   check('a session claimed mid-way is bound to its own cwd project (no SessionStart ever ran for it)', d.code === 0 && ctxOf(d.out).length > 50 && st2.projects.some((p: any) => p.name === 'other-repo'));
   try { ul2(join(HOME, 'session')); } catch {}
+}
+
+console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
+{
+  const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');
+  const { extractTranscript } = await import('../translator/importer.js');
+  const roll = [
+    { timestamp: 't0', type: 'session_meta', payload: { id: 'r1', cwd: PROJ, cli_version: '0.153.4' } },
+    { timestamp: 't1', type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: '<environment_context>cwd etc</environment_context>' }] } },
+    { timestamp: 't2', type: 'event_msg', payload: { type: 'user_message', message: 'we decided the header will be blue because it is calmer' } },
+    { timestamp: 't3', type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'we decided the header will be blue because it is calmer' }] } },
+    { timestamp: 't4', type: 'response_item', payload: { type: 'function_call', name: 'shell', call_id: 'c1', arguments: JSON.stringify({ command: ['cat', 'x'], file_path: 'src/x.ts' }) } },
+    { timestamp: 't5', type: 'response_item', payload: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Noted: blue header, chosen for calm.' }] } },
+    { timestamp: 't6', type: 'event_msg', payload: { type: 'agent_message', message: 'Noted: blue header, chosen for calm.' } },
+  ];
+  const rf = join(TMP, 'rollout-smoke.jsonl'); await Bun.write(rf, roll.map((l) => JSON.stringify(l)).join('\n') + '\n');
+  check('a rollout is recognised', isCodexRollout(roll));
+  const sl = await sliceRound(rf, null);
+  check('the user turn is read once (event_msg duplicates dropped, scaffolding skipped)', sl.userText === 'we decided the header will be blue because it is calmer');
+  check('the assistant turn and the tool call are read', sl.assistantText === 'Noted: blue header, chosen for calm.' && sl.toolRefs.length === 1 && sl.filePaths.includes('src/x.ts'));
+  check('the anchor is a line index and a later slice starts after it', sl.lastUuid === 'line:6' && (await sliceRound(rf, 'line:6')).userText === '');
+  const tx = extractTranscript(await Bun.file(rf).text());
+  check('the importer extracts USER/ASSISTANT turns from a rollout', tx.includes('USER: we decided') && tx.includes('ASSISTANT: Noted'));
+  // hooks name the host: a rollout path under .codex marks the session as codex
+  const r = await runHook('session-start.ts', { session_id: 'codex-1', cwd: PROJ, transcript_path: join(homedir(), '.codex', 'sessions', '2026', '09', '10', 'rollout-x.jsonl') });
+  const st = await (await fetch(`${BASE}/api/state`)).json();
+  check('session-start records the Codex host for a session with a rollout path', r.code === 0 && !!st.projectId);
 }
 
 console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');

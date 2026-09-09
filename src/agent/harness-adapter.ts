@@ -15,17 +15,83 @@ export interface RoundSlice {
   lastUuid: string | null;
 }
 
+// M245 (Mark: "make sure it natively supports codex"): Codex writes its own
+// transcript — a ROLLOUT under ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl.
+// Every line is { timestamp, type, payload }: 'session_meta' (cwd, id,
+// cli_version), 'response_item' (payload.type 'message' with role and
+// content[{type:'input_text'|'output_text'|'text', text}], 'function_call'
+// with name and arguments, …), 'event_msg' (user_message / agent_message
+// with .message). Lines carry no uuid, so the anchor is the line index
+// ("line:<n>"). Tolerant on purpose — Codex's format drifts; unknown lines
+// are skipped, never fatal. Verified per machine by test-codex (it parses the
+// newest rollout on disk).
+export function isCodexRollout(lines: any[]): boolean {
+  return lines.length > 0 && lines.slice(0, 3).some((m) => m && typeof m === 'object' && 'payload' in m && (m.type === 'session_meta' || m.type === 'response_item' || m.type === 'event_msg' || m.type === 'turn_context'));
+}
+// Injected scaffolding Codex records as user messages — never the user's words.
+const CODEX_SCAFFOLD = /^\s*<(environment_context|user_instructions|permissions|turn_aborted|hook_context|system_context|instructions)/i;
+export function codexTurnOf(m: any): { role: 'user' | 'assistant'; text: string } | null {
+  const p = m?.payload; if (!p || typeof p !== 'object') return null;
+  if (m.type === 'response_item' && p.type === 'message' && (p.role === 'user' || p.role === 'assistant')) {
+    const text = (Array.isArray(p.content) ? p.content : [])
+      .filter((b: any) => b && typeof b.text === 'string' && /^(input_text|output_text|text)$/.test(String(b.type ?? 'text')))
+      .map((b: any) => b.text).join('\n').trim();
+    if (!text || (p.role === 'user' && CODEX_SCAFFOLD.test(text))) return null;
+    return { role: p.role, text };
+  }
+  return null;
+}
+function codexEventTurnOf(m: any): { role: 'user' | 'assistant'; text: string } | null {
+  const p = m?.payload; if (m?.type !== 'event_msg' || !p || typeof p !== 'object') return null;
+  const text = String(p.message ?? '').trim(); if (!text) return null;
+  if (p.type === 'user_message') return CODEX_SCAFFOLD.test(text) ? null : { role: 'user', text };
+  if (p.type === 'agent_message') return { role: 'assistant', text };
+  return null;
+}
+export function codexSessionMeta(lines: any[]): { cwd?: string; id?: string; cli_version?: string; timestamp?: string } | null {
+  const m = lines.find((l) => l?.type === 'session_meta'); const p = m?.payload;
+  return p && typeof p === 'object' ? { cwd: p.cwd, id: p.id, cli_version: p.cli_version, timestamp: p.timestamp ?? m.timestamp } : null;
+}
+function sliceCodexRound(lines: any[], afterAnchor: string | null): RoundSlice {
+  const out: RoundSlice = { userText: '', assistantText: '', toolRefs: [], filePaths: [], urls: [], messageUuids: [], lastUuid: afterAnchor };
+  const from = afterAnchor && /^line:\d+$/.test(afterAnchor) ? Number(afterAnchor.slice(5)) + 1 : 0;
+  const userParts: string[] = []; const assistantParts: string[] = []; let sawResponseItems = false;
+  const evUser: string[] = []; const evAssistant: string[] = [];
+  for (let i = from; i < lines.length; i++) {
+    const m = lines[i]; if (!m || typeof m !== 'object') continue;
+    out.lastUuid = `line:${i}`;
+    const t = codexTurnOf(m);
+    if (t) { sawResponseItems = true; (t.role === 'user' ? userParts : assistantParts).push(t.text); continue; }
+    const e = codexEventTurnOf(m);
+    if (e) { (e.role === 'user' ? evUser : evAssistant).push(e.text); continue; }
+    const p = m.payload;
+    if (m.type === 'response_item' && p && (p.type === 'function_call' || p.type === 'custom_tool_call' || p.type === 'local_shell_call')) {
+      let args: any = {}; try { args = typeof p.arguments === 'string' ? JSON.parse(p.arguments) : (p.arguments ?? p.input ?? {}); } catch { args = { raw: String(p.arguments ?? '').slice(0, 160) }; }
+      out.toolRefs.push({ id: String(p.call_id ?? p.id ?? `codex-${i}`), name: String(p.name ?? p.type), summary: JSON.stringify(args).slice(0, 160) });
+      for (const k of ['file_path', 'path', 'notebook_path']) if (typeof args[k] === 'string') out.filePaths.push(args[k]);
+      if (typeof args.url === 'string') out.urls.push(args.url);
+    }
+  }
+  // response_item messages are the record; event_msg lines duplicate them — use those only when the record has none
+  out.userText = (sawResponseItems ? userParts : evUser).join('\n');
+  out.assistantText = (sawResponseItems ? assistantParts : evAssistant).join('\n');
+  out.filePaths = [...new Set(out.filePaths)]; out.urls = [...new Set(out.urls)];
+  return out;
+}
+
 export async function sliceRound(transcriptPath: string, afterUuid: string | null): Promise<RoundSlice> {
   const out: RoundSlice = { userText: '', assistantText: '', toolRefs: [], filePaths: [], urls: [], messageUuids: [], lastUuid: afterUuid };
   let lines: any[] = [];
   try {
-    lines = (await Bun.file(transcriptPath).text()).trim().split('\n').map((l) => JSON.parse(l));
+    lines = (await Bun.file(transcriptPath).text()).trim().split('\n').map((l) => { try { return JSON.parse(l); } catch { return null; } });
   } catch {
     return out;
   }
+  if (isCodexRollout(lines)) return sliceCodexRound(lines, afterUuid);
   let started = afterUuid === null;
   const assistantParts: string[] = [];
   for (const m of lines) {
+    if (!m) continue;
     if (!started) {
       if (m.uuid === afterUuid) started = true;
       continue;

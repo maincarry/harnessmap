@@ -3,7 +3,7 @@
 // announcements (first-run intro / new-project line / update note) as
 // additionalContext so the AGENT tells the user. The full map block is
 // injected per-turn via UserPromptSubmit — not here, to avoid doubling.
-import { BASE, readHookInput, ensureServer, gateSession } from './common.ts';
+import { BASE, readHookInput, ensureServer, gateSession, hostHarness } from './common.ts';
 
 const input = await readHookInput();
 if (!gateSession(input, 'SessionStart')) process.exit(0); // M239: only the opened session
@@ -36,7 +36,7 @@ let announce = '';
 try {
   const r = await fetch(`${BASE}/api/harness/session-start`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ session_id: input.session_id, transcript_path: input.transcript_path, cwd: input.cwd }),
+    body: JSON.stringify({ session_id: input.session_id, transcript_path: input.transcript_path, cwd: input.cwd, harness: hostHarness(input) }), // M245
     signal: AbortSignal.timeout(6000),
   });
   announce = ((await r.json()) as any)?.announce ?? '';

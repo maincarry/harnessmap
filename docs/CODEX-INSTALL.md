@@ -1,6 +1,10 @@
 # HarnessMap for Codex
 
-## Status for Mark (2026-09-09, 11:25 pm ET) — where the Codex work stands
+## Status for Mark (2026-09-10, 3:05 am ET) — where the Codex work stands
+
+**Windows verified tonight (your runs, Codex CLI 0.153.4, no Claude sign-in):** install, hooks, server, filing on codex, a node from a live Codex exchange. Nine defects fixed on the way (M240–M244), then a native-support review (M245): Codex rollouts are parsed (rounds keep tool refs and files; past Codex sessions import), hooks name the host, upgrade text and the sign-in panel know Codex. Next run: `test-codex.ps1` step 4b must say ROLLOUT PASS against your real rollout — that is the one piece written from the documented format rather than a file from your machine.
+
+### Earlier status (2026-09-09, 11:25 pm ET)
 
 **Built and pushed (main ca1c200):** one-command installer per OS (`install-codex.sh`, `install-codex.ps1`), one-command check (`test-codex.sh` / `test-codex.ps1`), one-command uninstall (`uninstall-codex.sh --purge` / `uninstall-codex.ps1` with `$env:HARNESSMAP_PURGE=1`); user-level hooks with the absolute bun path; the skills as a Codex plugin (no hooks in the manifest); the `codex exec` inference backend with the OpenAI tiers on the ⚙ models page; hooks that restart a server whose build differs from the code on disk; host sessions told they have their tools.
 

@@ -447,8 +447,8 @@
           <button id="auto-zoom" title="the zoom agent suggests which branch to view alone — you confirm">◱ auto-zoom</button>
           <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
           <button id="mapstatus-btn" title="the map's own standing judgment — the overall map status report, per-area content report, structural review, and the direct line to tune the map status agent">🩺 map status</button>
-          <button id="ctx-refresh-btn" title="hand every Claude Code session on this map a fresh full view of the map on its next message — use after big lighting or focus changes, or a long conversation">⟲ refresh agent context</button>
-          <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes an organized subtree you approve">⇪ import</button>
+          <button id="ctx-refresh-btn" title="hand every host session (Claude Code or Codex) on this map a fresh full view of the map on its next message — use after big lighting or focus changes, or a long conversation">⟲ refresh agent context</button>
+          <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past session (Claude Code or Codex); the import agent proposes an organized subtree you approve">⇪ import</button>
           <button id="undo-btn" title="undo the last destructive action — delete, merge, tidy, or move (Ctrl/Cmd+Z works too)">↩ undo</button>
           <button id="feedback-btn" title="tell the developers about a bug or an idea — you review before anything is sent (GitHub issue or your own email)">🐞 send feedback</button>
           <button id="font-btn" title="text size for the whole page — cycles Small / Normal / Large / Extra large">🔠 text size: normal</button>
@@ -468,7 +468,7 @@
           <button id="agent-view-btn" title="what the chat agent receives from the map each turn — the context composition, and the exact text if you want it">👁 what the agent sees</button>
           <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
           <button id="authinfo-btn" title="full transparency: how the map's agents sign in, who gets billed, and whether calls are working">🔑 sign-in &amp; billing</button>
-          <button id="update-btn" title="check whether a newer harnessmap exists — updating itself happens in Claude Code, never automatically">⬆ check for updates</button>
+          <button id="update-btn" title="check whether a newer harnessmap exists — updating is one command you run (Claude Code: /plugin update; Codex: the installer), never automatic">⬆ check for updates</button>
           <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
           <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
           </div></div></div>
@@ -485,7 +485,7 @@
   <div id="chat-pane">
     <div id="tabbar">
       <span id="tab-list" style="display:contents"></span>
-      <button id="tab-add" title="new session in this map: pick what it talks about, fork this view, or start fresh — opens a real Claude Code terminal bound to that view">+ session</button>
+      <button id="tab-add" title="new session in this map: pick what it talks about, fork this view, or start fresh — opens a real Claude Code or Codex terminal bound to that view">+ session</button>
     </div>
     <header>conversation <span style="font-weight:400;font-size:12px;color:var(--muted)" id="focus-label"></span>
       <button class="hbtn" id="clear-chat" style="margin-left:auto" title="clean the chat screen — the map keeps everything; the chat agent starts its window fresh">clean chat</button>
@@ -1298,7 +1298,7 @@ $('ctx-refresh-btn').onclick = () => {
   ov.innerHTML = `
     <div class="modal">
       <h3>⟲ refresh agent context</h3>
-      <div style="font-size:13px;line-height:1.5">Every Claude Code session on this map gets a <b>fresh full view of the map</b> with its next message — current focus, current lighting, current content.<br><br>The older map blocks stay in those conversations until you run <code>/compact</code> there yourself — that's optional cleanup; <b>everything works fine if you don't</b> (the fresh view supersedes them).</div>
+      <div style="font-size:13px;line-height:1.5">Every host session (Claude Code or Codex) on this map gets a <b>fresh full view of the map</b> with its next message — current focus, current lighting, current content.<br><br>The older map blocks stay in those conversations until you run <code>/compact</code> there yourself — that's optional cleanup; <b>everything works fine if you don't</b> (the fresh view supersedes them).</div>
       <div class="actions">
         <button id="cr-cancel">cancel</button>
         <button id="cr-go" class="primary">⟲ refresh</button>
@@ -1333,6 +1333,7 @@ $('authinfo-btn').onclick = async () => {
       <tr><td>3. Claude Code keychain entry (macOS)</td><td>${yn(a.sources.keychain)}</td></tr>
       <tr><td>4. ~/.claude/.credentials.json</td><td>${a.sources.cliCredentialsFile ? 'present' : 'not found'}</td></tr>
     </table>
+    ${a.codex ? `<p style="margin:8px 0 4px"><b>Codex:</b> the codex CLI is ${a.codex.onPath ? 'installed' : 'not on PATH'}${a.codex.signedIn === true ? ' and signed in (ChatGPT account)' : a.codex.signedIn === false ? ' but NOT signed in — run <code>codex login</code>' : ''}${a.backend === 'codex' ? ' — the map\'s agents run there.' : '.'}</p>` : ''}
     <p style="margin:8px 0 0"><b>Are calls working:</b> last success ${when(a.lastOkAt)}${a.lastErrAt ? ` · last failure ${when(a.lastErrAt)} — ${esc(a.lastErr ?? '')}` : ' · no failures this server start'}.</p>
     <p style="margin:8px 0 0;color:var(--muted);font-size:12px">Your own Claude sessions sign in separately, through the app or terminal you use — this page is only about the map's background agents. Nothing here ever leaves this machine.</p>`;
   const ov = document.createElement('div');
@@ -1355,7 +1356,7 @@ $('update-btn').onclick = async () => {
   try { r = await post('/api/update-check', {}); } catch {}
   const body = !r ? 'could not reach the update check — try again later.'
     : r.updateAvailable
-      ? `<b>upgrade available: v${esc(r.updateAvailable)}</b> (you have v${esc(r.current)}).<br><br>In Claude Code run:<br><code>/plugin update map@harnessmap</code><br><br>then restart Claude Code — the map server picks up the new version on its own.`
+      ? `<b>upgrade available: v${esc(r.updateAvailable)}</b> (you have v${esc(r.current)}).<br><br>${(r.harnesses || []).includes('codex') && !(r.harnesses || []).includes('claude') ? '' : 'In Claude Code run:<br><code>/plugin update map@harnessmap</code><br>then restart Claude Code.<br><br>'}${(r.harnesses || []).includes('codex') ? 'With Codex: rerun the one-line installer from the README (it pulls the update and restarts the map server).<br><br>' : ''}The map server picks up the new code on its next hook.`
       : `you're on the latest (v${esc(r.current)}). Checked against the public repo just now.`;
   const ov = document.createElement('div');
   ov.className = 'overlay';
@@ -1448,7 +1449,7 @@ function openImport() {
         <div id="im-files" style="display:flex;flex-direction:column;gap:2px;max-height:18vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">Claude's own memory (this project)</div>
         <div id="im-mem" style="display:flex;flex-direction:column;gap:2px;max-height:14vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">past Claude Code sessions (this project)</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">past sessions — Claude Code and Codex (this project)</div>
         <div id="im-sess" style="display:flex;flex-direction:column;gap:2px;max-height:18vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
       </div>
       <div id="im-prop" hidden>
@@ -3186,7 +3187,7 @@ function openLegend() {
         <tr><td>☀ auto-light</td><td>the lighting agent picks which nodes belong in the background for the current focus — shown as a proposal you approve</td></tr>
         <tr><td>◱ auto-zoom</td><td>the zoom agent suggests which branch to view alone — you confirm; your lighting is untouched</td></tr>
         <tr><td>◐ dim all outside</td><td>dim everything outside the zoomed branch in one press — the chat agent stops seeing all of it (zoom in first, so "outside" means something)</td></tr>
-        <tr><td>⇪ import</td><td>bring outside material onto the map — paste notes, pick a project document, or a past Claude Code session; the import agent proposes one organized subtree you approve</td></tr>
+        <tr><td>⇪ import</td><td>bring outside material onto the map — paste notes, pick a project document, or a past session (Claude Code or Codex); the import agent proposes one organized subtree you approve</td></tr>
         <tr><td>↩ undo</td><td>undo the last destructive action — delete, merge, tidy, move (Ctrl/Cmd+Z works anywhere)</td></tr>
         <tr><td>🐞 send feedback</td><td>tell the developers about a bug or an idea — write it once, then open it as a pre-filled GitHub issue or email; nothing is sent until you press send there</td></tr>
         <tr><td>🔠 text size</td><td>whole-page text size — cycles Small / Normal / Large / Extra large, remembered per browser</td></tr>
@@ -3435,7 +3436,7 @@ const TOUR = [
   { find: () => document.querySelector('.nrow'), title: '☀ Light — keep it in mind', body: 'Claude only sees what\u2019s lit ☀. Dim a branch and Claude forgets it — you still see everything. You decide what it knows.' },
   { find: () => document.querySelector('.nrow'), title: '◱ Zoom — view only this', body: '◱ shows just one branch on your screen. It changes what YOU see, never what Claude sees.' },
   { find: () => document.querySelector('.pin-divider'), title: 'Pinned folders', body: 'This band travels with you: \u201cto sort\u201d holds things the map couldn\u2019t place yet \u00b7 ★ favorites keeps shortcuts to nodes you starred \u00b7 ⟳ to tidy collects the map\u2019s cleanup suggestions (you approve each one). Empty folders just wait.' },
-  { sel: '#tabbar', title: 'Sessions', body: 'Each tab is a session on this same map — a real Claude Code terminal or a clean chat, your pick at ＋ session.' },
+  { sel: '#tabbar', title: 'Sessions', body: 'Each tab is a session on this same map — a real Claude Code or Codex terminal, or a clean chat, your pick at ＋ session.' },
   { sel: '#legend-btn', title: 'That\u2019s it', body: 'Three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (view only this). Everything else hides under ⋯ · 🗨 talk to map does anything in plain words · Ctrl/Cmd+Z undoes. Details: the reference card (next).' },
 ];
 let tourAt = -1;
@@ -3621,7 +3622,7 @@ async function openDevPanel() {
     <select id="dev-filter" class="hbtn" style="margin-left:auto;text-transform:none;letter-spacing:0" data-tip="show only one kind of row"><option value="">everything</option></select>
   </div>
     <div style="font-size:12px;color:var(--muted);line-height:1.5;margin:8px 0;padding:6px 8px;border:1px solid var(--line,#2a2e37);border-radius:6px">
-      <b>Who’s who.</b> Your <b>chat agent</b> is the Claude Code session in the tab — a separate session the server never prompts. It meets the map two ways only: <b>⇢ inject</b> rows (the server slips map context into its next turn) and observation (the server reads its replies afterward to file them). Every <b>→</b> row is the server prompting a one-shot <b>map specialist</b> — no session, no memory of its own; the full prompt it saw is right there in the row.
+      <b>Who’s who.</b> Your <b>chat agent</b> is the host session in the tab (Claude Code or Codex) — a separate session the server never prompts. It meets the map two ways only: <b>⇢ inject</b> rows (the server slips map context into its next turn) and observation (the server reads its replies afterward to file them). Every <b>→</b> row is the server prompting a one-shot <b>map specialist</b> — no session, no memory of its own; the full prompt it saw is right there in the row.
     </div>
     <div id="dev-rows"><div style="color:var(--muted);font-size:12px">recording… traces appear here as the map agents run. Send a message in a session or press an auto-button to generate some.</div></div>`;
   $('map-pane').appendChild(panel);

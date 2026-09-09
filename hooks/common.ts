@@ -129,3 +129,15 @@ export async function ensureServer(): Promise<{ up: boolean; updateNote: string 
   }
   return { up: true, updateNote: '' };
 }
+
+// M245: which host is running this hook. Codex's transcript is a rollout under
+// ~/.codex/sessions; Claude Code's lives under ~/.claude/projects and Claude
+// Code marks its child processes with CLAUDECODE=1. Codex payloads may also
+// carry a gpt model slug. Default claude (the original host).
+export function hostHarness(input: any): 'claude' | 'codex' {
+  const tp = String(input?.transcript_path ?? '');
+  if (/[\\/]\.codex[\\/]/.test(tp)) return 'codex';
+  if (/[\\/]\.claude[\\/]/.test(tp) || process.env.CLAUDECODE) return 'claude';
+  if (String(input?.model ?? '').startsWith('gpt') || process.env.CODEX_HOME || process.env.CODEX_SANDBOX) return 'codex';
+  return 'claude';
+}
