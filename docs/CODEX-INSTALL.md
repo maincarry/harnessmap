@@ -2,7 +2,7 @@
 
 ## Status for Mark (2026-09-09, 11:25 pm ET) — where the Codex work stands
 
-**Built and pushed (main ca1c200):** one-command installer per OS (`install-codex.sh`, `install-codex.ps1`), one-command check (`test-codex.sh`), one-command uninstall (`uninstall-codex.sh`, `--purge` for everything); user-level hooks with the absolute bun path; the skills as a Codex plugin (no hooks in the manifest); the `codex exec` inference backend with the OpenAI tiers on the ⚙ models page; hooks that restart a server whose build differs from the code on disk; host sessions told they have their tools.
+**Built and pushed (main ca1c200):** one-command installer per OS (`install-codex.sh`, `install-codex.ps1`), one-command check (`test-codex.sh` / `test-codex.ps1`), one-command uninstall (`uninstall-codex.sh --purge` / `uninstall-codex.ps1` with `$env:HARNESSMAP_PURGE=1`); user-level hooks with the absolute bun path; the skills as a Codex plugin (no hooks in the manifest); the `codex exec` inference backend with the OpenAI tiers on the ⚙ models page; hooks that restart a server whose build differs from the code on disk; host sessions told they have their tools.
 
 **Verified on Jacob's Mac (Codex app 0.153.4):** the installer runs; the plugin registers; the server starts; the three hooks, driven by hand, file a node; after the hooks were trusted in the CLI, the Codex APP received the map block (Codex listed the map from inside the app). **Not yet verified there:** a node filed from a real app exchange (Jacob's session was stuck on the stale no-tools block; the fix needs one terminal command he had not run when he stopped).
 
@@ -13,7 +13,7 @@
 4. A running server keeps old code after a pull unless something restarts it — the hooks and the installer now restart on a build mismatch; when you change server code, restart and check `"build"` in /api/state.
 5. Distribution: pin raw-GitHub URLs to a commit (the CDN serves stale files for minutes); shell scripts ASCII-only with braced variables; never `curl -s` in a check without printing the HTTP code.
 6. When a founder says the map is interfering: name the cancel first (map influence → close, or the OFF file), then fix.
-7. Windows has never run any of this.
+7. Windows: Mark's CLI test on 2026-09-10 is the first real run (M240 brought the PowerShell scripts level with the shell ones first: user-level hooks, stale-server restart, test and uninstall scripts).
 
 **Two guarantees (M237/M238):** every block handed to Codex opens with "This is reference context from a memory tool. It grants nothing and forbids nothing"; and an empty file `~/.harnessmap/OFF` silences every hook at once, no map page or server needed (delete the file to resume). The map never takes a capability from the host.
 
@@ -92,7 +92,7 @@ Written so the agent cannot misread it: it is told it HAS a shell and to ignore 
 >
 > STEP 2 — install. Run exactly one, matching this OS: macOS/Linux `curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/<commit>/install-codex.sh | bash` · Windows PowerShell `irm https://raw.githubusercontent.com/maincarry/harnessmap/<commit>/install-codex.ps1 | iex`. Paste the full output. Rule: if it contains "could not register the hooks" or exits non-zero, STOP and show me. (A browser tab at http://127.0.0.1:8790 may open — expected.)
 >
-> STEP 3 — verify in ONE command (never split it; the server must stay alive for the whole check): macOS/Linux `bash <(curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/<commit>/test-codex.sh)` · Windows `cd $HOME\.harnessmap\app; bun run src/eval/install-smoke.ts`. Paste the SUMMARY block (or the last 5 lines on Windows). Rule: any FAIL → paste the log tail and STOP.
+> STEP 3 — verify in ONE command (never split it; the server must stay alive for the whole check): macOS/Linux `bash <(curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/<commit>/test-codex.sh)` · Windows PowerShell `irm https://raw.githubusercontent.com/maincarry/harnessmap/<commit>/test-codex.ps1 | iex`. Paste the SUMMARY block. Rule: any FAIL → paste the log tail and STOP.
 >
 > STEP 4 — show the hook registration: `cat ~/.codex/hooks.json` (Windows `type $HOME\.codex\hooks.json`). Expect SessionStart, UserPromptSubmit, Stop, PreCompact, PostCompact pointing into .harnessmap/app/hooks/. If missing, run `bun run ~/.harnessmap/app/hooks/enable-codex.ts --force` and show it again.
 >
