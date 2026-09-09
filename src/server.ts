@@ -887,6 +887,7 @@ function state() {
     feedbackEmail: process.env.HARNESSMAP_FEEDBACK_EMAIL ?? 'yuhinc@sas.upenn.edu',
     version: VERSION,
     build: BUILD, // M236
+    appRoot: join(here, '..'), // M241: where this server's code lives (a plugin-cache copy is stale after a pull)
     storage: DB_PATH,
     machine: process.env.HARNESSMAP_MACHINE_LABEL ?? osHostname(), // M176: lets hooks refuse a tunneled foreign server (env = test seam)
     nodes: map.nodes.filter((n) => n.status !== 'removed'), // user-deleted stays out of the UI
