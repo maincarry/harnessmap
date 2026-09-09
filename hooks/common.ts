@@ -30,7 +30,9 @@ function changeLine(): string {
   try { return readFileSync(join(APP_ROOT, 'CHANGELOG-LINE.txt'), 'utf8').trim(); } catch { return ''; }
 }
 
-async function health(): Promise<{ up: boolean; version?: string; foreign?: string }> {
+function currentBuild(): string { try { const r = Bun.spawnSync(['git', '-C', APP_ROOT, 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore' }); return r.exitCode === 0 ? r.stdout.toString().trim() : ''; } catch { return ''; } }
+
+async function health(): Promise<{ up: boolean; version?: string; build?: string; foreign?: string }> {
   try {
     const r = await fetch(`${BASE}/api/state`, { signal: AbortSignal.timeout(1500) });
     const j = await r.json() as any;
@@ -40,8 +42,8 @@ async function health(): Promise<{ up: boolean; version?: string; foreign?: stri
       // port is an SSH tunnel (or forward) to someone else's server — binding
       // to it would file this machine's conversations onto that map.
       const { hostname } = await import('node:os');
-      if (j.machine && j.machine !== hostname()) return { up: true, version: j.version, foreign: j.machine };
-      return { up: true, version: j.version };
+      if (j.machine && j.machine !== hostname()) return { up: true, version: j.version, build: j.build, foreign: j.machine };
+      return { up: true, version: j.version, build: j.build };
     }
   } catch {}
   return { up: false };
@@ -54,7 +56,8 @@ function spawnServer(): void {
   }
   try { mkdirSync(HOME, { recursive: true }); } catch {}
   const log = Bun.file(join(HOME, 'server.log'));
-  Bun.spawn(['bun', 'run', 'src/server.ts'], {
+  // The hook's own runtime is the bun to use: a GUI app's PATH may carry no bun at all (M235/M236).
+  Bun.spawn([process.execPath, 'run', 'src/server.ts'], {
     cwd: APP_ROOT, stdout: log, stderr: log, stdin: 'ignore',
     env: {
       ...process.env,
@@ -82,13 +85,15 @@ export async function ensureServer(): Promise<{ up: boolean; updateNote: string 
   }
   if (!h.up) { spawnServer(); return { up: await waitUp(), updateNote: '' }; }
   const want = pluginVersion();
-  if (h.version && want !== '0.0.0' && h.version !== want) {
+  const build = currentBuild();
+  const staleBuild = !!(h.build && build && h.build !== build); // M236: code moved under a running server
+  if ((h.version && want !== '0.0.0' && h.version !== want) || staleBuild) {
     try { await fetch(`${BASE}/api/shutdown`, { method: 'POST', signal: AbortSignal.timeout(1500) }); } catch {}
     await new Promise((r) => setTimeout(r, 400));
     spawnServer();
     const up = await waitUp();
     const change = changeLine();
-    return { up, updateNote: up ? `[harnessmap] map server updated ${h.version} → ${want}${change ? `: ${change}` : ''}. Mention this to the user in one short line.` : '' };
+    return { up, updateNote: up ? (staleBuild && h.version === want ? `[harnessmap] map server restarted on the updated code (${h.build} → ${build}). Mention this to the user in one short line.` : `[harnessmap] map server updated ${h.version} → ${want}${change ? `: ${change}` : ''}. Mention this to the user in one short line.`) : '' };
   }
   return { up: true, updateNote: '' };
 }

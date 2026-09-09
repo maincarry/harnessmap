@@ -36,6 +36,10 @@ import { authUser, authEnabled, unauthorized } from './auth.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const VERSION = (() => { try { return JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8')).version as string; } catch { return '0.0.0'; } })();
+// M236: the build the running server was started from (git short sha; '' when not a checkout). The hooks
+// restart a server whose build differs from the app on disk — a code update without a version bump
+// left Jacob's Mac running stale code for an hour (2026-09-09).
+const BUILD = (() => { try { const r = Bun.spawnSync(['git', '-C', join(here, '..'), 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore' }); return r.exitCode === 0 ? r.stdout.toString().trim() : ''; } catch { return ''; } })();
 const PORT = Number(process.env.PORT ?? 8790);
 const REQUESTED_HOST = process.env.HOST ?? '127.0.0.1';
 const DB_PATH = process.env.HARNESSMAP_DB ?? join(here, '..', 'harnessmap.sqlite');
@@ -880,6 +884,7 @@ function state() {
     updateAvailable: updateAvailable(),
     feedbackEmail: process.env.HARNESSMAP_FEEDBACK_EMAIL ?? 'yuhinc@sas.upenn.edu',
     version: VERSION,
+    build: BUILD, // M236
     storage: DB_PATH,
     machine: process.env.HARNESSMAP_MACHINE_LABEL ?? osHostname(), // M176: lets hooks refuse a tunneled foreign server (env = test seam)
     nodes: map.nodes.filter((n) => n.status !== 'removed'), // user-deleted stays out of the UI
