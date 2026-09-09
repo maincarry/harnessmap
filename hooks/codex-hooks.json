@@ -41,8 +41,7 @@
           {
             "type": "command",
             "command": "bun run \"${PLUGIN_ROOT}/hooks/post-compact.ts\"",
-            "timeout": 60,
-            "additionalContextLimit": 16000
+            "timeout": 60
           }
         ]
       }

@@ -15,7 +15,7 @@ export function codexHooksFrom(src: any): any {
       const m = String(h.command).match(/hooks\/([a-z-]+\.ts)/);
       const file = m ? m[1] : null;
       const cmd = file ? `bun run "\${PLUGIN_ROOT}/hooks/${file}"` : h.command;
-      const ctx = ['SessionStart', 'UserPromptSubmit', 'PostCompact'].includes(event) ? { additionalContextLimit: CONTEXT_LIMIT } : {};
+      const ctx = ['SessionStart', 'UserPromptSubmit'].includes(event) ? { additionalContextLimit: CONTEXT_LIMIT } : {};
       return { type: 'command', command: cmd, timeout: h.timeout ?? 60, ...ctx };
     }) }));
   }
