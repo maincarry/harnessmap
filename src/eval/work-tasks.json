@@ -1,0 +1,88 @@
+{
+  "note": "Test 3 — WORK. Five frozen deliverables from this project's history, answerable from material both arms hold (the map imported from the modlog source; the transcript arm = the modlog snapshot at a27a94f). Checklists and rulings written before the run, by the builder (caveat: builder-authored). Grading per checklist claim: present / absent / contradicted; per ruling: contradicted or not.",
+  "tasks": [
+    {
+      "id": "W1",
+      "task": "Write the user-facing help section for the \"to sort\" tray: what it is, what lands there and why, and every way an item can leave it. 150–250 words, plain words, no headings.",
+      "checklist": [
+        "\"to sort\" is a permanent system node: it cannot be deleted, moved, or renamed",
+        "items land in \"to sort\" when the filer cannot place them inside the writable (lit) scope",
+        "an arriving item carries an arrival note saying where it came from",
+        "an item leaves when the user approves its placement suggestion (a red dot on the item = a one-click move under the suggested branch)",
+        "an item also leaves when the user lights the destination, so the filer moves it home on the next round",
+        "the tray sits in the pinned band at the bottom of every view and is always present, even when empty"
+      ],
+      "rulings": [
+        "all suggestion dots are red; there is no amber dot (the amber concept was purged)",
+        "tidy never touches the \"to sort\" tray (no tidy proposal may remove, move, or rename it)",
+        "the tray is never deleted by the user or by any agent"
+      ]
+    },
+    {
+      "id": "W2",
+      "task": "Write the release note for \"import at scale\" — how a large document or past session is turned into a subtree of the map, from first chunk to verified result. 150–300 words, no headings.",
+      "checklist": [
+        "the source is split into small units of about 8k characters (a few deliberations), not 50k time-slices",
+        "each chunk extends the subtree built so far — filing over history, the way live rounds are filed",
+        "a comprehensive summary of the whole source is written once, before the chunks, and the chunks file against that global picture",
+        "a finish pass afterwards only renames and re-parents (it cannot remove nodes)",
+        "the whole import is one proposal the user reviews and approves; the imported subtree lands dim",
+        "after apply, the finished map's report is verified against the source summary and discrepancies are surfaced (map-side findings drive filing or tidy)"
+      ],
+      "rulings": [
+        "50k-character time-slices are wrong — they produced chapters named after phases of the conversation instead of subjects",
+        "chunk filing runs on the filer's cheap tier; the source summary and the finish pass keep the smart/fancy model",
+        "the retained source stays with the map so the user can search it and file from it later"
+      ]
+    },
+    {
+      "id": "W3",
+      "task": "Explain to a new user the three moves — focus, light, zoom — and exactly what each controls about what the chat agent knows. 150–250 words, no headings.",
+      "checklist": [
+        "focus is where the conversation aims; the focus node is always in the agent's view",
+        "lit nodes are in the agent's working background; dim nodes are visible to the user but out of the agent's reach",
+        "zoom isolates a subtree in the VIEW only — it changes nothing about lighting or focus",
+        "\"dim all outside\" is a separate action from zoom",
+        "auto-focus, auto-light and auto-zoom propose; the user approves; lighting cascades to a node's subtree",
+        "new nodes are born lit"
+      ],
+      "rulings": [
+        "zoom never changes what the agent sees (view only)",
+        "the focus node and its ancestors are never dimmed",
+        "it is called a \"map\", never a \"project\", in user-facing words"
+      ]
+    },
+    {
+      "id": "W4",
+      "task": "Write the \"sign-in & billing\" note shown to users: how the map's agents sign in, who gets billed, and how the user can see whether calls are working. 120–220 words, no headings.",
+      "checklist": [
+        "by default the map's agents run on the user's Claude subscription (the logged-in CLI), not on an API key",
+        "the subscription path can never bill an API key: the key is stripped from the environment unless the user explicitly chose the api backend",
+        "the api backend is an explicit choice (an environment setting), and a warning says the key will be billed",
+        "the page shows when calls last worked or last failed, with a short error tail — no secrets",
+        "there is a sign-in & billing button in the ⋯ other controls that opens this transparency"
+      ],
+      "rulings": [
+        "testing runs on the subscription, not the API key",
+        "a spawned child of the server must never inherit the API key on the subscription path"
+      ]
+    },
+    {
+      "id": "W5",
+      "task": "Describe how the map decides what the chat agent sees on each turn — the block, its size, and how set-aside material can reach the agent. 150–300 words, no headings.",
+      "checklist": [
+        "the agent receives a full map block on its first turn and deltas (only changes) afterwards; a fresh full block returns after enough changes or after compaction",
+        "the block has a budget of about 5% of the harness window (about 40k characters)",
+        "attention is tiered: lit nodes are served at one line, then a summary, then more, by warmth/proximity to the focus as room allows",
+        "light is the law: dim nodes' content is not served; dim areas appear only as names or set-aside notes",
+        "a set-aside topic the user's message touches is OFFERED; the agent asks and the user consents before it is pulled up for one turn",
+        "the user can see exactly what the agent receives (the agent's view in dev mode / \"what the agent sees\")"
+      ],
+      "rulings": [
+        "a dim node's content is never served without the user's consent",
+        "the injection is governed: full block first, deltas after — never a full snapshot every turn",
+        "what the agent sees, the user can see"
+      ]
+    }
+  ]
+}
