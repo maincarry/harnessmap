@@ -225,6 +225,7 @@ async function apiCall(opts: CallOpts, model: string): Promise<any> {
 // rollout), read-only sandbox, no git check. Same two-attempt JSON discipline
 // as the subscription path.
 const codexUnsupported = new Set<string>(); // model ids this account's Codex has refused (M242)
+const codexBadSchemas = new Set<string>(); // schemas Codex's strict structured output rejected (M242b)
 export const codexRefusedModels = (): string[] => [...codexUnsupported];
 async function codexCall(opts: CallOpts, model: string): Promise<any> {
   const { mkdtempSync, writeFileSync, readFileSync, rmSync } = await import('node:fs');
@@ -232,7 +233,14 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
   const { join } = await import('node:path');
   const dir = mkdtempSync(join(tmpdir(), 'hm-codex-'));
   const outFile = join(dir, 'out.txt');
-  const schemaFile = opts.schema ? join(dir, 'schema.json') : null;
+  // M242b (Mark, Windows): OpenAI's strict structured output rejects schemas
+  // that are fine elsewhere (every object needs `required` listing all keys,
+  // no optional fields) — the filer's got a 400 "Invalid schema". A schema
+  // Codex rejects is remembered and that call, and later ones with the same
+  // schema, run on prompted JSON (the note below + the parse loop), the way
+  // the subscription path always has.
+  const schemaKey = opts.schema ? JSON.stringify(opts.schema) : '';
+  let schemaFile = opts.schema && !codexBadSchemas.has(schemaKey) ? join(dir, 'schema.json') : null;
   if (schemaFile) writeFileSync(schemaFile, JSON.stringify(opts.schema));
   const jsonNote = opts.schema ? `\n\nRESPOND WITH JSON ONLY — a single JSON object matching this schema (no prose, no code fences):\n${JSON.stringify(opts.schema)}` : '';
   let lastErr = '';
@@ -254,6 +262,11 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
       // M242 (Mark, Windows): a ChatGPT sign-in allows only some model ids
       // (plan-dependent; ids retire). When Codex refuses the id, remember it
       // and run this call on the account's default model instead of failing.
+      if (schemaFile && code !== 0 && /Invalid schema/i.test(stderr)) {
+        codexBadSchemas.add(schemaKey);
+        console.error(`[inference] codex rejected the ${opts.task} schema (strict structured output) — this call and later ones with that schema use prompted JSON`);
+        schemaFile = null; attempt--; continue;
+      }
       if (useModel && code !== 0 && /model is not supported/i.test(stderr)) {
         codexUnsupported.add(useModel);
         console.error(`[inference] codex refuses model '${useModel}' on this account — using the account's default model for it from now on (pick another in ⚙ models)`);
