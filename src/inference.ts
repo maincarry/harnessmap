@@ -16,7 +16,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 
 export type Task =
   | 'filer' | 'memory' | 'relations' | 'title' | 'summary' | 'autolit' | 'recommend' | 'place' | 'mapchat'
-  | 'tidy' | 'mapcheck' | 'import' | 'brain';
+  | 'tidy' | 'mapcheck' | 'import' | 'brain' | 'chat';
 
 // M185 (Mark got billed): the M103 promise — the subscription path NEVER
 // bills an API key — was enforced only at the specialist spawn site, while
@@ -68,6 +68,7 @@ export const ROLES: RoleInfo[] = [
   { task: 'place', label: 'placement agent', what: 'suggests homes for "to sort" items', tier: 'cheap', perTurn: false, group: 'helper' },
   { task: 'relations', label: 'fit writer', what: 'how a node fits its surroundings (the fit organ)', tier: 'cheap', perTurn: false, group: 'helper' },
   { task: 'title', label: 'naming agent', what: 'short display names', tier: 'cheap', perTurn: false, group: 'helper' },
+  { task: 'chat', label: 'chat pane', what: "the conversation partner in the map's own chat pane (not your Claude Code or Codex session)", tier: 'smart', perTurn: false, group: 'on-demand' },
   { task: 'mapchat', label: 'map guide (talk to map)', what: 'answers your questions about the map and drafts proposals; interactive, a few calls a day', tier: 'smart', perTurn: false, group: 'on-demand' },
   { task: 'tidy', label: 'tidy agent', what: 'restructures a subtree — a proposal you approve', tier: 'smart', perTurn: false, group: 'brain' },
   { task: 'mapcheck', label: "the brain's reporters", what: 'the structural review and the per-area assessments', tier: 'smart', perTurn: false, group: 'brain' },
@@ -124,7 +125,14 @@ export function modelFor(task: Task): string {
 // otherwise auto: codex when the codex CLI is on PATH and claude is not.
 export type Backend = 'api' | 'subscription' | 'codex';
 let detected: Backend | null = null;
-const onPath = (bin: string): boolean => { try { return Bun.spawnSync(['sh', '-c', `command -v ${bin}`], { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0 || Bun.spawnSync(['where', bin], { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0; } catch { return false; } };
+// M241 (Mark, Windows): probe each way separately — on Windows `sh` is usually
+// absent and one throw used to void the `where` probe too, so codex was never
+// auto-detected there.
+const probe = (argv: string[]): boolean => { try { return Bun.spawnSync(argv, { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0; } catch { return false; } };
+const onPath = (bin: string): boolean => process.platform === 'win32'
+  ? probe(['where', bin]) || probe(['sh', '-c', `command -v ${bin}`])
+  : probe(['sh', '-c', `command -v ${bin}`]) || probe(['where', bin]);
+export const codexOnPath = (): boolean => onPath('codex');
 export function backendName(): Backend {
   const e = process.env.HARNESSMAP_INFERENCE;
   if (e === 'api' || e === 'codex' || e === 'subscription') return e;
@@ -170,8 +178,21 @@ export async function call(opts: CallOpts): Promise<any> {
   const model = opts.modelOverride ?? modelFor(opts.task);
   const t0 = Date.now();
   try {
-    const out = backend === 'api' ? await apiCall(opts, model) : backend === 'codex' ? await codexCall(opts, model) : await subCall(opts, model);
-    opts.audit?.('inference', { task: opts.task, backend, model, ms: Date.now() - t0, ok: true });
+    let out: any;
+    try {
+      out = backend === 'api' ? await apiCall(opts, model) : backend === 'codex' ? await codexCall(opts, model) : await subCall(opts, model);
+    } catch (err) {
+      // M241 (Mark, Windows, Codex-only machine): the subscription path answered
+      // "Invalid API key · Please run /login". When claude is not signed in and
+      // codex is on this machine, switch the backend to codex for the rest of
+      // the process and answer this call there. Explicit HARNESSMAP_INFERENCE wins.
+      if (backend === 'subscription' && !process.env.HARNESSMAP_INFERENCE && /not logged in|Invalid API key|\/login/i.test(String(err)) && codexOnPath()) {
+        detected = 'codex';
+        console.error('[inference] claude is not signed in and codex is available — the map\'s agents now run on codex (sign in with `claude` then restart to switch back)');
+        out = await codexCall(opts, modelFor(opts.task));
+      } else throw err;
+    }
+    opts.audit?.('inference', { task: opts.task, backend: backendName(), model, ms: Date.now() - t0, ok: true });
     try { traceSink?.({ kind: 'call', task: opts.task, model, backend, ms: Date.now() - t0, ok: true, system: opts.system, user: opts.user, response: typeof out === 'string' ? out : JSON.stringify(out, null, 1) }); } catch {}
     callHealth.lastOkAt = Date.now();
     try { metricsSink?.({ task: opts.task, model, approxTokens: Math.ceil((opts.system.length + opts.user.length + (typeof out === 'string' ? out.length : JSON.stringify(out).length)) / 4) }); } catch {}
@@ -297,6 +318,8 @@ async function subCall(opts: CallOpts, model: string): Promise<any> {
       throw e;
     } finally { clearTimeout(timer); }
     if (timedOut) throw new Error(`subscription backend: no answer within ${limitMs}ms (child aborted)`);
+    // The CLI reports a missing login as an assistant message, not an error.
+    if (/Invalid API key|Please run \/login|not logged in/i.test(text.trim().slice(0, 200))) throw new Error(`subscription backend: claude is not logged in (${text.trim().slice(0, 60)}) — run \`claude\` and /login, or use codex`);
     if (!opts.schema) return text;
     const stripped = text.trim().replace(/^```(json)?\s*/i, '').replace(/\s*```$/, '');
     try {

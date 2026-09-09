@@ -1,4 +1,4 @@
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { call } from '../inference.js';
 import { randomUUID } from 'node:crypto';
 import { Store } from '../store/db.js';
 import { recordUserWords } from '../map/vocab.js';
@@ -14,7 +14,7 @@ import { getConversationSummary } from './rolling-summary.js';
 // topic simply isn't in context — its distilled results are on the map).
 // Verbatim deep history stays in the append-only log.
 
-const CHAT_MODEL = process.env.HARNESSMAP_CHAT_MODEL ?? 'claude-sonnet-4-6';
+const CHAT_MODEL = process.env.HARNESSMAP_CHAT_MODEL ?? '';
 const WINDOW = Number(process.env.HARNESSMAP_WINDOW ?? 20); // recent turns in context (M42: raised 10→20)
 
 const SYSTEM_APPEND = [
@@ -216,27 +216,19 @@ export class ChatSessionManager {
     let assistantText = '';
 
     // Fresh, self-contained turn — no resume. The composed prompt IS the context.
-    const q = query({
-      prompt,
-      options: {
-        model: CHAT_MODEL,
-        maxTurns: 4,
-        allowedTools: [],
-        permissionMode: 'bypassPermissions',
-        systemPrompt: { type: 'preset', preset: 'claude_code', append: SYSTEM_APPEND },
-      },
-    } as any);
-
-    for await (const msg of q as any) {
-      if (msg.type === 'assistant') {
-        for (const block of msg.message?.content ?? []) {
-          if (block.type === 'text') {
-            assistantText += block.text;
-            events.onAssistantText?.(block.text);
-          }
-        }
-      }
-    }
+    // M241 (Mark, Windows Codex-only machine): the pane goes through the one
+    // inference choke point like every other agent — so it follows the chosen
+    // backend (codex when claude is not signed in), the ⚙ models choice for
+    // the "chat pane" role, cost metrics and the dev-mode trace.
+    assistantText = String(await call({
+      task: 'chat',
+      ...(process.env.HARNESSMAP_CHAT_MODEL ? { modelOverride: CHAT_MODEL } : {}),
+      system: SYSTEM_APPEND,
+      user: prompt,
+      maxTokens: 4000,
+      timeoutMs: 180_000,
+    }) ?? '');
+    if (assistantText) events.onAssistantText?.(assistantText);
 
     const assistantTurnId = randomUUID();
     this.store.appendTurn({ id: assistantTurnId, chatId, role: 'assistant', content: assistantText, raw: null });
