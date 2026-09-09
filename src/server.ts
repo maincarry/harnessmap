@@ -2244,7 +2244,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // M186 (Mark): full transparency about how the map's agents sign in and
     // who gets billed. Presence booleans only — never the secrets themselves.
     if (path === '/api/auth-info' && req.method === 'GET') {
-      const backend = process.env.HARNESSMAP_INFERENCE === 'api' ? 'api' : 'subscription';
+      const backend = backendName(); // M241: auto-detected (codex on a Codex-only machine), not the env alone
       const home = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
       let keychain: boolean | null = null;
       if (process.platform === 'darwin') {
@@ -2253,7 +2253,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       }
       return json({
         backend,
-        billing: backend === 'api' ? 'your ANTHROPIC_API_KEY (you set HARNESSMAP_INFERENCE=api)' : 'your Claude subscription — an API key is never billed',
+        billing: backend === 'api' ? 'your ANTHROPIC_API_KEY (you set HARNESSMAP_INFERENCE=api)' : backend === 'codex' ? 'your ChatGPT plan through the codex CLI (codex exec)' : 'your Claude subscription — an API key is never billed',
         keyScrubbed: !process.env.ANTHROPIC_API_KEY,
         sources: {
           envToken: !!process.env.CLAUDE_CODE_OAUTH_TOKEN,

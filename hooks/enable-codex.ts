@@ -46,10 +46,19 @@ if (existsSync(path)) {
   try { existing = JSON.parse(readFileSync(path, 'utf8')); } catch { existing = { hooks: {} }; }
   existing.hooks ??= {};
 }
-const ours = (h: any) => JSON.stringify(h).includes(HOOKS_DIR.replace(/\\/g, '\\\\')) || JSON.stringify(h).includes(HOOKS_DIR);
+// Ours = any group whose command points into this app. Compare with separators
+// and case normalised: on Windows the written command mixes "\\app" with
+// "/hooks/…", and JSON doubles the backslashes — the exact-string test missed
+// and every installer run appended a second copy (Mark, 2026-09-10: 5 → 10
+// entries; a doubled hook files every round twice).
+const norm = (t: string) => t.replace(/\\\\/g, '/').replace(/\\/g, '/').toLowerCase();
+const APP_DIR = norm(HOOKS_DIR).replace(/\/hooks$/, '');
+const ours = (h: any) => norm(JSON.stringify(h)).includes(APP_DIR);
 for (const [event, groups] of Object.entries<any>(derived.hooks)) {
   const have: any[] = (existing.hooks[event] ?? []).filter((g: any) => !ours(g));
-  existing.hooks[event] = REMOVE ? have : [...have, ...(groups as any[])];
+  const merged = REMOVE ? have : [...have, ...(groups as any[])];
+  const seen = new Set<string>();
+  existing.hooks[event] = merged.filter((g: any) => { const k = norm(JSON.stringify(g)); if (seen.has(k)) return false; seen.add(k); return true; });
   if (!existing.hooks[event].length) delete existing.hooks[event];
 }
 writeFileSync(path, JSON.stringify(existing, null, 2) + '\n');

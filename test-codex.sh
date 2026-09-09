@@ -16,8 +16,9 @@ say "3. models"; MO=$(curl -s -m 5 -w '\n%{http_code}' "$B/api/models"); mcode=$
 say "4. hooks, driven by hand (SessionStart, UserPromptSubmit, Stop)"; cd "$APP"
 S1=$(echo '{"session_id":"probe-'$$'","cwd":"'"$HOME"'/maptest-probe","hook_event_name":"SessionStart"}' | bun run hooks/session-start.ts 2>&1 | head -c 300); echo "session-start: $S1"; add "session-start hook" "$(echo "$S1" | grep -q additionalContext && echo PASS || echo FAIL)"
 P1=$(echo '{"session_id":"probe-'$$'","turn_id":"t1","hook_event_name":"UserPromptSubmit","prompt":"we decided the header will be blue because it is calmer"}' | bun run hooks/on-prompt.ts 2>&1 | head -c 200); echo "on-prompt: ${P1:0:120}"; add "on-prompt hook" "$(echo "$P1" | grep -q additionalContext && echo PASS || echo 'FAIL (no context returned)')"
-echo '{"session_id":"probe-'$$'","turn_id":"t1","hook_event_name":"Stop","last_assistant_message":"Noted: blue header, chosen for calm."}' | bun run hooks/on-stop.ts >/dev/null 2>&1; echo "on-stop: sent; waiting 45 s for the filer"; sleep 45
-N=$(curl -s -m 5 "$B/api/state" | grep -o '"content":"[^"]*[Bb]lue[^"]*"' | head -1); echo "node: ${N:-none yet}"; add "filing (a node about the blue header)" "$([ -n "$N" ] && echo PASS || echo 'FAIL (check the log below)')"
-say "5. log tail"; tail -15 "$LOG" 2>/dev/null | cut -c1-200
+echo '{"session_id":"probe-'$$'","turn_id":"t1","hook_event_name":"Stop","last_assistant_message":"Noted: blue header, chosen for calm."}' | bun run hooks/on-stop.ts >/dev/null 2>&1; echo "on-stop: sent; waiting up to 120 s for the filer"; N=""; for i in $(seq 1 24); do sleep 5; N=$(curl -s -m 5 "$B/api/state" | grep -o '"content":"[^"]*[Bb]lue[^"]*"' | head -1); [ -n "$N" ] && break; done
+echo "node: ${N:-none after 120 s}"; add "filing (a node about the blue header)" "$([ -n "$N" ] && echo PASS || echo 'FAIL (see the backend line and the log below)')" "$([ -n "$N" ] && echo "$((i*5)) s")"
+say "5. backend"; curl -s -m 5 "$B/api/auth-info" | grep -o '"backend":"[^"]*"\|"lastErr":[^,}]*' | tr '\n' ' '; echo; echo "claude: $(command -v claude || echo none)  codex: $(command -v codex || echo none)"
+say "6. log tail"; tail -15 "$LOG" 2>/dev/null | cut -c1-200; tail -8 "$HOME/.harnessmap/server.log" 2>/dev/null | cut -c1-200
 say "SUMMARY (paste this back)"; printf '%s\n' "${res[@]}"
 echo "server left running on $B (log $LOG). Next: quit the Codex app fully, reopen, new thread, say hello - the reply should mention the map."

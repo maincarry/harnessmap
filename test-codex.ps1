@@ -26,9 +26,11 @@ $p1 = ('{"session_id":"' + $sid + '","turn_id":"t1","hook_event_name":"UserPromp
 "on-prompt: $($p1.Substring(0, [Math]::Min(120, $p1.Length)))"; Add "on-prompt hook" $(if ($p1 -match 'additionalContext') { 'PASS' } else { 'FAIL (no context returned)' }) ""
 ('{"session_id":"' + $sid + '","turn_id":"t1","hook_event_name":"Stop","last_assistant_message":"Noted: blue header, chosen for calm."}' | bun run hooks/on-stop.ts 2>&1) | Out-Null
 Pop-Location; Remove-Item Env:HARNESSMAP_SESSION_GATE -ErrorAction SilentlyContinue
-"on-stop: sent; waiting 45 s for the filer"; Start-Sleep -Seconds 45
-$raw = ''; try { $raw = (Invoke-WebRequest "$B/api/state" -TimeoutSec 5 -UseBasicParsing).Content } catch {}
-$m = [regex]::Match($raw, '"content":"[^"]*[Bb]lue[^"]*"'); if ($m.Success) { "node: $($m.Value)"; Add "filing (a node about the blue header)" "PASS" "" } else { "node: none yet"; Add "filing (a node about the blue header)" "FAIL (check the log below)" "" }
-Say "5. log tail"; Get-Content (Join-Path $HOME '.harnessmap\server.log') -Tail 15 -ErrorAction SilentlyContinue | ForEach-Object { $_.Substring(0, [Math]::Min(200, $_.Length)) }
+"on-stop: sent; waiting up to 120 s for the filer"; $m = $null
+foreach ($i in 1..24) { Start-Sleep -Seconds 5; $raw = ''; try { $raw = (Invoke-WebRequest "$B/api/state" -TimeoutSec 5 -UseBasicParsing).Content } catch {}; $m = [regex]::Match($raw, '"content":"[^"]*[Bb]lue[^"]*"'); if ($m.Success) { break } }
+if ($m -and $m.Success) { "node: $($m.Value)  (after $($i*5) s)"; Add "filing (a node about the blue header)" "PASS" "$($i*5) s" } else { "node: none after 120 s"; Add "filing (a node about the blue header)" "FAIL (see the backend line and the logs below)" "" }
+Say "5. backend"; try { $ai = Invoke-RestMethod "$B/api/auth-info" -TimeoutSec 5; "backend: $($ai.backend)  ($($ai.billing))"; "last ok: $($ai.lastOkAt)  last error: $($ai.lastErrAt)  $($ai.lastErr)"; Add "backend" $ai.backend "$($ai.lastErr)" } catch { "auth-info: $($_.Exception.Message)" }
+"where claude: $((Get-Command claude -ErrorAction SilentlyContinue).Source)"; "where codex: $((Get-Command codex -ErrorAction SilentlyContinue).Source)"
+Say "6. log tails (server.log, then server.err.log)"; foreach ($f in 'server.log','server.err.log') { "-- $f"; Get-Content (Join-Path $HOME ".harnessmap\$f") -Tail 12 -ErrorAction SilentlyContinue | ForEach-Object { $_.Substring(0, [Math]::Min(220, $_.Length)) } }
 Say "SUMMARY (paste this back)"; $Res
 "server left running on $B. Next: codex -> /hooks -> trust harnessmap -> NEW thread -> say: open map"
