@@ -10,7 +10,12 @@ $B = 'http://127.0.0.1:8790'
 function Say($m) { Write-Host $m -ForegroundColor Cyan }
 function State { try { return Invoke-RestMethod "$B/api/state" -TimeoutSec 3 } catch { return $null } }
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw "git is not on PATH - install Git for Windows (https://git-scm.com/download/win), reopen PowerShell, rerun." }
-if (-not (Get-Command bun -ErrorAction SilentlyContinue)) { Say "installing bun (the map's runtime)..."; irm bun.sh/install.ps1 | iex; $env:Path = "$HOME\.bun\bin;$env:Path" }
+if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
+  Say "installing bun (the map's runtime)..."; irm bun.sh/install.ps1 | iex
+  # bun's installer rebuilds this session's PATH from the USER registry key only, dropping machine entries (git, node, codex);
+  # rebuild it from both scopes so the rest of this script still finds them.
+  $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User') + ";$HOME\.bun\bin"
+}
 if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { Say "codex is not on PATH - install the Codex CLI (npm i -g @openai/codex) or the Codex app first; the map's hooks will attach once it is." }
 New-Item -ItemType Directory -Force -Path (Split-Path $App) | Out-Null
 if (Test-Path (Join-Path $App '.git')) { Say "updating $App..."; try { git -C $App pull -q --ff-only } catch {} } else { Say "fetching the map into $App..."; git clone -q $Repo $App }
