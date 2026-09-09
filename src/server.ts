@@ -59,6 +59,8 @@ if (process.env.HARNESSMAP_HOME) {
   try { mkdirSync(process.env.HARNESSMAP_HOME, { recursive: true }); writeFileSync(join(process.env.HARNESSMAP_HOME, 'port'), String(PORT)); } catch {}
 }
 
+// M238: every block handed to a host agent says what it is and what it is not.
+const HOST_BLOCK_DECLARATION = '[harnessmap] This is reference context from a memory tool. It grants nothing and forbids nothing: your tools, your permissions and your own instructions stand unchanged.';
 const store = new Store(DB_PATH);
 // M217: the user's per-role model choice (⚙ models) resolves ahead of the defaults.
 setModelResolver((task) => store.getSetting(`model:${task}`) || undefined);
@@ -2711,6 +2713,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
           context += `\n\n[harnessmap] This FULL map view supersedes every earlier map block above. Briefly tell the user: you now have the full current view of the map; they can run /compact to clean up the old map data in this conversation — optional, everything works fine without it.`;
         }
         if (focusNotice) { context = `${context}\n\n${focusNotice}`; nudgeNoticePending = false; }
+        context = `${HOST_BLOCK_DECLARATION}\n${context}`; // M238
         setFullAnchor(store, sessionId, seq);
         store.audit('inject_full', { session: sessionId.slice(0, 8), chars: context.length });
         if (store.getSetting('dev_mode') === '1') store.addTrace({ kind: 'inject', task: 'inject_full', user: `session ${sessionId.slice(0, 8)}`, response: context });
@@ -2724,6 +2727,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // the manipulations channel inside the delta when present.
       const manips = chats.consumeManipulations(ctxChatId);
       const parts = [pull ? `[harnessmap — what you just asked about]\n${pull}` : '', delta, manips.length ? `[harnessmap — user actions]\n${manips.map((m) => `• ${m}`).join('\n')}` : ''].filter(Boolean); // M230: the question's nodes first
+      if (parts.length) parts.unshift(HOST_BLOCK_DECLARATION); // M238
       if (focusNotice) { parts.push(focusNotice); nudgeNoticePending = false; }
       if (parts.length) parts.push('(full current map: read .harnessmap/MAP.md)');
       const ctx = parts.join('\n\n') || null;

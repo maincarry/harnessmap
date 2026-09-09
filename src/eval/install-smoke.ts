@@ -127,6 +127,13 @@ console.log('\n== 6c. the host block informs, never restricts (M235 rule) ==');
   const text = String(ctx.context ?? '');
   check('a host session\'s block never says it has no tools', !/NO tools|no tools in this chat|＋ session button/i.test(text) && text.length > 100, text.slice(0, 120));
   check('a host session\'s block says it keeps its usual tools', /usual tools/.test(text));
+  check('every host block opens with the declaration (grants nothing, forbids nothing)', text.startsWith('[harnessmap] This is reference context'));
+  // M238: the kill switch — an OFF file silences every hook before it does anything
+  const { writeFileSync: wf, unlinkSync: ul } = await import('node:fs');
+  wf(join(HOME, 'OFF'), '');
+  const off = await runHook('on-prompt.ts', { session_id: 'rule-2', prompt: 'anything', cwd: PROJ });
+  ul(join(HOME, 'OFF'));
+  check('with ~/.harnessmap/OFF present a hook injects nothing', off.code === 0 && !ctxOf(off.out));
 }
 
 console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');

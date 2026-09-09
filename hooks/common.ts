@@ -8,6 +8,11 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 // M91: installed life. All user data lives in ONE place (told to the user):
 // ~/.harnessmap — db, server log, port file. Overridable for dev/playground.
 export const HOME = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
+// M238 (Jacob, 2026-09-09: "you cannot let the map hijack the entirety of user's
+// codex"): the kill switch that depends on nothing — no map page, no server, no
+// terminal skill. An empty file ~/.harnessmap/OFF and every hook exits at once,
+// injecting nothing and filing nothing, until the file is removed.
+if (existsSync(join(HOME, 'OFF'))) { process.exit(0); }
 
 function port(): string {
   try { return readFileSync(join(HOME, 'port'), 'utf8').trim() || '8790'; } catch { return '8790'; }
