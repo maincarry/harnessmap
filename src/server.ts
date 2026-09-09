@@ -2150,7 +2150,9 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // additions (approved in the UI, which appends here).
     // M217 (Mark): one model per role, chosen here; empty = the default.
     if (path === '/api/models' && req.method === 'GET') {
+      try {
       return json({ groups: ROLE_GROUPS, roles: ROLES.map((r) => ({ ...r, default: defaultModelFor(r.task), chosen: store.getSetting(`model:${r.task}`) || '', current: modelFor(r.task) })), catalog: modelCatalog(), backend: backendName() });
+      } catch (err) { return json({ error: `models: ${err instanceof Error ? err.message : String(err)}` }, 500); }
     }
     if (path === '/api/models' && req.method === 'POST') {
       const b = await req.json() as { task?: string; model?: string; reset?: boolean };
