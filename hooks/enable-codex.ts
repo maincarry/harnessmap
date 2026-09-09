@@ -37,7 +37,13 @@ const derived = codexHooksFrom(src);
 // Codex app runs hooks with a GUI environment whose PATH has no ~/.bun/bin
 // (Jacob's Mac had bun on PATH by luck; a fresh install would fail silently).
 const BUN = process.execPath;
-for (const groups of Object.values<any>(derived.hooks)) for (const g of groups as any[]) for (const h of g.hooks) h.command = String(h.command).replace('${PLUGIN_ROOT}', HOOKS_DIR.replace(/[\\/]hooks$/, '')).replace(/^bun run /, `"${BUN}" run `);
+// Codex on Windows runs hook commands through PowerShell (Mark, 2026-09-10:
+// every hook "exited with code 1" while the same scripts ran by hand). In
+// PowerShell a quoted program path must be invoked with the call operator:
+//   & "C:\...\bun.exe" run "C:\...\hooks\on-prompt.ts"
+// (HARNESSMAP_HOOK_SHELL=powershell is the test seam on other platforms.)
+const PS = process.platform === 'win32' || process.env.HARNESSMAP_HOOK_SHELL === 'powershell';
+for (const groups of Object.values<any>(derived.hooks)) for (const g of groups as any[]) for (const h of g.hooks) h.command = String(h.command).replace('${PLUGIN_ROOT}', HOOKS_DIR.replace(/[\\/]hooks$/, '')).replace(/^bun run /, `${PS ? '& ' : ''}"${BUN}" run `);
 
 mkdirSync(CODEX_HOME, { recursive: true });
 const path = join(CODEX_HOME, 'hooks.json');

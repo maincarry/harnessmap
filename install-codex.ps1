@@ -24,6 +24,7 @@ Push-Location $App; try { bun install --production | Out-Null } catch {} ; Pop-L
 # skipped until trusted, often without a prompt (#35306). So: user-level hooks, then /hooks in the CLI.
 Push-Location $App; try { bun run hooks/enable-codex.ts --force } catch { Pop-Location; throw "could not register the hooks - see the error above" }; Pop-Location
 if (Get-Command codex -ErrorAction SilentlyContinue) {
+  try { codex plugin remove map@harnessmap 2>$null | Out-Null } catch {}
   try { codex plugin marketplace add $App | Out-Null; codex plugin add map@harnessmap | Out-Null; Say "skills registered as a Codex plugin (marketplace 'harnessmap', plugin 'map')" } catch {}
 }
 # a server already running on OLDER code is restarted (M236): the build it reports must match the app on disk

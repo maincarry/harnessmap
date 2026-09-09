@@ -188,10 +188,19 @@ console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');
   const derived = JSON.parse(await Bun.file(join('hooks', 'codex-hooks.json')).text());
   check('hooks/codex-hooks.json is derived from hooks/hooks.json (in sync)', JSON.stringify(derived) === JSON.stringify(JSON.parse(before)));
   check('derived hooks use ${PLUGIN_ROOT} and the context limit', JSON.stringify(derived).includes('${PLUGIN_ROOT}/hooks/on-prompt.ts') && derived.hooks.UserPromptSubmit[0].hooks[0].additionalContextLimit >= 10_000);
-  const man = JSON.parse(await Bun.file(join('.codex-plugin', 'plugin.json')).text());
-  check('.codex-plugin/plugin.json names the plugin and skills, and carries NO hooks (user-level hooks are the path; a future Codex honouring bundled hooks must not file twice)', man.name === 'map' && man.skills === './skills/' && !('hooks' in man) && await Bun.file(join('hooks', 'codex-hooks.json')).exists());
+  const man = JSON.parse(await Bun.file(join('codex-plugin', '.codex-plugin', 'plugin.json')).text());
+  // M243: the plugin lives in codex-plugin/ so Codex's default hooks/hooks.json discovery finds nothing there (it loaded the Claude Code hooks file from the repo root and ran every hook twice on Mark's Windows)
+  check('codex-plugin/ carries no hooks directory', !(await Bun.file(join('codex-plugin', 'hooks', 'hooks.json')).exists()));
+  for (const sk of ['open', 'close']) check(`codex-plugin/skills/${sk} is identical to skills/${sk}`, (await Bun.file(join('codex-plugin', 'skills', sk, 'SKILL.md')).text()) === (await Bun.file(join('skills', sk, 'SKILL.md')).text()));
+  check('plugin version matches package.json', man.version === JSON.parse(await Bun.file('package.json').text()).version);
+  {
+    const psHome = join(TMP, 'codex-home-ps'); Bun.spawnSync(['bun', 'run', join('hooks', 'enable-codex.ts'), '--force'], { env: { ...process.env, CODEX_HOME: psHome, HARNESSMAP_HOOK_SHELL: 'powershell' }, stdout: 'ignore', stderr: 'ignore' });
+    const ps = JSON.parse(await Bun.file(join(psHome, 'hooks.json')).text());
+    check('Windows hook commands use the PowerShell call operator (& "bun.exe" run ...)', ps.hooks.UserPromptSubmit[0].hooks[0].command.startsWith('& "'));
+  }
+  check('codex-plugin/.codex-plugin/plugin.json names the plugin and skills, and carries NO hooks (user-level hooks are the path; a future Codex honouring bundled hooks must not file twice)', man.name === 'map' && man.skills === './skills/' && !('hooks' in man) && await Bun.file(join('hooks', 'codex-hooks.json')).exists());
   const mk = JSON.parse(await Bun.file(join('.agents', 'plugins', 'marketplace.json')).text());
-  check('.agents/plugins/marketplace.json lists the plugin from the repo root', mk.name === 'harnessmap' && mk.plugins?.[0]?.name === 'map' && mk.plugins[0].source?.source === 'local');
+  check('.agents/plugins/marketplace.json lists the plugin from codex-plugin/', mk.name === 'harnessmap' && mk.plugins?.[0]?.name === 'map' && mk.plugins[0].source?.source === 'local' && mk.plugins[0].source?.path === './codex-plugin');
   // (a3) the codex inference backend, driven through a shim `codex` on PATH
   const shimDir = join(TMP, 'codex-shim'); await Bun.write(join(shimDir, 'codex'), `#!/bin/sh
 # shim: find -o <file>, read stdin, answer with JSON that matches the smoke schema

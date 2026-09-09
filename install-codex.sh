@@ -14,7 +14,7 @@ if [ -d "${APP}/.git" ]; then say "updating ${APP}..."; git -C "${APP}" pull -q 
 # Codex does not execute plugin-bundled hooks yet (openai/codex #16430, open), and hooks the user
 # adds are skipped until trusted, often without a prompt (#35306). So: user-level hooks, then /hooks.
 ( cd "${APP}" && bun run hooks/enable-codex.ts --force ) || { say "could not register the hooks - see the error above"; exit 1; }
-if command -v codex >/dev/null 2>&1; then codex plugin marketplace add "${APP}" >/dev/null 2>&1 && codex plugin add map@harnessmap >/dev/null 2>&1 && say "skills registered as a Codex plugin (marketplace 'harnessmap', plugin 'map')" || true; fi
+if command -v codex >/dev/null 2>&1; then codex plugin remove map@harnessmap >/dev/null 2>&1; codex plugin marketplace add "${APP}" >/dev/null 2>&1 && codex plugin add map@harnessmap >/dev/null 2>&1 && say "skills registered as a Codex plugin (marketplace 'harnessmap', plugin 'map')" || true; fi
 # start the map server now and open the page - the user sees the map before Codex is even involved
 # a server already running on OLDER code is restarted (M236): the build it reports must match the app on disk
 HEADSHA=$(git -C "${APP}" rev-parse --short HEAD 2>/dev/null || echo "")

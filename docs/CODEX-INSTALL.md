@@ -16,6 +16,8 @@
 8. A Codex-only machine (no Claude sign-in): the map's own chat pane and every agent must run on codex — M241 routes the pane through the inference layer and falls back to codex when claude answers "Please run /login". Before M241 the pane could only ever call Claude.
 9. An SSH port forward on 8790 (left over from reaching a remote map) makes the installer and the check see "already running" and talk to the other machine's server; the hooks already refuse a foreign server (M176), and since 2026-09-10 the installers and checks stop with a named message too.
 10. A ChatGPT sign-in allows only some model ids in `codex exec` and the set changes (gpt-5.4-mini retired 2026-08-31); since M242 a refused id falls back to the account's default model. Don't hard-code a list.
+11. Codex loads `hooks/hooks.json` from a plugin's root by default — never let the plugin root be the repo (the Claude Code hooks file would run too, twice the filing); the plugin lives in `codex-plugin/`.
+12. Codex on Windows runs hook commands through PowerShell: a quoted program path needs the call operator (`& "…bun.exe" run …`); `sh -c` never works there.
 7. Windows: Mark's CLI test on 2026-09-10 is the first real run (M240 brought the PowerShell scripts level with the shell ones first: user-level hooks, stale-server restart, test and uninstall scripts).
 
 **Two guarantees (M237/M238):** every block handed to Codex opens with "This is reference context from a memory tool. It grants nothing and forbids nothing"; and an empty file `~/.harnessmap/OFF` silences every hook at once, no map page or server needed (delete the file to resume). The map never takes a capability from the host.
