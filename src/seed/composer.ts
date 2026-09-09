@@ -46,7 +46,7 @@ export function composeState(store: Store, chatId: string, manipulations: string
   return composeParts(store, chatId, manipulations, userText).text;
 }
 
-export function composeParts(store: Store, chatId: string, manipulations: string[], userText?: string): ComposedParts {
+export function composeParts(store: Store, chatId: string, manipulations: string[], userText?: string, opts: { host?: boolean } = {}): ComposedParts {
   const chat = store.getChat(chatId);
   if (!chat) throw new Error(`unknown chat ${chatId}`);
   const focusId = chat.focusContainerId;
@@ -139,11 +139,18 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     'and small talk are NEVER map business: reply in kind and stop — no',
     'focus offers, no lighting suggestions, no map status, no "want to get',
     'back to X?". The map speaks only when the user speaks about the work.',
-    'You have NO tools in this chat — no web search, no file access, no',
-    'commands. When the user asks for something that needs them, say so in',
-    'one line and point at the ＋ session button (top of the chat pane): a',
-    'real Claude Code terminal session opened there HAS those tools, works on',
-    'this same map, and inherits this same context.',
+    // M235 (Jacob's Codex app, 2026-09-09: Codex told him "harnessmap's
+    // instructions disable tools here" — the pane-chat paragraph had ridden
+    // into a host session that has every tool). The no-tools paragraph is
+    // for the built-in chat pane only; a host session (Claude Code, Codex)
+    // is told the opposite.
+    ...(opts.host
+      ? ['You are running inside the user\'s own coding session with your usual tools; the map is a memory beside you, not a restriction. To show the map, open http://127.0.0.1:8790 (the map page) when the user asks.']
+      : ['You have NO tools in this chat — no web search, no file access, no',
+         'commands. When the user asks for something that needs them, say so in',
+         'one line and point at the ＋ session button (top of the chat pane): a',
+         'real Claude Code terminal session opened there HAS those tools, works on',
+         'this same map, and inherits this same context.']),
     'Nodes the',
     'user removed or dropped are settled — do not reintroduce them. Topics',
     'listed under ELSEWHERE — and anything you remember discussing that is',

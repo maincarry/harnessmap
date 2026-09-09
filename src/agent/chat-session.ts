@@ -87,7 +87,7 @@ export class ChatSessionManager {
   // harness's turn — consumes pending manipulations (they're delivered now).
   // No verbatim window: the host owns its own transcript.
   harnessContext(chatId: string, userText?: string): string {
-    const parts = composeParts(this.store, chatId, this.consumeManipulations(chatId), userText);
+    const parts = composeParts(this.store, chatId, this.consumeManipulations(chatId), userText, { host: true }); // M235: a host session has tools
     this.traceAttention(userText, parts.thinking);
     return parts.text;
   }
