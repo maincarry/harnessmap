@@ -6,7 +6,7 @@
 //   bun run src/eval/work-suite.ts --project <id> --transcript <file> [--reps 2] [--checkpoint <file>] [--h1 "…"]
 import { call } from '../inference.js';
 const args = process.argv.slice(2);
-const flag = (n: string) => { const i = args.indexOf(`--${n}`); return i > 0 ? args[i + 1] : null; };
+const flag = (n: string) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : null; };
 const BASE = process.env.HARNESSMAP_URL ?? 'http://127.0.0.1:8790';
 const PROJECT = flag('project'); const TRANSCRIPT = flag('transcript'); const REPS = Number(flag('reps') ?? 2); const H1 = flag('h1');
 const CKPT = flag('checkpoint') ?? `/tmp/claude-1000/work-suite-ckpt.json`;
