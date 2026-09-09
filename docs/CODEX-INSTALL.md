@@ -1,4 +1,18 @@
-# HarnessMap for Codex users — the easiest install (research, 2026-09-08)
+# HarnessMap for Codex
+
+## Status for Mark (2026-09-09, 11:25 pm ET) — where the Codex work stands
+
+**Built and pushed (main ca1c200):** one-command installer per OS (`install-codex.sh`, `install-codex.ps1`), one-command check (`test-codex.sh`), one-command uninstall (`uninstall-codex.sh`, `--purge` for everything); user-level hooks with the absolute bun path; the skills as a Codex plugin (no hooks in the manifest); the `codex exec` inference backend with the OpenAI tiers on the ⚙ models page; hooks that restart a server whose build differs from the code on disk; host sessions told they have their tools.
+
+**Verified on Jacob's Mac (Codex app 0.153.4):** the installer runs; the plugin registers; the server starts; the three hooks, driven by hand, file a node; after the hooks were trusted in the CLI, the Codex APP received the map block (Codex listed the map from inside the app). **Not yet verified there:** a node filed from a real app exchange (Jacob's session was stuck on the stale no-tools block; the fix needs one terminal command he had not run when he stopped).
+
+**What only a human can do:** trust the hooks once in the CLI (`codex` → `/hooks`); the app has no `/hooks` and Codex does not run plugin hooks (openai/codex #16430, #35306).
+
+**What went wrong tonight, in order, all fixed:** a typographic ellipsis after `$APP` broke bash; the raw CDN served the old installer (pin URLs to a commit); the check's server died between Codex's sandboxed commands (one-command check); `/api/models` could answer empty; the pane-chat "you have NO tools" paragraph rode into host sessions and made Codex refuse to run anything; a running server kept old code after a pull (build check in hooks and installer); no uninstall.
+
+**For a fresh machine:** the prompt at the end of this document, with `<commit>` = the current main sha. **Windows is untested.** Report the SUMMARY block and, on a FAIL, the log tail.
+
+ — the easiest install (research, 2026-09-08)
 
 Question (Mark): the easiest way for someone to install the map when they use (1) the Codex app, (2) the Codex CLI.
 
