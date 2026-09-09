@@ -33,8 +33,11 @@ if (pluginInstalled && !REMOVE && !FORCE) {
 
 const src = JSON.parse(readFileSync(join(HOOKS_DIR, 'hooks.json'), 'utf8'));
 const derived = codexHooksFrom(src);
-// absolute paths instead of ${PLUGIN_ROOT}
-for (const groups of Object.values<any>(derived.hooks)) for (const g of groups as any[]) for (const h of g.hooks) h.command = String(h.command).replace('${PLUGIN_ROOT}', HOOKS_DIR.replace(/[\\/]hooks$/, ''));
+// absolute paths instead of ${PLUGIN_ROOT} — and the ABSOLUTE bun binary: the
+// Codex app runs hooks with a GUI environment whose PATH has no ~/.bun/bin
+// (Jacob's Mac had bun on PATH by luck; a fresh install would fail silently).
+const BUN = process.execPath;
+for (const groups of Object.values<any>(derived.hooks)) for (const g of groups as any[]) for (const h of g.hooks) h.command = String(h.command).replace('${PLUGIN_ROOT}', HOOKS_DIR.replace(/[\\/]hooks$/, '')).replace(/^bun run /, `"${BUN}" run `);
 
 mkdirSync(CODEX_HOME, { recursive: true });
 const path = join(CODEX_HOME, 'hooks.json');

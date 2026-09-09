@@ -140,7 +140,7 @@ console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');
   check('re-running does not duplicate entries', JSON.stringify(hj2).length === JSON.stringify(hj).length);
   // M220: the context limit rides the context-bearing hooks; --remove cleans
   check('user-level hooks carry additionalContextLimit', hj.hooks.UserPromptSubmit[0].hooks[0].additionalContextLimit >= 10_000);
-  check('commands run bun directly (no sh — Windows)', String(hj.hooks.UserPromptSubmit[0].hooks[0].command).startsWith('bun run '));
+  check('commands run the absolute bun binary directly (no sh; a GUI app has no ~/.bun/bin on PATH)', /^"[^"]*bun[^"]*" run /.test(String(hj.hooks.UserPromptSubmit[0].hooks[0].command)));
   const p3 = Bun.spawn(['bun', 'run', join('hooks', 'enable-codex.ts'), '--remove'], { env: { ...HOOK_ENV, CODEX_HOME } as any, stdout: 'pipe', stderr: 'pipe' });
   await p3.exited;
   const hj3 = JSON.parse(await Bun.file(join(CODEX_HOME, 'hooks.json')).text());
