@@ -139,6 +139,10 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     'and small talk are NEVER map business: reply in kind and stop — no',
     'focus offers, no lighting suggestions, no map status, no "want to get',
     'back to X?". The map speaks only when the user speaks about the work.',
+    // RULE (Jacob, 2026-09-09: "why on earth are you blocking the operation of
+    // codex?"): the block INFORMS a host agent; it never RESTRICTS one. No
+    // sentence in a host block may take a capability away (tools, commands,
+    // files) — checked mechanically in install-smoke §6c.
     // M235 (Jacob's Codex app, 2026-09-09: Codex told him "harnessmap's
     // instructions disable tools here" — the pane-chat paragraph had ridden
     // into a host session that has every tool). The no-tools paragraph is

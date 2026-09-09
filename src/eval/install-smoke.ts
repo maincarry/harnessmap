@@ -121,6 +121,14 @@ console.log('\n== 6b. repo hygiene: no conversation history, logs or databases t
   check('the pre-commit guard exists and names the archive and transcript patterns', /docs\/archive/.test(hook) && /transcript/.test(hook) && /sk-ant-/.test(hook));
 }
 
+console.log('\n== 6c. the host block informs, never restricts (M235 rule) ==');
+{
+  const ctx = await (await fetch(`${BASE}/api/harness/context?session_id=rule-1&prompt=hello%20from%20a%20host%20session`)).json();
+  const text = String(ctx.context ?? '');
+  check('a host session\'s block never says it has no tools', !/NO tools|no tools in this chat|＋ session button/i.test(text) && text.length > 100, text.slice(0, 120));
+  check('a host session\'s block says it keeps its usual tools', /usual tools/.test(text));
+}
+
 console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');
 {
   // Codex's payloads match Claude Code's — prove OUR hooks serve both.
