@@ -29,6 +29,9 @@ if (Get-Command codex -ErrorAction SilentlyContinue) {
 # a server already running on OLDER code is restarted (M236): the build it reports must match the app on disk
 $Head = ''; try { $Head = (git -C $App rev-parse --short HEAD).Trim() } catch {}
 $st = State
+# a harnessmap answering on this port from ANOTHER machine = an SSH port forward (Mark, Windows, 2026-09-10);
+# binding to it would file this machine's talk onto that map, and nothing here can close the tunnel.
+if ($st -and $st.machine -and ($st.machine.ToLower() -ne $env:COMPUTERNAME.ToLower())) { throw "port 8790 is answered by a map server on ANOTHER machine ('$($st.machine)') - an SSH port forward? Close that tunnel (or move it off 8790), then rerun this installer." }
 if ($st -and $Head -and ($st.build -ne $Head)) {
   Say "restarting the map server on the updated code ($($st.build) -> $Head)"
   try { Invoke-RestMethod -Method Post "$B/api/shutdown" -TimeoutSec 3 | Out-Null } catch {}

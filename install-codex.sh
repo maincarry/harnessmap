@@ -19,6 +19,9 @@ if command -v codex >/dev/null 2>&1; then codex plugin marketplace add "${APP}" 
 # a server already running on OLDER code is restarted (M236): the build it reports must match the app on disk
 HEADSHA=$(git -C "${APP}" rev-parse --short HEAD 2>/dev/null || echo "")
 RUNNING=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"build":"[a-z0-9]*"' | cut -d'"' -f4)
+MACHINE=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"machine":"[^"]*"' | cut -d'"' -f4)
+# a harnessmap answering on this port from ANOTHER machine = an SSH port forward; nothing here can close it
+if [ -n "${MACHINE}" ] && [ "${MACHINE}" != "$(hostname)" ]; then say "port 8790 is answered by a map server on ANOTHER machine ('${MACHINE}') - an SSH port forward? Close that tunnel (or move it off 8790), then rerun this installer."; exit 1; fi
 if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && [ -n "${HEADSHA}" ] && [ "${RUNNING}" != "${HEADSHA}" ]; then say "restarting the map server on the updated code (${RUNNING:-old} -> ${HEADSHA})"; curl -s -m 3 -X POST http://127.0.0.1:8790/api/shutdown >/dev/null 2>&1; sleep 2; pkill -f "bun run src/server.ts" 2>/dev/null; sleep 1; fi
 if ! curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then ( cd "${APP}" && nohup bun run src/server.ts > "${HOME}/.harnessmap/server.log" 2>&1 & ); for i in 1 2 3 4 5 6 7 8 9 10; do sleep 1; curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && break; done; fi
 if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then say "the map is up at http://127.0.0.1:8790"; (command -v open >/dev/null 2>&1 && open http://127.0.0.1:8790) || (command -v xdg-open >/dev/null 2>&1 && xdg-open http://127.0.0.1:8790) || true; else say "the map server did not answer - see ${HOME}/.harnessmap/server.log"; fi

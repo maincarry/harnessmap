@@ -15,6 +15,7 @@ if (Test-Path $hj) { "user-level hook entries: $((Select-String -Path $hj -Patte
 try { codex plugin list 2>$null | Select-String -i harnessmap } catch {}
 Say "2. server"
 if (-not (State)) { $bun = (Get-Command bun).Source; Start-Process -FilePath $bun -ArgumentList "run","src/server.ts" -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput (Join-Path $HOME ".harnessmap\server.log") -RedirectStandardError (Join-Path $HOME ".harnessmap\server.err.log") | Out-Null; foreach ($i in 1..12) { Start-Sleep 1; if (State) { break } } } else { "already running" }
+$st = State; if ($st -and $st.machine -and ($st.machine.ToLower() -ne $env:COMPUTERNAME.ToLower())) { "port 8790 is answered by a map server on ANOTHER machine ('$($st.machine)') - an SSH port forward? Close it and rerun."; Add "state" "FAIL" "foreign server $($st.machine)"; return }
 $st = State; if ($st) { "state OK: build $($st.build)  running from $($st.appRoot)"; Add "state" "PASS" "build $($st.build) from $($st.appRoot)" } else { "state: no answer"; Add "state" "FAIL" "server did not answer" }
 Say "3. models"; try { $mo = Invoke-RestMethod "$B/api/models" -TimeoutSec 5; "models OK: $(($mo | ConvertTo-Json -Compress -Depth 3).Substring(0, [Math]::Min(300, ($mo | ConvertTo-Json -Compress -Depth 3).Length)))"; Add "models" "PASS" "" } catch { "models: $($_.Exception.Message)"; Add "models" "FAIL" $_.Exception.Message }
 Say "4. hooks, driven by hand (SessionStart, UserPromptSubmit, Stop) - gate opened for the probe session"
