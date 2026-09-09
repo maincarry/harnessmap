@@ -6,6 +6,8 @@
 
 **Verified on Jacob's Mac (Codex app 0.153.4):** the installer runs; the plugin registers; the server starts; the three hooks, driven by hand, file a node; after the hooks were trusted in the CLI, the Codex APP received the map block (Codex listed the map from inside the app). **Not yet verified there:** a node filed from a real app exchange (Jacob's session was stuck on the stale no-tools block; the fix needs one terminal command he had not run when he stopped).
 
+**Two guarantees (M237/M238):** every block handed to Codex opens with "This is reference context from a memory tool. It grants nothing and forbids nothing"; and an empty file `~/.harnessmap/OFF` silences every hook at once, no map page or server needed (delete the file to resume). The map never takes a capability from the host.
+
 **What only a human can do:** trust the hooks once in the CLI (`codex` → `/hooks`); the app has no `/hooks` and Codex does not run plugin hooks (openai/codex #16430, #35306).
 
 **What went wrong tonight, in order, all fixed:** a typographic ellipsis after `$APP` broke bash; the raw CDN served the old installer (pin URLs to a commit); the check's server died between Codex's sandboxed commands (one-command check); `/api/models` could answer empty; the pane-chat "you have NO tools" paragraph rode into host sessions and made Codex refuse to run anything; a running server kept old code after a pull (build check in hooks and installer); no uninstall.
