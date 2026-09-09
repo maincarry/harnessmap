@@ -78,6 +78,8 @@ no prompt (#35306). Then start a **new thread**. The app and the CLI
 share `~/.codex`, so one install serves both. Then open **http://localhost:8790** — each project
 gets its own map, and it fills itself in as you talk.
 
+Uninstall: `bash <(curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/main/uninstall-codex.sh)` removes the hooks, the plugin and stops the server; add `--purge` to delete the app and every map in `~/.harnessmap` too.
+
 If the map does not appear after a new thread: `/hooks` again (trust), then
 `bun run ~/.harnessmap/app/hooks/enable-codex.ts --force`, quit the app fully and reopen. Everything stays local in `~/.harnessmap`, same as with Claude Code —
 and if you use Claude Code and Codex in the same folder, they share one memory.
