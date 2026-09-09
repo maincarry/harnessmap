@@ -153,7 +153,7 @@ console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');
   check('hooks/codex-hooks.json is derived from hooks/hooks.json (in sync)', JSON.stringify(derived) === JSON.stringify(JSON.parse(before)));
   check('derived hooks use ${PLUGIN_ROOT} and the context limit', JSON.stringify(derived).includes('${PLUGIN_ROOT}/hooks/on-prompt.ts') && derived.hooks.UserPromptSubmit[0].hooks[0].additionalContextLimit >= 10_000);
   const man = JSON.parse(await Bun.file(join('.codex-plugin', 'plugin.json')).text());
-  check('.codex-plugin/plugin.json names the plugin, skills and hooks', man.name === 'map' && man.skills === './skills/' && man.hooks === './hooks/codex-hooks.json' && await Bun.file(join('hooks', 'codex-hooks.json')).exists());
+  check('.codex-plugin/plugin.json names the plugin and skills, and carries NO hooks (user-level hooks are the path; a future Codex honouring bundled hooks must not file twice)', man.name === 'map' && man.skills === './skills/' && !('hooks' in man) && await Bun.file(join('hooks', 'codex-hooks.json')).exists());
   const mk = JSON.parse(await Bun.file(join('.agents', 'plugins', 'marketplace.json')).text());
   check('.agents/plugins/marketplace.json lists the plugin from the repo root', mk.name === 'harnessmap' && mk.plugins?.[0]?.name === 'map' && mk.plugins[0].source?.source === 'local');
   // (a3) the codex inference backend, driven through a shim `codex` on PATH

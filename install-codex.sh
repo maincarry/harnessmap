@@ -11,15 +11,9 @@ if ! command -v codex >/dev/null 2>&1; then say "codex is not on PATH - install 
 mkdir -p "$(dirname "${APP}")"
 if [ -d "${APP}/.git" ]; then say "updating ${APP}..."; git -C "${APP}" pull -q --ff-only || true; else say "fetching the map into ${APP}..."; git clone -q "${REPO}" "${APP}"; fi
 ( cd "${APP}" && bun install --production >/dev/null 2>&1 || true )
-if command -v codex >/dev/null 2>&1 && codex plugin marketplace add "${APP}" >/dev/null 2>&1; then
-  if codex plugin add map@harnessmap >/dev/null 2>&1; then
-    say "installed as a Codex plugin (marketplace 'harnessmap', plugin 'map')."
-    say "Next: start a NEW Codex session (or restart the Codex app) and accept the hook trust prompt when it appears."
-    say "If the map does not appear after that: bun run \"${APP}/hooks/enable-codex.ts\" --force  (user-level hooks)"
-  else
-    say "plugin install did not succeed - registering user-level hooks instead."; ( cd "${APP}" && bun run hooks/enable-codex.ts --force )
-  fi
-else
-  say "registering user-level hooks (this Codex has no plugin command, or codex is missing)."; ( cd "${APP}" && bun run hooks/enable-codex.ts --force ) || true
-fi
+# Codex does not execute plugin-bundled hooks yet (openai/codex #16430, open), and hooks the user
+# adds are skipped until trusted, often without a prompt (#35306). So: user-level hooks, then /hooks.
+( cd "${APP}" && bun run hooks/enable-codex.ts --force ) || { say "could not register the hooks - see the error above"; exit 1; }
+if command -v codex >/dev/null 2>&1; then codex plugin marketplace add "${APP}" >/dev/null 2>&1 && codex plugin add map@harnessmap >/dev/null 2>&1 && say "skills registered as a Codex plugin (marketplace 'harnessmap', plugin 'map')" || true; fi
+say "LAST STEP, in Codex: start a session and type  /hooks  - trust the harnessmap entries (Codex skips untrusted hooks silently). Then start a NEW thread."
 say "The map lives at http://127.0.0.1:8790 once a session starts. All data stays in ~/.harnessmap."

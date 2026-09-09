@@ -11,6 +11,5 @@
     "context",
     "goals"
   ],
-  "skills": "./skills/",
-  "hooks": "./hooks/codex-hooks.json"
+  "skills": "./skills/"
 }

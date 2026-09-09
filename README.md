@@ -70,16 +70,16 @@ curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/main/install-c
 irm https://raw.githubusercontent.com/maincarry/harnessmap/main/install-codex.ps1 | iex
 ```
 
-It installs bun if needed, puts the app in `~/.harnessmap/app`, registers it as a Codex plugin
-(marketplace `harnessmap`, plugin `map` — skills and hooks bundled), and tells you the two things
-Codex asks of you: start a **new session** (or restart the Codex app) and **accept the hook trust
-prompt** once (hooks you add yourself are never run before you trust them). The app and the CLI
+It installs bun if needed, puts the app in `~/.harnessmap/app`, registers the map's hooks at the
+user level (`~/.codex/hooks.json` — Codex does not run plugin-bundled hooks yet, openai/codex #16430)
+and the skills as a Codex plugin, and tells you the one thing Codex asks of you: in a session, type
+**`/hooks` and trust the harnessmap entries** — Codex skips untrusted hooks silently and often shows
+no prompt (#35306). Then start a **new thread**. The app and the CLI
 share `~/.codex`, so one install serves both. Then open **http://localhost:8790** — each project
 gets its own map, and it fills itself in as you talk.
 
-If the map does not appear after a new session, register the hooks at the user level instead
-(`bun run ~/.harnessmap/app/hooks/enable-codex.ts --force`, and `codex plugin remove map@harnessmap`
-so rounds never file twice). Everything stays local in `~/.harnessmap`, same as with Claude Code —
+If the map does not appear after a new thread: `/hooks` again (trust), then
+`bun run ~/.harnessmap/app/hooks/enable-codex.ts --force`, quit the app fully and reopen. Everything stays local in `~/.harnessmap`, same as with Claude Code —
 and if you use Claude Code and Codex in the same folder, they share one memory.
 
 ## Privacy & data
