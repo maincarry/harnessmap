@@ -50,3 +50,17 @@ Then:
 Manifest + marketplace + limit key: an hour. The `codex` backend with schema and retries: half a day, plus the smoke suite section for it. Validation on the Mac: an afternoon with Codex installed.
 
 Sources: developers.openai.com/codex (plugins, build, hooks, non-interactive, cli/reference, config), github.com/openai/codex issues #16430, #16933, #20766, #21696, github.com/awn3x/Hooks-for-Codex, codex.danielvaughan.com plugin-marketplace articles (2026-03..05), openai.com/index/gpt-5-6.
+
+## What the first real install taught (Jacob's Mac, 2026-09-09) — and the prompt that now guides it
+
+Codex does not run plugin-bundled hooks (openai/codex #16430, open); user-added hooks are skipped silently until trusted (#35306); the Codex APP has no /hooks — only the CLI can grant trust, and the two share ~/.codex. So the working path is: user-level hooks (the installer does it), the skills as a plugin, one manual step — `codex` in a terminal, `/hooks`, trust harnessmap — then a new thread anywhere. The installer starts the server and opens the map page itself; `test-codex.sh` is the one-command check. Our own bugs found the same night: a typographic ellipsis after `$APP` (bash read it as a variable), the raw CDN serving a stale copy (pin the URL to a commit), a test protocol whose server died between Codex's commands (start it with nohup inside one command), and the pane-chat "you have NO tools" paragraph riding into host sessions (M235).
+
+### The prompt to paste into a Codex thread
+
+Install and verify "harnessmap", a local map plugin for Codex, on this machine. Run every command yourself, show me its output, and continue unless a step says FAIL. Do not install anything else and do not edit files by hand.
+
+1. Report: `codex --version ; git --version ; bun --version` (bun may be missing — fine, the installer adds it).
+2. Run the installer for this OS and paste its full output — macOS/Linux: `curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/main/install-codex.sh | bash` · Windows PowerShell: `irm https://raw.githubusercontent.com/maincarry/harnessmap/main/install-codex.ps1 | iex` (pin `main` to a commit if the CDN serves a stale copy). Tell me whether the map page opened.
+3. macOS/Linux: run the check as ONE command and paste its SUMMARY block: `bash <(curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/main/test-codex.sh)`. Windows: from `$HOME\.harnessmap\app` run `bun run src/eval/install-smoke.ts` and paste the last 5 lines. Every row should say PASS; on FAIL paste the log tail and stop.
+4. Paste `cat ~/.codex/hooks.json` (Windows: `type $HOME\.codex\hooks.json`): five events whose commands point into ~/.harnessmap/app/hooks/.
+5. Stop and report one line each: installer · check · hooks file. Then print for the human: "ONE MANUAL STEP Codex requires: open a terminal in any project folder, run `codex`, type `/hooks`, trust the harnessmap entries. Then start a NEW thread and say: Remember: we chose blue for the header because it is calmer. Within ~30 s a node with that decision appears on http://127.0.0.1:8790."
