@@ -58,3 +58,14 @@ So the map's value in work is the same as in recall: it carries what fell out of
 | 3 · Work | Does the advantage survive a real deliverable? | +27 points correct, 2.6× fewer contradictions |
 
 Three tests, one direction. Cost figure, as the design requires: the map arm's brief averaged 49k characters, the same as the transcript arm's by construction.
+
+## Sanity check (2026-09-10, 5:50 am ET, on Jacob's "sanity check")
+
+Done by hand on the archived cells (docs/archive/work-run-2026-09-09/cells.json, local).
+
+- **No answer-key leak.** The checklists were written from the map; the map brief carries the claims' rare words in full for 1/6 (W1), 2/6 (W2), 4/6 (W3), 0/5 (W4), 2/6 (W5) claims — the transcript brief for 0, 0, 3, 0, 4. The map arm wrote from the map's content, not from the key.
+- **The transcript arm genuinely lacked the material.** Its brief has 0 mentions of "to sort" (W1), "three moves" (W3), "subscription" / "API key" (W4). By construction: the baseline is the last ~50k characters of the log, not a search of it. A retrieval baseline (the log's passages nearest the task's words, same budget) is the tougher, honest next comparison — the test's weak point.
+- **All 15 contradiction verdicts read against the cited sentence.** Three misgrades, all charged against the map: W5 rep0, both graders counted "the deliverable does not state X" as a contradiction (absence ≠ contradiction); W2 rep1, one grader counted a sentence that agrees with the ruling. Corrected contradictions per output: **map 0.25** (reported 0.40) vs transcript 1.05 (unchanged). The transcript's are real: tidy picks up to-sort items (invented), zoom changes what the agent sees (wrong), agents bill your API key (the opposite of M103). One transcript verdict is weak (W3, "the focus node and its ancestors are never dimmed"); left as is.
+- **Correctness verdicts** spot-checked on the extreme cells (W1 transcript 8%, W4 map 60%): fair. W4 map lost a point for naming the dev-mode button instead of the sign-in & billing button — a correct deduction.
+
+Verdict: the result stands; the contradiction gap was understated. Next run: the grader prompt says "absent is not contradicted"; the baseline is retrieval, not the tail.
