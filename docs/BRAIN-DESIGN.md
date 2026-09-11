@@ -1,3 +1,5 @@
+> Living design log of the brain (current). Its standing rules are summarized in docs/MIND.md §4.5.
+
 # The Brain — design log
 
 A running record of how the map's mind is built and why. Rulings carry who said them and when. Newest section last. Code references are to the tree as of 2026-09-08.

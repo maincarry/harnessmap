@@ -1,3 +1,5 @@
+> Proposal of 2026-09-08; its rulings are still open (docs/MIND.md §9 item 4).
+
 # Preferences as part of the map — design proposal (v1, 2026-09-08)
 
 Status: for Jacob + Mark's ruling. Written on Jacob's "we need some serious better
