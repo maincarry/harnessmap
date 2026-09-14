@@ -105,7 +105,8 @@ export class ChatSessionManager {
   // MAP.md body: same keyhole, but never consumes pending notices (those
   // belong to the next injection).
   previewMapOnly(chatId: string): string {
-    return composeState(this.store, chatId, []);
+    // M252: MAP.md is read by HOST agents (Claude Code / Codex in the project folder) — it must never carry the pane's no-tools paragraph
+    return composeState(this.store, chatId, [], undefined, { host: true });
   }
 
   consumeManipulations(chatId: string): string[] {

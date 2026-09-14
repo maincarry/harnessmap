@@ -208,6 +208,61 @@ console.log('\n== 6f. a host session is mirrored, never forked (M251) ==');
   check('derived Codex hooks carry SessionEnd', !!(JSON.parse(await Bun.file(join('hooks', 'codex-hooks.json')).text()).hooks.SessionEnd));
 }
 
+console.log('\n== 6g. boundaries found by Mark\'s Codex test (M252) ==');
+{
+  const { unlinkSync: ul3, existsSync: ex3, writeFileSync: wf3, readFileSync: rf3 } = await import('node:fs');
+  const gatedEnv = { ...HOOK_ENV, HARNESSMAP_SESSION_GATE: undefined } as any;
+  const run = (file: string, payload: any) => { const p = Bun.spawnSync(['bun', 'run', join('hooks', file)], { env: gatedEnv, stdin: new TextEncoder().encode(JSON.stringify(payload)), stdout: 'pipe', stderr: 'pipe' }); return { code: p.exitCode, out: p.stdout.toString() }; };
+  const A = join(TMP, 'gate-folder-a'), B = join(TMP, 'gate-folder-b'); mkdirSync(A, { recursive: true }); mkdirSync(B, { recursive: true });
+  try { ul3(join(HOME, 'session')); } catch {} try { ul3(join(HOME, 'open-next')); } catch {}
+  // (1) the marker carries the folder "open map" was said in: a session in another folder cannot claim it
+  wf3(join(HOME, 'open-next'), A);
+  const other = run('on-prompt.ts', { session_id: 'gate-X', prompt: 'a question from another folder', cwd: B });
+  check('a session in another folder cannot claim an "open map" said elsewhere', other.code === 0 && !ctxOf(other.out) && ex3(join(HOME, 'open-next')));
+  const mine = run('on-prompt.ts', { session_id: 'gate-Y', prompt: 'a question from the right folder', cwd: A });
+  check('the session in that folder claims it', mine.code === 0 && ctxOf(mine.out).length > 50 && rf3(join(HOME, 'session'), 'utf8').trim() === 'gate-Y');
+  // (2) saying "open map" again in the attached session is idempotent: the marker is consumed, nobody else can take it
+  wf3(join(HOME, 'open-next'), A);
+  run('on-stop.ts', { session_id: 'gate-Y', turn_id: 't2', cwd: A, last_assistant_message: 'still me' });
+  check('a repeated "open map" in the attached session consumes the marker', !ex3(join(HOME, 'open-next')) && rf3(join(HOME, 'session'), 'utf8').trim() === 'gate-Y');
+  try { ul3(join(HOME, 'session')); } catch {}
+  // (3-5) two maps: a mutation belongs to the node's map, whichever map the page shows
+  const stA = await (await fetch(`${BASE}/api/state`)).json();
+  const pidA = stA.projectId;
+  const rootA = stA.nodes.find((n: any) => n.parentId === null && !String(n.content).startsWith('to sort'));
+  const newB = await (await fetch(`${BASE}/api/projects`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'boundary-map' }) })).json();
+  const pidB = newB.id ?? newB.projectId;
+  await fetch(`${BASE}/api/projects/${pidB}/activate`, { method: 'POST' });
+  const stB = await (await fetch(`${BASE}/api/state`)).json();
+  check('a second map is active for the boundary checks', stB.projectId === pidB && pidB !== pidA);
+  const mk = await (await fetch(`${BASE}/api/nodes`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: 'child of a node in map A', parentId: rootA.id }) })).json();
+  const stB2 = await (await fetch(`${BASE}/api/state`)).json();
+  check('a child of map A\'s node lands in map A, not in the map the page shows', !stB2.nodes.some((n: any) => n.id === mk.id));
+  const rf = await fetch(`${BASE}/api/chats/${stB2.mainChatId}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: rootA.id }) });
+  check('focusing a node of another map is refused (400)', rf.status === 400);
+  const del = await fetch(`${BASE}/api/nodes/${mk.id}/delete`, { method: 'POST' });
+  const undoB = await (await fetch(`${BASE}/api/undo/list`)).json();
+  await fetch(`${BASE}/api/projects/${pidA}/activate`, { method: 'POST' });
+  const undoA = await (await fetch(`${BASE}/api/undo/list`)).json();
+  const listOf = (u: any) => Array.isArray(u) ? u : (u.entries ?? u.stack ?? []);
+  check('deleting map A\'s node from map B puts the undo entry in map A', del.status === 200 && listOf(undoA).some((e: any) => /deleted/.test(JSON.stringify(e))) && !listOf(undoB).some((e: any) => /child of a node in map A/.test(JSON.stringify(e))));
+  // (8) an ordinary edit is undoable
+  await fetch(`${BASE}/api/nodes`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: 'edit me once', parentId: rootA.id }) }).then((r) => r.json()).then(async (j) => {
+    await fetch(`${BASE}/api/nodes/${j.id}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: 'edited by hand' }) });
+    const u = await fetch(`${BASE}/api/undo`, { method: 'POST' });
+    const st = await (await fetch(`${BASE}/api/state`)).json();
+    const n = st.nodes.find((x: any) => x.id === j.id);
+    check('a manual edit is undone by undo', u.status === 200 && n && n.content === 'edit me once');
+  });
+  // (7) host exports keep the host's tools
+  const av = await (await fetch(`${BASE}/api/agent-view`)).json();
+  check('the agent view of a map chat is the pane view (no-tools paragraph allowed there)', typeof av.text === 'string');
+  const mapMd = join(PROJ, '.harnessmap', 'MAP.md');
+  await fetch(`${BASE}/api/state`);
+  const md = existsSync(mapMd) ? rf3(mapMd, 'utf8') : '';
+  check('MAP.md (read by host agents) never says the agent has no tools', !/NO tools/i.test(md));
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');

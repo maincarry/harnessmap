@@ -32,9 +32,19 @@ export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmi
   const sid = String(input?.session_id ?? '');
   const sessFile = join(HOME, 'session'), armFile = join(HOME, 'open-next');
   let opened = ''; try { opened = readFileSync(sessFile, 'utf8').trim(); } catch {}
-  if (sid && opened && opened === sid) return true;
+  if (sid && opened && opened === sid) {
+    // M252: "open map" said again in the attached session is idempotent — consume the marker so no other session can take it
+    if (existsSync(armFile)) { try { unlinkSync(armFile); } catch {} }
+    return true;
+  }
   if (existsSync(armFile)) {
-    // the session that speaks first after "open map" is the one it was said in
+    // The session that speaks first after "open map" is the one it was said in.
+    // M252 (found by Mark's Codex test): the marker carries the folder the open
+    // skill ran in; a session in another folder cannot claim it. An empty
+    // marker (older skill) still claims as before.
+    let armCwd = ''; try { armCwd = readFileSync(armFile, 'utf8').trim(); } catch {}
+    const norm = (p: string) => p.replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
+    if (armCwd && input?.cwd && norm(armCwd) !== norm(String(input.cwd))) return false;
     try { mkdirSync(HOME, { recursive: true }); writeFileSync(sessFile, sid); } catch {}
     try { unlinkSync(armFile); } catch {}
     return true;
@@ -134,10 +144,12 @@ export async function ensureServer(): Promise<{ up: boolean; updateNote: string 
 // ~/.codex/sessions; Claude Code's lives under ~/.claude/projects and Claude
 // Code marks its child processes with CLAUDECODE=1. Codex payloads may also
 // carry a gpt model slug. Default claude (the original host).
-export function hostHarness(input: any): 'claude' | 'codex' {
+export function hostHarness(input: any): 'claude' | 'codex' | 'unknown' {
   const tp = String(input?.transcript_path ?? '');
   if (/[\\/]\.codex[\\/]/.test(tp)) return 'codex';
   if (/[\\/]\.claude[\\/]/.test(tp) || process.env.CLAUDECODE) return 'claude';
   if (String(input?.model ?? '').startsWith('gpt') || process.env.CODEX_HOME || process.env.CODEX_SANDBOX) return 'codex';
-  return 'claude';
+  // M252 (Mark: the tab said "Claude" for a Codex session for minutes): a payload with no evidence says so — the server
+  // labels the session plainly "session" until a transcript path arrives (Stop carries one on both harnesses).
+  return 'unknown';
 }

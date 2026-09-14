@@ -42,8 +42,8 @@ export interface ComposedParts {
   thinking: string;
 }
 
-export function composeState(store: Store, chatId: string, manipulations: string[], userText?: string): string {
-  return composeParts(store, chatId, manipulations, userText).text;
+export function composeState(store: Store, chatId: string, manipulations: string[], userText?: string, opts: { host?: boolean } = {}): string {
+  return composeParts(store, chatId, manipulations, userText, opts).text;
 }
 
 export function composeParts(store: Store, chatId: string, manipulations: string[], userText?: string, opts: { host?: boolean } = {}): ComposedParts {

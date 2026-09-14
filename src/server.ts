@@ -276,7 +276,6 @@ function projectForCwdOrCreate(cwd: string): string {
 function ensureSessionBound(sessionId: string | null | undefined, cwd: string | null | undefined, harness?: string | null): void {
   if (!sessionId || !cwd) return;
   const h = harness === 'codex' ? 'codex' : harness === 'claude' ? 'claude' : null;
-  if (h && !store.getSetting(`harness:session:${sessionId}`)) store.setSetting(`harness:session:${sessionId}`, h);
   const row = hostRow(sessionId);
   let pid: string;
   if (row?.cwd) pid = store.projectForCwd(row.cwd) ?? projectForCwdOrCreate(row.cwd);
@@ -285,6 +284,7 @@ function ensureSessionBound(sessionId: string | null | undefined, cwd: string | 
   const revived = row?.status === 'closed';
   if (revived) { (store as any).db.prepare("UPDATE harness_sessions SET status = 'live', ended_at = NULL, end_reason = NULL WHERE session_id = ?").run(sessionId); store.audit('host_session_resumed', { session: sessionId.slice(0, 8) }); }
   ensureHostChat(sessionId, pid, h ?? row?.harness ?? store.getSetting(`harness:session:${sessionId}`) ?? null, { follow: revived });
+  recordHarness(sessionId, h);
   if (revived) broadcast({ type: 'host_session', chatId: sessionChat(sessionId), status: 'live' });
 }
 // ---- M251 (Mark, 2026-09-14): a host session is MIRRORED, never forked ----
@@ -295,6 +295,18 @@ function ensureSessionBound(sessionId: string | null | undefined, cwd: string | 
 // the harness's own thread title, marks it closed when SessionEnd fires (with
 // the resume command), and re-attaches when the same session id speaks again.
 // The map's own chat agent lives only in views without a host session.
+// M252: which harness a session runs in — the transcript path is the strongest evidence (Stop carries it on both
+// harnesses); a hook's guess without evidence arrives as 'unknown' and the page says "session" until the path arrives.
+function harnessFromPath(tp: string | null | undefined): 'claude' | 'codex' | null {
+  const t = String(tp ?? ''); if (/[\\/]\.codex[\\/]/.test(t)) return 'codex'; if (/[\\/]\.claude[\\/]/.test(t)) return 'claude'; return null;
+}
+function recordHarness(sessionId: string, claimed: string | null | undefined, transcriptPath?: string | null): void {
+  const strong = harnessFromPath(transcriptPath);
+  const weak = claimed === 'codex' || claimed === 'claude' ? claimed : null;
+  const db = (store as any).db;
+  if (strong) { db.prepare('UPDATE harness_sessions SET harness = ? WHERE session_id = ?').run(strong, sessionId); store.setSetting(`harness:session:${sessionId}`, strong); }
+  else if (weak) { db.prepare('UPDATE harness_sessions SET harness = COALESCE(harness, ?) WHERE session_id = ?').run(weak, sessionId); if (!store.getSetting(`harness:session:${sessionId}`)) store.setSetting(`harness:session:${sessionId}`, weak); }
+}
 function hostRow(sessionId: string): any | null {
   return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
 }
@@ -328,7 +340,7 @@ function ensureHostChat(sessionId: string, pid: string, harness: string | null, 
 // be the same as the tracked session title").
 function refreshHostTitle(sessionId: string): void {
   const row = hostRow(sessionId); if (!row) return;
-  const harness = row.harness ?? store.getSetting(`harness:session:${sessionId}`) ?? 'claude';
+  const harness = row.harness ?? store.getSetting(`harness:session:${sessionId}`) ?? harnessFromPath(row.transcript_path) ?? 'claude';
   let title: string | null = null;
   try {
     if (harness === 'codex') {
@@ -345,13 +357,13 @@ function refreshHostTitle(sessionId: string): void {
 function hostSessionOf(chat: { id: string; hostSessionId?: string | null }): Record<string, unknown> | null {
   if (!chat.hostSessionId) return null;
   const row = hostRow(chat.hostSessionId); if (!row) return null;
-  const harness = row.harness ?? store.getSetting(`harness:session:${chat.hostSessionId}`) ?? 'claude';
+  const harness: string | null = row.harness ?? store.getSetting(`harness:session:${chat.hostSessionId}`) ?? null;
   const first = ((store as any).db.prepare("SELECT content FROM turns WHERE chat_id = ? AND role = 'user' ORDER BY idx LIMIT 1").get(chat.id) as any)?.content as string | undefined;
   return {
-    sessionId: chat.hostSessionId, harness, label: harness === 'codex' ? 'Codex' : 'Claude Code',
+    sessionId: chat.hostSessionId, harness, label: harness === 'codex' ? 'Codex' : harness === 'claude' ? 'Claude Code' : 'session',
     status: row.status ?? 'live', reason: row.end_reason ?? null, endedAt: row.ended_at ?? null,
     title: row.title ?? (first ? first.replace(/\s+/g, ' ').slice(0, 60) : null),
-    resume: harness === 'codex' ? `codex resume ${chat.hostSessionId}` : `claude --resume ${chat.hostSessionId}`,
+    resume: harness === 'codex' ? `codex resume ${chat.hostSessionId}` : harness === 'claude' ? `claude --resume ${chat.hostSessionId}` : null,
     embedded: !!listTerms().find((t) => (getTerm(t.id) as any)?.chatId === chat.id),
   };
 }
@@ -1126,15 +1138,20 @@ const server = Bun.serve({
       // Blank content is allowed (Jacob: naming every new thing "seriously
       // sucks") — the translator auto-names "untitled" nodes once content lands.
       const content = (body.content ?? body.name)?.trim() || 'untitled';
-      store.applyAlterations(projectId, [
+      // M252 (found by Mark's Codex test): a child lands in its PARENT's map, never in whichever map the page switched to meanwhile
+      const parent = body.parentId ? store.getNode(body.parentId) : null;
+      if (body.parentId && !parent) return json({ error: 'unknown parent' }, 404);
+      const pid = parent?.projectId ?? projectId;
+      const pchat = pid === projectId ? mainChatId : activeChatOf(pid);
+      store.applyAlterations(pid, [
         { op: 'create_node', id, parentId: body.parentId ?? null, content, status: 'live', author: 'user' },
       ], { kind: 'user_edit' });
       touch([id]);
-      store.setLit(mainChatId, id, true); // M66: new nodes are born lit
-      chats.noteMapChange(mainChatId, content === 'untitled'
+      store.setLit(pchat, id, true); // M66: new nodes are born lit
+      chats.noteMapChange(pchat, content === 'untitled'
         ? 'created a new node (unnamed — it will be named from the conversation)'
         : `created new node: "${content.slice(0, 60)}"`); // notices carry names, name-sized (M195l)
-      if (body.focus) {
+      if (body.focus && pid === projectId) {
         applyFocus(mainChatId, id);
         chats.noteMapChange(mainChatId, `moved FOCUS to: "${content.slice(0, 60)}"`);
         appendMarker(content === 'untitled' ? 'focus moved to a new node' : `focus moved to "${content.slice(0, 60)}"`);
@@ -1459,6 +1476,9 @@ const server = Bun.serve({
       const nodeId = (body.nodeId ?? body.containerId)!;
       const n = store.getNode(nodeId);
       if (!n) return json({ error: 'unknown node' }, 404);
+      const fchat = store.getChat(focusMatch[1]);
+      if (!fchat) return json({ error: 'unknown session' }, 404);
+      if (fchat.projectId !== n.projectId) return json({ error: 'that node belongs to another map' }, 400); // M252
       store.metric(projectId, 'interaction.zoom');
       clearNudges();
       store.clearMark(nodeId);
@@ -1598,12 +1618,21 @@ const server = Bun.serve({
         return json({ error: '"to sort" is a system folder — its name can\'t be edited' }, 400);
       }
       store.clearMark(id);
+      const epid = before.projectId; // M252: the edit lands in the node's own map, whichever map the page shows
       // M224: a user rename is a ruling on vocabulary — learn agent-word → user-word.
       if (patch.title !== undefined && before.title && patch.title.trim() && patch.title.trim() !== before.title) {
-        const e = learnFromRename(store as any, projectId, before.title, patch.title.trim());
+        const e = learnFromRename(store as any, epid, before.title, patch.title.trim());
         if (e) store.audit('glossary_learned', { from: e.from, to: e.to, how: 'rename' });
       }
-      store.applyAlterations(projectId, [
+      // M252: an ordinary edit is undoable like a move or a delete (the inverse restores the fields that changed)
+      if (patch.status !== 'removed') {
+        const inv: any = { op: 'update_node', id };
+        if (patch.content !== undefined || patch.title !== undefined) { inv.content = before.content; inv.title = before.title ?? ''; }
+        if (patch.type !== undefined) inv.type = (before as any).type ?? null;
+        if (patch.status !== undefined) inv.status = before.status;
+        store.pushUndo(epid, `edited "${nodeName(before)}"`, [inv], null);
+      }
+      store.applyAlterations(epid, [
         // An explicit title wins; a content edit without one clears the stale
         // label so the translator re-titles from the new meaning next round.
         { op: 'update_node', id, status: patch.status, content: patch.content, type: patch.type,
@@ -1639,13 +1668,14 @@ const server = Bun.serve({
       const subtree = [...descendantNodes(store, id).reverse(), id]; // children before parent
       const undoInverse = subtree.map((nid) => { const x = store.getNode(nid)!; return { op: 'update_node', id: nid, status: x.status }; });
       const undoMeta = captureFocusLit(subtree);
-      store.applyAlterations(projectId, subtree.map((nid) => ({ op: 'update_node', id: nid, status: 'removed' } as any)), { kind: 'user_edit' });
-      store.pushUndo(projectId, `deleted "${nodeName(n)}"${subtree.length > 1 ? ` and ${subtree.length - 1} node(s) inside` : ''}`, undoInverse, undoMeta);
+      const dpid = n.projectId; // M252: the deletion, its undo entry and the focus rescue all belong to the node's map
+      store.applyAlterations(dpid, subtree.map((nid) => ({ op: 'update_node', id: nid, status: 'removed' } as any)), { kind: 'user_edit' });
+      store.pushUndo(dpid, `deleted "${nodeName(n)}"${subtree.length > 1 ? ` and ${subtree.length - 1} node(s) inside` : ''}`, undoInverse, undoMeta);
       // M123 (Jacob): EVERY chat focused inside the deleted subtree is
       // rescued (previously only the active one — other sessions were left
       // aimed at a removed node).
-      const fallback = n.parentId ?? store.getNodes(projectId).find((x) => x.parentId === null && x.status !== 'removed')?.id;
-      for (const c of store.getChats(projectId)) {
+      const fallback = n.parentId ?? store.getNodes(dpid).find((x) => x.parentId === null && x.status !== 'removed')?.id;
+      for (const c of store.getChats(dpid)) {
         for (const nid of subtree) store.setLit(c.id, nid, false);
         if (subtree.includes(c.focusContainerId) && fallback) applyFocus(c.id, fallback);
       }
@@ -2393,8 +2423,9 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
 
     // M162: user-facing agent view — what one turn's injection is made of.
     if (path === '/api/agent-view' && req.method === 'GET') {
-      const { text, trimmedLit, sections, budget, thinking } = composeParts(store, mainChatId, []);
-      return json({ sections, trimmedLit, budget, total: text.length, text, thinking });
+      const isHost = !!store.getChat(mainChatId)?.hostSessionId; // M252: the preview shows what THIS session's agent gets — a host keeps its tools
+      const { text, trimmedLit, sections, budget, thinking } = composeParts(store, mainChatId, [], undefined, { host: isHost });
+      return json({ sections, trimmedLit, budget, total: text.length, text, thinking, host: isHost });
     }
 
     // M186 (Mark): full transparency about how the map's agents sign in and
@@ -2688,8 +2719,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const body = await req.json() as { session_id: string; transcript_path?: string; cwd?: string; model?: string; harness?: string; source?: string };
       // M221: which harness is talking — Codex's payload carries an OpenAI
       // model slug; Claude Code's a claude one (or none). Recorded per session.
-      const harness = body.harness ?? (String(body.model ?? '').startsWith('gpt') || /[\\/]\.codex[\\/]/.test(String(body.transcript_path ?? '')) ? 'codex' : 'claude');
-      store.setSetting(`harness:session:${body.session_id}`, harness);
+      const harness: string | null = harnessFromPath(body.transcript_path) ?? (body.harness === 'codex' || body.harness === 'claude' ? body.harness : String(body.model ?? '').startsWith('gpt') ? 'codex' : null);
+      if (harness) store.setSetting(`harness:session:${body.session_id}`, harness);
       // M91 binding policy (Mark's grill): subtree-inclusive lookup, then
       // auto-create a project per new directory — each repo gets its own map
       // by default; merges are the escape hatch. The boot placeholder
@@ -2728,7 +2759,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const wasClosed = prev?.status === 'closed';
       recordSessionStart(store, body.session_id, store.getChat(claimed ?? activeChatOf(pid2))?.focusContainerId ?? null, body.transcript_path ?? null, body.cwd ?? null);
       if (claimed) (store as any).db.prepare('UPDATE harness_sessions SET chat_id = ? WHERE session_id = ?').run(claimed, body.session_id);
-      (store as any).db.prepare("UPDATE harness_sessions SET status = 'live', ended_at = NULL, end_reason = NULL, harness = COALESCE(harness, ?) WHERE session_id = ?").run(harness, body.session_id);
+      (store as any).db.prepare("UPDATE harness_sessions SET status = 'live', ended_at = NULL, end_reason = NULL WHERE session_id = ?").run(body.session_id);
+      recordHarness(body.session_id, harness, body.transcript_path);
       // M251: the session gets its own mirrored view; the page follows it on attach and on resume
       const chatId = body.cwd ? ensureHostChat(body.session_id, pid2, harness, { follow: wasClosed || body.source === 'resume' }) : activeChatOf(pid2);
       refreshHostTitle(body.session_id);
@@ -2760,7 +2792,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     if (path === '/api/harness/observe' && req.method === 'POST') {
       const body = await req.json() as { session_id?: string; transcript_path?: string; last_assistant_message?: string; user_text?: string; assistant_text?: string; cwd?: string };
       ensureSessionBound(body.session_id, body.cwd, (body as any).harness);
-      if (body.session_id) refreshHostTitle(body.session_id); // M251: the tab carries the harness's own thread title
+      if (body.session_id) { recordHarness(body.session_id, (body as any).harness, body.transcript_path); refreshHostTitle(body.session_id); } // M251/M252: the tab carries the harness and its own thread title
       let userText = body.user_text ?? '';
       let assistantText = body.assistant_text ?? '';
       let slice: RoundSlice | null = null;

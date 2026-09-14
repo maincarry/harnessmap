@@ -833,7 +833,7 @@ function renderTabs() {
     b.dataset.tip = h
       ? `${h.label} session${h.status === 'closed' ? ' — closed' : ' — live'}: “${name}” — read-only here; it files onto this map; its own focus and lighting apply`
       : `map chat (the map's own agent, no tools) focused on “${focusName}”${hasTerm ? ' — live terminal attached' : ''} — click to switch`;
-    const mark = h ? `<span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;background:${h.status === 'closed' ? 'var(--muted)' : '#3f9d5a'}"></span>${h.harness === 'codex' ? 'Codex' : 'Claude'} · ` : (hasTerm ? '⌨ ' : '💬 ');
+    const mark = h ? `<span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;background:${h.status === 'closed' ? 'var(--muted)' : '#3f9d5a'}"></span>${h.harness === 'codex' ? 'Codex' : h.harness === 'claude' ? 'Claude' : 'session'} · ` : (hasTerm ? '⌨ ' : '💬 ');
     b.innerHTML = `${c.pinned ? '📌 ' : ''}${mark}${esc(name.slice(0, 26))}${c.id === S.mainChatId ? '<span class="tx" data-tip="close this tab: ends its terminal if one is running and puts the view away — everything it filed stays on the map">✕</span>' : ''}`;
     b.onclick = async (e) => {
       if (e.target.classList?.contains('tx')) { await closeSessionTab(c.id); return; }
@@ -3251,9 +3251,10 @@ function renderHostStrip() {
   strip.hidden = false;
   strip.classList.toggle('live', h.status !== 'closed');
   $('composer').style.display = 'none';
+  const where = h.harness ? esc(h.label) : 'your session';
   strip.innerHTML = h.status === 'closed'
-    ? `<span class="dot"></span><span>closed in ${esc(h.label)}${h.reason ? ` (${esc(h.reason)})` : ''}. To continue it${h.harness === 'codex' ? ', reopen the thread in the Codex app, or in a terminal run' : ', in a terminal run'} <code>${esc(h.resume)}</code> — the map re-attaches by itself when it comes back.</span>`
-    : `<span class="dot"></span><span>live in ${esc(h.label)} — type there; everything said there shows up here and files onto the map.</span>`;
+    ? `<span class="dot"></span><span>closed${h.harness ? ` in ${esc(h.label)}` : ''}${h.reason ? ` (${esc(h.reason)})` : ''}. ${h.resume ? `To continue it${h.harness === 'codex' ? ', reopen the thread in the Codex app, or in a terminal run' : ', in a terminal run'} <code>${esc(h.resume)}</code> — ` : 'Resume it in the harness it ran in — '}the map re-attaches by itself when it comes back.</span>`
+    : `<span class="dot"></span><span>live in ${where} — type there; everything said there shows up here and files onto the map.</span>`;
 }
 function showSession(chatId) {
   activeTab = 'session';
@@ -3352,7 +3353,7 @@ async function closeSessionTab(chatId) {
   }
   try {
     const r = await post(`/api/chats/${chatId}/archive`, {});
-  } catch (err) { $('round-line').textContent = err.message.includes('only session') ? 'this is the only session — create another before closing it' : `close failed: ${err.message}`; }
+  } catch (err) { $('round-line').textContent = err.message.includes('only session') ? 'this is the map\'s own view and the only tab — it hides by itself once a Claude Code or Codex session says "open map"' : `close failed: ${err.message}`; }
   showSession(S.mainChatId);
 }
 // Reconnect after a page load: live terminals keep running server-side.
