@@ -187,7 +187,12 @@ export function chatAwareness(store: Store, projectId: string): string {
     sec('trust', 450) ? `area reliability: ${sec('trust', 450)}` : '',
     advice ? `its advice for chat: ${advice}` : '',
   ].filter(Boolean);
-  return parts.length ? `WHAT THE MAP HOLDS (the map's own standing judgment — includes set-aside areas; use it to recognize what exists and offer to pull things up, never to answer from it directly):\n${parts.join('\n')}` : '';
+  // M253 (finding 9): the judgment is stamped and says how many nodes changed since it was written — a node's own
+  // statement is current where the two disagree; the block never lets a stale judgment outrank a corrected node.
+  const ts = Object.values(u.sections).map((x) => x.ts).filter(Boolean).sort().pop() ?? '';
+  const changed = ts ? (((store as any).db.prepare('SELECT COUNT(*) c FROM nodes WHERE project_id = ? AND updated_at > ? AND status != ?').get(projectId, ts.replace('T', ' ').slice(0, 19), 'removed') as any)?.c ?? 0) : 0;
+  const stamp = ts ? ` — judged ${ts.slice(0, 16).replace('T', ' ')}${changed ? `; ${changed} node(s) changed since: where a node's statement disagrees with this, the statement is current` : ''}` : '';
+  return parts.length ? `WHAT THE MAP HOLDS (the map's own standing judgment${stamp} — includes set-aside areas; use it to recognize what exists and offer to pull things up, never to answer from it directly):\n${parts.join('\n')}` : '';
 }
 
 export function statusConsult(store: Store, projectId: string, forNodeId?: string, lane: 'full' | 'tidy' | 'filing' | 'lighting' | 'review' = 'full'): string {

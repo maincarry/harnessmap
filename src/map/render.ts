@@ -87,6 +87,23 @@ export function renderSubtreeFull(store: Store, nodeId: string, depth = 0, seen:
   return lines.join('\n');
 }
 
+// M253 (finding 6 of Mark's Codex test; Mark and Jacob: "a dimmed node is never served, focus or not"): the focus
+// subtree honouring the light — the focus node itself in full, a lit descendant in full, a DIMMED descendant as its
+// name only, marked set aside, and nothing beneath it. Focus = everything (M46) meant "no tier", never "ignore dim".
+export function renderSubtreeLit(store: Store, nodeId: string, lit: Set<string>, depth = 0, seen: Set<string> = new Set()): string {
+  const n = store.getNode(nodeId);
+  if (!n || n.status === 'removed' || seen.has(nodeId)) return '';
+  seen.add(nodeId);
+  const pad = '  '.repeat(depth);
+  if (depth > 0 && !lit.has(nodeId)) return `${pad}○ ${(n.title || n.content).slice(0, 60)} (set aside by the user — dimmed; not served)`;
+  const lines = [`${pad}${nodeLine(n)}`];
+  for (const kid of store.childrenOf(nodeId)) {
+    const sub = renderSubtreeLit(store, kid.id, lit, depth + 1, seen);
+    if (sub) lines.push(sub);
+  }
+  return lines.join('\n');
+}
+
 // One-paragraph brief of a node: its line + direct-children one-liners (lit view).
 export function renderNodeBrief(store: Store, nodeId: string): string {
   const n = store.getNode(nodeId);

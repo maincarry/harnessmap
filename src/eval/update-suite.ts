@@ -16,6 +16,10 @@ const stories: Story[] = [
   { id: 'm71', name: 'M71 proposal cache: once ever, then capped recompute', before: { title: 'Proposal cache', content: 'A dot\'s tidy proposal is computed once, ever, in a background sweep after a 25s settle; clicking the dot serves the cached proposal instantly.', status: 'decided' }, rounds: [
     { user: 'My open dot had a stale cache — the map changed after the precompute and every click paid a live compute. Under "one compute per dot ever" a stale cache never refreshes. Have the background sweep recompute stale caches, capped at three per dot.', agent: 'Built: stale proposal caches are recomputed in the background sweep, capped at 3 per dot (proposal_count). Clicking still serves the cache instantly when the hash matches.', oldClause: /computed once,? ever\b/i, newClause: /recomput|capped|three|3 /i },
   ] },
+  // M253: Codex's case from Mark's test — a FACT correction updates the node and files no decision twin
+  { id: 'fact', name: 'Fact correction (Codex, M252 #10): the session does have tools', before: { title: 'Conversational session', content: 'This session is a conversational chat with no file or command tools; file work needs a terminal.', status: 'noted' }, rounds: [
+    { user: 'The map says this session has no file or command tools. That is wrong — you ran commands and read files a minute ago. This session does have file and command tools.', agent: 'Corrected: this session does have file and command tools; file work does not need a separate terminal.', oldClause: /no file or command tools|needs a terminal/i, newClause: /does have|has file and command tools/i },
+  ] },
   { id: 'merge', name: 'Merge rule: wording-as-child, then merge specialist', before: { title: 'Node merge', content: 'Merging one node into another: children move to the survivor; the source\'s distinct wording is preserved as a child of the survivor; word-overlap of 0.5 or more counts as a true duplicate and is dropped.', status: 'decided' }, rounds: [
     { user: 'When merging two nodes it is not enough that the child is inherited — the description and chat history must merge too.', agent: 'Built a merge specialist (src/translator/merge.ts, cheap tier, one call): the survivor\'s content absorbs the source\'s distinct information as one statement — integrate, not append — and the two chat memories are combined under the M41 rules. Children still move to the survivor.', oldClause: /as a child of the survivor/i, newClause: /absorb|specialist|integrat/i },
   ] },
@@ -40,7 +44,7 @@ for (const s of stories) {
       const out = await tr.translateRound({ projectId: pid, chatId: 'c1', turnId: `t${i}`, focusContainerId: 'root', userText: r.user, assistantText: r.agent } as any);
       const alts = (out?.result?.alterations ?? []) as any[];
       const updated = alts.some((a) => a.op === 'update_node' && a.id === 'target' && (a.content || a.status));
-      const twin = alts.filter((a) => a.op === 'create_node' && r.newClause.test(String(a.content) + ' ' + String(a.title ?? ''))).length;
+      const twin = alts.filter((a) => a.op === 'create_node' && (r.newClause.test(String(a.content) + ' ' + String(a.title ?? '')) || (s.id === 'fact' && /tools?/i.test(String(a.content) + ' ' + String(a.title ?? ''))))).length;
       const now = st.getNode('target')!;
       const oldLeft = r.oldClause.test(now.content); const newIn = r.newClause.test(now.content + ' ' + now.status);
       const roundOk = updated && twin === 0 && !oldLeft && newIn;

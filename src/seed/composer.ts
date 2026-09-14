@@ -3,7 +3,7 @@ import { getNodeMemory, getAllNodeMemories, getAllMinimals, getAllCurrentDetails
 import { chatAwareness } from '../translator/mapstatus.js';
 import {
   ancestors, descendantNodes, renderNodeBrief,
-  renderNodeOneLiner, renderSubtreeFull,
+  renderNodeOneLiner, renderSubtreeFull, renderSubtreeLit,
 } from '../map/render.js';
 
 // v0.2 (Jacob's #1/#7): the chat agent receives a COMPLETE map-state
@@ -98,7 +98,8 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     for (const f of frame) fixed.push(`  • ${renderNodeBrief(store, f.id)}`);
   }
   fixed.push('', 'FOCUS (what the user is actively working on):');
-  fixed.push(renderSubtreeFull(store, focusId).split('\n').map((l) => `  ${l}`).join('\n'));
+  // M253: the light is the law inside the focus too — a dimmed descendant is a name marked set aside, nothing beneath it
+  fixed.push(renderSubtreeLit(store, focusId, new Set(store.getLit(chatId))).split('\n').map((l) => `  ${l}`).join('\n'));
 
   // M38: how the focus fits its surroundings — cached relational description
   // (refreshed asynchronously after each round; may lag one beat).

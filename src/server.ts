@@ -937,13 +937,16 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
         paths: (params.provenance.slice.filePaths ?? []).slice(0, 12),
         urls: (params.provenance.slice.urls ?? []).slice(0, 12),
       } : {};
-      updateNodeMemory(store, chat.focusContainerId, params.userText, params.assistantText, roundProv).catch(() => {});
+      // M253 (finding 9 of Mark's Codex test): the memory and fit organs are rewritten AFTER the round lands, and
+      // MAP.md was written at the round — so the file on disk kept the old memory text until the next map change.
+      // Every memory write now reschedules MAP.md.
+      updateNodeMemory(store, chat.focusContainerId, params.userText, params.assistantText, roundProv).then(() => scheduleMapFile()).catch(() => {});
       // M156: every node the ROUND touched gets deep too — one batched cheap
       // call over the filer's own relevance list (never "all lit nodes").
       const touchedIds = out.result.alterations
         .map((a: any) => a.id ?? a.nodeId)
         .filter((id: any) => id && id !== chat.focusContainerId);
-      if (touchedIds.length) updateTouchedMemories(store, touchedIds, params.userText, params.assistantText, roundProv).catch(() => {});
+      if (touchedIds.length) updateTouchedMemories(store, touchedIds, params.userText, params.assistantText, roundProv).then(() => scheduleMapFile()).catch(() => {});
       // M195: the overall map status rhythm — event-driven, debounced (M166b
       // idiom): every 10 filed rounds or 30 minutes of activity, whichever
       // first; scans are free, assessments cheap and only for changed areas,

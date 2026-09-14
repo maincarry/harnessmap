@@ -254,6 +254,18 @@ console.log('\n== 6g. boundaries found by Mark\'s Codex test (M252) ==');
     const n = st.nodes.find((x: any) => x.id === j.id);
     check('a manual edit is undone by undo', u.status === 200 && n && n.content === 'edit me once');
   });
+  // (6) the light is the law inside the focus too: a dimmed descendant of the focus is a name, not a statement
+  {
+    const stF = await (await fetch(`${BASE}/api/state`)).json();
+    const kid = await (await fetch(`${BASE}/api/nodes`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: 'the train leaves saturday at noon and the tickets are in the blue folder by the door', parentId: rootA.id }) })).json();
+    await fetch(`${BASE}/api/chats/${stF.mainChatId}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: rootA.id }) });
+    const dim = await fetch(`${BASE}/api/chats/${stF.mainChatId}/lit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: kid.id, on: false }) });
+    const av6 = await (await fetch(`${BASE}/api/agent-view`)).json();
+    check('a dimmed descendant of the focus is NOT served — its name marked set aside, its statement absent', dim.status === 200 && !/blue folder by the door/i.test(av6.text) && /saturday[^\n]*set aside/i.test(av6.text));
+    await fetch(`${BASE}/api/chats/${stF.mainChatId}/lit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: kid.id, on: true }) });
+    const av7 = await (await fetch(`${BASE}/api/agent-view`)).json();
+    check('lit again, the same descendant is served in full', /blue folder by the door/i.test(av7.text));
+  }
   // (7) host exports keep the host's tools
   const av = await (await fetch(`${BASE}/api/agent-view`)).json();
   check('the agent view of a map chat is the pane view (no-tools paragraph allowed there)', typeof av.text === 'string');

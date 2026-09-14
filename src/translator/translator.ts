@@ -50,7 +50,7 @@ PLACEMENT SCOPE — read everywhere, WRITE only in the light:
 - EXPANSION ON DEMAND: if you cannot do this round's job properly without READING a (dim) branch — e.g. to check whether the material already exists there (never duplicate dim content into "to sort"), or to write a precise placement note — output ONE alteration only: request_expansion {ids: [up to 3 dim ids]}. You will be re-run immediately with those branches readable. Expanded branches are READ-ONLY: even after expansion, writes outside the light still go to "to sort". Request expansion only when the names alone genuinely aren't enough — most rounds need none.
 
 Other rules:
-- REBUKES AND CORRECTIONS PRODUCE TWO THINGS: (1) the artifact fix (remove/downgrade the rejected thing) AND (2) a standing decision/constraint node capturing the rule. "why is copyright in there — I said authorship" → downgrade the copyright node AND create decision "angle = authorship, not copyright" [decided]. Never do only the fix.
+- REBUKES that state a RULE produce two things: (1) the artifact fix (remove/downgrade the rejected thing) AND (2) a standing decision/constraint node capturing the rule. "why is copyright in there — I said authorship" → downgrade the copyright node AND create decision "angle = authorship, not copyright" [decided]. A CORRECTION OF A FACT is different: "the map says this session has no tools — it does" corrects the node that holds the claim (update_node, rewritten to the truth) and creates NOTHING — a fact about the world or the environment is never a decision, and a corrected node needs no twin.
 - ONE COMMITMENT = ONE NODE. Atomic nodes are what the user can later point at. Never blob separate commitments together.
 - TITLE + CONTENT ARE SEPARATE (the map displays titles; content is the record). content = a SELF-CONTAINED, INFORMATIVE statement — a reader who never saw the conversation must understand it. Carry the specifics: numbers, names, reasons, qualifiers, the WHY behind a decision ("cook myself — cheaper than catering and 2 guests are gluten-free" beats "cook myself"). Informative first, compact second: 1-3 sentences, no filler. title = a MINIMAL label: 2-4 plain everyday words, NEVER more than 6 — how the user would casually refer to it out loud ("rail pass", "guest list", "weather and mood"). DROP nuance rather than cram it in: a title names the thing, it does not summarize the statement (bad: "weather excuse versus genuine"; good: "weather as excuse"). EVERY node you create gets a title when its content runs past a few words. When you update a node whose meaning shifted, refresh its title too. When the map you receive shows a node with a long line and no sign of a short label, give it one via update_node {title}.
 - STATUSES ARE PER-NODE EARNED STATES, NOT SESSION MOODS. A single utterance normally changes the status of 1–3 nodes, never the whole map. "Ok, park all of it" said while discussing one thread parks THAT THREAD'S nodes only — every decision, constraint, and piece of evidence settled earlier on the map KEEPS its solid status (decided stays decided, active stays active). Ending a session parks nothing by itself.
@@ -238,6 +238,7 @@ export class Translator {
       // is intercepted here — creations redirect to "to sort" (+ provenance,
       // + an auto placement note), updates/moves to dim nodes are dropped.
       alterations = this.guardScope(alterations, writeScope, map, params);
+      alterations = this.guardCorrectionTwin(alterations, map);
       const result: RoundResult = { summary, alterations };
       const roundId = this.store.recordRound(params.chatId, params.turnId, result, `${backendName()}:${modelFor('filer')}`);
       this.store.applyAlterations(params.projectId, result.alterations, { kind: 'round', roundId });
@@ -252,6 +253,27 @@ export class Translator {
   // redirected under "to sort" with provenance + a placement note;
   // updates/moves touching dim nodes are dropped (logged). New nodes created
   // this round extend the scope as they appear.
+  // M253 (finding 10 of Mark's Codex test): a correction that rewrote node X used to ALSO file a "decision" restating
+  // the fact (the old rebuke rule). Prompts guide, guards enforce: a create_node typed decision/constraint in the same
+  // round as an update_node that rewrote content, sharing two or more rare words with the rewritten statement, is dropped.
+  private guardCorrectionTwin(alterations: any[], map: { nodes: MapNode[] }): any[] {
+    const rewritten = alterations.filter((a) => a.op === 'update_node' && typeof a.content === 'string' && a.content.trim());
+    if (!rewritten.length) return alterations;
+    const df = new Map<string, number>();
+    const toks = (t: string) => new Set((t ?? '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 3));
+    for (const n of map.nodes) for (const w of toks(`${n.title ?? ''} ${n.content}`)) df.set(w, (df.get(w) ?? 0) + 1);
+    const rare = (w: string) => (df.get(w) ?? 0) <= Math.max(2, Math.ceil(map.nodes.length * 0.05));
+    const out: any[] = [];
+    for (const a of alterations) {
+      if (a.op === 'create_node' && (a.type === 'decision' || a.type === 'constraint')) {
+        const cw = [...toks(`${a.title ?? ''} ${a.content ?? ''}`)].filter(rare);
+        const dup = rewritten.find((r) => { const rw = toks(r.content); return cw.filter((w) => rw.has(w)).length >= 2; });
+        if (dup) { this.store.audit('guard_correction_twin', { dropped: String(a.content ?? '').slice(0, 80), rewrote: dup.id }); continue; }
+      }
+      out.push(a);
+    }
+    return out;
+  }
   private guardScope(alterations: Alteration[], scope: Set<string>, map: MapView, params: { chatId: string; focusContainerId: string }): Alteration[] {
     const live = new Set(scope);
     const focusName = map.nodes.find((n) => n.id === params.focusContainerId)?.title
