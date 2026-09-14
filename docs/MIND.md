@@ -180,6 +180,13 @@ The agent receives the map every turn (M1). Integrate, don't append (M3). Focus 
 11. The grading rule for long answers and the third-grader adjudication (M218 addendum) — Jacob.
 12. The 5% budget: keep on evidence, or look for the knee (M212 result: 20% over 5% = +0.08, noise) — Jacob.
 
+## 9a. Ideas parked by the founders (to continue next time)
+
+Recorded verbatim in substance, dated, with the design problem each carries. Not ruled, not built.
+
+1. **The import should monitor the host session it is continuously importing from** (Jacob, 2026-09-12 4:13 am ET). The user should be able to see, on the map, which Codex or Claude Code session the map is attached to and filing from. Design problems he named: compatibility across harnesses (what a "session" is differs between Codex rollouts and Claude Code transcripts; the map today records a session id and a cwd, M244/M245, but shows neither on the page). Where it would sit: the sessions overview (M146) already lists the map's own sessions; host sessions attached by "open map" (M239) are not listed there.
+2. **Auto-light and auto-focus should happen automatically** (Jacob, same message): asking the user to press them each time is tedious. Design problem he named: frequency. What exists: re-aim runs before every question in the test protocol (M200) and the merged one-call aim (M218) costs one cheap call per turn; in the product, auto-light and auto-focus are propose→accept buttons (M80) and the light is standing curation the user owns (M194). The open question is which of the three moves the map may make unasked, how often, and how the user sees and reverses it (the M195c re-anchor and the ❗ marks are the visibility half; the sovereignty ruling of M194 is the boundary to respect).
+
 ## 10. Standing guidance for the builder
 
 From the founders' corrections, in their words where possible.
