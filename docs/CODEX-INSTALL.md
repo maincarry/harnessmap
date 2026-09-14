@@ -1,6 +1,10 @@
 # HarnessMap for Codex
 
-## Status for Mark (2026-09-10, 3:05 am ET) — where the Codex work stands
+## Status (2026-09-14) — where the Codex work stands
+
+**Windows CLI fully verified (Mark, 2026-09-14, build ebb9a0a):** all seven check lines pass, including the rollout parser against a real Codex session file. The modlog and design docs are no longer on GitHub (M249). Remaining: the Codex desktop app on Windows and on the Mac after M239 — nobody has run it.
+
+### Earlier status (2026-09-10, 3:05 am ET)
 
 **Windows verified tonight (your runs, Codex CLI 0.153.4, no Claude sign-in):** install, hooks, server, filing on codex, a node from a live Codex exchange. Nine defects fixed on the way (M240–M244), then a native-support review (M245): Codex rollouts are parsed (rounds keep tool refs and files; past Codex sessions import), hooks name the host, upgrade text and the sign-in panel know Codex. Next run: `test-codex.ps1` step 4b must say ROLLOUT PASS against your real rollout — that is the one piece written from the documented format rather than a file from your machine.
 
