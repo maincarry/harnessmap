@@ -44,6 +44,12 @@ export class Store {
     if (hcols.length && !hcols.includes('full_seq')) this.db.exec('ALTER TABLE harness_sessions ADD COLUMN full_seq INTEGER');
     if (hcols.length && !hcols.includes('cwd')) this.db.exec('ALTER TABLE harness_sessions ADD COLUMN cwd TEXT');
     if (hcols.length && !hcols.includes('chat_id')) this.db.exec('ALTER TABLE harness_sessions ADD COLUMN chat_id TEXT');
+    // M251: a host session is mirrored, never forked — the page needs its harness, title and live/closed state.
+    for (const [col, typ] of [['harness', 'TEXT'], ['title', 'TEXT'], ['status', 'TEXT'], ['ended_at', 'TEXT'], ['end_reason', 'TEXT']] as const) {
+      if (hcols.length && !hcols.includes(col)) this.db.exec(`ALTER TABLE harness_sessions ADD COLUMN ${col} ${typ}`);
+    }
+    const ccols = (this.db.prepare('PRAGMA table_info(chats)').all() as any[]).map((r) => r.name);
+    if (ccols.length && !ccols.includes('host_session_id')) this.db.exec('ALTER TABLE chats ADD COLUMN host_session_id TEXT');
     // M191: structured memory — the 'minimal' resolution column beside the
     // medium-resolution summary ('text'). Early builds named these gist /
     // memory_facts; Jacob dropped those words — rename if found.
@@ -252,7 +258,7 @@ export class Store {
   getChats(projectId: string): Chat[] {
     return (this.db.prepare('SELECT * FROM chats WHERE project_id = ? ORDER BY created_at').all(projectId) as any[]).map((r) => ({
       id: r.id, projectId: r.project_id, focusContainerId: r.focus_container_id,
-      sdkSessionId: r.sdk_session_id, status: r.status, createdAt: r.created_at,
+      sdkSessionId: r.sdk_session_id, status: r.status, createdAt: r.created_at, hostSessionId: r.host_session_id ?? null,
     }));
   }
 
@@ -261,7 +267,7 @@ export class Store {
     if (!r) return undefined;
     return {
       id: r.id, projectId: r.project_id, focusContainerId: r.focus_container_id,
-      sdkSessionId: r.sdk_session_id, status: r.status, createdAt: r.created_at,
+      sdkSessionId: r.sdk_session_id, status: r.status, createdAt: r.created_at, hostSessionId: r.host_session_id ?? null,
     };
   }
 

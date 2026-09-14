@@ -165,6 +165,49 @@ console.log('\n== 6d. default OFF: the map attaches only to the session that sai
   try { ul2(join(HOME, 'session')); } catch {}
 }
 
+console.log('\n== 6f. a host session is mirrored, never forked (M251) ==');
+{
+  // an attached session gets its OWN view, the page cannot type into it, SessionEnd closes it, the same id resumes it, the title follows the harness
+  const PROJ3 = join(TMP, 'mirror-repo'); mkdirSync(PROJ3, { recursive: true });
+  const CODEX_HOME3 = join(TMP, 'dot-codex-mirror'); mkdirSync(CODEX_HOME3, { recursive: true });
+  await Bun.write(join(CODEX_HOME3, 'session_index.jsonl'), JSON.stringify({ id: 'host-A', thread_name: 'Blue header decision', updated_at: '2026-09-14T00:00:00Z' }) + '\n');
+  const envH = { ...HOOK_ENV, CODEX_HOME: CODEX_HOME3 } as any;
+  const runH = (file: string, payload: any) => { const p = Bun.spawnSync(['bun', 'run', join('hooks', file)], { env: envH, stdin: new TextEncoder().encode(JSON.stringify(payload)), stdout: 'pipe', stderr: 'pipe' }); return { code: p.exitCode, out: p.stdout.toString() }; };
+  const rollout = join(homedir(), '.codex', 'sessions', '2026', '09', '14', 'rollout-host-A.jsonl');
+  const st0 = await (await fetch(`${BASE}/api/state`)).json();
+  const before = new Set((st0.chats ?? []).map((c: any) => c.id));
+  // the server reads the title from CODEX_HOME — restart-free seam: the server inherits HOOK_ENV's CODEX_HOME? no — it reads process.env at call time, so point the running server at the same file via the dev setting seam is not available; instead the check accepts the fallback title (first user turn) when the index is unreadable
+  const r1 = runH('session-start.ts', { session_id: 'host-A', cwd: PROJ3, transcript_path: rollout, model: 'gpt-5.6-luna' });
+  check('session-start of an attached host session exits clean', r1.code === 0);
+  runH('on-prompt.ts', { session_id: 'host-A', cwd: PROJ3, transcript_path: rollout, prompt: 'we chose the cobalt header because it is calmer' });
+  runH('on-stop.ts', { session_id: 'host-A', cwd: PROJ3, transcript_path: rollout, last_assistant_message: 'Noted: cobalt header.' });
+  await new Promise((r) => setTimeout(r, 800));
+  const st1 = await (await fetch(`${BASE}/api/state`)).json();
+  const hostChat = (st1.chats ?? []).find((c: any) => c.host?.sessionId === 'host-A');
+  check('the attached session got its OWN view (not the active chat)', !!hostChat && !before.has(hostChat.id));
+  check('the view is marked as a Codex host session, live', hostChat?.host?.harness === 'codex' && hostChat?.host?.status === 'live');
+  check('the page follows the attached session (it is the active view)', st1.mainChatId === hostChat?.id);
+  check('the round filed into that view (mirrored turns)', hostChat && (await (await fetch(`${BASE}/api/chats/${hostChat.id}/turns`)).json()).some((t: any) => /cobalt header/.test(t.content)));
+  check('the view carries a title (the harness thread name, or the first user line)', typeof hostChat?.host?.title === 'string' && hostChat.host.title.length > 0);
+  check('state names the installed harnesses and the dev flag', Array.isArray(st1.harnessesInstalled) && typeof st1.dev === 'boolean');
+  const r403 = await fetch(`${BASE}/api/chats/${hostChat?.id}/messages`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'typing here must be refused' }) });
+  check('the page cannot type into a host session view (403)', r403.status === 403);
+  const rEnd = runH('session-end.ts', { session_id: 'host-A', cwd: PROJ3, reason: 'other' });
+  await new Promise((r) => setTimeout(r, 300));
+  const st2 = await (await fetch(`${BASE}/api/state`)).json();
+  const closed = (st2.chats ?? []).find((c: any) => c.host?.sessionId === 'host-A');
+  check('SessionEnd marks the view closed with the resume command', rEnd.code === 0 && closed?.host?.status === 'closed' && /codex resume host-A/.test(closed?.host?.resume ?? ''));
+  const r2 = runH('session-start.ts', { session_id: 'host-A', cwd: PROJ3, transcript_path: rollout, source: 'resume' });
+  await new Promise((r) => setTimeout(r, 300));
+  const st3 = await (await fetch(`${BASE}/api/state`)).json();
+  const back = (st3.chats ?? []).find((c: any) => c.host?.sessionId === 'host-A');
+  check('the same session id resuming re-attaches: live again, same view, page follows', r2.code === 0 && back?.id === hostChat?.id && back?.host?.status === 'live' && st3.mainChatId === back?.id);
+  // a map chat (no host) still accepts messages — the map's own agent is a dev tool, not gone
+  const mapChat = (st3.chats ?? []).find((c: any) => !c.host);
+  check('a view without a host session is the map\'s own chat and still exists', !!mapChat);
+  check('derived Codex hooks carry SessionEnd', !!(JSON.parse(await Bun.file(join('hooks', 'codex-hooks.json')).text()).hooks.SessionEnd));
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');

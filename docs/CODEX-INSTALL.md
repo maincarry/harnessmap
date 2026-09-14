@@ -2,6 +2,8 @@
 
 ## Status (2026-09-14) — where the Codex work stands
 
+**Host sessions are mirrored (M251, 2026-09-14):** a session that says "open map" gets its own read-only tab named by its thread title; closing the CLI marks it closed with the resume command; resuming re-attaches. The map's own chat is dev-mode only.
+
 **Windows CLI fully verified (Mark, 2026-09-14, build ebb9a0a):** all seven check lines pass, including the rollout parser against a real Codex session file. The modlog and design docs are no longer on GitHub (M249). Remaining: the Codex desktop app on Windows and on the Mac after M239 — nobody has run it.
 
 ### Earlier status (2026-09-10, 3:05 am ET)

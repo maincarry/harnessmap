@@ -27,7 +27,7 @@ export const BASE = process.env.HARNESSMAP_URL ?? `http://127.0.0.1:${port()}`;
 // once: no injection, no filing. "close map" removes the session file.
 // HARNESSMAP_SESSION_GATE=open lets a test harness treat every session as
 // opened; the smoke suite proves the gate with it unset.
-export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmit' | 'Stop' | 'PreCompact' | 'PostCompact'): boolean {
+export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmit' | 'Stop' | 'PreCompact' | 'PostCompact' | 'SessionEnd'): boolean {
   if (process.env.HARNESSMAP_SESSION_GATE === 'open') return true;
   const sid = String(input?.session_id ?? '');
   const sessFile = join(HOME, 'session'), armFile = join(HOME, 'open-next');

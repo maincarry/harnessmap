@@ -49,6 +49,16 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'if command -v bun >/dev/null 2>&1; then bun run \"${CLAUDE_PLUGIN_ROOT}/hooks/session-end.ts\"; else true; fi'"
+          }
+        ]
+      }
     ]
   }
 }

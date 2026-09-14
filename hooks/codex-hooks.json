@@ -56,6 +56,17 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun run \"${PLUGIN_ROOT}/hooks/session-end.ts\"",
+            "timeout": 60
+          }
+        ]
+      }
     ]
   }
 }

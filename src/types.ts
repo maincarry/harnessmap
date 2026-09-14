@@ -140,6 +140,7 @@ export interface Chat {
   sdkSessionId: string | null;
   status: 'active' | 'archived';
   createdAt: string;
+  hostSessionId?: string | null; // M251: set when this view mirrors a host session (Claude Code / Codex); such a view is read-only on the page
 }
 
 export interface SavePoint {

@@ -323,6 +323,11 @@
   #mc-composer .primary { background: var(--accent); color: #fff; border: none; border-radius: 8px;
                           padding: 6px 16px; cursor: pointer; font: inherit; }
   .mc-hint { font-weight: 400; font-size: 11px; color: var(--muted); }
+  /* M251: a view that mirrors a host session is read-only — one quiet strip says whose session it is and whether it is live */
+  #host-strip { padding: 8px 12px; border-top: 1px solid var(--hair); background: var(--panel); font-size: 12.5px; color: var(--muted); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  #host-strip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  #host-strip.live .dot { background: #3f9d5a; box-shadow: 0 0 0 3px rgba(63,157,90,.18); }
+  #host-strip code { font-size: 12px; background: var(--bg); border: 1px solid var(--hair); border-radius: 6px; padding: 1px 6px; user-select: all; }
   #tabbar { display: flex; gap: 4px; padding: 6px 12px 0; background: var(--panel); border-bottom: 1px solid var(--hair); flex-wrap: wrap; }
   #tabbar .tab { border: 1px solid var(--hair); border-bottom: none; background: var(--bg); color: var(--muted);
                  border-radius: 8px 8px 0 0; font-size: 12px; cursor: pointer; padding: 4px 12px; }
@@ -491,6 +496,7 @@
       <button class="hbtn" id="clear-chat" style="margin-left:auto" title="clean the chat screen — the map keeps everything; the chat agent starts its window fresh">clean chat</button>
     </header>
     <div id="messages"><div class="empty">one continuous conversation — the map is its memory</div></div>
+    <div id="host-strip" hidden></div>
     <form id="composer">
       <textarea id="input" placeholder="talk to the chat agent… (Enter to send, Shift+Enter for newline)"></textarea>
       <button type="submit" title="send this message to the chat agent — the filer adds the exchange to the map automatically">send</button>
@@ -806,20 +812,29 @@ function renderSwitchers() {
 function renderTabs() {
   const list = $('tab-list');
   if (!list) return;
-  const chats = [...(S.chats || [])].sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.lastActivity || '').localeCompare(a.lastActivity || ''));
+  // M251: host sessions (Claude Code / Codex) are the sessions; the map's own chat views are a dev tool once a harness is installed
+  const all = [...(S.chats || [])].sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.lastActivity || '').localeCompare(a.lastActivity || ''));
+  const mapChatsHidden = (S.harnessesInstalled || []).length > 0 && !S.dev;
+  let chats = mapChatsHidden ? all.filter((c) => c.host || c.id === S.mainChatId) : all;
+  if (!chats.length) chats = all;
   const cutoff = Date.now() - 7 * 86400_000;
   const fresh = [], older = [];
   for (const c of chats) (new Date((c.lastActivity || '') + 'Z').getTime() >= cutoff || c.id === S.mainChatId ? fresh : older).push(c);
   list.innerHTML = '';
   const mk = (c) => {
     const f = node(c.focusContainerId);
-    const name = f ? disp(f) : 'session';
+    const focusName = f ? disp(f) : 'session';
     const hasTerm = !!chatTerms.get(c.id);
+    const h = c.host;
+    const name = h ? (h.title || focusName) : focusName;
     const b = document.createElement('button');
     b.className = 'tab' + (c.id === S.mainChatId && activeTab === 'session' ? ' on' : '');
     b.dataset.tab = c.id;
-    b.dataset.tip = `session focused on “${name}”${hasTerm ? ' — live terminal attached' : ''} — click to switch; its own focus and lighting apply`;
-    b.innerHTML = `${c.pinned ? '📌 ' : ''}${hasTerm ? '⌨ ' : ''}${esc(name.slice(0, 22))}${c.id === S.mainChatId ? '<span class="tx" data-tip="close this session: ends its terminal if one is running and puts the tab away — everything it filed stays on the map">✕</span>' : ''}`;
+    b.dataset.tip = h
+      ? `${h.label} session${h.status === 'closed' ? ' — closed' : ' — live'}: “${name}” — read-only here; it files onto this map; its own focus and lighting apply`
+      : `map chat (the map's own agent, no tools) focused on “${focusName}”${hasTerm ? ' — live terminal attached' : ''} — click to switch`;
+    const mark = h ? `<span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;background:${h.status === 'closed' ? 'var(--muted)' : '#3f9d5a'}"></span>${h.harness === 'codex' ? 'Codex' : 'Claude'} · ` : (hasTerm ? '⌨ ' : '💬 ');
+    b.innerHTML = `${c.pinned ? '📌 ' : ''}${mark}${esc(name.slice(0, 26))}${c.id === S.mainChatId ? '<span class="tx" data-tip="close this tab: ends its terminal if one is running and puts the view away — everything it filed stays on the map">✕</span>' : ''}`;
     b.onclick = async (e) => {
       if (e.target.classList?.contains('tx')) { await closeSessionTab(c.id); return; }
       if (c.id !== S.mainChatId) await post(`/api/chats/${c.id}/activate`, {});
@@ -828,6 +843,7 @@ function renderTabs() {
     list.appendChild(b);
   };
   fresh.forEach(mk);
+  renderHostStrip();
   if (older.length) {
     const b = document.createElement('button');
     b.className = 'tab';
@@ -952,6 +968,8 @@ $('tab-add').onclick = () => {
         : 'this map has no bound folder yet — chat only (start claude or codex in a folder to enable the terminal)';
       const termRadios = [...ov.querySelectorAll('input[name="nc-talk"][value="term"]')];
       const chatRadio = ov.querySelector('input[name="nc-talk"][value="chat"]');
+      // M251 (Mark): the map's own chat is for dev mode and testing; harness users create sessions in their harness
+      if ((S.harnessesInstalled || []).length && !S.dev && termRadios.some((r) => !r.disabled)) { chatRadio.closest('label').hidden = true; localStorage.removeItem('hm-talk'); }
       const remembered = localStorage.getItem('hm-talk');
       if (!sessionRoot) { for (const r of termRadios) r.disabled = true; chatRadio.checked = true; }
       else if (remembered === 'chat') chatRadio.checked = true;
@@ -3223,12 +3241,27 @@ $('legend-btn').onclick = () => tourShow(0);
 // live Claude Code terminal bound to it via the cwd claim mechanism.
 const chatTerms = new Map(); // chatId -> {el, xt, ws, fit, termId, cwd}
 let activeTab = 'session';   // 'session' = the active chat's surface
+// M251: the view of a host session is a mirror — the composer goes away and one strip says whose session it is, live or closed, and how to resume it.
+function renderHostStrip() {
+  const strip = $('host-strip'); if (!strip) return;
+  const c = (S.chats || []).find((x) => x.id === S.mainChatId);
+  const h = c?.host;
+  const showTerm = !!chatTerms.get(S.mainChatId);
+  if (!h || showTerm || activeTab !== 'session') { strip.hidden = true; $('composer').style.display = showTerm ? 'none' : ''; return; }
+  strip.hidden = false;
+  strip.classList.toggle('live', h.status !== 'closed');
+  $('composer').style.display = 'none';
+  strip.innerHTML = h.status === 'closed'
+    ? `<span class="dot"></span><span>closed in ${esc(h.label)}${h.reason ? ` (${esc(h.reason)})` : ''}. To continue it${h.harness === 'codex' ? ', reopen the thread in the Codex app, or in a terminal run' : ', in a terminal run'} <code>${esc(h.resume)}</code> — the map re-attaches by itself when it comes back.</span>`
+    : `<span class="dot"></span><span>live in ${esc(h.label)} — type there; everything said there shows up here and files onto the map.</span>`;
+}
 function showSession(chatId) {
   activeTab = 'session';
   const t = chatTerms.get(chatId);
   const showTerm = !!t;
   $('messages').style.display = showTerm ? 'none' : '';
   $('composer').style.display = showTerm ? 'none' : '';
+  renderHostStrip();
   document.querySelectorAll('.termhost').forEach(el => el.classList.toggle('on', showTerm && el === t.el));
   renderTabs();
   if (t) { t.xt.focus(); fitTerm(t); }
@@ -3436,7 +3469,7 @@ const TOUR = [
   { find: () => document.querySelector('.nrow'), title: '☀ Light — keep it in mind', body: 'Claude only sees what\u2019s lit ☀. Dim a branch and Claude forgets it — you still see everything. You decide what it knows.' },
   { find: () => document.querySelector('.nrow'), title: '◱ Zoom — view only this', body: '◱ shows just one branch on your screen. It changes what YOU see, never what Claude sees.' },
   { find: () => document.querySelector('.pin-divider'), title: 'Pinned folders', body: 'This band travels with you: \u201cto sort\u201d holds things the map couldn\u2019t place yet \u00b7 ★ favorites keeps shortcuts to nodes you starred \u00b7 ⟳ to tidy collects the map\u2019s cleanup suggestions (you approve each one). Empty folders just wait.' },
-  { sel: '#tabbar', title: 'Sessions', body: 'Each tab is a session on this same map — a real Claude Code or Codex terminal, or a clean chat, your pick at ＋ session.' },
+  { sel: '#tabbar', title: 'Sessions', body: 'Each tab is one of your Claude Code or Codex sessions on this map — say \u201copen map\u201d in a session to attach it, or start one here with ＋ session. What you say there files here.' },
   { sel: '#legend-btn', title: 'That\u2019s it', body: 'Three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (view only this). Everything else hides under ⋯ · 🗨 talk to map does anything in plain words · Ctrl/Cmd+Z undoes. Details: the reference card (next).' },
 ];
 let tourAt = -1;
@@ -3818,6 +3851,10 @@ function connect() {
         box.scrollTop = box.scrollHeight;
       }
       $('round-line').textContent = 'host session active — agent replying…';
+    } else if (m.type === 'host_session') {
+      // M251: the host session closed or came back — the tab and the strip follow on the next state; say it once in the status line
+      $('round-line').textContent = m.status === 'closed' ? 'the host session closed — its view stays; resume it to continue' : 'the host session is back — the map re-attached';
+      if (m.chatId === S.mainChatId) renderHostStrip();
     } else if (m.type === 'chat_cleared' && m.chatId === S.mainChatId) {
       loadTurns();
     } else if (m.type === 'import_progress') {

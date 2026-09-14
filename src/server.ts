@@ -30,7 +30,7 @@ import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoot
 import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, backendName } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, codexSessionMeta, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
-import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync, openSync, readSync, closeSync } from 'node:fs';
 import { basename } from 'node:path';
 import { authUser, authEnabled, unauthorized } from './auth.js';
 
@@ -275,13 +275,85 @@ function projectForCwdOrCreate(cwd: string): string {
 // cwd for is bound the moment it speaks.
 function ensureSessionBound(sessionId: string | null | undefined, cwd: string | null | undefined, harness?: string | null): void {
   if (!sessionId || !cwd) return;
-  if (harness && !store.getSetting(`harness:session:${sessionId}`)) store.setSetting(`harness:session:${sessionId}`, harness === 'codex' ? 'codex' : 'claude');
-  if (sessionChat(sessionId)) return;
-  const row = (store as any).db.prepare('SELECT cwd FROM harness_sessions WHERE session_id = ?').get(sessionId) as any;
-  if (row?.cwd) return;
-  const pid = projectForCwdOrCreate(cwd);
-  recordSessionStart(store, sessionId, null, null, cwd);
-  store.metric(pid, 'session.start');
+  const h = harness === 'codex' ? 'codex' : harness === 'claude' ? 'claude' : null;
+  if (h && !store.getSetting(`harness:session:${sessionId}`)) store.setSetting(`harness:session:${sessionId}`, h);
+  const row = hostRow(sessionId);
+  let pid: string;
+  if (row?.cwd) pid = store.projectForCwd(row.cwd) ?? projectForCwdOrCreate(row.cwd);
+  else { pid = projectForCwdOrCreate(cwd); recordSessionStart(store, sessionId, null, null, cwd); store.metric(pid, 'session.start'); }
+  // M251: a hook firing means the session is live — a session the page shows as closed comes back and the page follows it
+  const revived = row?.status === 'closed';
+  if (revived) { (store as any).db.prepare("UPDATE harness_sessions SET status = 'live', ended_at = NULL, end_reason = NULL WHERE session_id = ?").run(sessionId); store.audit('host_session_resumed', { session: sessionId.slice(0, 8) }); }
+  ensureHostChat(sessionId, pid, h ?? row?.harness ?? store.getSetting(`harness:session:${sessionId}`) ?? null, { follow: revived });
+  if (revived) broadcast({ type: 'host_session', chatId: sessionChat(sessionId), status: 'live' });
+}
+// ---- M251 (Mark, 2026-09-14): a host session is MIRRORED, never forked ----
+// "When a user says open map in codex, they mean the map should correspond to
+// their actual codex session, not a fork of history in our chat panel." Every
+// attached host session (Claude Code or Codex, external or embedded) gets its
+// OWN view; the page shows it read-only while the session is live, names it by
+// the harness's own thread title, marks it closed when SessionEnd fires (with
+// the resume command), and re-attaches when the same session id speaks again.
+// The map's own chat agent lives only in views without a host session.
+function hostRow(sessionId: string): any | null {
+  return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
+}
+function ensureHostChat(sessionId: string, pid: string, harness: string | null, opts: { follow?: boolean } = {}): string {
+  const db = (store as any).db;
+  const row = hostRow(sessionId);
+  let chatId: string | null = row?.chat_id && store.getChat(row.chat_id) ? row.chat_id : null;
+  let created = false;
+  if (!chatId) {
+    const from = activeChatOf(pid);
+    const fromChat = store.getChat(from)!;
+    chatId = randomUUID();
+    store.createChat({ id: chatId, projectId: pid, focusContainerId: fromChat.focusContainerId, sdkSessionId: null });
+    store.copyLit(from, chatId);
+    applyFocus(chatId, fromChat.focusContainerId);
+    db.prepare('UPDATE harness_sessions SET chat_id = ? WHERE session_id = ?').run(chatId, sessionId);
+    created = true;
+    store.audit('host_session_attached', { session: sessionId.slice(0, 8), harness, view: chatId.slice(0, 8) });
+  }
+  db.prepare('UPDATE chats SET host_session_id = ? WHERE id = ? AND host_session_id IS NULL').run(sessionId, chatId);
+  db.prepare("UPDATE harness_sessions SET harness = COALESCE(harness, ?), status = COALESCE(status, 'live') WHERE session_id = ?").run(harness, sessionId);
+  // The page follows the session the user is in: on attach and on resume, not on every prompt (a tab the user switched to stays).
+  if ((created || opts.follow) && mainChatId !== chatId) { setActive(pid, chatId); broadcast({ type: 'map', ...state() }); }
+  else if (created) broadcast({ type: 'map', ...state() });
+  return chatId;
+}
+// The harness's own thread title: Codex keeps names in ~/.codex/session_index.jsonl
+// ({id, thread_name, updated_at}, last line wins); Claude Code writes an
+// "ai-title" record into the session's transcript. Refreshed on session start
+// and on every observed round; the tab shows it (Mark: "the tab title should
+// be the same as the tracked session title").
+function refreshHostTitle(sessionId: string): void {
+  const row = hostRow(sessionId); if (!row) return;
+  const harness = row.harness ?? store.getSetting(`harness:session:${sessionId}`) ?? 'claude';
+  let title: string | null = null;
+  try {
+    if (harness === 'codex') {
+      const idx = join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'session_index.jsonl');
+      if (existsSync(idx)) for (const line of readFileSync(idx, 'utf8').split('\n')) { try { const j = JSON.parse(line); if (j.id === sessionId && j.thread_name) title = String(j.thread_name); } catch {} }
+    } else if (row.transcript_path && existsSync(row.transcript_path)) {
+      const st = statSync(row.transcript_path); const fd = openSync(row.transcript_path, 'r');
+      try { const len = Math.min(st.size, 512_000); const buf = Buffer.alloc(len); readSync(fd, buf, 0, len, st.size - len); const txt = buf.toString('utf8'); const ms = [...txt.matchAll(/"type":"ai-title","aiTitle":"((?:[^"\\]|\\.)*)"/g)]; if (ms.length) title = JSON.parse('"' + ms[ms.length - 1][1] + '"'); } finally { closeSync(fd); }
+    }
+  } catch {}
+  if (title && title !== row.title) { (store as any).db.prepare('UPDATE harness_sessions SET title = ? WHERE session_id = ?').run(title.slice(0, 120), sessionId); broadcast({ type: 'map', ...state() }); }
+}
+// What the page needs to render a host view: harness, live/closed, title, the resume command.
+function hostSessionOf(chat: { id: string; hostSessionId?: string | null }): Record<string, unknown> | null {
+  if (!chat.hostSessionId) return null;
+  const row = hostRow(chat.hostSessionId); if (!row) return null;
+  const harness = row.harness ?? store.getSetting(`harness:session:${chat.hostSessionId}`) ?? 'claude';
+  const first = ((store as any).db.prepare("SELECT content FROM turns WHERE chat_id = ? AND role = 'user' ORDER BY idx LIMIT 1").get(chat.id) as any)?.content as string | undefined;
+  return {
+    sessionId: chat.hostSessionId, harness, label: harness === 'codex' ? 'Codex' : 'Claude Code',
+    status: row.status ?? 'live', reason: row.end_reason ?? null, endedAt: row.ended_at ?? null,
+    title: row.title ?? (first ? first.replace(/\s+/g, ' ').slice(0, 60) : null),
+    resume: harness === 'codex' ? `codex resume ${chat.hostSessionId}` : `claude --resume ${chat.hostSessionId}`,
+    embedded: !!listTerms().find((t) => (getTerm(t.id) as any)?.chatId === chat.id),
+  };
 }
 // A terminal session belongs to its CLAIMED view when it has one; otherwise
 // to the active chat of the project its cwd is bound to.
@@ -975,8 +1047,11 @@ function state() {
         lastActivity: ((store as any).db.prepare('SELECT MAX(created_at) t FROM turns WHERE chat_id = ?').get(c.id) as any)?.t ?? c.createdAt,
         pinned: pins.has(c.id),
         summary: (getConversationSummary(store, c.id) ?? '').slice(0, 200) || null,
+        host: hostSessionOf(c), // M251: null for the map's own chat views
       }));
     })(),
+    harnessesInstalled: Object.entries(harnessAvailability()).filter(([, v]) => v).map(([k]) => k), // M251: the map's own chat is a dev tool when a harness is installed
+    dev: store.getSetting('dev_mode') === '1',
     suggestions: store.getOpenSuggestions(projectId),
     // M162: lit branches whose full statements did not fit this turn's budget
     // — the map shows a loud mark so a lit choice is never silently ignored.
@@ -1072,6 +1147,8 @@ const server = Bun.serve({
     if (msgMatch && req.method === 'POST') {
       const chatId = msgMatch[1];
       const { text } = await req.json() as { text: string };
+      // M251: a view that mirrors a host session is read-only on the page — the person types in their Codex / Claude Code, never here.
+      { const hc = store.getChat(chatId); const hs = hc ? hostSessionOf(hc) : null; if (hs) return json({ error: `this is a ${hs.label} session — type in ${hs.label}; everything said there files here` , host: hs }, 403); }
       broadcast({ type: 'turn', chatId, role: 'user', content: text });
       // M139: stream each text block to the UI as the model produces it —
       // the reply builds up live instead of landing as one drop.
@@ -2608,7 +2685,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ ok: true, version: VERSION });
     }
     if (path === '/api/harness/session-start' && req.method === 'POST') {
-      const body = await req.json() as { session_id: string; transcript_path?: string; cwd?: string; model?: string; harness?: string };
+      const body = await req.json() as { session_id: string; transcript_path?: string; cwd?: string; model?: string; harness?: string; source?: string };
       // M221: which harness is talking — Codex's payload carries an OpenAI
       // model slug; Claude Code's a claude one (or none). Recorded per session.
       const harness = body.harness ?? (String(body.model ?? '').startsWith('gpt') || /[\\/]\.codex[\\/]/.test(String(body.transcript_path ?? '')) ? 'codex' : 'claude');
@@ -2647,16 +2724,33 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const pid2 = (body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId;
       store.metric(pid2, 'session.start');
       const claimed = body.cwd ? claimChat(body.cwd) : null;
-      const chatId = claimed ?? activeChatOf(pid2);
-      const chat = store.getChat(chatId);
-      recordSessionStart(store, body.session_id, chat?.focusContainerId ?? null, body.transcript_path ?? null, body.cwd ?? null);
+      const prev = hostRow(body.session_id);
+      const wasClosed = prev?.status === 'closed';
+      recordSessionStart(store, body.session_id, store.getChat(claimed ?? activeChatOf(pid2))?.focusContainerId ?? null, body.transcript_path ?? null, body.cwd ?? null);
       if (claimed) (store as any).db.prepare('UPDATE harness_sessions SET chat_id = ? WHERE session_id = ?').run(claimed, body.session_id);
+      (store as any).db.prepare("UPDATE harness_sessions SET status = 'live', ended_at = NULL, end_reason = NULL, harness = COALESCE(harness, ?) WHERE session_id = ?").run(harness, body.session_id);
+      // M251: the session gets its own mirrored view; the page follows it on attach and on resume
+      const chatId = body.cwd ? ensureHostChat(body.session_id, pid2, harness, { follow: wasClosed || body.source === 'resume' }) : activeChatOf(pid2);
+      refreshHostTitle(body.session_id);
+      if (wasClosed) { store.audit('host_session_resumed', { session: body.session_id.slice(0, 8) }); broadcast({ type: 'host_session', chatId, status: 'live' }); }
       scheduleMapFile(); // make MAP.md exist in this project right away
       return json({ context: chats.harnessContext(chatId), announce: announce || null, version: VERSION });
     }
     // observe: a round happened in the host — slice it from the transcript,
     // append to our log, run the filer, record provenance when it lands.
     // M99: per-session pending prompt (see hooks/on-prompt.ts).
+    // M251: the host session ended — the view stays, marked closed with the resume command; a resume re-attaches by id.
+    if (path === '/api/harness/session-end' && req.method === 'POST') {
+      const body = await req.json() as { session_id?: string; reason?: string | null; cwd?: string; harness?: string };
+      if (!body.session_id) return json({ error: 'session_id required' }, 400);
+      const row = hostRow(body.session_id);
+      if (!row) return json({ ok: false, reason: 'unknown session' }, 200);
+      (store as any).db.prepare("UPDATE harness_sessions SET status = 'closed', ended_at = datetime('now'), end_reason = ?, harness = COALESCE(harness, ?) WHERE session_id = ?").run(body.reason ?? null, body.harness ?? null, body.session_id);
+      store.audit('host_session_closed', { session: body.session_id.slice(0, 8), reason: body.reason ?? null });
+      if (row.chat_id) broadcast({ type: 'host_session', chatId: row.chat_id, status: 'closed', reason: body.reason ?? null });
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true });
+    }
     if (path === '/api/harness/prompt' && req.method === 'POST') {
       const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string };
       ensureSessionBound(body.session_id, body.cwd, body.harness);
@@ -2665,7 +2759,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     }
     if (path === '/api/harness/observe' && req.method === 'POST') {
       const body = await req.json() as { session_id?: string; transcript_path?: string; last_assistant_message?: string; user_text?: string; assistant_text?: string; cwd?: string };
-      ensureSessionBound(body.session_id, body.cwd);
+      ensureSessionBound(body.session_id, body.cwd, (body as any).harness);
+      if (body.session_id) refreshHostTitle(body.session_id); // M251: the tab carries the harness's own thread title
       let userText = body.user_text ?? '';
       let assistantText = body.assistant_text ?? '';
       let slice: RoundSlice | null = null;
