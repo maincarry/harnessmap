@@ -10,6 +10,6 @@ try {
   await fetch(`${BASE}/api/harness/session-end`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ session_id: input.session_id, cwd: input.cwd, reason: input.reason ?? null, harness: hostHarness(input) }),
-    signal: AbortSignal.timeout(4000),
+    signal: AbortSignal.timeout(2000), // Codex gives this hook 3 s in all
   });
 } catch { /* never break the host */ }

@@ -16,7 +16,8 @@ export function codexHooksFrom(src: any): any {
       const file = m ? m[1] : null;
       const cmd = file ? `bun run "\${PLUGIN_ROOT}/hooks/${file}"` : h.command;
       const ctx = ['SessionStart', 'UserPromptSubmit'].includes(event) ? { additionalContextLimit: CONTEXT_LIMIT } : {};
-      return { type: 'command', command: cmd, timeout: h.timeout ?? 60, ...ctx };
+      // Codex clamps a SessionEnd hook to 3 s (it warns on every launch otherwise — Mark, 2026-09-14); ours posts one request and exits
+      return { type: 'command', command: cmd, timeout: event === 'SessionEnd' ? 3 : (h.timeout ?? 60), ...ctx };
     }) }));
   }
   return out;
