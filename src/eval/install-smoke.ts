@@ -212,13 +212,18 @@ console.log('\n== 6f. a host session is mirrored, never forked (M251) ==');
     await Bun.write(forkRoll, JSON.stringify({ timestamp: 't0', type: 'session_meta', payload: { id: 'host-B', cwd: PROJ3, cli_version: '0.153.4', forked_from_id: 'host-A' } }) + '\n');
     const stranger = runG('on-prompt.ts', { session_id: 'host-Z', cwd: PROJ3, transcript_path: rollout, prompt: 'not a fork, not opened' });
     check('an unrelated session in the same folder stays out (gate closed)', stranger.code === 0 && !ctxOf(stranger.out));
-    const fork = runG('on-prompt.ts', { session_id: 'host-B', cwd: PROJ3, transcript_path: forkRoll, prompt: 'continuing in the fork' });
-    const lineage = rfF(join(HOME, 'session'), 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
-    check('a fork of the attached session inherits the attachment (served, joins the lineage)', fork.code === 0 && ctxOf(fork.out).length > 50 && lineage[0] === 'host-A' && lineage.includes('host-B'));
+    const forkOut = runG('on-prompt.ts', { session_id: 'host-B', cwd: PROJ3, transcript_path: forkRoll, prompt: 'continuing in the fork' });
+    check('a fork of the attached session is a second session: not served until it says "open map" (Jacob, M255)', forkOut.code === 0 && !ctxOf(forkOut.out));
+    const hint = runG('session-start.ts', { session_id: 'host-B', cwd: PROJ3, transcript_path: forkRoll });
+    check('the fork\'s session start says it is a fork and how to attach it', /fork of a conversation that has the map open/.test(ctxOf(hint.out)));
+    wfF(join(HOME, 'open-next'), PROJ3); // the user says "open map" in the fork
+    const fork = runG('on-prompt.ts', { session_id: 'host-B', cwd: PROJ3, transcript_path: forkRoll, prompt: 'continuing in the fork, map open here too' });
+    check('after "open map" in the fork it is served', fork.code === 0 && ctxOf(fork.out).length > 50);
     const stF = await (await fetch(`${BASE}/api/state`)).json();
     const parentView = (stF.chats ?? []).find((c: any) => c.host?.sessionId === 'host-A');
     const forkView = (stF.chats ?? []).find((c: any) => c.host?.sessionId === 'host-B');
     check('the fork gets its OWN view, forked from the parent\'s (same focus), marked with its parent', !!forkView && forkView.id !== parentView?.id && forkView.focusContainerId === parentView?.focusContainerId && forkView.host?.forkedFrom === 'host-A');
+    try { ulF(join(HOME, 'open-next')); } catch {}
     try { ulF(join(HOME, 'session')); } catch {}
   }
   // a map chat (no host) still accepts messages — the map's own agent is a dev tool, not gone

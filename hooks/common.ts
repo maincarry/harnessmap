@@ -41,15 +41,9 @@ export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmi
     if (existsSync(armFile)) { try { unlinkSync(armFile); } catch {} }
     return true;
   }
-  if (sid && lineage.length) {
-    // A fork of an attached session inherits the attachment: Codex writes the parent's id into the fork's own
-    // transcript (session_meta.forked_from_id); the fork joins the lineage and gets its own view on the map.
-    const parent = forkedFromOf(input?.transcript_path);
-    if (parent && lineage.includes(parent)) {
-      try { writeFileSync(sessFile, [...lineage, sid].join('\n')); } catch {}
-      return true;
-    }
-  }
+  // M255 as ruled by Jacob ("of course it is two — the user forked for a reason"): a fork is a second session and
+  // asks for "open map" like any other. What a fork keeps: when it does say "open map", its view is forked from the
+  // parent's (the server reads the parent from the rollout), and its first hint says so.
   if (existsSync(armFile)) {
     // The session that speaks first after "open map" is the one it was said in.
     // M252 (found by Mark's Codex test): the marker carries the folder the open
@@ -62,9 +56,14 @@ export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmi
     try { unlinkSync(armFile); } catch {}
     return true;
   }
-  if (event === 'SessionStart' && !opened) {
+  if (event === 'SessionStart') {
     // Installed but not attached: one line, once per session, so the user knows the command. It informs; it asks for nothing.
-    console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: '[harnessmap] The map is installed but not attached to this session. If you want it, say "open map" — it attaches to this session only.' } }));
+    // A fork of the attached conversation is told it is one (M255): its map view will start from the parent's.
+    const parent = forkedFromOf(input?.transcript_path);
+    const isFork = !!parent && lineage.includes(parent);
+    if (!opened || isFork) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: isFork
+      ? '[harnessmap] This is a fork of a conversation that has the map open. The map is not attached to this fork; if you want it here too, say "open map" — this fork gets its own view, starting from the parent\'s focus and light.'
+      : '[harnessmap] The map is installed but not attached to this session. If you want it, say "open map" — it attaches to this session only.' } }));
   }
   return false;
 }
