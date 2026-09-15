@@ -480,6 +480,7 @@
           <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
           <button id="authinfo-btn" title="full transparency: how the map's agents sign in, who gets billed, and whether calls are working">🔑 sign-in &amp; billing</button>
           <button id="update-btn" title="check whether a newer harnessmap exists — updating is one command you run (Claude Code: /plugin update; Codex: the installer), never automatic">⬆ check for updates</button>
+          <button id="sideview-btn" hidden title="side view: show the map only (for the Codex app's built-in browser or a narrow window) — click again to show the conversation pane too">▯ side view</button>
           <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
           <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
           </div></div></div>
@@ -1026,11 +1027,18 @@ let sessionRoot = null;
 // one source of truth for behavior AND explanation.
 // M254 (Mark, 2026-09-15): the map as a side view — ?panel=1 (the Codex app's built-in browser) or a window too narrow
 // for two panes (Jacob: auto switch to map-only when the window gets narrow) → companion: map only, desktop controls.
+// M254b (Mark): "can we have a mode so the Codex app opening only has the map? a folded setting in the menu" — the
+// side view is a persisted setting (this browser profile, which in the app is the app's own browser); ?panel=1 turns it
+// on and stores it; a narrow window shows the map only regardless. The phone shell (M133–M135b) is RETIRED on Mark's
+// word ("needs a lot of polish so can we remove it") — its code stays dormant, never switched on.
 const PANEL = new URLSearchParams(location.search).get('panel') === '1';
+if (PANEL) { try { localStorage.setItem('hm-sideview', '1'); } catch {} }
+function sideViewOn() { try { return localStorage.getItem('hm-sideview') === '1'; } catch { return false; } }
 function checkMobile() {
-  const on = window.innerWidth <= 720;
+  const on = false; // the phone shell is retired (M254b)
   document.body.classList.toggle('mobile', on);
-  document.body.classList.toggle('companion', !on && (PANEL || window.innerWidth <= 960));
+  document.body.classList.toggle('companion', sideViewOn() || window.innerWidth <= 960);
+  $('sideview-btn').textContent = sideViewOn() ? '▯ side view: on (map only)' : '▯ side view';
   if (!on) document.body.classList.remove('mob-chat');
 }
 // M133c (Jacob): the mobile test is a real device simulation — the app loaded
@@ -1444,6 +1452,12 @@ function paintInfluence() {
     ? 'the map is currently silent: no context reaches your Claude sessions, nothing is announced — but filing continues. Click to reopen its influence'
     : "close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime";
 }
+$('sideview-btn').onclick = () => {
+  const next = !sideViewOn();
+  try { if (next) localStorage.setItem('hm-sideview', '1'); else localStorage.removeItem('hm-sideview'); } catch {}
+  checkMobile();
+  $('round-line').textContent = next ? 'side view on: map only, remembered in this browser — ⋯ other → side view turns it off' : 'side view off: the conversation pane is back (a narrow window still shows the map only)';
+};
 $('influence-btn').onclick = async () => {
   $('other-menu').hidden = true;
   const r = await post('/api/influence/toggle', {});
@@ -1672,6 +1686,7 @@ const CONTROLS = [
     ['authinfo-btn', '🔑', 'sign-in & billing', 'how the agents sign in, who gets billed, whether calls work'],
     ['update-btn', '⬆', 'check for updates', 'is there a newer harnessmap'],
     ['influence-btn', '⏻', 'map influence', 'close or reopen the map’s influence on your sessions'],
+    ['sideview-btn', '▯', 'side view: map only', 'for the Codex app’s built-in browser or a narrow window; remembered in this browser'],
     ['feedback-btn', '🐞', 'send feedback', 'report a problem or an idea to the developers'],
     ['dev-btn', '🔧', 'dev mode', 'record every agent call; the agent network; for the developers'],
   ] },
@@ -3653,7 +3668,7 @@ async function openDevPanel() {
     <button id="dev-close" class="hbtn" style="margin-left:auto" data-tip="close the panel (keeps recording)">✕ close</button></h4>
   <div style="display:flex;gap:6px;flex-wrap:wrap;padding:2px 0 8px;border-bottom:1px solid var(--hair)">
     <button id="dev-ctx" class="hbtn" data-tip="the exact map description the chat agent receives on its next turn — verbatim">👁 agent's view</button>
-    <button id="dev-mobile" class="hbtn" data-tip="open the app in an iPhone-sized frame (402×874) — the real mobile presentation, live on this same map">📱 test mobile</button>
+    <button id="dev-mobile" class="hbtn" hidden data-tip="the phone shell is retired (M254b) — this preview stays for the day it is polished">📱 test mobile</button>
     <button id="dev-cast" class="hbtn" data-tip="the roadmap of every agent as a network — what each one reads, what it writes, what it only proposes, and which model it runs on">🕸 agent network</button>
     <button id="dev-off" class="hbtn" data-tip="stop recording traces and close dev mode">■ stop recording</button>
   </div>
