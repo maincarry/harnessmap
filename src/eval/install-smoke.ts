@@ -399,29 +399,41 @@ console.log('\n== 6k. the host\'s preamble never becomes the user\'s words; the 
   try { ul(join(HOME, 'session')); } catch {}
 }
 
-console.log('\n== 6l. the Codex app\'s throwaway thread folders share one map (M260) ==');
+console.log('\n== 6l. which map: the list, the folder map, throwaway folders, a named choice (M262) ==');
 {
-  const o = join(TMP, 'Documents', 'Codex', '2026-09-15', 'o'), p2 = join(TMP, 'Documents', 'Codex', '2026-09-15', 'p');
-  mkdirSync(o, { recursive: true }); mkdirSync(p2, { recursive: true });
-  await runHook('session-start.ts', { session_id: 'scratch-o', cwd: o });
-  await runHook('session-start.ts', { session_id: 'scratch-p', cwd: p2 });
-  const st = await (await fetch(`${BASE}/api/state`)).json();
-  const codexMaps = (st.projects ?? []).filter((x: any) => x.name === 'Codex');
-  check('two scratch threads bind to ONE map named "Codex", not maps named "o" and "p"', codexMaps.length === 1 && !(st.projects ?? []).some((x: any) => x.name === 'o' || x.name === 'p'));
-}
-
-console.log('\n== 6m. a map created on the page is adopted by the first session that opens the map from a new folder (M261) ==');
-{
-  const made = await (await fetch(`${BASE}/api/projects`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'thesis-notes' }) })).json();
-  const fresh = join(TMP, 'brand-new-folder'); mkdirSync(fresh, { recursive: true });
-  await runHook('session-start.ts', { session_id: 'adopt-1', cwd: fresh });
-  const st = await (await fetch(`${BASE}/api/state`)).json();
-  const adopted = st.projectId === made.projectId && (st.projects ?? []).filter((x: any) => x.name === 'brand-new-folder').length === 0;
-  check('the page\'s folder-less map is adopted by the session (no map named after the folder is created)', adopted);
-  const again = await (await fetch(`${BASE}/api/projects`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'second-map' }) })).json();
-  await runHook('session-start.ts', { session_id: 'adopt-2', cwd: fresh });
-  const st2 = await (await fetch(`${BASE}/api/state`)).json();
-  check('a folder that already has a map keeps it (the new page map is not stolen)', st2.projectId === made.projectId && st2.projectId !== again.projectId);
+  const { unlinkSync: ul, existsSync: ex, writeFileSync: wf, readFileSync: rf } = await import('node:fs');
+  const gatedEnv = { ...HOOK_ENV, HARNESSMAP_SESSION_GATE: undefined } as any;
+  const run = (file: string, payload: any) => { const p = Bun.spawnSync(['bun', 'run', join('hooks', file)], { env: gatedEnv, stdin: new TextEncoder().encode(JSON.stringify(payload)), stdout: 'pipe', stderr: 'pipe' }); return { code: p.exitCode, out: p.stdout.toString() }; };
+  const listFor = async (cwd: string) => (await (await fetch(`${BASE}/api/maps?cwd=${encodeURIComponent(cwd)}`)).json());
+  const l1 = await listFor(PROJ);
+  check('the maps list names the folder\'s own map first and carries no timing text', Array.isArray(l1.maps) && l1.maps.length > 1 && l1.maps[0].isFolderMap === true && l1.folderMap?.id === l1.maps[0].id && !JSON.stringify(l1.maps).includes('ago'));
+  const scratch = join(TMP, 'Documents', 'Codex', '2026-09-15', 'q'); mkdirSync(scratch, { recursive: true });
+  const l2 = await listFor(scratch);
+  check('a throwaway app folder has no folder map and no "create a map for this folder"', l2.folderMap === null && l2.scratchFolder === true && l2.suggestedFolderMapName === null);
+  const fresh2 = join(TMP, 'never-seen-folder'); mkdirSync(fresh2, { recursive: true });
+  const l3 = await listFor(fresh2);
+  check('a real folder without a map is offered "create a map for this folder: <name>"', l3.folderMap === null && l3.scratchFolder === false && l3.suggestedFolderMapName === 'never-seen-folder');
+  // a named choice through the marker: created if absent, the session lands there, the real folder remembers it
+  try { ul(join(HOME, 'session')); } catch {} try { ul(join(HOME, 'open-next')); } catch {}
+  const K = 'c0ffee1234567890';
+  mkdirSync(join(fresh2, '.harnessmap'), { recursive: true });
+  wf(join(fresh2, '.harnessmap', 'open-next'), `${K}\n${fresh2}\nmap=Thesis notes`);
+  const claim = run('on-stop.ts', { session_id: 'choice-1', cwd: fresh2, turn_id: 't', last_assistant_message: `harnessmap request ${K}` });
+  await new Promise((r) => setTimeout(r, 500));
+  const stC = await (await fetch(`${BASE}/api/state`)).json();
+  const thesis = (stC.projects ?? []).find((p: any) => p.name === 'Thesis notes');
+  const view = (stC.chats ?? []).find((c: any) => c.host?.sessionId === 'choice-1');
+  check('"open map Thesis notes" creates the map when absent and attaches the session to it', claim.code === 0 && !!thesis && stC.projectId === thesis.id && !!view);
+  const l4 = await listFor(fresh2);
+  check('the real folder remembers the choice as its folder map', l4.folderMap?.id === thesis?.id);
+  // a throwaway folder with no choice joins the map the page shows
+  try { ul(join(HOME, 'session')); } catch {}
+  wf(join(HOME, 'session'), 'scratch-1');
+  run('on-prompt.ts', { session_id: 'scratch-1', cwd: scratch, prompt: 'hello from a scratch thread' });
+  const stS = await (await fetch(`${BASE}/api/state`)).json();
+  const sv = (stS.chats ?? []).find((c: any) => c.host?.sessionId === 'scratch-1');
+  check('a throwaway folder with no choice joins the map the page is showing (no map named after the folder)', !!sv && sv.projectId === stS.projectId && !(stS.projects ?? []).some((p: any) => p.name === 'q'));
+  try { ul(join(HOME, 'session')); } catch {}
 }
 
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');

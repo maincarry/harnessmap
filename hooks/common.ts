@@ -55,7 +55,7 @@ export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmi
   if (arm) {
     if (arm.key) {
       if (event === 'Stop' && sid && replyCarries(input, arm.key)) {
-        try { mkdirSync(HOME, { recursive: true }); writeFileSync(sessFile, sid); } catch {}
+        try { mkdirSync(HOME, { recursive: true }); writeFileSync(sessFile, arm.map ? `${sid}\nmap=${arm.map}` : sid); } catch {}
         try { unlinkSync(armFile); } catch {}
         return true;
       }
@@ -81,12 +81,16 @@ export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmi
   return false;
 }
 // The "open map" marker: line 1 the key (absent on an older skill's marker, which then holds only the folder), line 2 the folder.
-function readArm(armFile: string): { key: string; cwd: string } | null {
+function readArm(armFile: string): { key: string; cwd: string; map: string } | null {
   if (!existsSync(armFile)) return null;
   let raw = ''; try { raw = readFileSync(armFile, 'utf8'); } catch { return null; }
   const lines = raw.split('\n').map((l) => l.trim());
-  if (lines.length >= 2 && /^[a-z0-9]{6,32}$/i.test(lines[0])) return { key: lines[0], cwd: lines[1] ?? '' };
-  return { key: '', cwd: lines[0] ?? '' };
+  if (lines.length >= 2 && /^[a-z0-9]{6,32}$/i.test(lines[0])) return { key: lines[0], cwd: lines[1] ?? '', map: (lines[2] ?? '').replace(/^map=/, '') };
+  return { key: '', cwd: lines[0] ?? '', map: '' };
+}
+// M262: the map the user chose in the open skill rides the session file's second line until the server has bound the session.
+export function chosenMap(): string | null {
+  try { const l = readFileSync(join(HOME, 'session'), 'utf8').split('\n'); const m = (l[1] ?? '').trim(); return m ? m.replace(/^map=/, '') : null; } catch { return null; }
 }
 // Did THIS session make the request? The skill's command prints the key, and the harness records every tool output
 // in the session's transcript — so the key sits in the transcript tail of the session that ran it and nowhere else.

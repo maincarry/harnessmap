@@ -256,13 +256,9 @@ function scratchRootOf(cwd: string): string | null {
   return m ? m[1] : null;
 }
 function projectForCwdOrCreate(cwd: string): string {
-  const scratch = scratchRootOf(cwd);
-  if (scratch) {
-    let spid = store.projectForCwd(scratch);
-    if (!spid) { spid = store.createProject('Codex'); bootstrapProject(spid); store.bindCwd(scratch, spid); setActive(spid); store.audit('project_bound', { name: 'Codex', scratchRoot: true }); }
-    if (!store.projectForCwd(cwd)) store.bindCwd(cwd, spid);
-    return spid;
-  }
+  // M262: a throwaway app folder (~/Documents/Codex/<date>/<x>) has no map of its own — with no choice given, the
+  // session joins the map the page is showing (the open skill asks when there is more than one).
+  if (scratchRootOf(cwd)) return projectId;
   let pid = store.projectForCwd(cwd);
   if (!pid) {
     for (let d = cwd; ; ) { const up = dirname(d); if (up === d) break; d = up; const hit = store.projectForCwd(d); if (hit) { pid = hit; break; } }
@@ -270,12 +266,6 @@ function projectForCwdOrCreate(cwd: string): string {
   // M261 (Mark: "when I create a new map in the UI, would the agent know which map to use?"): a map made on the
   // page has no folder. The first session that says "open map" from a folder with no map of its own ADOPTS the map
   // the page is showing, if that map has no folder yet — create a map on the page, say "open map" in the session, done.
-  const activeProj = store.listProjects().find((x) => x.id === projectId);
-  if (!pid && activeProj && activeProj.name !== 'default' && store.cwdsForProject(projectId).length === 0) { // the boot placeholder keeps M91's rename-adoption below
-    pid = projectId;
-    store.bindCwd(cwd, pid);
-    store.audit('project_adopted_by_session', { name: store.listProjects().find((x) => x.id === pid)?.name ?? '', cwd: cwd.slice(-50) });
-  }
   if (!pid) {
     const pname = basename(cwd) || 'workspace';
     const all = store.listProjects();
@@ -297,12 +287,28 @@ function projectForCwdOrCreate(cwd: string): string {
 // to the ACTIVE project, so Mark's helloworld turns landed in the check's
 // probe project. Every hook now carries cwd, and a session the server has no
 // cwd for is bound the moment it speaks.
-function ensureSessionBound(sessionId: string | null | undefined, cwd: string | null | undefined, harness?: string | null, forkedFrom?: string | null): void {
+// M262: a map chosen by the user in the open skill ("open map <name>", or a number from the list) — by id, else by
+// name, else created. A real folder remembers the choice as its folder map; a throwaway app folder binds the session only.
+function resolveMapChoice(choice: string, cwd: string): string | null {
+  const c = choice.trim(); if (!c) return null;
+  const all = store.listProjects();
+  let pid = all.find((p) => p.id === c)?.id ?? all.find((p) => p.name.toLowerCase() === c.toLowerCase())?.id ?? null;
+  if (!pid) {
+    const folderName = (basename(cwd) || 'workspace').toLowerCase();
+    if (c.toLowerCase() === 'folder' || c.toLowerCase() === folderName) return null; // "this folder's map" → the folder rule below
+    pid = store.createProject(c.slice(0, 60)); bootstrapProject(pid); store.audit('project_created', { id: pid.slice(0, 8), name: c.slice(0, 40), by: 'open map' });
+  }
+  if (!scratchRootOf(cwd)) store.bindCwd(cwd, pid); // the folder remembers this choice
+  return pid;
+}
+function ensureSessionBound(sessionId: string | null | undefined, cwd: string | null | undefined, harness?: string | null, forkedFrom?: string | null, mapChoice?: string | null): void {
   if (!sessionId || !cwd) return;
   const h = harness === 'codex' ? 'codex' : harness === 'claude' ? 'claude' : null;
   const row = hostRow(sessionId);
   let pid: string;
-  if (row?.cwd) pid = store.projectForCwd(row.cwd) ?? projectForCwdOrCreate(row.cwd);
+  const chosen = !sessionChat(sessionId) && mapChoice ? resolveMapChoice(mapChoice, cwd) : null;
+  if (chosen) { pid = chosen; if (!row) recordSessionStart(store, sessionId, null, null, cwd); }
+  else if (row?.cwd) pid = store.projectForCwd(row.cwd) ?? projectForCwdOrCreate(row.cwd);
   else { pid = projectForCwdOrCreate(cwd); recordSessionStart(store, sessionId, null, null, cwd); store.metric(pid, 'session.start'); }
   // M251: a hook firing means the session is live — a session the page shows as closed comes back and the page follows it
   const revived = row?.status === 'closed';
@@ -1278,6 +1284,19 @@ const server = Bun.serve({
     // ---- M88: projects (each its own map) + chat creation (fork / fresh) ----
     if (path === '/api/projects' && req.method === 'GET') {
       return json({ projects: store.listProjects(), active: projectId });
+    }
+    // M262 (Mark): the open skill asks which map when there is more than one. Maps ordered by last use (the timing
+    // is for ordering only, never shown); the folder's own map first when the folder has one; a throwaway app
+    // folder (~/Documents/Codex/<date>/<x>) has no folder map.
+    if (path === '/api/maps' && req.method === 'GET') {
+      const cwd = url.searchParams.get('cwd') ?? '';
+      const db = (store as any).db;
+      const lastUse = (pid: string): string => (db.prepare('SELECT MAX(x) t FROM (SELECT MAX(hs.last_active) x FROM harness_sessions hs JOIN chats c ON c.id = hs.chat_id WHERE c.project_id = ? UNION ALL SELECT MAX(t.created_at) FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.project_id = ?)').get(pid, pid) as any)?.t ?? '';
+      const folderMap = cwd && !scratchRootOf(cwd) ? (store.projectForCwd(cwd) ?? null) : null;
+      const maps = store.listProjects().map((p) => ({ id: p.id, name: p.name, folder: store.cwdsForProject(p.id)[0] ?? null, nodes: store.getNodes(p.id).filter((n) => n.status !== 'removed' && n.author !== 'system').length, current: p.id === projectId, isFolderMap: p.id === folderMap, _t: lastUse(p.id) || p.createdAt }))
+        .sort((a, b) => (a.isFolderMap ? -1 : b.isFolderMap ? 1 : 0) || b._t.localeCompare(a._t))
+        .map(({ _t, ...m }) => m);
+      return json({ maps, folder: cwd || null, folderMap: folderMap ? { id: folderMap, name: store.listProjects().find((p) => p.id === folderMap)?.name ?? '' } : null, scratchFolder: !!(cwd && scratchRootOf(cwd)), suggestedFolderMapName: cwd && !scratchRootOf(cwd) ? (basename(cwd) || 'workspace') : null });
     }
     if (path === '/api/projects' && req.method === 'POST') {
       const { name } = await req.json() as { name?: string };
@@ -2750,7 +2769,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ ok: true, version: VERSION });
     }
     if (path === '/api/harness/session-start' && req.method === 'POST') {
-      const body = await req.json() as { session_id: string; transcript_path?: string; cwd?: string; model?: string; harness?: string; source?: string; forked_from?: string | null };
+      const body = await req.json() as { session_id: string; transcript_path?: string; cwd?: string; model?: string; harness?: string; source?: string; forked_from?: string | null; map?: string | null };
       // M221: which harness is talking — Codex's payload carries an OpenAI
       // model slug; Claude Code's a claude one (or none). Recorded per session.
       const harness: string | null = harnessFromPath(body.transcript_path) ?? (body.harness === 'codex' || body.harness === 'claude' ? body.harness : String(body.model ?? '').startsWith('gpt') ? 'codex' : null);
@@ -2762,7 +2781,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // no ghost project lingers in the switcher.
       let announce = '';
       if (body.cwd) {
-        const pid = projectForCwdOrCreate(body.cwd);
+        const pid = (body.map && !sessionChat(body.session_id) ? resolveMapChoice(body.map, body.cwd) : null) ?? projectForCwdOrCreate(body.cwd);
         // Once-ever full intro; once-per-project short line (Mark's Q1).
         // M143: a closed map never announces itself.
         if (!influenceOff(pid) && !store.getSetting(`announced:${pid}`)) {
@@ -2818,14 +2837,14 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ ok: true });
     }
     if (path === '/api/harness/prompt' && req.method === 'POST') {
-      const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string; forked_from?: string | null };
-      ensureSessionBound(body.session_id, body.cwd, body.harness, body.forked_from ?? null);
+      const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string; forked_from?: string | null; map?: string | null };
+      ensureSessionBound(body.session_id, body.cwd, body.harness, body.forked_from ?? null, body.map ?? null);
       if (body.session_id && body.text) { const clean = stripHostScaffold(body.text); if (clean) pendingPrompts.set(body.session_id, clean.slice(0, 20_000)); } // M259: never the host's preamble
       return json({ ok: true });
     }
     if (path === '/api/harness/observe' && req.method === 'POST') {
       const body = await req.json() as { session_id?: string; transcript_path?: string; last_assistant_message?: string; user_text?: string; assistant_text?: string; cwd?: string };
-      ensureSessionBound(body.session_id, body.cwd, (body as any).harness, (body as any).forked_from ?? null);
+      ensureSessionBound(body.session_id, body.cwd, (body as any).harness, (body as any).forked_from ?? null, (body as any).map ?? null);
       if (body.session_id) { recordHarness(body.session_id, (body as any).harness, body.transcript_path); refreshHostTitle(body.session_id); } // M251/M252: the tab carries the harness and its own thread title
       let userText = body.user_text ?? '';
       let assistantText = body.assistant_text ?? '';

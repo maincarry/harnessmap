@@ -1,7 +1,7 @@
 // UserPromptSubmit: map context rides along — FULL block on the session's
 // first turn, deltas after, nothing when nothing changed (M59: the
 // append-only transcript must not accumulate snapshots).
-import { BASE, readHookInput, gateSession, hostHarness, forkedFromOf } from './common.ts';
+import { BASE, readHookInput, gateSession, hostHarness, forkedFromOf, chosenMap } from './common.ts';
 const input = await readHookInput();
 if (!gateSession(input, 'UserPromptSubmit')) process.exit(0); // M239: only the opened session
 // M99: stash the user's prompt server-side — the ROUND's user text now comes
@@ -11,7 +11,7 @@ try {
   if (input.prompt) {
     fetch(`${BASE}/api/harness/prompt`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ session_id: input.session_id, text: input.prompt, cwd: input.cwd, harness: hostHarness(input), forked_from: forkedFromOf(input.transcript_path) }), // M244: cwd binds a session claimed mid-way; M245: which host; M255: a fork's parent
+      body: JSON.stringify({ session_id: input.session_id, text: input.prompt, cwd: input.cwd, harness: hostHarness(input), forked_from: forkedFromOf(input.transcript_path), map: chosenMap() }), // M244: cwd binds a session claimed mid-way; M245: which host; M255: a fork's parent
       signal: AbortSignal.timeout(3000),
     }).catch(() => {});
   }
