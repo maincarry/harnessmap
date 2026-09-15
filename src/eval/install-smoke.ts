@@ -365,7 +365,7 @@ console.log('\n== 6j. the app\'s bundled codex is found off PATH (M258) ==');
 {
   const shim = join(TMP, 'app-bundle', 'codex'); mkdirSync(join(TMP, 'app-bundle'), { recursive: true });
   await Bun.write(shim, '#!/bin/sh\necho codex-cli 0.0.0\n'); Bun.spawnSync(['chmod', '+x', shim]);
-  const r = Bun.spawnSync(['bun', '-e', "import('./src/harness-bins.ts').then(m => console.log(JSON.stringify({ codex: m.codexBin() })))"], { env: { ...process.env, PATH: '/usr/bin:/bin', CODEX_CLI_PATH: shim }, stdout: 'pipe', stderr: 'pipe' });
+  const r = Bun.spawnSync([process.execPath, '-e', "import('./src/harness-bins.ts').then(m => console.log(JSON.stringify({ codex: m.codexBin() })))"], { env: { ...process.env, PATH: '/usr/bin:/bin', CODEX_CLI_PATH: shim }, stdout: 'pipe', stderr: 'pipe' });
   let got: any = {}; try { got = JSON.parse(r.stdout.toString().trim().split('\n').pop() ?? '{}'); } catch {}
   check('with codex off PATH, the resolver finds the app-bundled binary (CODEX_CLI_PATH / app locations)', got.codex === shim);
 }
