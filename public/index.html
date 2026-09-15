@@ -440,6 +440,7 @@
     <header><span class="htitle">the map</span>
       <select id="proj-sel" class="hbtn" title="switch map — each map is completely separate"></select>
       <button class="hbtn" id="legend-btn" title="tutorial: a guided walk through every part of the map (the reference card is at the end)">?</button>
+      <button class="hbtn" id="sideview-btn" title="side view: map only — for the Codex app's side panel or a narrow window; click again to show the conversation pane (remembered in this browser)">▯</button>
       <button class="hbtn" id="ctx-btn" hidden title="see the exact map description the CHAT agent receives next turn">chat agent's view</button>
       <span id="beat" title="the turn lifecycle: message seen → agent replying → filed onto the map" style="margin-left:auto;font-weight:400;font-size:12px;color:var(--muted)">waiting for activity</span>
       <span class="lag" id="lag" style="margin-left:10px">map current</span>
@@ -480,7 +481,6 @@
           <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
           <button id="authinfo-btn" title="full transparency: how the map's agents sign in, who gets billed, and whether calls are working">🔑 sign-in &amp; billing</button>
           <button id="update-btn" title="check whether a newer harnessmap exists — updating is one command you run (Claude Code: /plugin update; Codex: the installer), never automatic">⬆ check for updates</button>
-          <button id="sideview-btn" hidden title="side view: show the map only (for the Codex app's built-in browser or a narrow window) — click again to show the conversation pane too">▯ side view</button>
           <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
           <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
           </div></div></div>
@@ -1038,7 +1038,7 @@ function checkMobile() {
   const on = false; // the phone shell is retired (M254b)
   document.body.classList.toggle('mobile', on);
   document.body.classList.toggle('companion', sideViewOn() || window.innerWidth <= 960);
-  $('sideview-btn').textContent = sideViewOn() ? '▯ side view: on (map only)' : '▯ side view';
+  { const b = $('sideview-btn'); if (b) { b.classList.toggle('on', sideViewOn()); b.textContent = sideViewOn() ? '▮' : '▯'; b.title = sideViewOn() ? 'side view is on: map only — click to show the conversation pane again' : 'side view: map only — for the Codex app\'s side panel or a narrow window (remembered in this browser)'; } }
   if (!on) document.body.classList.remove('mob-chat');
 }
 // M133c (Jacob): the mobile test is a real device simulation — the app loaded
