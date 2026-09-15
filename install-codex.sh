@@ -7,7 +7,22 @@ set -euo pipefail
 APP="${HARNESSMAP_APP:-$HOME/.harnessmap/app}"; REPO="${HARNESSMAP_REPO:-https://github.com/maincarry/harnessmap.git}"
 say() { printf '\033[1m%s\033[0m\n' "$*"; }
 if ! command -v bun >/dev/null 2>&1; then say "installing bun (the map's runtime)..."; curl -fsSL https://bun.sh/install | bash; export PATH="$HOME/.bun/bin:$PATH"; fi
-if ! command -v codex >/dev/null 2>&1; then say "codex is not on PATH - install the Codex CLI (npm i -g @openai/codex) or the Codex app first; the map's hooks will attach once it is."; fi
+# M257: the Codex APP ships its own CLI but does not put it on PATH (Jacob's Mac) - find it and use it; link it so `codex` works in Terminal
+find_codex() {
+  command -v codex >/dev/null 2>&1 && return 0
+  for c in "${CODEX_CLI_PATH:-}" /Applications/Codex.app/Contents/Resources/codex /Applications/Codex.app/Contents/Resources/bin/codex "$HOME/Applications/Codex.app/Contents/Resources/codex" /Applications/ChatGPT.app/Contents/Resources/codex /Applications/ChatGPT.app/Contents/Resources/bin/codex "$HOME/.codex/bin/codex"; do
+    if [ -n "$c" ] && [ -x "$c" ]; then
+      export PATH="$(dirname "$c"):$PATH"
+      for b in /usr/local/bin "$HOME/.local/bin"; do
+        if { [ -d "$b" ] && [ -w "$b" ]; } || mkdir -p "$b" 2>/dev/null; then [ -e "$b/codex" ] || ln -s "$c" "$b/codex" 2>/dev/null; break; fi
+      done
+      say "codex found inside the app at $c (linked as 'codex' for your Terminal; if Terminal still cannot find it, run:  export PATH=\"$(dirname "$c"):\$PATH\")"
+      return 0
+    fi
+  done
+  return 1
+}
+if ! find_codex; then say "codex is not on PATH and no Codex app was found - install the Codex CLI (npm i -g @openai/codex) or the Codex app first; the map's hooks will attach once it is."; fi
 mkdir -p "$(dirname "${APP}")"
 if [ -d "${APP}/.git" ]; then say "updating ${APP}..."; git -C "${APP}" pull -q --ff-only || true; else say "fetching the map into ${APP}..."; git clone -q "${REPO}" "${APP}"; fi
 ( cd "${APP}" && bun install --production >/dev/null 2>&1 || true )
