@@ -77,14 +77,17 @@ function readArm(armFile: string): { key: string; cwd: string } | null {
   if (lines.length >= 2 && /^[a-z0-9]{6,32}$/i.test(lines[0])) return { key: lines[0], cwd: lines[1] ?? '' };
   return { key: '', cwd: lines[0] ?? '' };
 }
-// Did this turn's reply carry the key? Codex hands the Stop hook the reply (last_assistant_message); either
-// harness's transcript tail is read otherwise (Claude Code jsonl or a Codex rollout, last assistant text).
+// Did THIS session make the request? The skill's command prints the key, and the harness records every tool output
+// in the session's transcript — so the key sits in the transcript tail of the session that ran it and nowhere else.
+// Nothing is shown to the user (M257b, Mark: "don't want to derail user experience"). A reply that happens to carry
+// the key counts too (Codex hands the Stop hook the reply).
 function replyCarries(input: any, key: string): boolean {
-  const needle = new RegExp('map key\\s+' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  const esc = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const needle = new RegExp('(map key\\s+|harnessmap[- ]request[:\\s]+)?' + esc + '\\b', 'i');
   if (typeof input?.last_assistant_message === 'string' && needle.test(input.last_assistant_message)) return true;
   const tp = String(input?.transcript_path ?? ''); if (!tp || !existsSync(tp)) return false;
   try {
-    const st = statSync(tp); const fd = openSync(tp, 'r'); const len = Math.min(st.size, 256_000); const buf = Buffer.alloc(len);
+    const st = statSync(tp); const fd = openSync(tp, 'r'); const len = Math.min(st.size, 512_000); const buf = Buffer.alloc(len);
     readSync(fd, buf, 0, len, st.size - len); closeSync(fd);
     return needle.test(buf.toString('utf8'));
   } catch { return false; }

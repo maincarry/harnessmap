@@ -316,9 +316,11 @@ console.log('\n== 6h. the request key: only the session that said "open map" can
   // a prompt hook cannot claim (no reply yet)
   const pr = run('on-prompt.ts', { session_id: 'key-A', cwd: PROJ, prompt: 'open map' });
   check('the prompt hook of the requesting turn does not claim yet (the reply is what carries the key)', pr.code === 0 && !ctxOf(pr.out) && ex(join(HOME, 'open-next')));
-  // (3) the requesting session's reply carries the key → it is the one attached
-  const a = run('on-stop.ts', { session_id: 'key-A', cwd: PROJ, turn_id: 't', last_assistant_message: `The map is attached to this session only.\nmap key ${KEY}` });
-  check('the session whose reply carries the key claims the request', a.code === 0 && !ex(join(HOME, 'open-next')) && rf(join(HOME, 'session'), 'utf8').trim() === 'key-A');
+  // (3) the requesting session's TRANSCRIPT carries the key (the skill's command output, recorded by the harness) → it is the one attached; the user sees nothing
+  const rollA = join(TMP, 'rollout-key-A.jsonl');
+  await Bun.write(rollA, [JSON.stringify({ timestamp: 't0', type: 'session_meta', payload: { id: 'key-A', cwd: PROJ } }), JSON.stringify({ timestamp: 't1', type: 'response_item', payload: { type: 'function_call', name: 'shell', call_id: 'c1', arguments: '{"command":["bash","-lc","mkdir -p ~/.harnessmap && k=... && echo \"harnessmap request $k\""]}' } }), JSON.stringify({ timestamp: 't2', type: 'response_item', payload: { type: 'function_call_output', call_id: 'c1', output: `harnessmap request ${KEY}\n` } }), JSON.stringify({ timestamp: 't3', type: 'response_item', payload: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Opened the map beside this chat.' }] } })].join('\n') + '\n');
+  const a = run('on-stop.ts', { session_id: 'key-A', cwd: PROJ, turn_id: 't', transcript_path: rollA, last_assistant_message: 'Opened the map beside this chat.' });
+  check('the session whose transcript carries the key (tool output, nothing in the reply) claims the request', a.code === 0 && !ex(join(HOME, 'open-next')) && rf(join(HOME, 'session'), 'utf8').trim() === 'key-A');
   const served = run('on-prompt.ts', { session_id: 'key-A', cwd: PROJ, prompt: 'a real question' });
   check('… and is served from its next turn', served.code === 0 && ctxOf(served.out).length > 50);
   // (4) an attached session never consumes a request that is not its own
@@ -328,14 +330,14 @@ console.log('\n== 6h. the request key: only the session that said "open map" can
   // re-opening in the attached session consumes its OWN request (idempotent)
   wf(join(HOME, 'open-next'), `${KEY}2\n${PROJ}`);
   const again = run('on-stop.ts', { session_id: 'key-A', cwd: PROJ, turn_id: 't3', last_assistant_message: `map key ${KEY}2` });
-  check('re-opening in the attached session consumes its own request and stays attached', again.code === 0 && !ex(join(HOME, 'open-next')) && rf(join(HOME, 'session'), 'utf8').trim() === 'key-A');
+  check('re-opening in the attached session consumes its own request and stays attached (a reply carrying the key also counts)', again.code === 0 && !ex(join(HOME, 'open-next')) && rf(join(HOME, 'session'), 'utf8').trim() === 'key-A');
   // the key can also be read from the transcript tail when the payload has no reply text (Claude Code)
   const tpath = join(TMP, 'key-transcript.jsonl');
   wf(join(HOME, 'open-next'), `${KEY}3\n${PROJ}`);
-  await Bun.write(tpath, [JSON.stringify({ type: 'user', message: { content: 'open map' } }), JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: `Attached.\nmap key ${KEY}3` }] } })].join('\n') + '\n');
+  await Bun.write(tpath, [JSON.stringify({ type: 'user', message: { content: 'open map' } }), JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', content: `harnessmap request ${KEY}3` }] } }), JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'Attached.' }] } })].join('\n') + '\n');
   try { ul(join(HOME, 'session')); } catch {}
   const viaTx = run('on-stop.ts', { session_id: 'key-D', cwd: PROJ, turn_id: 't', transcript_path: tpath });
-  check('without a reply field, the key is found in the transcript tail (Claude Code)', viaTx.code === 0 && rf(join(HOME, 'session'), 'utf8').trim() === 'key-D');
+  check('on Claude Code the key is found in the transcript\'s tool result', viaTx.code === 0 && rf(join(HOME, 'session'), 'utf8').trim() === 'key-D');
   try { ul(join(HOME, 'session')); } catch {} try { ul(join(HOME, 'open-next')); } catch {}
 }
 
