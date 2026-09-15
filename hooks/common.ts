@@ -3,7 +3,7 @@
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, openSync, readSync, closeSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, openSync, readSync, closeSync, statSync } from 'node:fs';
 
 // M91: installed life. All user data lives in ONE place (told to the user):
 // ~/.harnessmap — db, server log, port file. Overridable for dev/playground.
@@ -31,43 +31,64 @@ export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmi
   if (process.env.HARNESSMAP_SESSION_GATE === 'open') return true;
   const sid = String(input?.session_id ?? '');
   const sessFile = join(HOME, 'session'), armFile = join(HOME, 'open-next');
-  // M255: the attachment is a LINEAGE — the session that said "open map" and every fork of it (a Codex fork is the
-  // user's own continuation of that conversation; Mark: the fork "kept the browser tab but points to the old chat").
-  // The file holds one id per line; the first line is the one that said "open map".
-  let opened = ''; let lineage: string[] = [];
-  try { lineage = readFileSync(sessFile, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean); opened = lineage[0] ?? ''; } catch {}
-  if (sid && lineage.includes(sid)) {
-    // M252: "open map" said again in the attached session is idempotent — consume the marker so no other session can take it
-    if (existsSync(armFile)) { try { unlinkSync(armFile); } catch {} }
+  let opened = ''; try { opened = (readFileSync(sessFile, 'utf8').split('\n')[0] ?? '').trim(); } catch {}
+  // M256 (Mark's Codex retest): a folder is not a session identity. The "open map" request now carries a KEY the
+  // skill made and the agent repeats in its reply; the Stop hook of that very turn carries the reply, so only the
+  // session that said "open map" can claim its own request — a neighbour in the same folder cannot, a session with
+  // no cwd cannot, and an attached session never consumes a request that is not its own.
+  const arm = readArm(armFile);
+  if (sid && opened && opened === sid) {
+    if (arm && (!arm.key || (event === 'Stop' && replyCarries(input, arm.key)))) { try { unlinkSync(armFile); } catch {} } // re-opening is idempotent
     return true;
   }
-  // M255 as ruled by Jacob ("of course it is two — the user forked for a reason"): a fork is a second session and
-  // asks for "open map" like any other. What a fork keeps: when it does say "open map", its view is forked from the
-  // parent's (the server reads the parent from the rollout), and its first hint says so.
-  if (existsSync(armFile)) {
-    // The session that speaks first after "open map" is the one it was said in.
-    // M252 (found by Mark's Codex test): the marker carries the folder the open
-    // skill ran in; a session in another folder cannot claim it. An empty
-    // marker (older skill) still claims as before.
-    let armCwd = ''; try { armCwd = readFileSync(armFile, 'utf8').trim(); } catch {}
-    const norm = (p: string) => p.replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
-    if (armCwd && input?.cwd && norm(armCwd) !== norm(String(input.cwd))) return false;
-    try { mkdirSync(HOME, { recursive: true }); writeFileSync(sessFile, sid); } catch {}
-    try { unlinkSync(armFile); } catch {}
-    return true;
+  if (arm) {
+    if (arm.key) {
+      if (event === 'Stop' && sid && replyCarries(input, arm.key)) {
+        try { mkdirSync(HOME, { recursive: true }); writeFileSync(sessFile, sid); } catch {}
+        try { unlinkSync(armFile); } catch {}
+        return true;
+      }
+    } else {
+      // A keyless marker (an older open skill): the first session in that folder claims it, as before (M252).
+      const norm = (p: string) => p.replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
+      if (!(arm.cwd && (!input?.cwd || norm(arm.cwd) !== norm(String(input.cwd))))) {
+        try { mkdirSync(HOME, { recursive: true }); writeFileSync(sessFile, sid); } catch {}
+        try { unlinkSync(armFile); } catch {}
+        return true;
+      }
+    }
   }
   if (event === 'SessionStart') {
     // Installed but not attached: one line, once per session, so the user knows the command. It informs; it asks for nothing.
     // A fork of the attached conversation is told it is one (M255): its map view will start from the parent's.
     const parent = forkedFromOf(input?.transcript_path);
-    const isFork = !!parent && lineage.includes(parent);
+    const isFork = !!parent && parent === opened;
     if (!opened || isFork) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: isFork
       ? '[harnessmap] This is a fork of a conversation that has the map open. The map is not attached to this fork; if you want it here too, say "open map" — this fork gets its own view, starting from the parent\'s focus and light.'
       : '[harnessmap] The map is installed but not attached to this session. If you want it, say "open map" — it attaches to this session only.' } }));
   }
   return false;
 }
-
+// The "open map" marker: line 1 the key (absent on an older skill's marker, which then holds only the folder), line 2 the folder.
+function readArm(armFile: string): { key: string; cwd: string } | null {
+  if (!existsSync(armFile)) return null;
+  let raw = ''; try { raw = readFileSync(armFile, 'utf8'); } catch { return null; }
+  const lines = raw.split('\n').map((l) => l.trim());
+  if (lines.length >= 2 && /^[a-z0-9]{6,32}$/i.test(lines[0])) return { key: lines[0], cwd: lines[1] ?? '' };
+  return { key: '', cwd: lines[0] ?? '' };
+}
+// Did this turn's reply carry the key? Codex hands the Stop hook the reply (last_assistant_message); either
+// harness's transcript tail is read otherwise (Claude Code jsonl or a Codex rollout, last assistant text).
+function replyCarries(input: any, key: string): boolean {
+  const needle = new RegExp('map key\\s+' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  if (typeof input?.last_assistant_message === 'string' && needle.test(input.last_assistant_message)) return true;
+  const tp = String(input?.transcript_path ?? ''); if (!tp || !existsSync(tp)) return false;
+  try {
+    const st = statSync(tp); const fd = openSync(tp, 'r'); const len = Math.min(st.size, 256_000); const buf = Buffer.alloc(len);
+    readSync(fd, buf, 0, len, st.size - len); closeSync(fd);
+    return needle.test(buf.toString('utf8'));
+  } catch { return false; }
+}
 // M255: the parent of a forked Codex thread, from the first line of its rollout (session_meta.forked_from_id).
 // Cheap (first 4 KB), tolerant (any shape drift → null). Claude Code transcripts carry no such field yet.
 export function forkedFromOf(transcriptPath: unknown): string | null {

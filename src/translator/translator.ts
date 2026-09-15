@@ -76,6 +76,28 @@ const variant = (op: string, props: Record<string, unknown>, required: string[],
 });
 const str = { type: 'string' as const };
 const author = { type: 'string' as const, enum: ['user', 'agent'] };
+// M253 guard, tightened in M256 (Mark's Codex retest found it dropped distinct commitments on the same topic —
+// "ask for approval before deleting files" beside "this session has command tools"): a decision/constraint created in
+// the same round as a content rewrite is a TWIN only when it restates that statement — most of its rare words (≥ 60%,
+// at least two) already sit in the rewritten text. A commitment that adds its own words survives.
+export function dropCorrectionTwins(alterations: any[], nodes: { title?: string | null; content: string }[], audit: (d: Record<string, unknown>) => void): any[] {
+  const rewritten = alterations.filter((a) => a.op === 'update_node' && typeof a.content === 'string' && a.content.trim());
+  if (!rewritten.length) return alterations;
+  const df = new Map<string, number>();
+  const toks = (t: string) => new Set((t ?? '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 3));
+  for (const n of nodes) for (const w of toks(`${n.title ?? ''} ${n.content}`)) df.set(w, (df.get(w) ?? 0) + 1);
+  const rare = (w: string) => (df.get(w) ?? 0) <= Math.max(2, Math.ceil(nodes.length * 0.05));
+  const out: any[] = [];
+  for (const a of alterations) {
+    if (a.op === 'create_node' && (a.type === 'decision' || a.type === 'constraint')) {
+      const cw = [...toks(`${a.title ?? ''} ${a.content ?? ''}`)].filter(rare);
+      const dup = rewritten.find((r) => { const rw = toks(r.content); const shared = cw.filter((w) => rw.has(w)).length; return cw.length > 0 && shared >= 2 && shared / cw.length >= 0.6; });
+      if (dup) { audit({ dropped: String(a.content ?? '').slice(0, 80), rewrote: dup.id }); continue; }
+    }
+    out.push(a);
+  }
+  return out;
+}
 export const CANON_TYPES = ['claim', 'question', 'option', 'decision', 'constraint', 'evidence', 'task'];
 const canonType = { type: 'string' as const, enum: CANON_TYPES };
 const linkType = { type: 'string' as const, enum: ['supports', 'objection-to', 'replies-to', 'answers', 'motivated-by', 'satisfies', 'blocks', 'chooses'] };
@@ -257,22 +279,7 @@ export class Translator {
   // the fact (the old rebuke rule). Prompts guide, guards enforce: a create_node typed decision/constraint in the same
   // round as an update_node that rewrote content, sharing two or more rare words with the rewritten statement, is dropped.
   private guardCorrectionTwin(alterations: any[], map: { nodes: MapNode[] }): any[] {
-    const rewritten = alterations.filter((a) => a.op === 'update_node' && typeof a.content === 'string' && a.content.trim());
-    if (!rewritten.length) return alterations;
-    const df = new Map<string, number>();
-    const toks = (t: string) => new Set((t ?? '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 3));
-    for (const n of map.nodes) for (const w of toks(`${n.title ?? ''} ${n.content}`)) df.set(w, (df.get(w) ?? 0) + 1);
-    const rare = (w: string) => (df.get(w) ?? 0) <= Math.max(2, Math.ceil(map.nodes.length * 0.05));
-    const out: any[] = [];
-    for (const a of alterations) {
-      if (a.op === 'create_node' && (a.type === 'decision' || a.type === 'constraint')) {
-        const cw = [...toks(`${a.title ?? ''} ${a.content ?? ''}`)].filter(rare);
-        const dup = rewritten.find((r) => { const rw = toks(r.content); return cw.filter((w) => rw.has(w)).length >= 2; });
-        if (dup) { this.store.audit('guard_correction_twin', { dropped: String(a.content ?? '').slice(0, 80), rewrote: dup.id }); continue; }
-      }
-      out.push(a);
-    }
-    return out;
+    return dropCorrectionTwins(alterations, map.nodes, (d) => this.store.audit('guard_correction_twin', d));
   }
   private guardScope(alterations: Alteration[], scope: Set<string>, map: MapView, params: { chatId: string; focusContainerId: string }): Alteration[] {
     const live = new Set(scope);

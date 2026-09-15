@@ -299,6 +299,66 @@ console.log('\n== 6g. boundaries found by Mark\'s Codex test (M252) ==');
   check('MAP.md (read by host agents) never says the agent has no tools', !/NO tools/i.test(md));
 }
 
+console.log('\n== 6h. the request key: only the session that said "open map" can claim it (M256) ==');
+{
+  const gatedEnv = { ...HOOK_ENV, HARNESSMAP_SESSION_GATE: undefined } as any;
+  const run = (file: string, payload: any) => { const p = Bun.spawnSync(['bun', 'run', join('hooks', file)], { env: gatedEnv, stdin: new TextEncoder().encode(JSON.stringify(payload)), stdout: 'pipe', stderr: 'pipe' }); return { code: p.exitCode, out: p.stdout.toString() }; };
+  const { unlinkSync: ul, existsSync: ex, writeFileSync: wf, readFileSync: rf } = await import('node:fs');
+  const KEY = 'k7f3a9c2e1b4d6f8';
+  try { ul(join(HOME, 'session')); } catch {} try { ul(join(HOME, 'open-next')); } catch {}
+  wf(join(HOME, 'open-next'), `${KEY}\n${PROJ}`);
+  // (1) a neighbour in the SAME folder whose Stop runs first cannot claim: its reply has no key
+  const b = run('on-stop.ts', { session_id: 'key-B', cwd: PROJ, turn_id: 't', last_assistant_message: 'sure, here is the plan' });
+  check('a session in the same folder cannot claim a keyed request (its reply carries no key)', b.code === 0 && ex(join(HOME, 'open-next')) && !ex(join(HOME, 'session')));
+  // (2) a payload without cwd cannot claim either
+  const nocwd = run('on-stop.ts', { session_id: 'key-C', turn_id: 't', last_assistant_message: 'no folder here' });
+  check('a hook with no cwd cannot claim a keyed request', nocwd.code === 0 && ex(join(HOME, 'open-next')) && !ex(join(HOME, 'session')));
+  // a prompt hook cannot claim (no reply yet)
+  const pr = run('on-prompt.ts', { session_id: 'key-A', cwd: PROJ, prompt: 'open map' });
+  check('the prompt hook of the requesting turn does not claim yet (the reply is what carries the key)', pr.code === 0 && !ctxOf(pr.out) && ex(join(HOME, 'open-next')));
+  // (3) the requesting session's reply carries the key → it is the one attached
+  const a = run('on-stop.ts', { session_id: 'key-A', cwd: PROJ, turn_id: 't', last_assistant_message: `The map is attached to this session only.\nmap key ${KEY}` });
+  check('the session whose reply carries the key claims the request', a.code === 0 && !ex(join(HOME, 'open-next')) && rf(join(HOME, 'session'), 'utf8').trim() === 'key-A');
+  const served = run('on-prompt.ts', { session_id: 'key-A', cwd: PROJ, prompt: 'a real question' });
+  check('… and is served from its next turn', served.code === 0 && ctxOf(served.out).length > 50);
+  // (4) an attached session never consumes a request that is not its own
+  wf(join(HOME, 'open-next'), `zz11zz22zz33zz44\n${join(TMP, 'other-folder')}`);
+  const keep = run('on-stop.ts', { session_id: 'key-A', cwd: PROJ, turn_id: 't2', last_assistant_message: 'ordinary reply' });
+  check('an attached session\'s hook leaves another session\'s request in place', keep.code === 0 && ex(join(HOME, 'open-next')));
+  // re-opening in the attached session consumes its OWN request (idempotent)
+  wf(join(HOME, 'open-next'), `${KEY}2\n${PROJ}`);
+  const again = run('on-stop.ts', { session_id: 'key-A', cwd: PROJ, turn_id: 't3', last_assistant_message: `map key ${KEY}2` });
+  check('re-opening in the attached session consumes its own request and stays attached', again.code === 0 && !ex(join(HOME, 'open-next')) && rf(join(HOME, 'session'), 'utf8').trim() === 'key-A');
+  // the key can also be read from the transcript tail when the payload has no reply text (Claude Code)
+  const tpath = join(TMP, 'key-transcript.jsonl');
+  wf(join(HOME, 'open-next'), `${KEY}3\n${PROJ}`);
+  await Bun.write(tpath, [JSON.stringify({ type: 'user', message: { content: 'open map' } }), JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: `Attached.\nmap key ${KEY}3` }] } })].join('\n') + '\n');
+  try { ul(join(HOME, 'session')); } catch {}
+  const viaTx = run('on-stop.ts', { session_id: 'key-D', cwd: PROJ, turn_id: 't', transcript_path: tpath });
+  check('without a reply field, the key is found in the transcript tail (Claude Code)', viaTx.code === 0 && rf(join(HOME, 'session'), 'utf8').trim() === 'key-D');
+  try { ul(join(HOME, 'session')); } catch {} try { ul(join(HOME, 'open-next')); } catch {}
+}
+
+console.log('\n== 6i. the correction-twin guard keeps distinct commitments (M256) ==');
+{
+  const { dropCorrectionTwins } = await import('../translator/translator.js');
+  const nodes = [{ title: 'session', content: 'This session is a conversational chat with no file or command tools.' }, { title: 'train', content: 'The train leaves Saturday morning.' }, { title: 'db', content: 'The store is SQLite, event-sourced.' }];
+  const audits: any[] = [];
+  const out = dropCorrectionTwins([
+    { op: 'update_node', id: 's', content: 'This session has file and command tools.' },
+    { op: 'create_node', id: 'twin', type: 'decision', content: 'This session has file and command tools available.' },
+    { op: 'create_node', id: 'rule', type: 'constraint', content: 'In this session, ask for approval before running command tools that delete files.' },
+    { op: 'update_node', id: 't', content: 'The train leaves Saturday.' },
+    { op: 'create_node', id: 'buy', type: 'decision', content: 'Buy refundable tickets for the Saturday train because the schedule may change.' },
+    { op: 'create_node', id: 'sql', type: 'decision', content: 'Keep SQLite; no migration to Postgres this quarter.' },
+  ], nodes, (d) => audits.push(d));
+  const ids = out.map((a: any) => a.id);
+  check('the restated fact is dropped as a twin', !ids.includes('twin') && audits.length === 1);
+  check('a distinct constraint on the same topic survives (approval before deleting files)', ids.includes('rule'));
+  check('a distinct decision on the same topic survives (refundable tickets)', ids.includes('buy'));
+  check('an unrelated decision survives', ids.includes('sql'));
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');

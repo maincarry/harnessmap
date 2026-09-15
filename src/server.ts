@@ -970,6 +970,7 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
             await brainCycle(store, roundPid);
             reAnchorPanes(roundPid);
             await tasteDigest(store, roundPid);
+            scheduleMapFile(); // M256: the judgment rides MAP.md too — rewrite the file when the brain has spoken
           } else if (!last) {
             store.setSetting(`brain_last:${roundPid}`, String(Date.now()));
           }
@@ -1855,6 +1856,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // The button runs the whole brain: structure pass above, then the
       // cycle (scan → changed assessments → overall report synthesis).
       await brainCycle(store, projectId);
+      scheduleMapFile(); // M256: MAP.md carries the judgment
       // The re-judge lane of the mutual-revision loop: while a summary
       // standard exists, every map status run re-verifies the import against
       // it — map-side findings clear only when a later verify passes.
