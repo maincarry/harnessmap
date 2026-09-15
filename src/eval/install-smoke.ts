@@ -410,6 +410,20 @@ console.log('\n== 6l. the Codex app\'s throwaway thread folders share one map (M
   check('two scratch threads bind to ONE map named "Codex", not maps named "o" and "p"', codexMaps.length === 1 && !(st.projects ?? []).some((x: any) => x.name === 'o' || x.name === 'p'));
 }
 
+console.log('\n== 6m. a map created on the page is adopted by the first session that opens the map from a new folder (M261) ==');
+{
+  const made = await (await fetch(`${BASE}/api/projects`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'thesis-notes' }) })).json();
+  const fresh = join(TMP, 'brand-new-folder'); mkdirSync(fresh, { recursive: true });
+  await runHook('session-start.ts', { session_id: 'adopt-1', cwd: fresh });
+  const st = await (await fetch(`${BASE}/api/state`)).json();
+  const adopted = st.projectId === made.projectId && (st.projects ?? []).filter((x: any) => x.name === 'brand-new-folder').length === 0;
+  check('the page\'s folder-less map is adopted by the session (no map named after the folder is created)', adopted);
+  const again = await (await fetch(`${BASE}/api/projects`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'second-map' }) })).json();
+  await runHook('session-start.ts', { session_id: 'adopt-2', cwd: fresh });
+  const st2 = await (await fetch(`${BASE}/api/state`)).json();
+  check('a folder that already has a map keeps it (the new page map is not stolen)', st2.projectId === made.projectId && st2.projectId !== again.projectId);
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');

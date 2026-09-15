@@ -267,6 +267,15 @@ function projectForCwdOrCreate(cwd: string): string {
   if (!pid) {
     for (let d = cwd; ; ) { const up = dirname(d); if (up === d) break; d = up; const hit = store.projectForCwd(d); if (hit) { pid = hit; break; } }
   }
+  // M261 (Mark: "when I create a new map in the UI, would the agent know which map to use?"): a map made on the
+  // page has no folder. The first session that says "open map" from a folder with no map of its own ADOPTS the map
+  // the page is showing, if that map has no folder yet — create a map on the page, say "open map" in the session, done.
+  const activeProj = store.listProjects().find((x) => x.id === projectId);
+  if (!pid && activeProj && activeProj.name !== 'default' && store.cwdsForProject(projectId).length === 0) { // the boot placeholder keeps M91's rename-adoption below
+    pid = projectId;
+    store.bindCwd(cwd, pid);
+    store.audit('project_adopted_by_session', { name: store.listProjects().find((x) => x.id === pid)?.name ?? '', cwd: cwd.slice(-50) });
+  }
   if (!pid) {
     const pname = basename(cwd) || 'workspace';
     const all = store.listProjects();
