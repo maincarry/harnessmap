@@ -399,6 +399,17 @@ console.log('\n== 6k. the host\'s preamble never becomes the user\'s words; the 
   try { ul(join(HOME, 'session')); } catch {}
 }
 
+console.log('\n== 6l. the Codex app\'s throwaway thread folders share one map (M260) ==');
+{
+  const o = join(TMP, 'Documents', 'Codex', '2026-09-15', 'o'), p2 = join(TMP, 'Documents', 'Codex', '2026-09-15', 'p');
+  mkdirSync(o, { recursive: true }); mkdirSync(p2, { recursive: true });
+  await runHook('session-start.ts', { session_id: 'scratch-o', cwd: o });
+  await runHook('session-start.ts', { session_id: 'scratch-p', cwd: p2 });
+  const st = await (await fetch(`${BASE}/api/state`)).json();
+  const codexMaps = (st.projects ?? []).filter((x: any) => x.name === 'Codex');
+  check('two scratch threads bind to ONE map named "Codex", not maps named "o" and "p"', codexMaps.length === 1 && !(st.projects ?? []).some((x: any) => x.name === 'o' || x.name === 'p'));
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');

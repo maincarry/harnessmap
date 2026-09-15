@@ -248,7 +248,21 @@ function codexRolloutsFor(dirs: string[]): { file: string; dir: string; sizeKB: 
 // by default; merges are the escape hatch. The boot placeholder
 // 'default' is ADOPTED (renamed) by the first directory ever bound, so
 // no ghost project lingers in the switcher.
+// M260 (Jacob's Mac): a Codex app thread with no project folder runs in a throwaway folder,
+// ~/Documents/Codex/<date>/<letter> — one map per such thread would be one map per chat. All of them share one map,
+// bound to the scratch root (~/Documents/Codex) and named "Codex"; a real project folder keeps its own map.
+function scratchRootOf(cwd: string): string | null {
+  const m = String(cwd).replace(/[\\/]+$/, '').match(/^(.*[\\/]Documents[\\/]Codex)[\\/]\d{4}-\d{2}-\d{2}[\\/][^\\/]+$/i);
+  return m ? m[1] : null;
+}
 function projectForCwdOrCreate(cwd: string): string {
+  const scratch = scratchRootOf(cwd);
+  if (scratch) {
+    let spid = store.projectForCwd(scratch);
+    if (!spid) { spid = store.createProject('Codex'); bootstrapProject(spid); store.bindCwd(scratch, spid); setActive(spid); store.audit('project_bound', { name: 'Codex', scratchRoot: true }); }
+    if (!store.projectForCwd(cwd)) store.bindCwd(cwd, spid);
+    return spid;
+  }
   let pid = store.projectForCwd(cwd);
   if (!pid) {
     for (let d = cwd; ; ) { const up = dirname(d); if (up === d) break; d = up; const hit = store.projectForCwd(d); if (hit) { pid = hit; break; } }
