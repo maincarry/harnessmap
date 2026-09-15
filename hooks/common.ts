@@ -3,7 +3,7 @@
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, openSync, readSync, closeSync } from 'node:fs';
 
 // M91: installed life. All user data lives in ONE place (told to the user):
 // ~/.harnessmap — db, server log, port file. Overridable for dev/playground.
@@ -31,11 +31,24 @@ export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmi
   if (process.env.HARNESSMAP_SESSION_GATE === 'open') return true;
   const sid = String(input?.session_id ?? '');
   const sessFile = join(HOME, 'session'), armFile = join(HOME, 'open-next');
-  let opened = ''; try { opened = readFileSync(sessFile, 'utf8').trim(); } catch {}
-  if (sid && opened && opened === sid) {
+  // M255: the attachment is a LINEAGE — the session that said "open map" and every fork of it (a Codex fork is the
+  // user's own continuation of that conversation; Mark: the fork "kept the browser tab but points to the old chat").
+  // The file holds one id per line; the first line is the one that said "open map".
+  let opened = ''; let lineage: string[] = [];
+  try { lineage = readFileSync(sessFile, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean); opened = lineage[0] ?? ''; } catch {}
+  if (sid && lineage.includes(sid)) {
     // M252: "open map" said again in the attached session is idempotent — consume the marker so no other session can take it
     if (existsSync(armFile)) { try { unlinkSync(armFile); } catch {} }
     return true;
+  }
+  if (sid && lineage.length) {
+    // A fork of an attached session inherits the attachment: Codex writes the parent's id into the fork's own
+    // transcript (session_meta.forked_from_id); the fork joins the lineage and gets its own view on the map.
+    const parent = forkedFromOf(input?.transcript_path);
+    if (parent && lineage.includes(parent)) {
+      try { writeFileSync(sessFile, [...lineage, sid].join('\n')); } catch {}
+      return true;
+    }
   }
   if (existsSync(armFile)) {
     // The session that speaks first after "open map" is the one it was said in.
@@ -54,6 +67,18 @@ export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmi
     console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: '[harnessmap] The map is installed but not attached to this session. If you want it, say "open map" — it attaches to this session only.' } }));
   }
   return false;
+}
+
+// M255: the parent of a forked Codex thread, from the first line of its rollout (session_meta.forked_from_id).
+// Cheap (first 4 KB), tolerant (any shape drift → null). Claude Code transcripts carry no such field yet.
+export function forkedFromOf(transcriptPath: unknown): string | null {
+  const tp = String(transcriptPath ?? ''); if (!tp || !existsSync(tp)) return null;
+  try {
+    const fd = openSync(tp, 'r'); const buf = Buffer.alloc(4096); const n = readSync(fd, buf, 0, 4096, 0); closeSync(fd);
+    const first = buf.toString('utf8', 0, n).split('\n')[0]; const j = JSON.parse(first);
+    const p = j?.payload ?? j; const id = p?.forked_from_id ?? p?.forkedFromId ?? p?.forked_from ?? null;
+    return typeof id === 'string' && id ? id : null;
+  } catch { return null; }
 }
 
 export async function readHookInput(): Promise<any> {
