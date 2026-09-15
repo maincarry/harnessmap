@@ -30,7 +30,7 @@ import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots, outlineWithIds } from './translator/importer.js';
 import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, backendName } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
-import { sliceRound, codexSessionMeta, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
+import { sliceRound, codexSessionMeta, stripHostScaffold, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync, openSync, readSync, closeSync } from 'node:fs';
 import { basename } from 'node:path';
 import { authUser, authEnabled, unauthorized } from './auth.js';
@@ -2797,7 +2797,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     if (path === '/api/harness/prompt' && req.method === 'POST') {
       const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string; forked_from?: string | null };
       ensureSessionBound(body.session_id, body.cwd, body.harness, body.forked_from ?? null);
-      if (body.session_id && body.text) pendingPrompts.set(body.session_id, body.text.slice(0, 20_000));
+      if (body.session_id && body.text) { const clean = stripHostScaffold(body.text); if (clean) pendingPrompts.set(body.session_id, clean.slice(0, 20_000)); } // M259: never the host's preamble
       return json({ ok: true });
     }
     if (path === '/api/harness/observe' && req.method === 'POST') {
@@ -2817,6 +2817,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // M99: transcript parsing is now best-effort enrichment — the user text
       // authoritative source is the UserPromptSubmit stash.
       if (!userText && body.session_id) userText = pendingPrompts.get(body.session_id) ?? '';
+      userText = stripHostScaffold(userText); // M259
       if (body.session_id) pendingPrompts.delete(body.session_id);
       if (!userText && !assistantText) return json({ ok: false, reason: 'empty round' }, 200);
       health.observedAt = Date.now();
@@ -2843,7 +2844,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // The append-only transcript must not accumulate snapshots.
     if (path === '/api/harness/context' && req.method === 'GET') {
       const sessionId = url.searchParams.get('session_id');
-      const promptText = url.searchParams.get('prompt') ?? '';
+      const promptText = stripHostScaffold(url.searchParams.get('prompt') ?? ''); // M259
       const sharp = url.searchParams.get('mode') === 'sharp' || process.env.HARNESSMAP_SHARP === '1'; // M233 experiment: size the block by the question
       // The context fetch IS the "user just sent a message" signal — let the
       // map UI show that the host agent is thinking (M61).

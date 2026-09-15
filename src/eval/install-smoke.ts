@@ -370,6 +370,35 @@ console.log('\n== 6j. the app\'s bundled codex is found off PATH (M258) ==');
   check('with codex off PATH, the resolver finds the app-bundled binary (CODEX_CLI_PATH / app locations)', got.codex === shim);
 }
 
+console.log('\n== 6k. the host\'s preamble never becomes the user\'s words; the marker may live in the project folder (M259) ==');
+{
+  const { stripHostScaffold } = await import('../agent/harness-adapter.js');
+  const pre = '<recommended_plugins>\nHere is a list…\n- Airtable\n</recommended_plugins>\n<environment_context>\n  <cwd>/x</cwd>\n</environment_context>\nopen map';
+  check('leading <tag>…</tag> blocks are stripped, the words stay', stripHostScaffold(pre) === 'open map');
+  check('text without a preamble is unchanged', stripHostScaffold('  we chose blue  ') === 'we chose blue');
+  // the prompt stash strips it too: a round whose prompt carried the preamble files the words only
+  const sid = 'scaffold-1';
+  await fetch(`${BASE}/api/harness/prompt`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ session_id: sid, text: pre.replace('open map', 'we decided the door will be teal because it is calmer'), cwd: PROJ }) });
+  const rr = await fetch(`${BASE}/api/harness/observe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ session_id: sid, cwd: PROJ, last_assistant_message: 'Noted: teal door.' }) });
+  await new Promise((r) => setTimeout(r, 500));
+  const stS = await (await fetch(`${BASE}/api/state`)).json();
+  const view = (stS.chats ?? []).find((c: any) => c.host?.sessionId === sid);
+  const turns = view ? await (await fetch(`${BASE}/api/chats/${view.id}/turns`)).json() : [];
+  const userTurn = turns.find((t: any) => t.role === 'user');
+  check('the mirrored user turn carries the words only (no recommended_plugins, no environment_context)', rr.status === 202 && !!userTurn && /teal/.test(userTurn.content) && !/recommended_plugins|environment_context/.test(userTurn.content));
+  // the open marker in the project folder claims like the one in HOME
+  const gatedEnv = { ...HOOK_ENV, HARNESSMAP_SESSION_GATE: undefined } as any;
+  const run = (file: string, payload: any) => { const p = Bun.spawnSync(['bun', 'run', join('hooks', file)], { env: gatedEnv, stdin: new TextEncoder().encode(JSON.stringify(payload)), stdout: 'pipe', stderr: 'pipe' }); return { code: p.exitCode, out: p.stdout.toString() }; };
+  const { unlinkSync: ul, existsSync: ex, writeFileSync: wf, readFileSync: rf } = await import('node:fs');
+  try { ul(join(HOME, 'session')); } catch {} try { ul(join(HOME, 'open-next')); } catch {}
+  mkdirSync(join(PROJ, '.harnessmap'), { recursive: true });
+  const K2 = 'a1b2c3d4e5f60718';
+  wf(join(PROJ, '.harnessmap', 'open-next'), `${K2}\n${PROJ}`);
+  const claim = run('on-stop.ts', { session_id: 'proj-marker', cwd: PROJ, turn_id: 't', last_assistant_message: `harnessmap request ${K2}` });
+  check('a keyed marker in <project>/.harnessmap claims like one in HOME (the app sandbox can write there)', claim.code === 0 && !ex(join(PROJ, '.harnessmap', 'open-next')) && rf(join(HOME, 'session'), 'utf8').trim() === 'proj-marker');
+  try { ul(join(HOME, 'session')); } catch {}
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');

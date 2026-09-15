@@ -29,14 +29,26 @@ export function isCodexRollout(lines: any[]): boolean {
   return lines.length > 0 && lines.slice(0, 3).some((m) => m && typeof m === 'object' && 'payload' in m && (m.type === 'session_meta' || m.type === 'response_item' || m.type === 'event_msg' || m.type === 'turn_context'));
 }
 // Injected scaffolding Codex records as user messages — never the user's words.
-const CODEX_SCAFFOLD = /^\s*<(environment_context|user_instructions|permissions|turn_aborted|hook_context|system_context|instructions)/i;
+const CODEX_SCAFFOLD = /^\s*<(environment_context|user_instructions|permissions|turn_aborted|hook_context|system_context|instructions|recommended_plugins)/i;
+// M259 (Jacob's Mac: the mirror showed <recommended_plugins>… and <environment_context>… as his message): a host may
+// prepend any number of <tag>…</tag> blocks to the user's prompt. Strip every leading block (any tag name), keep the words.
+export function stripHostScaffold(text: string): string {
+  let t = String(text ?? '');
+  for (let i = 0; i < 8; i++) {
+    const m = t.match(/^\s*<([a-z][a-z0-9_-]*)(?:\s[^>]*)?>[\s\S]*?<\/\1>\s*/i);
+    if (!m) break;
+    t = t.slice(m[0].length);
+  }
+  return t.trim();
+}
 export function codexTurnOf(m: any): { role: 'user' | 'assistant'; text: string } | null {
   const p = m?.payload; if (!p || typeof p !== 'object') return null;
   if (m.type === 'response_item' && p.type === 'message' && (p.role === 'user' || p.role === 'assistant')) {
     const text = (Array.isArray(p.content) ? p.content : [])
       .filter((b: any) => b && typeof b.text === 'string' && /^(input_text|output_text|text)$/.test(String(b.type ?? 'text')))
       .map((b: any) => b.text).join('\n').trim();
-    if (!text || (p.role === 'user' && CODEX_SCAFFOLD.test(text))) return null;
+    if (!text) return null;
+    if (p.role === 'user') { const clean = stripHostScaffold(text); if (!clean || CODEX_SCAFFOLD.test(clean)) return null; return { role: 'user', text: clean }; }
     return { role: p.role, text };
   }
   return null;
@@ -44,7 +56,7 @@ export function codexTurnOf(m: any): { role: 'user' | 'assistant'; text: string 
 function codexEventTurnOf(m: any): { role: 'user' | 'assistant'; text: string } | null {
   const p = m?.payload; if (m?.type !== 'event_msg' || !p || typeof p !== 'object') return null;
   const text = String(p.message ?? '').trim(); if (!text) return null;
-  if (p.type === 'user_message') return CODEX_SCAFFOLD.test(text) ? null : { role: 'user', text };
+  if (p.type === 'user_message') { const clean = stripHostScaffold(text); return !clean || CODEX_SCAFFOLD.test(clean) ? null : { role: 'user', text: clean }; }
   if (p.type === 'agent_message') return { role: 'assistant', text };
   return null;
 }

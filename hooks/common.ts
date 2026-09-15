@@ -30,13 +30,24 @@ export const BASE = process.env.HARNESSMAP_URL ?? `http://127.0.0.1:${port()}`;
 export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmit' | 'Stop' | 'PreCompact' | 'PostCompact' | 'SessionEnd'): boolean {
   if (process.env.HARNESSMAP_SESSION_GATE === 'open') return true;
   const sid = String(input?.session_id ?? '');
-  const sessFile = join(HOME, 'session'), armFile = join(HOME, 'open-next');
+  const sessFile = join(HOME, 'session');
+  // M259: the Codex app's sandbox lets the agent write only inside the project folder — a marker in ~/.harnessmap
+  // needed an approval prompt on Jacob's Mac. The skill now writes it into <project>/.harnessmap/open-next (beside
+  // MAP.md); ~/.harnessmap/open-next stays as the fallback for older skills and terminals.
+  const cwdArm = input?.cwd ? join(String(input.cwd), '.harnessmap', 'open-next') : '';
+  const armFile = cwdArm && existsSync(cwdArm) ? cwdArm : join(HOME, 'open-next');
   let opened = ''; try { opened = (readFileSync(sessFile, 'utf8').split('\n')[0] ?? '').trim(); } catch {}
   // M256 (Mark's Codex retest): a folder is not a session identity. The "open map" request now carries a KEY the
   // skill made and the agent repeats in its reply; the Stop hook of that very turn carries the reply, so only the
   // session that said "open map" can claim its own request — a neighbour in the same folder cannot, a session with
   // no cwd cannot, and an attached session never consumes a request that is not its own.
   const arm = readArm(armFile);
+  // M259: "close map" from inside the app sandbox writes <project>/.harnessmap/close-next; the attached session's next hook honours it
+  const closeMark = input?.cwd ? join(String(input.cwd), '.harnessmap', 'close-next') : '';
+  if (sid && opened && opened === sid && closeMark && existsSync(closeMark)) {
+    try { unlinkSync(closeMark); } catch {} try { unlinkSync(sessFile); } catch {}
+    return false;
+  }
   if (sid && opened && opened === sid) {
     if (arm && (!arm.key || (event === 'Stop' && replyCarries(input, arm.key)))) { try { unlinkSync(armFile); } catch {} } // re-opening is idempotent
     return true;
