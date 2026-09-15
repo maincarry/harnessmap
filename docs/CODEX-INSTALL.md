@@ -1,5 +1,32 @@
 # HarnessMap for Codex
 
+## The self-driving setup prompt (2026-09-15, paste into the Codex app or CLI)
+
+```
+You are setting up "harnessmap", a memory map for this Codex install, on this machine. You have a shell; use it. Do the steps in order, paste each command's output to me, and STOP at any step that fails.
+
+STEP 1 — install (one command; it pulls the app to ~/.harnessmap/app, registers the hooks and the skills, starts the map server):
+  macOS/Linux: curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/4d06778/install-codex.sh | bash
+  Windows PowerShell: irm https://raw.githubusercontent.com/maincarry/harnessmap/4d06778/install-codex.ps1 | iex
+Expect the lines "harnessmap hooks registered" and "the map is up at http://127.0.0.1:8790". If it says "codex is not on PATH and no Codex app was found", STOP and tell me.
+
+STEP 2 — make `codex` available in the user's Terminal. Find the binary:
+  macOS: ls /Applications/Codex.app/Contents/Resources/codex /Applications/ChatGPT.app/Contents/Resources/codex 2>/dev/null; command -v codex
+If `command -v codex` printed nothing but one of the two paths exists, append its folder to the shell profile:
+  echo 'export PATH="<that folder>:$PATH"' >> ~/.zshrc   (use the folder of the path that exists)
+On Windows the app's bin folder is already on PATH; skip.
+
+STEP 3 — verify the machine side (one command; prints a SUMMARY):
+  macOS/Linux: bash <(curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/4d06778/test-codex.sh)
+  Windows: irm https://raw.githubusercontent.com/maincarry/harnessmap/4d06778/test-codex.ps1 | iex
+Paste the SUMMARY block. Any line with FAIL: paste the log tail above it and STOP.
+
+STEP 4 — tell the user, in these words, the one thing only they can do:
+  "Open a new Terminal window, run `codex` (or the full path from step 2), type /hooks, trust the harnessmap entries, then quit. Codex runs no hook until you have trusted it yourself; no installer can do this for you. After that, start a NEW thread here and say: open map."
+
+Do not try to trust the hooks yourself, do not edit ~/.codex/config.toml, and do not start the map in your own browser now — "open map" in the next thread does that.
+```
+
 ## Status (2026-09-14) — where the Codex work stands
 
 **Host sessions are mirrored (M251, 2026-09-14):** a session that says "open map" gets its own read-only tab named by its thread title; closing the CLI marks it closed with the resume command; resuming re-attaches. The map's own chat is dev-mode only.
