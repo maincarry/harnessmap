@@ -10,6 +10,7 @@
 // else the util-linux/BSD `script(1)` wrapper (real PTY, fixed size).
 
 import { existsSync } from 'node:fs';
+import { codexBin } from './harness-bins.js';
 
 export interface TermSession {
   id: string;
@@ -42,12 +43,13 @@ let availCache: { at: number; map: Record<string, boolean> } | null = null;
 export function harnessAvailability(): Record<string, boolean> {
   if (availCache && Date.now() - availCache.at < 30_000) return availCache.map;
   const map: Record<string, boolean> = {};
-  for (const h of HARNESSES) map[h.id] = process.env.HARNESSMAP_TERM_CMD ? true : onPath(h.cmd);
+  for (const h of HARNESSES) map[h.id] = process.env.HARNESSMAP_TERM_CMD ? true : (h.id === 'codex' ? !!codexBin() : onPath(h.cmd)); // M258: the app's bundled codex counts
   availCache = { at: Date.now(), map };
   return map;
 }
 export function harnessCmd(id?: string): string {
   if (process.env.HARNESSMAP_TERM_CMD) return process.env.HARNESSMAP_TERM_CMD;
+  if ((id ?? 'claude') === 'codex') return codexBin() ?? 'codex'; // M258: absolute path when it lives in the app bundle
   return HARNESSES.find((h) => h.id === (id ?? 'claude'))?.cmd ?? CMD;
 }
 const MAX_BUFFER = 200_000;

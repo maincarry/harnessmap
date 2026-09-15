@@ -22,6 +22,7 @@ import { answerMapQuestion } from './translator/mapchat.js';
 import { CAST_GRAPH } from './translator/cast.js';
 import { recordUserWords, learnFromRename, parseGlossaryLine, addGlossary, removeGlossary, glossary, userWords } from './map/vocab.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend, HARNESSES, harnessAvailability } from './term.js';
+import { codexBin } from './harness-bins.js';
 import { suggestHomes } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories, nodeFull } from './translator/memory.js';
@@ -210,9 +211,9 @@ function sessionChat(sessionId: string): string | null {
 // M245: is the codex CLI signed in? `codex login status` exits 0 when it is.
 // Asked only for the auth panel and only when codex is the backend.
 function codexSignIn(ask: boolean): { onPath: boolean; signedIn: boolean | null } {
-  const onPath = (() => { try { return Bun.spawnSync(process.platform === 'win32' ? ['where', 'codex'] : ['sh', '-c', 'command -v codex'], { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0; } catch { return false; } })();
-  if (!ask || !onPath) return { onPath, signedIn: null };
-  try { return { onPath, signedIn: Bun.spawnSync(['codex', 'login', 'status'], { stdout: 'pipe', stderr: 'pipe', timeout: 8000 }).exitCode === 0 }; } catch { return { onPath, signedIn: null }; }
+  const bin = codexBin(); const onPath = !!bin; // M258
+  if (!ask || !bin) return { onPath, signedIn: null };
+  try { return { onPath, signedIn: Bun.spawnSync([bin, 'login', 'status'], { stdout: 'pipe', stderr: 'pipe', timeout: 8000 }).exitCode === 0 }; } catch { return { onPath, signedIn: null }; }
 }
 // M245: Codex's past sessions live under ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl;
 // the first line (session_meta) names the cwd. Newest 400 files, first line each.

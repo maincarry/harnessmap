@@ -361,6 +361,15 @@ console.log('\n== 6i. the correction-twin guard keeps distinct commitments (M256
   check('an unrelated decision survives', ids.includes('sql'));
 }
 
+console.log('\n== 6j. the app\'s bundled codex is found off PATH (M258) ==');
+{
+  const shim = join(TMP, 'app-bundle', 'codex'); mkdirSync(join(TMP, 'app-bundle'), { recursive: true });
+  await Bun.write(shim, '#!/bin/sh\necho codex-cli 0.0.0\n'); Bun.spawnSync(['chmod', '+x', shim]);
+  const r = Bun.spawnSync(['bun', '-e', "import('./src/harness-bins.ts').then(m => console.log(JSON.stringify({ codex: m.codexBin() })))"], { env: { ...process.env, PATH: '/usr/bin:/bin', CODEX_CLI_PATH: shim }, stdout: 'pipe', stderr: 'pipe' });
+  let got: any = {}; try { got = JSON.parse(r.stdout.toString().trim().split('\n').pop() ?? '{}'); } catch {}
+  check('with codex off PATH, the resolver finds the app-bundled binary (CODEX_CLI_PATH / app locations)', got.codex === shim);
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');

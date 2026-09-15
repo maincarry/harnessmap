@@ -13,6 +13,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import { codexBin } from './harness-bins.js';
 
 export type Task =
   | 'filer' | 'memory' | 'relations' | 'title' | 'summary' | 'autolit' | 'recommend' | 'place' | 'mapchat'
@@ -132,7 +133,7 @@ const probe = (argv: string[]): boolean => { try { return Bun.spawnSync(argv, { 
 const onPath = (bin: string): boolean => process.platform === 'win32'
   ? probe(['where', bin]) || probe(['sh', '-c', `command -v ${bin}`])
   : probe(['sh', '-c', `command -v ${bin}`]) || probe(['where', bin]);
-export const codexOnPath = (): boolean => onPath('codex');
+export const codexOnPath = (): boolean => !!codexBin(); // M258: PATH or the app bundle
 export function backendName(): Backend {
   const e = process.env.HARNESSMAP_INFERENCE;
   if (e === 'api' || e === 'codex' || e === 'subscription') return e;
@@ -249,7 +250,7 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
     for (let attempt = 1; attempt <= 2; attempt++) {
       const user = attempt === 1 ? opts.user : `${opts.user}\n\n(Your previous reply was not valid JSON for the schema: ${lastErr}. Reply again with ONLY the JSON object.)`;
       const prompt = `SYSTEM INSTRUCTIONS:\n${opts.system}${jsonNote}\n\n---\n\n${user}`;
-      const args = ['codex', 'exec', '-', ...(useModel ? ['-m', useModel] : []), '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '-C', dir, '-o', outFile, ...(schemaFile ? ['--output-schema', schemaFile] : [])];
+      const args = [codexBin() ?? 'codex', 'exec', '-', ...(useModel ? ['-m', useModel] : []), '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '-C', dir, '-o', outFile, ...(schemaFile ? ['--output-schema', schemaFile] : [])];
       const env: Record<string, string> = {}; for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v;
       const p = Bun.spawn(args, { stdin: new Response(prompt), stdout: 'pipe', stderr: 'pipe', env });
       const limitMs = opts.timeoutMs ?? 120_000;
