@@ -36,6 +36,12 @@
   body.mobile #mob-bar { grid-row: 2; grid-column: 1; }
   body.mobile #tip { display: none; }
   body.mobile #splitter { display: none; }
+  /* M254 (Mark, 2026-09-15): the map as a SIDE VIEW — in the Codex app's built-in browser (?panel=1) or any window
+     too narrow for two panes (Jacob: switch to map-only when the window gets narrow). Map only, desktop controls,
+     no chat pane, no splitter; the phone shell (≤720px) stays as it is. */
+  body.companion { grid-template-columns: 1fr; }
+  body.companion #chat-pane, body.companion #splitter { display: none; }
+  body.companion #map-pane { border-right: none; }
   /* M135 (Jacob): ChatGPT-mobile philosophy — radical subtraction. One slim
      top bar (☰ + map name), content full-bleed, one composer at the bottom;
      everything else lives in the drawer or the per-row sheets. */
@@ -1018,9 +1024,13 @@ let sessionRoot = null;
 // Hover can't exist on touch, so each row carries ⋯ opening a bottom action
 // sheet: the SAME hidden row buttons, listed with their plain-words titles —
 // one source of truth for behavior AND explanation.
+// M254 (Mark, 2026-09-15): the map as a side view — ?panel=1 (the Codex app's built-in browser) or a window too narrow
+// for two panes (Jacob: auto switch to map-only when the window gets narrow) → companion: map only, desktop controls.
+const PANEL = new URLSearchParams(location.search).get('panel') === '1';
 function checkMobile() {
   const on = window.innerWidth <= 720;
   document.body.classList.toggle('mobile', on);
+  document.body.classList.toggle('companion', !on && (PANEL || window.innerWidth <= 960));
   if (!on) document.body.classList.remove('mob-chat');
 }
 // M133c (Jacob): the mobile test is a real device simulation — the app loaded
