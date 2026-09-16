@@ -1,0 +1,41 @@
+{
+ "name": "an import is verified against its own summary after it lands (M195c): the check exists and is recorded",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Bakery opening plan"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Nothing new — opening the plan.",
+   "assistant": "The plan stands.",
+   "then": [
+    {
+     "do": "importText",
+     "text": "Supplier notes from the tasting week\n\nFlour: Hartmann mill, organic T65, 0.92 per kilo at 200 kg a month; deliveries Tuesday. Their T80 was too coarse for the croissant dough.\n\nButter: Val d'Or 84% fat, 6.10 per kilo; Lescure is nicer but 8.40 and the difference did not show in the bake.\n\nCoffee: Northwind roasters, house blend at 18 per kilo, they lend a grinder if we take 15 kilos a month. Decision: Northwind for the opening, revisit in six months."
+    },
+    {
+     "do": "applyImport"
+    },
+    {
+     "nodeMatching": "Hartmann|T65"
+    },
+    {
+     "do": "wait",
+     "ms": 90000
+    },
+    {
+     "importChecked": true
+    },
+    {
+     "auditAny": "import_verif|importcheck|import_check|brain"
+    }
+   ]
+  }
+ ]
+}

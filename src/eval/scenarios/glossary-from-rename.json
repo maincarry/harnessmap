@@ -1,0 +1,55 @@
+{
+ "name": "a rename on the card teaches the glossary (agent's word → your word) and the guard keeps the agent's word off the next node (M224)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Wine cellar: bottles and buying"
+  },
+  {
+   "key": "cases",
+   "parent": "proj",
+   "content": "Cases bought this year: a mixed case of Beaujolais, twelve bottles"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The Beaujolais case is for drinking over two years.",
+   "assistant": "Beaujolais: drink over two years.",
+   "then": [
+    {
+     "do": "title",
+     "key": "cases",
+     "title": "Wine cases this year"
+    },
+    {
+     "do": "title",
+     "key": "cases",
+     "title": "Wine lots this year"
+    },
+    {
+     "auditAny": "glossary_learned"
+    },
+    {
+     "titleOf": "cases",
+     "is": "^Wine lots this year$"
+    }
+   ]
+  },
+  {
+   "user": "And a second purchase: six bottles of Bandol rosé, a case for the summer.",
+   "assistant": "Logged: six bottles of Bandol rosé for the summer.",
+   "then": [
+    {
+     "nodeMatching": "Bandol"
+    },
+    {
+     "noNodeMatching": "Bandol[^.]*\\bcases?\\b|\\bcases?\\b[^.]*Bandol"
+    }
+   ]
+  }
+ ]
+}

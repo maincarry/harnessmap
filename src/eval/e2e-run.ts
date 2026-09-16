@@ -109,9 +109,10 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'pin') await post(`/api/chats/${cid()}/depth`, { nodeId: keys[a.key], depth: a.depth ?? null });
         else if (a.do === 'title') await post(`/api/nodes/${keys[a.key]}`, { title: a.title, chatId: cid() }); // a title typed on the card
         else if (a.do === 'wait') await sleep(a.ms ?? 5000);
-        else if (a.do === 'context') { const r = await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(a.session ?? 'e2e-1')}&cwd=${encodeURIComponent(join(TMP, 'proj'))}${a.prompt ? `&prompt=${encodeURIComponent(a.prompt)}` : ''}`); lastContext = await r.json().catch(() => ({})); } // what the next turn would receive (the question rides as `prompt`, as the hook sends it)
+        else if (a.do === 'context') { const r = await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(a.session ?? 'e2e-1')}&cwd=${encodeURIComponent(join(TMP, 'proj'))}${a.prompt ? `&prompt=${encodeURIComponent(a.prompt)}` : ''}`); lastContext = await r.json().catch(() => ({})); try { writeFileSync(join(TMP, 'last-context.txt'), String(lastContext?.context ?? '')); } catch {} } // what the next turn would receive (the question rides as `prompt`, as the hook sends it)
         else if (a.do === 'compact') await post('/api/harness/compacted', { session_id: a.session ?? 'e2e-1' });
         else if (a.do === 'recommend') { const r = await post(`/api/chats/${cid()}/recommend`, { kind: a.kind ?? 'zoom' }); lastRec = r.status === 200 ? r.body : null; check(`do recommend ${a.kind ?? 'zoom'} (${r.status})`, r.status === 200 && !!r.body?.containerId, JSON.stringify(r.body).slice(0, 120)); s = await state(); }
+        else if (a.do === 'favorite') { const r = await post(`/api/nodes/${keys[a.key]}/favorite`, { on: a.on !== false }); check(`do favorite (${r.status})`, r.status === 200); s = await state(); }
         else if (a.do === 'prompt') await post('/api/harness/prompt', { session_id: a.session ?? 'e2e-1', text: a.text, cwd: join(TMP, 'proj') }); // what the person is about to ask (the UserPromptSubmit stash)
         else if (a.do === 'tidy') { // propose + apply a tidy of a subtree (or the whole map with key null), as the ⚡ does
           const nodeId = a.key ? keys[a.key] : null;
@@ -185,6 +186,10 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.summaryHas) { const c = (s.chats ?? []).find((x: any) => x.id === cid()); check(label, !!c && rx(a.summaryHas).test(c.summary ?? ''), `summary=${(c?.summary ?? '(none)').slice(0, 120)}`); }
       else if (a.recUnder) { const id = lastRec?.containerId; check(label, !!id && (id === keys[a.recUnder] || under(s, id, keys[a.recUnder])), lastRec ? `rec=${lastRec.name} (${(lastRec.reason ?? '').slice(0, 80)})` : 'no recommendation'); }
       else if (a.detailOf) { const m = await get(`/api/nodes/${keys[a.detailOf]}/memory`); const ds = (m?.details ?? []) as any[]; const hit = ds.find((d: any) => rx(a.text).test(String(d.text ?? d.detail ?? ''))); check(label, !!hit && (!a.status || String(hit.status ?? 'live') === a.status), ds.length ? ds.map((d: any) => `${d.status ?? 'live'}: ${String(d.text ?? d.detail ?? '').slice(0, 60)}`).join(' | ') : 'no details'); }
+      else if (a.favoriteOf) { const favs = (s.favorites ?? []) as string[]; check(label, favs.includes(keys[a.favoriteOf]) === (a.is !== false), `favorites=${favs.length}`); }
+      else if (a.searchTop) { const r = await get(`/api/search?q=${encodeURIComponent(a.q ?? '')}`); const arr = (Array.isArray(r) ? r : r?.results ?? r?.nodes ?? r?.hits ?? []) as any[]; check(label, arr[0]?.id === keys[a.searchTop], `first=${arr[0]?.name ?? arr[0]?.id ?? '(none)'} of ${arr.length}`); }
+      else if (a.importChecked !== undefined) { const r = await get('/api/map-status'); const c = r?.importCheck; check(label, (!!c) === a.importChecked && (!a.similar || c?.similar === true), c ? `similar=${c.similar} discrepancies=${(c.discrepancies ?? []).length} pass=${c.pass}` : 'no import check'); }
+      else if (a.nodeExists) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.nodeExists]); check(label, !!n && n.status !== 'removed', n ? `status=${n.status}` : 'gone'); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }

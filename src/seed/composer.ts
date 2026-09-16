@@ -4,8 +4,7 @@ import { getNodeMemory, getAllNodeMemories, getAllMinimals, getAllCurrentDetails
 import { chatAwareness } from '../translator/mapstatus.js';
 import {
   ancestors, descendantNodes, renderNodeBrief,
-  renderNodeOneLiner, renderSubtreeFull, renderSubtreeLit,
-} from '../map/render.js';
+  renderNodeOneLiner, renderSubtreeFull, renderSubtreeLit, nodeLine } from '../map/render.js';
 
 // v0.2 (Jacob's #1/#7): the chat agent receives a COMPLETE map-state
 // description EVERY turn — not a seed-once. v0.3.3: budgeted (a+b). v0.4:
@@ -104,7 +103,33 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   }
   fixed.push('', 'FOCUS (what the user is actively working on):');
   // M253: the light is the law inside the focus too — a dimmed descendant is a name marked set aside, nothing beneath it
-  fixed.push(renderSubtreeLit(store, focusId, new Set(store.getLit(chatId))).split('\n').map((l) => `  ${l}`).join('\n'));
+  const litNow = new Set(store.getLit(chatId));
+  let focusText = renderSubtreeLit(store, focusId, litNow);
+  // M304 (loop find, bug under M82): the focus subtree was served whole whatever its size — seventy children made a 42k-char
+  // FOCUS section, over the whole block cap by itself. Over 60% of the budget, the focus node stays whole and its children
+  // come by warmth until the cap; the rest are named on one line each, with a count, and the page marks the focus as trimmed.
+  const FOCUS_CAP = Math.round(budgetChars(store) * 0.6);
+  const focusHeld: string[] = [];
+  if (focusText.length > FOCUS_CAP) {
+    const fn = store.getNode(focusId);
+    if (fn) {
+      const kids = freshestFirst(store.childrenOf(focusId).filter((k) => k.status !== 'removed').map((k) => k.id));
+      const lines = [nodeLine(fn)]; let used = lines[0].length;
+      for (const kid of kids) {
+        const sub = renderSubtreeLit(store, kid, litNow, 1);
+        if (!sub) continue;
+        if (used + sub.length <= FOCUS_CAP) { lines.push(sub); used += sub.length + 1; }
+        else { const k = store.getNode(kid)!; focusHeld.push(`  ○ ${(k.title || k.content).slice(0, 70)}${k.title ? '' : '…'}`); }
+      }
+      if (focusHeld.length) {
+        lines.push(`  NOTE: ${focusHeld.length} node(s) under the focus are named only — the block has a size cap; ask for one by name and it is served whole:`);
+        lines.push(...focusHeld.slice(0, 40));
+        if (focusHeld.length > 40) lines.push(`  … and ${focusHeld.length - 40} more`);
+      }
+      focusText = lines.join('\n');
+    }
+  }
+  fixed.push(focusText.split('\n').map((l) => `  ${l}`).join('\n'));
 
   // M38: how the focus fits its surroundings — cached relational description
   // (refreshed asynchronously after each round; may lag one beat).
@@ -262,6 +287,7 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const SERVING = String(store.getSetting('memory_serving') || process.env.HARNESSMAP_MEMORY_SERVING || 'on');
   const subKept: string[] = [];
   const trimmedLit: string[] = [];
+  if (focusHeld.length) trimmedLit.push(focusId); // M304: the focus itself did not fit whole
   let redactedN = 0; // M291
   const pinsUnmet: string[] = []; // M282
   const served: Record<string, 0 | 1 | 2 | 3> = {}; // M282

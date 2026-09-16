@@ -86,13 +86,37 @@ export function vocabBlock(host: VocabHost, projectId: string): string {
 }
 
 /** Mechanical guard on an agent-written title: glossary "from" words become the user's words. */
+// English number, the common cases only (the glossary holds the person's own words; irregulars stay as typed)
+function singular(w: string): string {
+  const l = w.toLowerCase();
+  if (l.length <= 3 || !l.endsWith('s') || l.endsWith('ss') || l.endsWith('us') || l.endsWith('is')) return w;
+  if (l.endsWith('ies') && l.length > 4) return `${w.slice(0, -3)}y`;
+  if (/(ches|shes|xes)$/.test(l)) return w.slice(0, -2);
+  if (/(ses|zes)$/.test(l)) return /[sz]$/.test(l.slice(0, -2)) ? w.slice(0, -2) : w.slice(0, -1); // buses → bus, classes → class; cases → case, houses → house
+  return w.slice(0, -1);
+}
+function plural(w: string): string {
+  const l = w.toLowerCase();
+  if (/(ch|sh|x|s|z)$/.test(l)) return `${w}es`;
+  if (/[^aeiou]y$/.test(l)) return `${w.slice(0, -1)}ies`;
+  return `${w}s`;
+}
 export function guardTitle(host: VocabHost, projectId: string, title: string): { title: string; changed: string[] } {
   const g = glossary(host, projectId);
   if (!g.length || !title) return { title, changed: [] };
   let out = title; const changed: string[] = [];
   for (const e of g) {
-    const re = new RegExp(`\\b${e.from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
-    if (re.test(out)) { out = out.replace(re, (m) => (m[0] === m[0].toUpperCase() && m.length > 1 ? e.to[0].toUpperCase() + e.to.slice(1) : e.to)); changed.push(`${e.from}→${e.to}`); }
+    // M303 (loop find, bug under M224): a pair learned as "cases → lots" left "case" through; the guard covers the other number too
+    const base = singular(e.from), toBase = singular(e.to);
+    const forms = [...new Set([base, plural(base)])].filter((f) => f.length > 1);
+    const re = new RegExp(`\\b(?:${forms.map((f) => f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
+    if (re.test(out)) {
+      out = out.replace(re, (m) => {
+        const to = m.toLowerCase() === plural(base).toLowerCase() && m.toLowerCase() !== base.toLowerCase() ? plural(toBase) : toBase;
+        return m[0] === m[0].toUpperCase() && m.length > 1 ? to[0].toUpperCase() + to.slice(1) : to;
+      });
+      changed.push(`${e.from}→${e.to}`);
+    }
   }
   return { title: out, changed };
 }

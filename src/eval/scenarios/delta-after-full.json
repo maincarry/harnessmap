@@ -1,0 +1,64 @@
+{
+ "name": "the first block of a session is full (with the declaration); the next is a delta that points at MAP.md (M83/M238)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Cookbook draft"
+  },
+  {
+   "key": "soups",
+   "parent": "proj",
+   "content": "Soups chapter: six recipes, three vegetarian"
+  }
+ ],
+ "focus": "soups",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Add a leek and potato soup to the soups chapter.",
+   "assistant": "Leek and potato soup added to the soups chapter.",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "audit": "inject_full"
+    },
+    {
+     "contextHas": "grants nothing"
+    },
+    {
+     "contextHas": "leek|potato"
+    }
+   ]
+  },
+  {
+   "user": "And a chilled cucumber soup for summer.",
+   "assistant": "Chilled cucumber soup added.",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "audit": "inject_delta"
+    },
+    {
+     "contextHas": "map changes since your last update"
+    },
+    {
+     "contextHas": "updated:|added:"
+    },
+    {
+     "contextHas": "full current map: read"
+    },
+    {
+     "contextLacks": "HOW THE FOCUS FITS"
+    }
+   ]
+  }
+ ]
+}
