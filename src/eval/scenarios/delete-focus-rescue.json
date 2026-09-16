@@ -1,0 +1,13 @@
+{
+  "name": "deleting the node the session is focused on moves the focus to its parent; the deletion is one undo that restores focus and light (M123/M136)",
+  "seed": [
+    { "key": "proj", "content": "Kitchen renovation: budget, contractor, timeline" },
+    { "key": "cab", "content": "Cabinets: flat-panel, matte navy", "parent": "proj" },
+    { "key": "hinge", "content": "Soft-close hinges from the same supplier", "parent": "cab" }
+  ],
+  "focus": "cab", "auto": { "on": false },
+  "rounds": [
+    { "user": "Cabinet delivery is confirmed for the 20th.", "assistant": "Cabinets: delivery on the 20th.",
+      "then": [ { "focusIs": "cab" }, { "do": "delete", "key": "cab" }, { "noNodeMatching": "Soft-close hinges" }, { "focusIs": "proj" }, { "undoNext": "deleted" }, { "do": "undo" }, { "nodeMatching": "Soft-close hinges", "under": "cab" }, { "focusIs": "cab" }, { "lit": "cab" }, { "lit": "hinge" } ] }
+  ]
+}

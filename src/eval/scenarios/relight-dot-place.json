@@ -1,0 +1,14 @@
+{
+  "name": "a stray filed to to-sort because its home is dim carries a placement suggestion; placing it by hand moves it home and closes the dot (M52/M53)",
+  "seed": [
+    { "key": "proj", "content": "Thesis: trust in institutions" },
+    { "key": "ch1", "content": "Chapter 1: methods", "parent": "proj" },
+    { "key": "travel", "content": "Travel: conferences and trips", "parent": "proj" },
+    { "key": "lisbon", "content": "Lisbon conference in November", "parent": "travel" }
+  ],
+  "focus": "ch1", "dim": ["travel"], "auto": { "on": false },
+  "rounds": [
+    { "user": "For the Lisbon conference: the poster is A0, landscape, and the printer needs the file by the 4th.", "assistant": "Lisbon poster: A0 landscape, file to the printer by the 4th.",
+      "then": [ { "inToSort": "poster" }, { "suggestionFor": "poster", "kind": "relight" }, { "do": "placeTo", "matching": "poster", "key": "lisbon" }, { "nodeMatching": "poster", "under": "lisbon" }, { "noNodeMatching": "arrived while focus was" }, { "suggestionFor": "poster", "kind": "relight", "absent": true }, { "undoNext": "placed" } ] }
+  ]
+}
