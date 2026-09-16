@@ -28,7 +28,7 @@ import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories, nodeFull } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots, outlineWithIds } from './translator/importer.js';
-import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, backendName } from './inference.js';
+import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, backendName, backendSource, setBackend, type Backend } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, codexSessionMeta, stripHostScaffold, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync, openSync, readSync, closeSync } from 'node:fs';
@@ -210,6 +210,14 @@ function sessionChat(sessionId: string): string | null {
 }
 // M245: is the codex CLI signed in? `codex login status` exits 0 when it is.
 // Asked only for the auth panel and only when codex is the backend.
+function backendChoices(): { id: Backend; label: string; available: boolean; note: string }[] {
+  const avail = harnessAvailability();
+  return [
+    { id: 'codex', label: 'Codex (your ChatGPT plan)', available: !!codexBin(), note: 'codex exec on the codex CLI — PATH or the Codex app' },
+    { id: 'subscription', label: 'Claude (your Claude subscription)', available: !!avail.claude, note: 'claude -p on Claude Code; sign in with `claude` first' },
+    { id: 'api', label: 'Anthropic API key', available: !!process.env.ANTHROPIC_API_KEY, note: 'ANTHROPIC_API_KEY in the server\'s environment; billed per token' },
+  ];
+}
 function codexSignIn(ask: boolean): { onPath: boolean; signedIn: boolean | null } {
   const bin = codexBin(); const onPath = !!bin; // M258
   if (!ask || !bin) return { onPath, signedIn: null };
@@ -2597,8 +2605,22 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // M217 (Mark): one model per role, chosen here; empty = the default.
     if (path === '/api/models' && req.method === 'GET') {
       try {
-      return json({ groups: ROLE_GROUPS, roles: ROLES.map((r) => ({ ...r, default: defaultModelFor(r.task), chosen: store.getSetting(`model:${r.task}`) || '', current: modelFor(r.task) })), catalog: modelCatalog(), backend: backendName() });
+      return json({ groups: ROLE_GROUPS, roles: ROLES.map((r) => ({ ...r, default: defaultModelFor(r.task), chosen: store.getSetting(`model:${r.task}`) || '', current: modelFor(r.task) })), catalog: modelCatalog(), backend: backendName(), backendSource: backendSource(), backends: backendChoices() });
       } catch (err) { return json({ error: `models: ${err instanceof Error ? err.message : String(err)}` }, 500); }
+    }
+    // M264: which plan the map's agents run on — a persisted choice, switchable here.
+    if (path === '/api/backend' && req.method === 'GET') return json({ backend: backendName(), source: backendSource(), backends: backendChoices() });
+    if (path === '/api/backend' && req.method === 'POST') {
+      const b = await req.json().catch(() => ({})) as { backend?: string };
+      const want = b.backend === 'codex' || b.backend === 'subscription' || b.backend === 'api' ? b.backend as Backend : b.backend === '' || b.backend == null ? null : undefined;
+      if (want === undefined) return json({ error: 'backend must be codex, subscription, api, or empty for auto' }, 400);
+      if (backendSource() === 'env') return json({ error: `HARNESSMAP_INFERENCE=${process.env.HARNESSMAP_INFERENCE} is set in the server's environment and wins; unset it and restart to choose here` }, 409);
+      if (want === 'codex' && !codexBin()) return json({ error: 'the codex CLI was not found (PATH or the Codex app) — install it, then choose codex' }, 409);
+      if (want === 'api' && !process.env.ANTHROPIC_API_KEY) return json({ error: 'no ANTHROPIC_API_KEY in the server\'s environment — the api backend needs one' }, 409);
+      setBackend(want);
+      store.audit('backend_chosen', { backend: want ?? '(auto)', now: backendName() });
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true, backend: backendName(), source: backendSource(), catalog: modelCatalog() });
     }
     if (path === '/api/models' && req.method === 'POST') {
       const b = await req.json() as { task?: string; model?: string; reset?: boolean };
@@ -2692,6 +2714,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       }
       return json({
         backend,
+        backendSource: backendSource(), // M264
         billing: backend === 'api' ? 'your ANTHROPIC_API_KEY (you set HARNESSMAP_INFERENCE=api)' : backend === 'codex' ? 'your ChatGPT plan through the codex CLI (codex exec)' : 'your Claude subscription — an API key is never billed',
         keyScrubbed: !process.env.ANTHROPIC_API_KEY,
         sources: {

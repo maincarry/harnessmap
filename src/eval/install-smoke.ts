@@ -535,6 +535,27 @@ console.log('\n== 6n. undo covers every hand action and restores what it touched
   check('the stack reports its next entry honestly (older entries remain, nothing crashes on an empty pop)', empty.status === 200 || empty.status === 404 ? typeof sEnd.undoNext !== 'undefined' : false);
 }
 
+console.log('\n== 6o. the backend is a choice that persists (M264) ==');
+{
+  const { existsSync: exB, readFileSync: rfB } = await import('node:fs');
+  const J = (u: string, b: any) => fetch(`${BASE}${u}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) });
+  const g0 = await (await fetch(`${BASE}/api/backend`)).json();
+  check('the backend route names the backend, its source and the three choices with availability', ['codex', 'subscription', 'api'].includes(g0.backend) && ['env', 'chosen', 'auto'].includes(g0.source) && Array.isArray(g0.backends) && g0.backends.length === 3);
+  const bad = await J('/api/backend', { backend: 'gemini' });
+  check('an unknown backend is refused', bad.status === 400);
+  const codexHere = g0.backends.find((b: any) => b.id === 'codex')?.available;
+  if (codexHere) {
+    const r = await (await J('/api/backend', { backend: 'codex' })).json();
+    const m = await (await fetch(`${BASE}/api/models`)).json();
+    check('choosing codex persists to <home>/backend, the catalog switches to gpt ids, the source reads "chosen"', r.ok && r.backend === 'codex' && exB(join(HOME, 'backend')) && rfB(join(HOME, 'backend'), 'utf8').trim() === 'codex' && m.backend === 'codex' && m.backendSource === 'chosen' && m.catalog.every((c: any) => /^gpt/.test(c.id)));
+  } else {
+    const r = await J('/api/backend', { backend: 'codex' });
+    check('choosing codex without a codex CLI is refused with a reason (409)', r.status === 409);
+  }
+  const back = await (await J('/api/backend', { backend: '' })).json();
+  check('an empty choice returns to auto-detection and removes the file', back.ok && back.source === 'auto' && !exB(join(HOME, 'backend')));
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');

@@ -27,14 +27,17 @@ if (Get-Command codex -ErrorAction SilentlyContinue) {
   try { codex plugin remove map@harnessmap 2>$null | Out-Null } catch {}
   try { codex plugin marketplace add $App | Out-Null; codex plugin add map@harnessmap | Out-Null; Say "skills registered as a Codex plugin (marketplace 'harnessmap', plugin 'map')" } catch {}
 }
+# M264: installed through Codex = the map's agents run on Codex (the user's ChatGPT plan), whatever else is on this machine
+New-Item -ItemType Directory -Force -Path (Join-Path $HOME '.harnessmap') | Out-Null; Set-Content -Path (Join-Path $HOME '.harnessmap\backend') -Value 'codex'; Say "the map's agents will run on codex (your ChatGPT plan) - switch in the map's models panel"
 # a server already running on OLDER code is restarted (M236): the build it reports must match the app on disk
 $Head = ''; try { $Head = (git -C $App rev-parse --short HEAD).Trim() } catch {}
 $st = State
 # a harnessmap answering on this port from ANOTHER machine = an SSH port forward (Mark, Windows, 2026-09-10);
 # binding to it would file this machine's talk onto that map, and nothing here can close the tunnel.
 if ($st -and $st.machine -and ($st.machine.ToLower() -ne $env:COMPUTERNAME.ToLower())) { throw "port 8790 is answered by a map server on ANOTHER machine ('$($st.machine)') - an SSH port forward? Close that tunnel (or move it off 8790), then rerun this installer." }
-if ($st -and $Head -and ($st.build -ne $Head)) {
-  Say "restarting the map server on the updated code ($($st.build) -> $Head)"
+$Backend = ''; try { $Backend = (Invoke-RestMethod "$B/api/backend" -TimeoutSec 2).backend } catch {}
+if ($st -and $Head -and (($st.build -ne $Head) -or ($Backend -ne 'codex'))) {
+  Say "restarting the map server on the updated code ($($st.build) -> $Head, backend $Backend -> codex)"
   try { Invoke-RestMethod -Method Post "$B/api/shutdown" -TimeoutSec 3 | Out-Null } catch {}
   Start-Sleep -Seconds 2
   Get-CimInstance Win32_Process -Filter "Name = 'bun.exe'" | Where-Object { $_.CommandLine -like '*src/server.ts*' -or $_.CommandLine -like '*src\server.ts*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }

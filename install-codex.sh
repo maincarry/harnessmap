@@ -30,6 +30,8 @@ if [ -d "${APP}/.git" ]; then say "updating ${APP}..."; git -C "${APP}" pull -q 
 # adds are skipped until trusted, often without a prompt (#35306). So: user-level hooks, then /hooks.
 ( cd "${APP}" && bun run hooks/enable-codex.ts --force ) || { say "could not register the hooks - see the error above"; exit 1; }
 if command -v codex >/dev/null 2>&1; then codex plugin remove map@harnessmap >/dev/null 2>&1; codex plugin marketplace add "${APP}" >/dev/null 2>&1 && codex plugin add map@harnessmap >/dev/null 2>&1 && say "skills registered as a Codex plugin (marketplace 'harnessmap', plugin 'map')" || true; fi
+# M264: installed through Codex = the map's agents run on Codex (the user's ChatGPT plan), whatever else is on this machine
+mkdir -p "${HOME}/.harnessmap"; printf 'codex\n' > "${HOME}/.harnessmap/backend"; say "the map's agents will run on codex (your ChatGPT plan) - switch in the map's ⚙ models panel"
 # start the map server now and open the page - the user sees the map before Codex is even involved
 # a server already running on OLDER code is restarted (M236): the build it reports must match the app on disk
 HEADSHA=$(git -C "${APP}" rev-parse --short HEAD 2>/dev/null || echo "")
@@ -37,7 +39,8 @@ RUNNING=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"b
 MACHINE=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"machine":"[^"]*"' | cut -d'"' -f4)
 # a harnessmap answering on this port from ANOTHER machine = an SSH port forward; nothing here can close it
 if [ -n "${MACHINE}" ] && [ "${MACHINE}" != "$(hostname)" ]; then say "port 8790 is answered by a map server on ANOTHER machine ('${MACHINE}') - an SSH port forward? Close that tunnel (or move it off 8790), then rerun this installer."; exit 1; fi
-if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && [ -n "${HEADSHA}" ] && [ "${RUNNING}" != "${HEADSHA}" ]; then say "restarting the map server on the updated code (${RUNNING:-old} -> ${HEADSHA})"; curl -s -m 3 -X POST http://127.0.0.1:8790/api/shutdown >/dev/null 2>&1; sleep 2; pkill -f "bun run src/server.ts" 2>/dev/null; sleep 1; fi
+BACKEND=$(curl -s -m 2 http://127.0.0.1:8790/api/backend 2>/dev/null | grep -o '"backend":"[a-z]*"' | cut -d'"' -f4)
+if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && [ -n "${HEADSHA}" ] && { [ "${RUNNING}" != "${HEADSHA}" ] || [ "${BACKEND}" != "codex" ]; }; then say "restarting the map server on the updated code (${RUNNING:-old} -> ${HEADSHA})"; curl -s -m 3 -X POST http://127.0.0.1:8790/api/shutdown >/dev/null 2>&1; sleep 2; pkill -f "bun run src/server.ts" 2>/dev/null; sleep 1; fi
 if ! curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then ( cd "${APP}" && nohup bun run src/server.ts > "${HOME}/.harnessmap/server.log" 2>&1 & ); for i in 1 2 3 4 5 6 7 8 9 10; do sleep 1; curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && break; done; fi
 if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then say "the map is up at http://127.0.0.1:8790"; (command -v open >/dev/null 2>&1 && open http://127.0.0.1:8790) || (command -v xdg-open >/dev/null 2>&1 && xdg-open http://127.0.0.1:8790) || true; else say "the map server did not answer - see ${HOME}/.harnessmap/server.log"; fi
 printf '\n\033[1m%s\033[0m\n' "ONE MANUAL STEP (Codex requires it; nothing can do it for you):"

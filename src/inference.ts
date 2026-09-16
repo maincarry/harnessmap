@@ -14,6 +14,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { codexBin } from './harness-bins.js';
+import { readFileSync as readB, writeFileSync as writeB, mkdirSync as mkB, unlinkSync as rmB, existsSync as exB } from 'node:fs';
+import { homedir as homeB } from 'node:os';
+import { join as joinB } from 'node:path';
 
 export type Task =
   | 'filer' | 'memory' | 'relations' | 'title' | 'summary' | 'autolit' | 'recommend' | 'place' | 'mapchat'
@@ -134,11 +137,38 @@ const onPath = (bin: string): boolean => process.platform === 'win32'
   ? probe(['where', bin]) || probe(['sh', '-c', `command -v ${bin}`])
   : probe(['sh', '-c', `command -v ${bin}`]) || probe(['where', bin]);
 export const codexOnPath = (): boolean => !!codexBin(); // M258: PATH or the app bundle
+// M264 (Jacob: "in the codex claude all agents are still claude, so none of the
+// functions are working"): auto-detection chose Claude whenever a `claude`
+// binary existed, whatever the user installed through. The backend is now a
+// CHOICE that persists: <harnessmap home>/backend holds it; the Codex
+// installer writes "codex", the models panel switches it. Order: env
+// HARNESSMAP_INFERENCE > the chosen file > auto-detect (codex only when
+// claude is absent).
+const backendFile = () => joinB(process.env.HARNESSMAP_HOME ?? joinB(homeB(), '.harnessmap'), 'backend');
+let chosenBackend: Backend | null | undefined; // undefined = not read yet
+function readChosen(): Backend | null {
+  if (chosenBackend !== undefined) return chosenBackend;
+  try { const v = readB(backendFile(), 'utf8').trim(); chosenBackend = v === 'api' || v === 'codex' || v === 'subscription' ? v : null; } catch { chosenBackend = null; }
+  return chosenBackend;
+}
+export function setBackend(b: Backend | null): void {
+  chosenBackend = b; detected = null;
+  try {
+    const f = backendFile();
+    if (b) { mkB(joinB(f, '..'), { recursive: true }); writeB(f, b + '\n'); } else if (exB(f)) rmB(f);
+  } catch {}
+}
+export function backendSource(): 'env' | 'chosen' | 'auto' {
+  const e = process.env.HARNESSMAP_INFERENCE;
+  if (e === 'api' || e === 'codex' || e === 'subscription') return 'env';
+  return readChosen() ? 'chosen' : 'auto';
+}
 export function backendName(): Backend {
   const e = process.env.HARNESSMAP_INFERENCE;
   if (e === 'api' || e === 'codex' || e === 'subscription') return e;
+  const c = readChosen(); if (c) return c;
   if (detected) return detected;
-  detected = !onPath('claude') && onPath('codex') ? 'codex' : 'subscription';
+  detected = !onPath('claude') && codexOnPath() ? 'codex' : 'subscription';
   return detected;
 }
 
