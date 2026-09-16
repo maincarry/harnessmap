@@ -1168,18 +1168,24 @@ function touch(_ids: string[]) { /* recency is now derived from updated_at */ }
 const recallRate = new Map<string, number[]>(); // M191 recall loop guard
 let translationChain: Promise<void> = Promise.resolve();
 let lag = 0;
+const lastObserved = new Map<string, { sig: string; at: number }>(); // M270
+const obsKeyOf = (b: any) => String(b?.transcript_path ?? b?.cwd ?? '');
 function enqueueTranslation(params: { chatId: string; turnId: string; userText: string; assistantText: string; provenance?: { sessionId: string | null; slice: RoundSlice } }) {
   lag += 1;
   broadcast({ type: 'lag', lag });
   translationChain = translationChain.then(async () => {
     const chat = store.getChat(params.chatId);
-    if (!chat) return;
+    // M270: a round whose view is gone still counts DOWN (it counted up on enqueue) — the counter leaked otherwise.
+    if (!chat) { lag -= 1; broadcast({ type: 'lag', lag }); return; }
     const roundPid = chat.projectId; // M88: rounds file into THEIR map
-    const out = await translator.translateRound({
-      projectId: roundPid, chatId: params.chatId, turnId: params.turnId,
-      focusContainerId: chat.focusContainerId,
-      userText: params.userText, assistantText: params.assistantText,
-    });
+    let out: Awaited<ReturnType<typeof translator.translateRound>> = null as any;
+    try {
+      out = await translator.translateRound({
+        projectId: roundPid, chatId: params.chatId, turnId: params.turnId,
+        focusContainerId: chat.focusContainerId,
+        userText: params.userText, assistantText: params.assistantText,
+      });
+    } catch (err) { store.audit('round_error', { error: String(err).slice(0, 200) }); out = null as any; } // M270: one failed round never poisons the chain
     lag -= 1;
     broadcast({ type: 'lag', lag });
     if (out) {
@@ -1318,7 +1324,7 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
     } else {
       broadcast({ type: 'translator_error', chatId: params.chatId });
     }
-  });
+  }).catch((err) => { store.audit('round_chain_error', { error: String(err).slice(0, 200) }); }); // M270: the chain never stays rejected
 }
 
 // M48: focus can be orphaned by any removal path (tidy-apply had no rescue,
@@ -3214,6 +3220,15 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       userText = stripHostScaffold(userText); // M259
       if (body.session_id) pendingPrompts.delete(body.session_id);
       if (!userText && !assistantText) return json({ ok: false, reason: 'empty round' }, 200);
+      // M270 (Jacob: "map is 37 rounds behind… its 50 rounds now"): a hook that fires again for the same exchange
+      // (or a transcript sliced to the same round twice) must not queue the same round twice. One round per
+      // (session, text) — a repeat within ten minutes is dropped and audited.
+      {
+        const sig = `${body.session_id ?? obsKeyOf(body)}|${Bun.hash(userText + '\u0000' + assistantText)}`;
+        const last = lastObserved.get(body.session_id ?? '');
+        if (last && last.sig === sig && Date.now() - last.at < 600_000) { store.audit('observe_dup', { session: (body.session_id ?? '').slice(0, 8), user_chars: userText.length }); return json({ ok: false, reason: 'duplicate round' }, 200); }
+        lastObserved.set(body.session_id ?? '', { sig, at: Date.now() });
+      }
       health.observedAt = Date.now();
       store.audit('observe', { session: (body.session_id ?? '').slice(0, 8), user_chars: userText.length, tools: slice?.toolRefs.length ?? 0 });
       const { chatId: obsChatId } = sessionPair(body.session_id);
