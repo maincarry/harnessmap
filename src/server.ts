@@ -1372,7 +1372,10 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
       // M253 (finding 9 of Mark's Codex test): the memory and fit organs are rewritten AFTER the round lands, and
       // MAP.md was written at the round — so the file on disk kept the old memory text until the next map change.
       // Every memory write now reschedules MAP.md.
-      updateNodeMemory(store, chat.focusContainerId, params.userText, params.assistantText, roundProv).then(() => scheduleMapFile()).catch(() => {});
+      // M298 (speed experiment 3): a round that changed nothing on the map — a greeting, thanks, a question about the assistant
+      // (the filer's new-topic guarantee means anything substantive leaves an alteration) — does not rewrite the focus's memory.
+      if (out.result.alterations.length === 0) store.audit('memory_skipped_empty', { chat: params.chatId.slice(0, 8) });
+      else updateNodeMemory(store, chat.focusContainerId, params.userText, params.assistantText, roundProv).then(() => scheduleMapFile()).catch(() => {});
       // M156: every node the ROUND touched gets deep too — one batched cheap
       // call over the filer's own relevance list (never "all lit nodes").
       const touchedIds = out.result.alterations

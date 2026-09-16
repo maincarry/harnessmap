@@ -189,7 +189,8 @@ export class Translator {
       let alterations: Alteration[] = [];
       let focusRequestId: string | null = null;
       for (let pass = 1; pass <= 2; pass++) {
-        const tree = renderScopedTree(map, readScope, { focusId: params.focusContainerId });
+        // M297 (speed experiment 1): the tree the filer reads degrades under HARNESSMAP_FILER_TREE_CHARS (default: the map budget, 16k)
+        const tree = renderScopedTree(map, readScope, { focusId: params.focusContainerId, ...(process.env.HARNESSMAP_FILER_TREE_CHARS ? { budgetChars: Number(process.env.HARNESSMAP_FILER_TREE_CHARS) } : {}) });
         // M203 (Jacob): the nodes this round is ABOUT, found by the shared word
         // matcher over titles and memory, named to the filer so a refinement
         // or a later ruling becomes update_node on the existing node (its
