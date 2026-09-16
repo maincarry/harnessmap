@@ -1,0 +1,185 @@
+{
+  "name": "thirty rounds of one project with three drifts: the map stays structured (few top-level nodes, one node per topic, the drifts kept apart), the block stays under budget, the focus tracks the work (structure and cost over time)",
+  "seed": [
+    {
+      "key": "conf",
+      "content": "Community energy conference, 6 June"
+    }
+  ],
+  "focus": "conf",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 3000,
+  "rounds": [
+    {
+      "user": "The venue: the old town hall holds 180 seated; quote is 2,400 for the day.",
+      "assistant": "Venue: old town hall, 180 seats, 2,400/day.",
+      "then": []
+    },
+    {
+      "user": "Town hall AV is weak — we would need to rent a projector and two mics.",
+      "assistant": "Venue AV: rent a projector and two microphones.",
+      "then": []
+    },
+    {
+      "user": "Speakers: Dana Whitfield has agreed to keynote; 40 minutes plus questions.",
+      "assistant": "Keynote: Dana Whitfield, 40 min + Q&A.",
+      "then": []
+    },
+    {
+      "user": "Second speaker: Tom Ruiz on community energy — he asked for a morning slot.",
+      "assistant": "Speaker: Tom Ruiz, community energy, morning slot requested.",
+      "then": []
+    },
+    {
+      "user": "Budget ceiling is 9,000 total; venue and AV must stay under 3,500.",
+      "assistant": "Budget: 9,000 total; venue+AV under 3,500.",
+      "then": []
+    },
+    {
+      "user": "Unrelated — can you remind me what the capital of Mongolia is?",
+      "assistant": "Ulaanbaatar.",
+      "then": []
+    },
+    {
+      "user": "Catering: the vegetarian buffet from Greenleaf, 18 per head, they need numbers a week ahead.",
+      "assistant": "Catering: Greenleaf vegetarian buffet, 18/head, headcount one week ahead.",
+      "then": []
+    },
+    {
+      "user": "Tickets: 35 standard, 15 student, sold through the usual platform; early bird ends 1 May.",
+      "assistant": "Tickets: 35 / 15 student; early bird ends 1 May.",
+      "then": []
+    },
+    {
+      "user": "Dana would like her slides reviewed by us two weeks before — put that in the plan.",
+      "assistant": "Keynote slides review two weeks before the event.",
+      "then": []
+    },
+    {
+      "user": "Decision: we take the town hall despite the AV; rental of AV goes on the budget line.",
+      "assistant": "Decided: town hall; AV rental added to budget.",
+      "then": []
+    },
+    {
+      "user": "Revised budget: venue 2,400, AV 600, catering 3,240 for 180, speakers travel 800, printing 300, contingency 500.",
+      "assistant": "Budget revised: 7,840 committed incl. 500 contingency.",
+      "then": []
+    },
+    {
+      "user": "Also — what year did the town hall get built? Just curious.",
+      "assistant": "The town hall dates from 1889.",
+      "then": []
+    },
+    {
+      "user": "Sales after week one: 62 tickets, 40 of them student. Slower than hoped on standard.",
+      "assistant": "Week 1 sales: 62 (40 student).",
+      "then": []
+    },
+    {
+      "user": "We should do a second announcement through the university mailing list and the two local newsletters.",
+      "assistant": "Marketing: university list + two local newsletters, second announcement.",
+      "then": []
+    },
+    {
+      "user": "Tom Ruiz confirmed for 10:30; he needs a whiteboard, not slides.",
+      "assistant": "Tom Ruiz: 10:30 slot, whiteboard.",
+      "then": []
+    },
+    {
+      "user": "Greenleaf can add a gluten-free option for 2 more per head — yes to that.",
+      "assistant": "Catering: gluten-free option added, +2/head.",
+      "then": []
+    },
+    {
+      "user": "Volunteers: we need six on the day — two on the door, two for AV, two floating.",
+      "assistant": "Volunteers: six (door 2, AV 2, floating 2).",
+      "then": []
+    },
+    {
+      "user": "Priya and Sam have volunteered; four more to find, ask the student society.",
+      "assistant": "Volunteers: Priya, Sam confirmed; four via student society.",
+      "then": []
+    },
+    {
+      "user": "Sales week two: 118 total. Standard picked up after the newsletter.",
+      "assistant": "Week 2 sales: 118.",
+      "then": []
+    },
+    {
+      "user": "Ticket revenue projection at 160 sold: about 4,100 — so we still need the 3,000 sponsorship.",
+      "assistant": "Revenue projection 4,100 at 160 sold; sponsorship 3,000 needed.",
+      "then": []
+    },
+    {
+      "user": "Sponsorship: the credit union offered 2,000 for logo placement and a two-minute welcome slot.",
+      "assistant": "Sponsor: credit union, 2,000 for logo + 2-min welcome.",
+      "then": []
+    },
+    {
+      "user": "We accept the credit union offer. Still 1,000 short — try the bookshop.",
+      "assistant": "Accepted credit union; approach the bookshop for 1,000.",
+      "then": []
+    },
+    {
+      "user": "Quick one: how do you say thank you in Norwegian?",
+      "assistant": "Takk.",
+      "then": []
+    },
+    {
+      "user": "Draft schedule: doors 9, welcome 9:30, keynote 9:45, Tom 10:30, break 11:15, panel 11:45, lunch 12:45.",
+      "assistant": "Schedule drafted: 9:00 doors → 12:45 lunch.",
+      "then": []
+    },
+    {
+      "user": "Move the break to 11:00 so the panel has a full hour.",
+      "assistant": "Schedule: break moved to 11:00; panel 11:30–12:30.",
+      "then": []
+    },
+    {
+      "user": "Town hall confirmed in writing; deposit of 800 paid.",
+      "assistant": "Venue confirmed; 800 deposit paid.",
+      "then": []
+    },
+    {
+      "user": "Final headcount to Greenleaf by 24 May.",
+      "assistant": "Catering headcount due 24 May.",
+      "then": []
+    },
+    {
+      "user": "Week three: 141 sold. We will likely sell out standard; keep 10 for sponsors.",
+      "assistant": "Week 3: 141; hold 10 for sponsors.",
+      "then": []
+    },
+    {
+      "user": "Ask Dana if we can quote her in the final announcement.",
+      "assistant": "Marketing: request a Dana quote for the final announcement.",
+      "then": []
+    },
+    {
+      "user": "Final schedule sent to speakers; Tom asked for 10:35 instead of 10:30, granted.",
+      "assistant": "Final schedule out; Tom at 10:35.",
+      "then": [
+        {
+          "nodeMatching": "town hall|venue"
+        },
+        {
+          "nodeMatching": "Whitfield|keynote"
+        },
+        {
+          "nodeMatching": "Greenleaf|catering"
+        },
+        {
+          "nodeMatching": "credit union|sponsor"
+        },
+        {
+          "nodeMatching": "10:35|schedule"
+        },
+        {
+          "noNodeMatching": "Mongolia.*capital.*Norwegian"
+        }
+      ]
+    }
+  ]
+}

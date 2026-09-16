@@ -1071,7 +1071,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         if (n >= 3 || x.op !== 'update_node' || !x.id || typeof x.content !== 'string') continue;
         const node = store.getNode(x.id); if (!node || node.status === 'removed' || !node.title) continue;
         if (store.getSetting(`titleBy:${node.id}`) === 'user') continue; // M282
-        if (node.author === 'user') continue; // M285 (loop find): a node the person wrote is named in their words — the auto rename turned "Chapter 2: results" into "Trust in local news"
+        if (store.getSetting(`createdBy:${node.id}`) === 'page') continue; // M285/M289: a node the person wrote on the page is named in their words (the auto rename had turned "Chapter 2: results" into "Trust in local news"); filer-made nodes, even user-asserted ones, may be refreshed
         const tw = [...words(node.title)]; if (!tw.length) continue;
         const cw = words(node.content);
         const overlap = tw.filter((w) => cw.has(w)).length / tw.length;
@@ -1660,6 +1660,7 @@ const server = Bun.serve({
         { op: 'create_node', id, parentId: body.parentId ?? null, content, status: 'live', author: 'user' },
       ], { kind: 'user_edit' });
       store.pushUndo(pid, `added "${content.slice(0, 60)}"`, [{ op: 'update_node', id, status: 'removed' }], null); // M263b: an added node can be taken back
+      store.setSetting(`createdBy:${id}`, 'page'); // M289: written by the person on the page — auto rename leaves its name alone (the filer marks user-asserted nodes 'user' too, so author is not the signal)
       touch([id]);
       store.setLit(pchat, id, true); // M66: new nodes are born lit
       chats.noteMapChange(pchat, content === 'untitled'

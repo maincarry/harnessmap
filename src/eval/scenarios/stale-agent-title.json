@@ -1,0 +1,14 @@
+{
+  "name": "an agent-made title that no longer matches its statement is refreshed by auto rename; the person's own node is left alone (M263/M285)",
+  "seed": [
+    { "key": "trip", "content": "Norway trip in June" },
+    { "key": "mine", "content": "Packing list I wrote myself: wool layers, rain shell, boots, the good camera" }
+  ],
+  "focus": "trip", "auto": { "on": true },
+  "rounds": [
+    { "user": "Travel plan: we fly to Oslo on the 3rd of June, evening flight, two nights in the city first.", "assistant": "Plan: fly to Oslo on 3 June (evening), two nights in Oslo first.",
+      "then": [ { "nodeMatching": "oslo|fly", "under": "trip" } ] },
+    { "user": "Change of plan for the travel leg: no flight at all — we're driving and taking the ferry from Kiel to Oslo on the 1st, with the car, so the two Oslo nights become one.", "assistant": "Updated: driving, ferry Kiel–Oslo on 1 June with the car; one Oslo night.",
+      "then": [ { "nodeMatching": "ferry|kiel|driv", "under": "trip" }, { "do": "wait", "ms": 20000 }, { "auditAny": "auto_renamed|title_healed" }, { "nodeMatching": "packing list i wrote myself" } ] }
+  ]
+}
