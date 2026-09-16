@@ -1,0 +1,43 @@
+{
+  "name": "a glossary pair (user's word for the agent's word) keeps the agent's word off the next filed node (M224); the record shows the pair learned",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Wine cellar: bottles and buying"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "user": "I bought a mixed case of Beaujolais today — twelve bottles, drink over two years.",
+      "assistant": "Logged: a mixed case of Beaujolais, twelve bottles, two-year window.",
+      "then": [
+        {
+          "nodeMatching": "Beaujolais"
+        },
+        {
+          "do": "pref",
+          "text": "glossary: lot instead of case"
+        }
+      ]
+    },
+    {
+      "user": "And a second purchase: six bottles of Bandol rosé, a case for the summer.",
+      "assistant": "Logged: six bottles of Bandol rosé for the summer.",
+      "then": [
+        {
+          "nodeMatching": "Bandol"
+        },
+        {
+          "noNodeMatching": "Bandol[^.]*\\bcase\\b|\\bcase\\b[^.]*Bandol"
+        },
+        {
+          "auditAny": "glossary_learned"
+        }
+      ]
+    }
+  ]
+}
