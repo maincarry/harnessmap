@@ -908,7 +908,7 @@ function importPending(pid: string): boolean {
 }
 // One aim, applied under the guards, as one undo entry. Used by the ▶/☀
 // buttons' merged re-aim and by auto mode alike.
-function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit: string[]; dim: string[]; summary: string }, opts: { focus: boolean; light: boolean; source: 'auto' | 'user' }): { focusChanged: boolean; lit: number; dim: number; kept: number; label: string } {
+function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit: string[]; dim: string[]; summary: string }, opts: { focus: boolean; light: boolean; source: 'auto' | 'user'; focusAsked?: boolean }): { focusChanged: boolean; lit: number; dim: number; kept: number; label: string } {
   let r = r0;
   const chat = store.getChat(chatId)!;
   const pid = chat.projectId;
@@ -919,6 +919,15 @@ function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit:
   // not place is by definition not the conversation's topic (it focused "Book Lisbon flight" and dimmed the thesis).
   const inToSort = (id: string) => { const ts = toSortRootOf(pid); return !!ts && (id === ts.id || descendantNodes(store, ts.id).includes(id)); };
   if (opts.focus && r.focus && inToSort(r.focus)) { store.audit('guard_focus_to_sort', { id: r.focus.slice(0, 8), source: opts.source }); r = { ...r, focus: undefined, focusName: undefined }; }
+  // M282 (Jacob: "if you as a user changes something and the auto-mode always reverse it next round, that is a huge red
+  // flag"): a focus the person set by hand holds — auto mode does not move it until the person moves it, asks in words
+  // (the nudge path passes focusAsked), or presses ⚡ (source 'user', which releases the hold).
+  let keptFocus: string | null = null;
+  if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && r.focus !== prevFocus && store.getSetting(`focusBy:${chatId}`) === 'user') {
+    keptFocus = nodeName(store.getNode(prevFocus)); store.audit('auto_kept_focus', { focus: prevFocus.slice(0, 8), wanted: r.focus.slice(0, 8) });
+    r = { ...r, focus: undefined, focusName: undefined };
+  }
+  if (opts.source === 'user' && opts.focus) store.setSetting(`focusBy:${chatId}`, 'auto');
   if (opts.focus && r.focus && r.focus !== prevFocus && store.getNode(r.focus)?.status !== 'removed') {
     applyFocus(chatId, r.focus);
     chats.noteMapChange(chatId, `focus moved to "${r.focusName ?? nodeName(store.getNode(r.focus))}"${opts.source === 'auto' ? ' (auto mode)' : ''}`);
@@ -927,7 +936,7 @@ function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit:
   let toDim: string[] = [], toLight: string[] = [], kept: string[] = [], keptDim: string[] = [];
   if (opts.light) {
     const keep = focusPathOf(chatId);
-    const protectedIds = new Set(opts.source === 'auto' ? store.getUserLit(chatId) : []);
+    const protectedIds = new Set(opts.source === 'auto' ? [...store.getUserLit(chatId), ...Object.keys(depthPins(chatId))] : []); // M282: a pinned depth is a hand setting too
     const handDim = new Set(opts.source === 'auto' ? store.getUserDim(chatId) : []); // M277: set aside by the person stays aside
     ({ toDim, toLight, kept, keptDim } = aimCascade(store, r.lit, r.dim, keep, protectedIds, handDim));
     // M199: dim first, then light.
@@ -937,15 +946,31 @@ function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit:
     if (kept.length) store.audit('auto_kept_user_lit', { n: kept.length });
     if (keptDim.length) store.audit('auto_kept_user_dim', { n: keptDim.length });
   }
+  // M283 (Jacob: stale hand settings): every time auto mode wanted to change a hand setting and held back, it counts;
+  // at the third time the line asks the person to release it or to tell the map to keep it (a preference).
+  const nags: string[] = [];
+  if (opts.source === 'auto') {
+    const key = `handConflicts:${chatId}`; let cc: Record<string, number> = {}; try { cc = JSON.parse(store.getSetting(key) ?? '{}'); } catch {}
+    const bump = (id: string, what: string) => { cc[id] = (cc[id] ?? 0) + 1; if (cc[id] === 3 || (cc[id] > 3 && cc[id] % 5 === 0)) nags.push(`auto mode has tried ${cc[id]}× to ${what} "${nodeName(store.getNode(id))}", which you set by hand — release it (⋯ on its row → ◎ auto again) or tell the map to keep it`); };
+    for (const id of kept) if (r.dim.includes(id)) bump(id, 'dim');
+    for (const id of keptDim) if (r.lit.includes(id)) bump(id, 'light');
+    if (keptFocus) bump(prevFocus, 'move the focus off');
+    store.setSetting(key, JSON.stringify(cc));
+  }
   clearNudges();
   const fname = r.focus ? nodeName(store.getNode(r.focus)) : '';
-  const parts = [focusChanged ? `focus → "${fname}"` : '', toLight.length ? `lit ${toLight.length}` : '', toDim.length ? `dimmed ${toDim.length}` : '', keptDim.length ? `${keptDim.length} set aside by you kept dark` : ''].filter(Boolean);
+  const parts = [focusChanged ? `focus → "${fname}"` : '', keptFocus ? `kept your focus on "${keptFocus}"` : '', toLight.length ? `lit ${toLight.length}` : '', toDim.length ? `dimmed ${toDim.length}` : '', keptDim.length ? `${keptDim.length} set aside by you kept dark` : '', ...nags].filter(Boolean);
+  if (keptFocus && !focusChanged && toDim.length + toLight.length === 0) store.audit('auto_mode_kept', { focus: keptFocus.slice(0, 40) });
   const label = `${opts.source === 'auto' ? 'auto mode' : 're-aim'}: ${parts.join(', ') || 'no change'}`;
   if (focusChanged || toDim.length + toLight.length > 0) {
     store.pushUndo(pid, label, [], { focus: prevFocus && focusChanged ? { [chatId]: prevFocus } : {}, litRows: { [chatId]: prevRows } });
     reAnchorSessions(pid, opts.source === 'auto' ? 'auto mode aimed' : 'auto-light applied');
   }
   return { focusChanged, lit: toLight.length, dim: toDim.length, kept: kept.length, label };
+}
+// M282: a depth the person pinned for a node in a view (0 one line · 1 summary · 2 whole story · 3 original words)
+function depthPins(chatId: string): Record<string, 0 | 1 | 2 | 3> {
+  try { return JSON.parse(store.getSetting(`depthpin:${chatId}`) ?? '{}'); } catch { return {}; }
 }
 function toSortRootOf(pid: string) {
   return store.getNodes(pid).find((n) => n.parentId === null && n.status !== 'removed' && ((n.title ?? '') === 'to sort' || n.content.startsWith('to sort')));
@@ -976,7 +1001,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
       const asked = nudgeFocusTarget && a.focus && nudgeFocusTarget.id !== chatNow.focusContainerId ? nudgeFocusTarget : null;
       const left = roundLeftFocus(store, chatNow.focusContainerId, alterations);
       if (asked) {
-        const res = applyAim(chatId, { focus: asked.id, focusName: asked.name, lit: [], dim: [], summary: '' }, { focus: true, light: false, source: 'auto' });
+        const res = applyAim(chatId, { focus: asked.id, focusName: asked.name, lit: [], dim: [], summary: '' }, { focus: true, light: false, source: 'auto', focusAsked: true });
         if (res.focusChanged) lines.push(`focus → "${asked.name}" (you asked)`);
       } else if (left) {
         const tail = `USER: ${userText.slice(-1500)}\n\nAGENT: ${assistantText.slice(-1500)}`;
@@ -1036,6 +1061,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
       for (const x of alterations) {
         if (n >= 3 || x.op !== 'update_node' || !x.id || typeof x.content !== 'string') continue;
         const node = store.getNode(x.id); if (!node || node.status === 'removed' || !node.title) continue;
+        if (store.getSetting(`titleBy:${node.id}`) === 'user') continue; // M282
         const tw = [...words(node.title)]; if (!tw.length) continue;
         const cw = words(node.content);
         const overlap = tw.filter((w) => cw.has(w)).length / tw.length;
@@ -1154,6 +1180,7 @@ function brokenTitles(pid: string) {
   return store.getNodes(pid).filter((n) => {
     if (n.status === 'removed') return false;
     if (n.content.startsWith('to sort')) return false;
+    if (n.title && store.getSetting(`titleBy:${n.id}`) === 'user') return false; // M282: hand titles are the person's
     return longName(n.title || n.content);
   });
 }
@@ -1527,7 +1554,11 @@ function state() {
     suggestions: store.getOpenSuggestions(projectId),
     // M162: lit branches whose full statements did not fit this turn's budget
     // — the map shows a loud mark so a lit choice is never silently ignored.
-    trimmedLit: (() => { try { return composeParts(store, mainChatId, []).trimmedLit; } catch { return []; } })(),
+    ...((): { trimmedLit: string[]; served: Record<string, number>; pinsUnmet: string[] } => { try { const cp = composeParts(store, mainChatId, []); return { trimmedLit: cp.trimmedLit, served: cp.served ?? {}, pinsUnmet: cp.pinsUnmet ?? [] }; } catch { return { trimmedLit: [], served: {}, pinsUnmet: [] }; } })(),
+    depthPins: depthPins(mainChatId), // M282
+    focusBy: store.getSetting(`focusBy:${mainChatId}`) ?? null, // M282: 'user' = a hand-set focus that auto mode holds
+    userDim: store.getUserDim(mainChatId), // M277
+    handTitles: store.getNodes(projectId).filter((n) => n.status !== 'removed' && store.getSetting(`titleBy:${n.id}`) === 'user').map((n) => n.id), // M282
     nudges: { ...nudges, focusName: nudgeFocusTarget?.name ?? null },
     favorites: store.getFavorites(),
     health: { ...health, now: Date.now() },
@@ -1717,6 +1748,36 @@ const server = Bun.serve({
     // M262 (Mark): the open skill asks which map when there is more than one. Maps ordered by last use (the timing
     // is for ordering only, never shown); the folder's own map first when the folder has one; a throwaway app
     // folder (~/Documents/Codex/<date>/<x>) has no folder map.
+    // M283 (Jacob): release a hand setting back to auto — light, dim, focus or depth — and forget its conflict count
+    const releaseMatch = path.match(/^\/api\/chats\/([\w-]+)\/release$/);
+    if (releaseMatch && req.method === 'POST') {
+      const c = store.getChat(releaseMatch[1]); if (!c) return json({ error: 'unknown chat' }, 404);
+      const b = await req.json().catch(() => ({})) as { nodeId?: string };
+      if (!b.nodeId) return json({ error: 'nodeId required' }, 400);
+      const ids = [b.nodeId, ...descendantNodes(store, b.nodeId)];
+      for (const id of ids) if (store.getLit(c.id).includes(id)) { store.setLit(c.id, id, false); store.setLit(c.id, id, true, 'map'); } // keep lit, drop the hand mark
+      store.setUserDim(c.id, ids, false);
+      if (c.focusContainerId === b.nodeId && store.getSetting(`focusBy:${c.id}`) === 'user') store.setSetting(`focusBy:${c.id}`, 'auto');
+      const pins = depthPins(c.id); delete pins[b.nodeId]; store.setSetting(`depthpin:${c.id}`, JSON.stringify(pins));
+      let cc: Record<string, number> = {}; try { cc = JSON.parse(store.getSetting(`handConflicts:${c.id}`) ?? '{}'); } catch {} delete cc[b.nodeId]; store.setSetting(`handConflicts:${c.id}`, JSON.stringify(cc));
+      store.audit('hand_released', { node: b.nodeId.slice(0, 8) });
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true });
+    }
+    // M282 (Jacob): pin the depth a lit node is served at — auto / one line / summary / whole story / original words
+    const depthMatch = path.match(/^\/api\/chats\/([\w-]+)\/depth$/);
+    if (depthMatch && req.method === 'POST') {
+      const c = store.getChat(depthMatch[1]); if (!c) return json({ error: 'unknown chat' }, 404);
+      const b = await req.json().catch(() => ({})) as { nodeId?: string; depth?: number | null };
+      if (!b.nodeId || !store.getNode(b.nodeId)) return json({ error: 'unknown node' }, 404);
+      const pins = depthPins(c.id);
+      if (b.depth === null || b.depth === undefined) delete pins[b.nodeId]; else if ([0, 1, 2, 3].includes(b.depth)) pins[b.nodeId] = b.depth as 0 | 1 | 2 | 3; else return json({ error: 'depth is 0..3 or null' }, 400);
+      store.setSetting(`depthpin:${c.id}`, JSON.stringify(pins));
+      store.audit('depth_pinned', { node: b.nodeId.slice(0, 8), depth: b.depth ?? null });
+      reAnchorSessions(c.projectId, 'depth pinned');
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true, pins });
+    }
     // M268 (Jacob): rename a session on the map — the name wins over the harness's thread title; empty = follow the harness again
     const nameMatch = path.match(/^\/api\/chats\/([\w-]+)\/name$/);
     if (nameMatch && req.method === 'POST') {
@@ -1975,6 +2036,7 @@ const server = Bun.serve({
       clearNudges();
       store.clearMark(nodeId);
       applyFocus(focusMatch[1], nodeId);
+      store.setSetting(`focusBy:${focusMatch[1]}`, 'user'); // M282 (Jacob): a focus set by hand HOLDS against auto mode
       store.metric(projectId, 'interaction.focus');
       reAnchorSessions(projectId, 'focus moved');
       chats.noteMapChange(focusMatch[1], `moved FOCUS to: "${nodeName(n)}"`);
@@ -2102,6 +2164,7 @@ const server = Bun.serve({
         return json({ error: '"to sort" is a system folder — its name can\'t be edited' }, 400);
       }
       store.clearMark(id);
+      if (patch.title !== undefined && patch.title.trim()) store.setSetting(`titleBy:${id}`, 'user'); // M282: a title you typed is never auto-renamed
       const epid = before.projectId; // M252: the edit lands in the node's own map, whichever map the page shows
       // M224: a user rename is a ruling on vocabulary — learn agent-word → user-word.
       if (patch.title !== undefined && before.title && patch.title.trim() && patch.title.trim() !== before.title) {

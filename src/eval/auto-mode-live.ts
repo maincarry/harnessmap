@@ -80,13 +80,28 @@ s = await state();
 const litAfterUndo = new Set(chatOf(s).lit);
 check('undo puts the focus back on chapter 1 and every node lit before the pivot is lit again', und.body.ok && chatOf(s).focusContainerId === ch1 && litBefore.split(',').every((id) => litAfterUndo.has(id)), `focus=${chatOf(s).focusContainerId === ch1} missing=${litBefore.split(',').filter((id) => !litAfterUndo.has(id)).length}`);
 
+console.log('\n== round 2b: a focus set BY HAND holds against auto mode (M282), and a pinned depth is served (M282) ==');
+await post(`/api/chats/${cid()}/focus`, { nodeId: ch1 }); // the person presses ▶ on chapter 1
+s = await state(); check('the state says the focus was set by hand', s.focusBy === 'user');
+await observeAndSettle('live-1', 'One more result for chapter 2: the trust effect held in the rural subsample as well, with a smaller coefficient.', 'Recorded under chapter 2 results: the trust effect holds in the rural subsample, smaller coefficient.');
+s = await state();
+const ev2b = (await autoEvents()).slice(ev1.length + ev2.length);
+check('auto mode kept the hand-set focus on chapter 1 and said so', chatOf(s).focusContainerId === ch1 && ev2b.some((e: any) => e.kind === 'auto_kept_focus' || (e.kind === 'auto_mode' && /kept your focus/.test(String(e.detail?.line)))), JSON.stringify(ev2b.map((e: any) => [e.kind, e.detail?.line ?? e.detail?.why]).slice(0, 5)));
+await post(`/api/chats/${cid()}/depth`, { nodeId: ch2, depth: 2 }); // pin chapter 2 at whole story
+s = await state();
+check('a pinned depth is served (chapter 2 at whole story, or reported unmet)', (s.served && s.served[ch2] >= 2) || (s.pinsUnmet ?? []).includes(ch2) || !chatOf(s).lit.includes(ch2), `served=${s.served && s.served[ch2]} lit=${chatOf(s).lit.includes(ch2)}`);
+await post(`/api/chats/${cid()}/release`, { nodeId: ch1 }); // release the hand focus so the later rounds behave as before
+await post(`/api/chats/${cid()}/depth`, { nodeId: ch2, depth: null });
+s = await state(); check('release returns the focus to auto', s.focusBy !== 'user');
+const ev2c = await autoEvents();
+
 console.log('\n== round 3: a stray whose home is dimmed — filed to "to sort", kept, said so ==');
 await observeAndSettle('live-1', 'Unrelated: can you book my Lisbon flight for the November conference, leaving the 11th?', 'I cannot book flights, but I noted it: Lisbon flight for the November conference, departing the 11th.');
 s = await state();
 const toSort = (s.nodes ?? []).find((n: any) => n.parentId === null && String(n.title ?? n.content).startsWith('to sort'));
 const stray = (s.nodes ?? []).find((n: any) => toSort && n.parentId === toSort.id && /lisbon|flight/i.test(n.content + ' ' + (n.title ?? '')))
   ?? (s.nodes ?? []).find((n: any) => toSort && under(s, n.id, toSort.id) && /lisbon|flight/i.test(n.content + ' ' + (n.title ?? '')));
-const ev3 = (await autoEvents()).slice(ev1.length + ev2.length);
+const ev3 = (await autoEvents()).slice(ev2c.length);
 check('the stray landed in "to sort" (Travel is dark, not writable)', !!stray && !!toSort && under(s, stray.id, toSort.id), stray ? `stray under ${(s.nodes ?? []).find((n: any) => n.id === stray.parentId)?.title ?? stray.parentId}` : 'no stray node found');
 check('the aim never made the stray (a "to sort" item) the focus', !!toSort && !under(s, chatOf(s).focusContainerId, toSort.id), `focus=${(s.nodes ?? []).find((n: any) => n.id === chatOf(s).focusContainerId)?.title ?? chatOf(s).focusContainerId}`);
 check('auto mode did not move it into the dark branch and audited the skip', !(stray && under(s, stray.id, travel)) && ev3.some((e: any) => e.kind === 'auto_place_skip' || (e.kind === 'auto_mode' && /kept|no home/.test(String(e.detail?.line)))), JSON.stringify(ev3.map((e: any) => [e.kind, e.detail?.line ?? e.detail?.why]).slice(0, 6)));
@@ -100,7 +115,7 @@ await post('/api/dev/setting', { key: `auto_place_tried:${stray?.id}`, value: '0
 await observeAndSettle('live-1', 'Back to methods: the sampling plan also needs a pilot wave of 30 respondents before the main fieldwork.', 'Added to the sampling plan: a pilot wave of 30 respondents precedes the main fieldwork.');
 s = await state();
 const strayNow = stray ? (s.nodes ?? []).find((n: any) => n.id === stray.id) : null;
-const ev4 = (await autoEvents()).slice(ev1.length + ev2.length + ev3.length);
+const ev4 = (await autoEvents()).slice(ev2c.length + ev3.length);
 const strayTop = stray ? (() => { let n = (s.nodes ?? []).find((x: any) => x.id === stray.id); while (n && n.parentId && (s.nodes ?? []).find((x: any) => x.id === n.parentId)?.parentId !== null && !under(s, n.parentId, travel)) n = (s.nodes ?? []).find((x: any) => x.id === n.parentId); return n; })() : null;
 check('the stray was filed under Travel (auto placement into a lit home)', !!strayNow && under(s, strayNow.id, travel), strayNow ? `now under ${(s.nodes ?? []).find((n: any) => n.id === strayNow.parentId)?.title ?? strayNow.parentId}; events ${JSON.stringify(ev4.map((e: any) => [e.kind, e.detail?.line ?? e.detail?.why]).slice(0, 6))}` : 'stray missing');
 check('Travel, lit by hand, is still lit after the round (auto mode never dims a hand-lit node)', chatOf(s).lit.includes(travel));

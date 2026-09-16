@@ -40,6 +40,10 @@ export interface ComposedParts {
   // M191d (Jacob): the map's THINKING — why each topic was shown at the
   // detail it was, aggregated by reason, for the dev timeline's round story.
   thinking: string;
+  // M282 (Jacob): which depth each served node got this turn (0 one line · 1 summary · 2 whole story · 3 original words),
+  // and the pinned depths that did not fit the block.
+  served?: Record<string, 0 | 1 | 2 | 3>;
+  pinsUnmet?: string[];
 }
 
 export function composeState(store: Store, chatId: string, manipulations: string[], userText?: string, opts: { host?: boolean } = {}): string {
@@ -257,6 +261,8 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const SERVING = String(store.getSetting('memory_serving') || process.env.HARNESSMAP_MEMORY_SERVING || 'on');
   const subKept: string[] = [];
   const trimmedLit: string[] = [];
+  const pinsUnmet: string[] = []; // M282
+  const served: Record<string, 0 | 1 | 2 | 3> = {}; // M282
   const memKept: string[] = [];
   const resolved: string[] = [];
   const thinkingLines: string[] = [];
@@ -330,7 +336,12 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       const blob = memByNode.get(e.id);
       const hist = historyBy.get(e.id); // M204: a changed node says so at medium too (one short marker)
       const mark = hist && hist.length > 1 ? ` · changed ${hist.length - 1}×, latest ${hist[hist.length - 1].at.slice(0, 10)}` : '';
-      return blob ? `${pads(e)}    (${blob.slice(0, 620)}${mark})` : (mark ? `${pads(e)}    (${mark.slice(3)})` : null);
+      // M282 (Jacob): the summary depth serves the STATEMENT itself (the substance lines) and then the memory writer's
+      // text — the agent reads the filer's words, never only a paraphrase of them.
+      const stmt = e.substance.length ? e.substance.join('\n') : '';
+      const mem = blob ? `${pads(e)}    (${blob.slice(0, 620)}${mark})` : (mark ? `${pads(e)}    (${mark.slice(3)})` : '');
+      const out = [stmt, mem].filter(Boolean).join('\n');
+      return out || null;
     };
     const longExtra = (e: LitEntry): string | null => {
       // LONG is the whole node (Jacob): full statement, the medium text, and
@@ -386,20 +397,34 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       if (exM) { budget -= exM.length + 1; chosen.set(focusEntry.e.id, 1); }
       if (exL) { budget -= exL.length + 1; chosen.set(focusEntry.e.id, 2); }
     }
+    // M282 (Jacob): pinned depths — the person's choice per node — are charged right after the focus, before warmth;
+    // a pin at one line is never promoted; a pin that does not fit is reported (pinsUnmet → ❗), never silently dropped.
+    let pins: Record<string, 0 | 1 | 2 | 3> = {}; try { pins = JSON.parse(store.getSetting(`depthpin:${chatId}`) ?? '{}'); } catch {}
+    const pinnedFull = new Set<string>();
+    for (const f of flat) {
+      const want = pins[f.e.id]; if (want === undefined || (focusEntry && f.e.id === focusEntry.e.id)) continue;
+      if (want >= 1) { const ex = mediumExtra(f.e); if (ex) { if (budget - ex.length - 1 >= 0) { budget -= ex.length + 1; chosen.set(f.e.id, 1); } else pinsUnmet.push(f.e.id); } }
+      if (want >= 2 && (chosen.get(f.e.id) ?? 0) >= 1) { const ex = longExtra(f.e); if (ex) { if (budget - ex.length - 1 >= 0) { budget -= ex.length + 1; chosen.set(f.e.id, 2); } else pinsUnmet.push(f.e.id); } }
+      if (want === 3) pinnedFull.add(f.e.id);
+    }
     // Promote by warmth (stable within tree order): minimal→medium, then →long.
     const byWarmth = [...flat].sort((a, b2) => b2.w - a.w);
     for (const f of byWarmth) {
       if (focusEntry && f.e.id === focusEntry.e.id) continue; // already at long, with priority
+      if (pins[f.e.id] === 0) continue; // pinned at one line
       const ex = mediumExtra(f.e);
       if (!ex) continue;
+      if ((chosen.get(f.e.id) ?? 0) >= 1) continue;
       if (budget - ex.length - 1 < 0) continue;
       budget -= ex.length + 1;
       chosen.set(f.e.id, 1);
     }
     for (const f of byWarmth) {
       if (focusEntry && f.e.id === focusEntry.e.id) continue;
+      if (pins[f.e.id] === 0 || pins[f.e.id] === 1) continue; // pinned below whole story
       const ex = longExtra(f.e);
       if (!ex) continue;
+      if ((chosen.get(f.e.id) ?? 0) >= 2) continue;
       if (budget - ex.length - 1 < 0) continue;
       budget -= ex.length + 1;
       chosen.set(f.e.id, 2);
@@ -416,6 +441,12 @@ export function composeParts(store: Store, chatId: string, manipulations: string
         else focusFullNote = `full material available on request (${full.length} chars${full.length > FULL_CEILING ? ", over the block's ceiling" : ', no room this turn'})`;
       }
     }
+    for (const id of pinnedFull) { // M282: original words pinned by the person
+      if (fullBy.has(id)) continue;
+      const full = nodeFull(store, id);
+      if (!full || full.length < 1) continue;
+      if (full.length <= FULL_CEILING && budget - full.length - 1 >= 0) { budget -= full.length + 1; fullBy.set(id, full); } else pinsUnmet.push(id);
+    }
     for (const f of byWarmth) {
       if (budget < 1_500) break;
       if (fullBy.has(f.e.id) || (chosen.get(f.e.id) ?? 0) < 2) continue;
@@ -430,6 +461,7 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       for (const e of b.entries) {
         if (!visibleLit.has(e.id)) continue;
         const r = chosen.get(e.id) ?? 0;
+        served[e.id] = fullBy.has(e.id) ? 3 : r; // M282
         resolved.push(minimal(e));
         if (r === 1) { const m = mediumExtra(e); if (m) resolved.push(m); }
         if (r >= 2) { const l = longExtra(e); if (l) resolved.push(l); }
@@ -574,5 +606,5 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   ].map((sec) => ({ ...sec, chars: sec.text.length })).filter((sec) => sec.chars > 0);
   const usedChars = BUDGET_CHARS - Math.max(0, budget);
   const thinking = [`budget: ${BUDGET_CHARS.toLocaleString()} chars — used ~${usedChars.toLocaleString()}`, ...thinkingLines].join('\n');
-  return { text, trimmedLit, sections, budget: BUDGET_CHARS, thinking };
+  return { text, trimmedLit, sections, budget: BUDGET_CHARS, thinking, served, pinsUnmet: [...new Set(pinsUnmet)] };
 }

@@ -138,6 +138,11 @@
   #beat .step.on { animation: beatpulse 1.2s infinite; }
   header .lag.behind { color: var(--warn); }
   .hbtn.on { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+  .rowbtn .hand { font-size: 9px; margin-left: 1px; vertical-align: 1px; }
+  .depth { font-size: 10px; color: var(--muted); margin-left: 4px; letter-spacing: 1px; cursor: help; }
+  .depth.pinned { color: var(--accent); }
+  .depth.unmet { color: #c62828; letter-spacing: 0; }
+  select.depthsel { font-size: 10px; padding: 0 2px; max-width: 110px; }
   #other-menu .justdo { flex: 0 0 auto; width: auto; min-width: 0; padding: 4px 8px; text-align: center; }
   .hbtn { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px;
           font-size: 12px; cursor: pointer; padding: 2px 8px; }
@@ -695,13 +700,15 @@ function renderTree() {
       <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
       <span class="rowops">
         ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes)">◱</button>`}
-        <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? 'the conversation is focused here' : 'focus: talk about this (no zoom)'}">▶</button>
-        <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? 'dim: remove from the chat agent’s background' : 'light as background (incl. everything under it)'}">☀</button>
+        <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? (S.focusBy === 'user' ? 'the conversation is focused here — set by you; auto mode holds it until you move it or press ⚡' : 'the conversation is focused here') : 'focus: talk about this (no zoom)'}">▶</button>
+        <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? ((chat()?.userLit || []).includes(n.id) ? 'lit by you — auto mode never dims it; click to dim' : 'dim: remove from the chat agent’s background') : ((S.userDim || []).includes(n.id) ? 'set aside by you — auto mode never re-lights it; click to light' : 'light as background (incl. everything under it)')}">☀</button>${(() => { const d = S.served && S.served[n.id]; const pin = S.depthPins && S.depthPins[n.id]; if (d === undefined && pin === undefined) return ''; const names = ['one line', 'summary', 'whole story', 'original words']; const unmet = (S.pinsUnmet || []).includes(n.id); return `<span class="depth${pin !== undefined ? ' pinned' : ''}${unmet ? ' unmet' : ''}" title="${d !== undefined ? `served now at: ${names[d]}` : 'not in the last block'}${pin !== undefined ? ` · pinned by you: ${names[pin]}${unmet ? ' — did not fit this turn (❗)' : ''}` : ''}">${unmet ? '❗' : d !== undefined ? '·'.repeat(d + 1) : '⌖'}</span>`; })()}
         <button class="rowbtn" data-rowmore="${n.id}" title="more actions: favorite, home, add child, move, tidy, merge">⋯</button>
         <span class="rowext">
+        ${(() => { const hand = (chat()?.userLit || []).includes(n.id) || (S.userDim || []).includes(n.id) || (n.id === focus && S.focusBy === 'user') || (S.depthPins && S.depthPins[n.id] !== undefined); return hand ? `<button class="rowbtn" data-release="${n.id}" title="you set something on this node by hand (light, dim, focus or depth) — auto mode keeps it. Click to let auto mode decide again">◎ auto again</button>` : ''; })()}
         <button class="rowbtn ${(S.favorites || []).includes(n.id) ? 'on' : ''}" data-fav="${n.id}" title="${(S.favorites || []).includes(n.id) ? 'unpin from favorites' : 'favorite: pin this node to the top of search'}">★</button>
         <button class="rowbtn ${S.home === n.id ? 'on' : ''}" data-sethome="${n.id}" title="${S.home === n.id ? 'this is the home page — click to unset (home falls back to the whole map)' : 'set as the home page — the home button (top of the map) zooms here'}">${HOME_ICO}</button>
         <button class="rowbtn" data-add="${n.id}" title="add an unnamed sub-node here and focus it — the map names it from what you talk about next">+</button>
+        ${isTray ? '' : `<select class="rowbtn depthsel" data-depth="${n.id}" title="serve at: the depth the agent gets for this node — auto (by closeness to the focus and room), or a depth you pin; a pin is charged first and never changed by auto mode"><option value="">depth: auto</option><option value="0" ${S.depthPins && S.depthPins[n.id] === 0 ? 'selected' : ''}>one line</option><option value="1" ${S.depthPins && S.depthPins[n.id] === 1 ? 'selected' : ''}>summary</option><option value="2" ${S.depthPins && S.depthPins[n.id] === 2 ? 'selected' : ''}>whole story</option><option value="3" ${S.depthPins && S.depthPins[n.id] === 3 ? 'selected' : ''}>original words</option></select>`}
         ${(() => { const p = node(n.parentId); return p && p.parentId === null && (p.title || p.content).startsWith('to sort')
           ? `<button class="rowbtn" data-promote="${n.id}" title="make this a real top-level topic">⇧</button>` : ''; })()}
         ${isTray ? '' : `<button class="rowbtn" data-move="${n.id}" data-name="${esc(disp(n))}" title="move this node somewhere else on the map — search for the new parent, or make it a top-level topic">↖</button>`}
@@ -1945,6 +1952,14 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+$('tree').addEventListener('change', async (e) => {
+  const sel = e.target.closest && e.target.closest('select[data-depth]');
+  if (!sel) return;
+  e.stopPropagation();
+  const v = sel.value === '' ? null : Number(sel.value);
+  try { await post(`/api/chats/${S.mainChatId}/depth`, { nodeId: sel.dataset.depth, depth: v }); $('round-line').textContent = v === null ? 'depth back to auto for this node' : `pinned: the agent gets this node at "${['one line', 'summary', 'whole story', 'original words'][v]}" from the next turn on (charged first; ❗ if it does not fit)`; }
+  catch (err) { $('round-line').textContent = `depth: ${err.message}`; }
+});
 $('tree').addEventListener('click', async (e) => {
   const t = e.target;
   if (t.id === 'add-root') { await addNode(zoomId ?? null); return; }
@@ -2002,6 +2017,12 @@ $('tree').addEventListener('click', async (e) => {
   if (t.closest('[data-tidyfold]')) { tidyOpen = !tidyOpen; localStorage.setItem('hm-tidy-open', tidyOpen ? '1' : ''); renderTree(); return; }
   const jumpRow = t.closest('[data-jump]');
   if (jumpRow && !t.closest('.rowbtn')) { setZoom(jumpRow.dataset.jump); return; }
+  const relId = t.closest('[data-release]')?.dataset.release;
+  if (relId) {
+    try { await post(`/api/chats/${S.mainChatId}/release`, { nodeId: relId }); $('round-line').textContent = `released “${disp(node(relId))}” to auto mode — it decides light, focus and depth for it again`; }
+    catch (err) { $('round-line').textContent = `release failed: ${err.message}`; }
+    return;
+  }
   const favId = t.closest('[data-fav]')?.dataset.fav;
   if (favId) {
     const on = !(S.favorites || []).includes(favId);
@@ -2188,6 +2209,7 @@ function openNodeDetail(id) {
       <input id="nd-status" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.status === 'live' ? '' : n.status ?? '')}" placeholder="(none)">
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Statement — what this node says, as the filer wrote it and the tree shows it; the master text that the description inside every depth restates (edit it and the depths follow on the next write; it is also what the agent gets when no depth is written yet)</label>
       <textarea id="nd-desc" rows="4" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical">${esc(n.content)}</textarea>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">${(() => { const d = S.served && S.served[id]; const pin = S.depthPins && S.depthPins[id]; const names = ['one line', 'summary', 'whole story', 'original words']; return `<b>served now:</b> ${d !== undefined ? names[d] : 'not in the last block (dim, or rolled up)'}${pin !== undefined ? ` · <b>pinned by you:</b> ${names[pin]}${(S.pinsUnmet || []).includes(id) ? ' — did not fit this turn ❗' : ''}` : ' · depth chosen by closeness to the focus and room in the block (pin one on the row’s ⋯)'}`; })()}</div>
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block"><span style="display:block;margin:10px 0 6px;padding:6px 8px;border-left:2px solid var(--hair);line-height:1.45">Four depths of the same node. The agent receives the depth that fits how close the node is to the focus and how much room the block has: at least the one line for every lit node, the summary near the focus, the whole story for the focus itself. Each depth carries the same five things — name, description, how it fits, what changed, what was said.</span>
       One line <span style="opacity:.6">(minimal)</span> — the least the agent ever gets about this node</label>
       <div id="nd-min" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
@@ -2911,12 +2933,12 @@ function openMapChat(seed) {
   ov.innerHTML = `
     <div class="modal" style="width:min(600px,94vw);display:flex;flex-direction:column;max-height:78vh">
       <h3 style="display:flex;align-items:center;gap:8px">🗨 talk to the map guide
-        <span class="mc-hint">explains · proposes focus, light &amp; tidy changes · you approve</span>
+        <span class="mc-hint">explains this map · proposes changes you approve · records your standing preferences</span>
         <button id="mc-close" class="hbtn" style="margin-left:auto" title="close">✕</button>
       </h3>
       <div id="mc-log"></div>
       <div id="mc-composer">
-        <input id="mc-input" placeholder="ask, or ask for a change — “merge those two”, “fix my lighting”…" />
+        <input id="mc-input" placeholder="ask anything about this map, or ask for a change — “why is X dim?”, “merge those two”, “never dim my reading list”…" />
         <button id="mc-send" class="primary" title="ask the map guide — it can also propose changes for your approval">send</button>
       </div>
     </div>`;
@@ -2930,7 +2952,7 @@ function openMapChat(seed) {
     return d;
   };
   for (const h of mapChatLog) { push('you', h.q); push('map', h.a); }
-  if (!mapChatLog.length) push('map', 'I file and maintain this map. Ask me anything about it — or ask for a change (“merge those two”, “dim the old stuff”, “where should I focus?”) and I\'ll propose it for your approval.');
+  if (!mapChatLog.length) push('map', 'I keep this map. Ask me anything about it — why something is where it is, what the agent sees, what auto mode did — or ask for a change (“merge those two”, “dim the old stuff”, “focus on the thesis”) and I propose it for your approval. Tell me a standing wish (“never dim my reading list”) and I record it as a map preference every agent follows.');
   const ask = async (q, display) => {
     push('you', display ?? q);
     const wait = push('map', '…thinking');
