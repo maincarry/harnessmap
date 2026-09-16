@@ -909,8 +909,12 @@ function importPending(pid: string): boolean {
 }
 // One aim, applied under the guards, as one undo entry. Used by the ▶/☀
 // buttons' merged re-aim and by auto mode alike.
-function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit: string[]; dim: string[]; summary: string }, opts: { focus: boolean; light: boolean; source: 'auto' | 'user'; focusAsked?: boolean }): { focusChanged: boolean; lit: number; dim: number; kept: number; label: string } {
+function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit: string[]; dim: string[]; summary: string }, opts: { focus: boolean; light: boolean; source: 'auto' | 'user'; focusAsked?: boolean; bornNow?: Set<string> }): { focusChanged: boolean; lit: number; dim: number; kept: number; label: string } {
   let r = r0;
+  // M285 (loop find, the home-internet replay): a passing question ("will it rain?") became the focus because its node
+  // was born this round and now lands at the top level instead of "to sort". A node born THIS round is never the aim's
+  // focus unless the person's words asked — a real pivot lands on something that existed, or is asked for.
+  if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && opts.bornNow?.has(r.focus)) { store.audit('guard_focus_newborn', { id: r.focus.slice(0, 8) }); r = { ...r, focus: undefined, focusName: undefined }; }
   const chat = store.getChat(chatId)!;
   const pid = chat.projectId;
   const prevFocus = chat.focusContainerId;
@@ -1011,8 +1015,9 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         const tail = `USER: ${userText.slice(-1500)}\n\nAGENT: ${assistantText.slice(-1500)}`;
         if (a.focus) {
           const r = await proposeReaim(store, pid, chatId, tail);
+          const bornNow = new Set(alterations.filter((x) => x.op === 'create_node' && x.id).map((x) => x.id as string));
           if ('error' in r) { store.audit('auto_aim_error', { error: r.error }); quiet.push(`aim failed: ${r.error.slice(0, 80)}`); }
-          else { const res = applyAim(chatId, r, { focus: true, light: a.light, source: 'auto' }); if (res.focusChanged || res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); else quiet.push('aim unchanged'); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
+          else { const res = applyAim(chatId, r, { focus: true, light: a.light, source: 'auto', bornNow }); if (res.focusChanged || res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); else quiet.push('aim unchanged'); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
         } else {
           const r = await proposeAutolit(store, pid, chatNow.focusContainerId, store.getLit(chatId));
           if ('error' in r) { store.audit('auto_aim_error', { error: r.error }); quiet.push(`light failed: ${r.error.slice(0, 80)}`); }

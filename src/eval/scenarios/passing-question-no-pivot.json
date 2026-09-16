@@ -1,0 +1,15 @@
+{
+  "name": "a passing question with no directive gets a node but does not steal the focus (M285 newborn guard); a real pivot onto an existing topic does",
+  "seed": [
+    { "key": "proj", "content": "Home internet: fiber, gateway, mesh" },
+    { "key": "gw", "content": "ATT gateway: run it as modem only, WiFi off", "parent": "proj" },
+    { "key": "mesh", "content": "Mesh system choice: Ubiquiti vs Google Nest", "parent": "proj" }
+  ],
+  "focus": "gw", "auto": { "on": true },
+  "rounds": [
+    { "user": "Will it rain in Redwood Shores this week?", "assistant": "No rain expected — sunny, highs in the mid-70s, sea breeze in the afternoons.",
+      "then": [ { "nodeMatching": "rain|weather|Redwood" }, { "focusIs": "gw" }, { "audit": "guard_focus_newborn|auto_aim_skip|auto_kept_focus" } ] },
+    { "user": "On the mesh choice: Ubiquiti's wired backhaul and visibility win it for me; Nest is out.", "assistant": "Noted: mesh choice leaning Ubiquiti for wired backhaul and visibility; Nest ruled out.",
+      "then": [ { "focusUnder": "mesh" } ] }
+  ]
+}
