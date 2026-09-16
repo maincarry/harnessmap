@@ -489,7 +489,7 @@
           </div></div></div>
       </div>
     </div>
-    <div id="tree"><div class="empty">no map yet — press “+ add node” to begin</div></div>
+    <div id="tree"><div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status), or press “+ add node” to begin</div></div>
     <div id="round-line" data-idle="no map update running — click here after an update to see what changed">no map update running — click here after an update to see what changed</div>
   </div>
   <div id="splitter" data-tip="drag to resize the panes"></div>
@@ -800,7 +800,7 @@ function renderTree() {
     }
   }
   html += `<button id="add-root" title="add an unnamed node and focus the conversation there — the map names it from what you talk about next">+ add node${zoomId ? ' here' : ''}</button>`;
-  tree.innerHTML = html || '<div class="empty">no map yet — press “+ add node” to begin</div>';
+  tree.innerHTML = html || '<div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status), or press “+ add node” to begin</div>';
   const f = node(focus);
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
 }
@@ -3317,6 +3317,12 @@ function openLegend() {
         <tr><td>to sort</td><td>the holding pen: anything the filer can't place lands here with an arrival note. Leaving: approve its placement in ⟳ to tidy, ↖ pick a parent, ⇧ promote to a topic — or light the destination and the filer moves it home next round</td></tr>
         <tr><td colspan="2"><hr><b>On every node</b> (hover the row)</td></tr>
         <tr><td>◱ ▶ ☀ ⋯ ✕</td><td>on every row: zoom · focus · light/dim · ✕ delete. ⋯ unfolds the rest — ★ favorite · <svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home · + add child · ↖ move · ⟳ tidy · ⇢ merge (⇧ promote on to-sort items)</td></tr>
+        <tr><td colspan="2"><hr><b>Words your agent knows</b> (say them in Codex or Claude Code)</td></tr>
+        <tr><td>open map</td><td>attach the map to THIS session — it files what you discuss and serves the map to the agent; add a name ("open map thesis") to choose a map</td></tr>
+        <tr><td>close map</td><td>detach — nothing is served or filed until someone says open map again</td></tr>
+        <tr><td>map doctor</td><td>diagnose and repair the install: server, build, updates, database, engine and sign-in, hooks, a live engine check</td></tr>
+        <tr><td>update map</td><td>pull the newest map and restart the server (about 20 seconds)</td></tr>
+        <tr><td>map status</td><td>where the map is, which map is active, where the data lives</td></tr>
         <tr><td colspan="2"><hr><b>Toolbar &amp; sessions</b></td></tr>
         <tr><td>🔍 search</td><td>Ctrl/Cmd+K — find a node, confirm it with parents and children, then light / zoom / focus it</td></tr>
         <tr><td>🗨 talk to map</td><td>ask the map guide anything, or ask for changes in plain words — it proposes, you approve; complex asks become step-by-step plans</td></tr>

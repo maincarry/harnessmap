@@ -121,4 +121,5 @@ console.log(`map doctor — ${new Date().toLocaleString()}${FIX ? ' (with --fix)
 for (const lv of order) for (const l of lines.filter((x) => x.level === lv)) console.log(`  ${lv.padEnd(4)} ${l.text}`);
 const counts = order.map((lv) => [lv, lines.filter((x) => x.level === lv).length] as const).filter(([, n]) => n);
 console.log(`summary: ${counts.map(([lv, n]) => `${n} ${lv}`).join(', ')}${lines.some((l) => l.level === 'YOU') ? ' — the YOU lines are steps only you can take' : ''}${!FIX && lines.some((l) => l.level === 'WARN' || l.level === 'FAIL') ? ' — rerun with --fix to apply the fixes a program may' : ''}`);
+console.log('words the agent knows: open map · close map · map doctor · update map · map status');
 process.exit(lines.some((l) => l.level === 'FAIL') ? 2 : 0);
