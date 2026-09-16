@@ -606,6 +606,7 @@ console.log('\n== 6r. the map never files its own inference calls (M271) ==');
   const pr = await (await fetch(`${BASE}/api/dev/purge-inner`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json();
   const st1 = await (await fetch(`${BASE}/api/state`)).json();
   check('the purge archives such a view and forgets its session', !!junk && pr.ok && pr.views >= 1 && !(st1.chats ?? []).some((c: any) => c.host?.sessionId === 'inner-z'));
+  check('a real host session with a real first message survives the purge (host-A from 6f)', (st1.chats ?? []).some((c: any) => c.host?.sessionId === 'host-A'));
 }
 
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');

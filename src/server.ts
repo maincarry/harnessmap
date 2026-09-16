@@ -245,10 +245,30 @@ let mainChatId = (() => {
 // M271: self-healing after the inner-session storm — views whose host session's first user turn is one of OUR
 // prompts ("SYSTEM INSTRUCTIONS:" is the codex exec prompt's first line) are the map filing itself. Archive those
 // views, forget their sessions, remove the nodes their rounds created (one undo entry). Runs at boot and on demand.
-function purgeInnerSessions(): { views: number; nodes: number } {
+function purgeInnerSessions(): { views: number; nodes: number; duplicates: number } {
   const db = (store as any).db;
-  const rows = db.prepare("SELECT c.id, c.project_id, c.host_session_id FROM chats c WHERE c.host_session_id IS NOT NULL AND c.status != 'archived' AND (SELECT content FROM turns t WHERE t.chat_id = c.id AND t.role = 'user' ORDER BY idx LIMIT 1) LIKE 'SYSTEM INSTRUCTIONS:%'").all() as any[];
-  if (!rows.length) return { views: 0, nodes: 0 };
+  // M272: one view per host session — when hooks fired more than once for one session, extra views were made; keep the
+  // one the session row points to (else the most recent), archive the rest.
+  let duplicates = 0;
+  const groups = db.prepare("SELECT host_session_id sid, COUNT(*) n FROM chats WHERE host_session_id IS NOT NULL AND status != 'archived' GROUP BY host_session_id HAVING n > 1").all() as any[];
+  for (const g of groups) {
+    const keep = (db.prepare('SELECT chat_id FROM harness_sessions WHERE session_id = ?').get(g.sid) as any)?.chat_id
+      ?? (db.prepare("SELECT c.id FROM chats c WHERE c.host_session_id = ? AND c.status != 'archived' ORDER BY (SELECT MAX(created_at) FROM turns t WHERE t.chat_id = c.id) DESC, c.created_at DESC LIMIT 1").get(g.sid) as any)?.id;
+    for (const r of db.prepare("SELECT id FROM chats WHERE host_session_id = ? AND status != 'archived'").all(g.sid) as any[]) {
+      if (r.id === keep) continue;
+      store.archiveChat(r.id); db.prepare('UPDATE chats SET host_session_id = NULL WHERE id = ?').run(r.id); duplicates++;
+    }
+  }
+  // Inner (the map's own) sessions: not the session the person opened, and either our prompt as the first user turn,
+  // no real user turn at all, or Codex's auto-title for exec threads.
+  let opened = ''; try { opened = (readFileSync(join(process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap'), 'session'), 'utf8').split('\n')[0] ?? '').trim(); } catch {}
+  const rows = (db.prepare(`SELECT c.id, c.project_id, c.host_session_id,
+      (SELECT content FROM turns t WHERE t.chat_id = c.id AND t.role = 'user' ORDER BY idx LIMIT 1) first_user,
+      (SELECT title FROM harness_sessions h WHERE h.session_id = c.host_session_id) title
+    FROM chats c WHERE c.host_session_id IS NOT NULL AND c.status != 'archived'`).all() as any[])
+    .filter((r) => r.host_session_id !== opened && (
+      !String(r.first_user ?? '').trim() || String(r.first_user).includes('SYSTEM INSTRUCTIONS:') || r.title === 'Automatic Note Filing'));
+  if (!rows.length) return { views: 0, nodes: 0, duplicates };
   const byProject = new Map<string, string[]>();
   for (const r of rows) {
     const created: string[] = [];
@@ -269,10 +289,10 @@ function purgeInnerSessions(): { views: number; nodes: number } {
     store.pushUndo(pid, `removed ${uniq.length} node(s) the map had filed from its own prompts`, inverse, null);
     nodes += uniq.length;
   }
-  store.audit('inner_sessions_purged', { views: rows.length, nodes });
-  return { views: rows.length, nodes };
+  store.audit('inner_sessions_purged', { views: rows.length, nodes, duplicates });
+  return { views: rows.length, nodes, duplicates };
 }
-try { const r = purgeInnerSessions(); if (r.views) console.error(`[harnessmap] removed ${r.views} view(s) and ${r.nodes} node(s) the map had filed from its own inference calls (M271)`); } catch (err) { console.error('[harnessmap] inner-session purge failed:', err); }
+try { const r = purgeInnerSessions(); if (r.views || r.duplicates) console.error(`[harnessmap] removed ${r.views} view(s) and ${r.nodes} node(s) the map had filed from its own inference calls, and ${r.duplicates} duplicate view(s) (M271/M272)`); } catch (err) { console.error('[harnessmap] inner-session purge failed:', err); }
 // M91 migration: DBs from before the binding policy have sessions but no
 // cwd bindings — without this, their next session would auto-create a ghost
 // project instead of reaching their existing map. M268: a folder is never
@@ -3199,7 +3219,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       }
       const pid2 = (body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId;
       store.metric(pid2, 'session.start');
-      const claimed = body.cwd ? claimChat(body.cwd) : null;
+      // M272: a session that already has a view never claims another (hooks firing more than once for one session made two "Open map" tabs — Jacob)
+      const claimed = sessionChat(body.session_id) ? null : body.cwd ? claimChat(body.cwd) : null;
       const prev = hostRow(body.session_id);
       const wasClosed = prev?.status === 'closed';
       recordSessionStart(store, body.session_id, store.getChat(claimed ?? activeChatOf(pid2))?.focusContainerId ?? null, body.transcript_path ?? null, body.cwd ?? null);
