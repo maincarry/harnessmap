@@ -164,6 +164,34 @@ const updateInfo = () => ({ current: VERSION, build: BUILD, latest: latestKnown,
 // M265: the server updates itself — the installer's update half, run from the page or the "update map" skill:
 // pull, reinstall, respawn on the same env, exit. A non-git copy (a harness's plugin cache) cannot; it says how instead.
 let updating = false;
+// Our own app folder (~/.harnessmap/app or HARNESSMAP_APP) holds no user data and may be reset or restarted freely;
+// a developer's checkout anywhere else is never touched by the server.
+function isOurAppFolder(): boolean {
+  const root = join(here, '..').replace(/[\\/]+$/, '');
+  const app = join(process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap'), 'app').replace(/[\\/]+$/, '');
+  return root === app || (!!process.env.HARNESSMAP_APP && root === process.env.HARNESSMAP_APP.replace(/[\\/]+$/, ''));
+}
+function respawnSelf(): void {
+  const root = join(here, '..');
+  const home = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
+  try { mkdirSync(home, { recursive: true }); } catch {}
+  const log = Bun.file(join(home, 'server.log'));
+  Bun.spawn([process.execPath, 'run', 'src/server.ts'], { cwd: root, stdout: log, stderr: log, stdin: 'ignore', env: { ...process.env, HARNESSMAP_WAIT_PORT: '1' }, detached: true }).unref();
+  setTimeout(() => process.exit(0), 700);
+}
+// M266b (Jacob: "auto mode: HTTP 404" — the page was new, the process old): the server itself notices when the code on
+// disk moved under it (an installer or a pull that did not restart it) and restarts on the new code. Only in our app folder.
+let staleCheckedAt = 0;
+function restartIfStale(): void {
+  if (!BUILD || !isOurAppFolder() || updating || Date.now() - staleCheckedAt < 30_000) return;
+  staleCheckedAt = Date.now();
+  try {
+    const r = Bun.spawnSync(['git', '-C', join(here, '..'), 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore', timeout: 5000 });
+    const disk = r.exitCode === 0 ? r.stdout.toString().trim() : '';
+    if (disk && disk !== BUILD) { store.audit('self_restart_stale', { running: BUILD, disk }); updating = true; respawnSelf(); }
+  } catch {}
+}
+setInterval(restartIfStale, 60_000);
 async function selfUpdate(): Promise<{ ok: boolean; changed?: boolean; from?: string; to?: string; hooksChanged?: boolean; restarting?: boolean; error?: string; how?: string }> {
   const root = join(here, '..');
   if (!existsSync(join(root, '.git'))) return { ok: false, error: 'this copy of the map is not a git checkout', how: 'Claude Code: /plugin update map@harnessmap, then restart. Codex: rerun the one-line installer from the README.' };
@@ -175,8 +203,7 @@ async function selfUpdate(): Promise<{ ok: boolean; changed?: boolean; from?: st
     let pull = git(['pull', '-q', '--ff-only']);
     // M266: our own app folder (~/.harnessmap/app) holds no user data — when it cannot fast-forward, reset it to main.
     // A developer's checkout anywhere else is never reset.
-    const ours = root.replace(/[\\/]+$/, '') === join(process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap'), 'app').replace(/[\\/]+$/, '') || root === (process.env.HARNESSMAP_APP ?? '');
-    if (pull.code !== 0 && ours) { const f = git(['fetch', '-q', 'origin', 'main']); if (f.code === 0) pull = git(['reset', '-q', '--hard', 'origin/main']); }
+    if (pull.code !== 0 && isOurAppFolder()) { const f = git(['fetch', '-q', 'origin', 'main']); if (f.code === 0) pull = git(['reset', '-q', '--hard', 'origin/main']); }
     if (pull.code !== 0) return { ok: false, from, error: `git pull failed: ${(pull.err || pull.out).slice(-300)}` };
     const to = git(['rev-parse', '--short', 'HEAD']).out;
     if (!to || to === from) return { ok: true, changed: false, from, to: to || from };
@@ -190,11 +217,7 @@ async function selfUpdate(): Promise<{ ok: boolean; changed?: boolean; from?: st
     }
     store.audit('self_update', { from, to, hooksChanged });
     // Respawn on the same environment (home, db, port), then leave; the child waits for the port to free up.
-    const home = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
-    try { mkdirSync(home, { recursive: true }); } catch {}
-    const log = Bun.file(join(home, 'server.log'));
-    Bun.spawn([process.execPath, 'run', 'src/server.ts'], { cwd: root, stdout: log, stderr: log, stdin: 'ignore', env: { ...process.env, HARNESSMAP_WAIT_PORT: '1' }, detached: true }).unref();
-    setTimeout(() => process.exit(0), 700);
+    respawnSelf();
     return { ok: true, changed: true, from, to, hooksChanged, restarting: true };
   } catch (err) { return { ok: false, error: String(err).slice(0, 300) }; }
   finally { updating = false; }
@@ -1468,7 +1491,7 @@ const server = Bun.serve({
       });
     }
 
-    if (path === '/api/state' && req.method === 'GET') return json(state());
+    if (path === '/api/state' && req.method === 'GET') { restartIfStale(); return json(state()); } // M266b
 
     // "+" — creates a node anywhere on the map, optionally moving the ONE
     // conversation's focus onto it.
