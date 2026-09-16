@@ -1,0 +1,17 @@
+{
+  "name": "a correction updates the node, no twin (M256), and the summary says the statement is current",
+  "seed": [
+    { "key": "sess", "content": "Conversational session: this session is a conversational chat with no file or command tools; file work needs a terminal." }
+  ],
+  "focus": "sess",
+  "auto": { "on": true },
+  "rounds": [
+    { "user": "The map says this session has no file or command tools. That is wrong — you ran commands and read files a minute ago. This session does have file and command tools.",
+      "assistant": "Corrected: this session does have file and command tools; file work does not need a separate terminal.",
+      "then": [
+        { "nodeMatching": "does have file and command tools|has file and command tools", "under": "sess" },
+        { "countUnder": "sess", "max": 1 },
+        { "noNodeMatching": "twin" }
+      ] }
+  ]
+}

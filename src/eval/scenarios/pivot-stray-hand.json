@@ -1,0 +1,19 @@
+{
+  "name": "pivot follows, stray stays out of a hand-dimmed branch, hand focus holds",
+  "seed": [
+    { "key": "thesis", "content": "Thesis: trust in institutions (survey study)" },
+    { "key": "ch1", "content": "Chapter 1: methods", "parent": "thesis" },
+    { "key": "ch2", "content": "Chapter 2: results", "parent": "thesis" },
+    { "key": "travel", "content": "Travel: conferences and trips", "parent": "thesis" },
+    { "key": "lisbon", "content": "Lisbon conference in November: flights and hotel", "parent": "travel" }
+  ],
+  "focus": "ch1", "dim": ["travel"], "auto": { "on": true },
+  "rounds": [
+    { "user": "Let's switch to chapter 2, the results: the response rate came in at 62 percent.", "assistant": "Recorded in chapter 2 results: response rate 62%.",
+      "then": [ { "focusUnder": "ch2" }, { "audit": "auto_mode", "matching": "focus" }, { "do": "undo" }, { "focusIs": "ch1" } ] },
+    { "user": "Unrelated: can you book my Lisbon flight for the November conference?", "assistant": "I cannot book flights, but I noted it: Lisbon flight for the November conference.",
+      "then": [ { "nodeMatching": "lisbon|flight", "notUnder": "travel" }, { "dark": "travel" }, { "dark": "lisbon" }, { "do": "focus", "key": "ch1" } ] },
+    { "user": "One more result for chapter 2: the effect held in the rural subsample too.", "assistant": "Recorded under chapter 2 results: the effect holds in the rural subsample.",
+      "then": [ { "focusIs": "ch1" }, { "audit": "auto_kept_focus" }, { "do": "release", "key": "ch1" } ] }
+  ]
+}
