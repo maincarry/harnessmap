@@ -31,7 +31,7 @@ Return: summary (one sentence on what the cleanup does) + alterations. Reference
 // agent may create top-level nodes or move existing top-level threads.
 const ROOT_EXTRA = `
 
-ROOT SCOPE — this run's target is THE TOP LEVEL of the map itself; there is no single target node, you see every top-level thread (and two levels under each). Special license, valid ONLY in root scope: you MAY create new top-level heading nodes (domain containers — create_node with parentId null) and move_node existing top-level nodes under them. Group only when the domains are obvious; a few broad, recognizable containers beat many narrow ones (names 2–4 words); never bury a thread under a label the user wouldn't recognize; leave a thread at top level when it fits no group. The "to sort" tray is system infrastructure: never move, rename, remove, or nest anything under it. All other rules stand.`;
+WHOLE-MAP SCOPE — this run's target is the whole map; there is no single target node, you see every top-level thread (and two levels under each). You may create grouping nodes at any level, the top level included (create_node with parentId null), and move_node threads under them — the top level is an ordinary level (M278). Group only when the domains are obvious; a few broad, recognizable containers beat many narrow ones (names 2–4 words); never bury a thread under a label the user wouldn't recognize; leave a thread where it is when it fits no group. The "to sort" tray is system infrastructure: never move, rename, remove, or nest anything under it. All other rules stand.`;
 
 export interface ReorganizeProposal {
   summary: string;

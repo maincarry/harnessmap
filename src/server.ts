@@ -113,19 +113,18 @@ function bootstrapProject(pid: string): string {
   // carry author 'system' so project adoption still sees a pristine map.
   const first = store.listProjects().length <= 1;
   const seedIds = [rootId];
+  // M278 (Jacob: "why do everything keep going into the getting started node? it should be a tutorial node such that user
+  // starts a new node anew"): every new map starts with an EMPTY focused top-level node — the first round names it (M114) —
+  // and the tutorial, on the first map only, is one more top-level node beside it, not the root of everything.
+  store.applyAlterations(pid, [{ op: 'create_node', id: rootId, parentId: null, content: 'untitled', status: 'live', author: 'user' }], { kind: 'system' });
   if (first) {
-    const k1 = randomUUID(), k2 = randomUUID(), k3 = randomUUID();
-    seedIds.push(k1, k2, k3);
+    const t0 = randomUUID(), k1 = randomUUID(), k2 = randomUUID(), k3 = randomUUID();
+    seedIds.push(t0, k1, k2, k3);
     store.applyAlterations(pid, [
-      { op: 'create_node', id: rootId, parentId: null, content: 'getting started', status: 'live', author: 'system' },
-      { op: 'create_node', id: k1, parentId: rootId, content: 'this map takes notes for you — talk to Claude and topics file themselves here', status: 'live', author: 'system' },
-      { op: 'create_node', id: k2, parentId: rootId, content: 'try it: press ▶ on a node to talk about it, ☀ to keep it in Claude\u2019s background, ◱ to view only that branch', status: 'live', author: 'system' },
-      { op: 'create_node', id: k3, parentId: rootId, content: 'when real work shows up, delete this topic (✕) — everything is undoable (Ctrl/Cmd+Z)', status: 'live', author: 'system' },
-    ], { kind: 'system' });
-  } else {
-    const pname = store.listProjects().find((x) => x.id === pid)?.name ?? 'workspace';
-    store.applyAlterations(pid, [
-      { op: 'create_node', id: rootId, parentId: null, content: pname, status: 'live', author: 'user' },
+      { op: 'create_node', id: t0, parentId: null, content: 'getting started (tutorial)', title: 'getting started', status: 'live', author: 'system' },
+      { op: 'create_node', id: k1, parentId: t0, content: 'this map takes notes for you — talk to Claude and topics file themselves here', status: 'live', author: 'system' },
+      { op: 'create_node', id: k2, parentId: t0, content: 'try it: press ▶ on a node to talk about it, ☀ to keep it in Claude\u2019s background, ◱ to view only that branch', status: 'live', author: 'system' },
+      { op: 'create_node', id: k3, parentId: t0, content: 'when real work shows up, delete this topic (✕) — everything is undoable (Ctrl/Cmd+Z)', status: 'live', author: 'system' },
     ], { kind: 'system' });
   }
   const chatId = randomUUID();
@@ -1413,7 +1412,7 @@ function ensureValidFocus() {
   if (!chat) return;
   const f = store.getNode(chat.focusContainerId);
   if (f && f.status !== 'removed') return;
-  const fallback = store.getNodes(projectId).find((n) => n.parentId === null && n.status !== 'removed');
+  const fallback = store.getNodes(projectId).find((n) => n.parentId === null && n.status !== 'removed' && !((n.title ?? n.content) ?? '').startsWith('to sort')) ?? store.getNodes(projectId).find((n) => n.parentId === null && n.status !== 'removed'); // M278: never "to sort" while another top-level node exists
   if (fallback) {
     applyFocus(mainChatId, fallback.id);
     chats.noteMapChange(mainChatId, `the focused node was deleted — focus moved to: "${fallback.title || fallback.content}"`);

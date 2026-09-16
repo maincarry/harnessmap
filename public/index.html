@@ -471,7 +471,7 @@
           <div id="other-more" hidden>
           <button id="enrich-btn" title="the map too coarse? the machinery reads this map's own conversation record, finds thin nodes that were discussed at length, and proposes the depth under them — you approve">✚ enrich map</button>
           <button id="map-check" title="review the whole map now — anything needing a restructure lands in the ⟳ to tidy folder, or you get a clean bill (the map also reviews itself every 10 rounds)">⟳ tidy map</button>
-          <div style="display:flex;gap:4px"><button id="tidy-top" style="flex:1" title="group and clean the top level — only here may the tidy agent propose domain containers and move top-level threads under them; you approve">⟳ tidy top level</button><button class="justdo" data-do="tidy-top" title="just do it: tidy the top level now and apply the proposal without review (one ↩ undo)">⚡</button></div>
+          <div style="display:flex;gap:4px"><button id="tidy-top" style="flex:1" title="tidy what you are looking at — the whole map, or the zoomed branch — the tidy agent proposes regrouping, renames and merges, containers at any level; you approve">⟳ tidy this view</button><button class="justdo" data-do="tidy-top" title="just do it: tidy this view now and apply the proposal without review (one ↩ undo)">⚡</button></div>
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
           <button id="auto-settings-btn" title="auto mode: choose what the map may do by itself after each round, and switch it on or off">◎ auto mode…</button>
           <button id="lit-all" title="light every node in the current view — all of it enters the chat agent's background">☀ light all (this view)</button>
@@ -1138,7 +1138,7 @@ function openDrawer() {
     ${act('auto-lit', '☀', 'auto-light')}
     ${act('auto-zoom', '◱', 'auto-zoom')}
     ${act('map-check', '⟳', 'tidy map')}
-    ${act('tidy-top', '⟳', 'tidy top level')}
+    ${act('tidy-top', '⟳', 'tidy this view')}
     <div class="dr-h">lighting</div>
     ${act('lit-all', '☀', 'light all (this view)')}
     ${act('dim-all', '◐', 'dim all (this view)')}
@@ -1765,7 +1765,7 @@ const CONTROLS = [
   ] },
   { g: 'Keep the map', sub: 'structure, names, and what goes onto it', items: [
     ['map-check', '⟳', 'tidy map', 'review the whole map; problems land as dots you approve'],
-    ['tidy-top', '⟳', 'tidy top level', 'group and clean the top level — the only place containers are made'],
+    ['tidy-top', '⟳', 'tidy this view', 'regroup, rename, merge what you are looking at — the whole map or the zoomed branch; containers at any level'],
     ['auto-rename', '✎', 'auto-rename', 'short display names for long-named nodes; applies directly'],
     ['enrich-btn', '✚', 'enrich map', 'deepen thin nodes from this map’s own conversation record'],
     ['import-btn', '⇪', 'import', 'notes, documents, or past sessions — one proposal you approve'],
@@ -1843,9 +1843,9 @@ function renderNudges() {
   if (mb) mb.hidden = !rootSug;
   const tt = $('tidy-top');
   if (tt) {
-    tt.innerHTML = `⟳ tidy top level${rootSug ? '<span class="nudge-dot">●</span>' : ''}`;
+    tt.innerHTML = `⟳ tidy this view${rootSug ? '<span class="nudge-dot">●</span>' : ''}`;
     if (rootSug) tt.title = `the map reviewer suggests: ${rootSug.note} — click to see the grouping proposal`;
-    tt.onclick = () => { $('other-menu').hidden = true; openReorganize(null, 'the top level', rootSug ? { skipConfirm: true, hint: rootSug.note, suggestionId: rootSug.id } : {}); };
+    tt.onclick = () => { $('other-menu').hidden = true; if (rootSug) openReorganize(null, 'the whole map', { skipConfirm: true, hint: rootSug.note, suggestionId: rootSug.id }); else openReorganize(zoomId ?? null, zoomId ? disp(node(zoomId)) : 'the whole map'); }; // M278
   }
 }
 
@@ -2188,15 +2188,13 @@ function openNodeDetail(id) {
       <input id="nd-status" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.status === 'live' ? '' : n.status ?? '')}" placeholder="(none)">
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Description (the full statement — the agents read this)</label>
       <textarea id="nd-desc" rows="4" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical">${esc(n.content)}</textarea>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">How it fits (parents above, children below — updates as they change)</label>
-      <div id="nd-rel" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">working out how this fits…</div>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Minimal — the whole node in one line</label>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">minimal — one sentence, the whole node (name · description · fit · modlog · chat memory) at its shortest</label>
       <div id="nd-min" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Medium — the whole node in up to 150 words</label>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">medium — the same five organs in up to 150 words; what the agent usually receives</label>
       <div id="nd-mem" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Everything — the whole node with its five organs (name · description · fit · modlog · chat memory), in full <button id="nd-long-toggle" class="hbtn" style="margin-left:6px;font-size:11px">show</button></label>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">long — the same five organs with nothing left out; served in full when the block has room <button id="nd-long-toggle" class="hbtn" style="margin-left:6px;font-size:11px">show</button></label>
       <pre id="nd-long" hidden style="border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);font:inherit;font-size:13px;line-height:1.5;color:var(--muted);white-space:pre-wrap;max-height:48vh;overflow:auto;margin:0">loading…</pre>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Remembered specifics (dated; struck through = superseded) — long serves everything above together</label>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">specifics — the dated facts behind the three lengths (struck through = superseded)</label>
       <div id="nd-det" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
       <button id="nd-expand" class="hbtn" style="display:none;margin-top:6px" title="the tidy agent proposes child nodes from this discussion — preview first, nothing changes until you apply">⟳ file this discussion onto the map</button>
       <div class="actions">
@@ -2208,8 +2206,8 @@ function openNodeDetail(id) {
   // M38: fetch the relational description lazily (cached server-side by
   // neighborhood hash — instant when nothing nearby changed).
   fetch(`/api/nodes/${id}/relations`).then(r => r.json()).then(r => {
-    const el = ov.querySelector('#nd-rel');
-    if (el) { el.textContent = r.text ?? `couldn't work it out: ${r.error ?? '?'}`; el.style.fontStyle = 'normal'; el.style.color = 'var(--ink)'; }
+    const el = ov.querySelector('#nd-rel'); // M279: no longer shown — fit is an organ inside every length; the relations text feeds the memory writer
+    if (el) { el.textContent = r.text ?? ''; }
   }).catch(() => {});
   // M41: per-node chat memory (read-only; the harness maintains it).
   fetch(`/api/nodes/${id}/memory`).then(r => r.json()).then(r => {
@@ -2455,12 +2453,12 @@ for (const b of document.querySelectorAll('.justdo')) b.onclick = async (e) => {
       const r = await post(`/api/chats/${S.mainChatId}/recommend`, { kind: 'zoom' });
       setZoom(r.containerId); await post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: r.containerId, focus: false });
       $('round-line').textContent = `⚡ zoomed the view into “${r.name}” (lighting unchanged)`;
-    } else if (what === 'tidy-top') openReorganize(null, 'the top level', { skipConfirm: true, justDo: true });
+    } else if (what === 'tidy-top') openReorganize(zoomId ?? null, zoomId ? disp(node(zoomId)) : 'the whole map', { skipConfirm: true, justDo: true });
   } catch (err) { $('round-line').textContent = `⚡ failed: ${err.message}`; }
 };
 
 // On-demand map check (Jacob): demand suggestions — or get the clean bill.
-$('tidy-top').onclick = () => { $('other-menu').hidden = true; openReorganize(null, 'the top level'); };
+$('tidy-top').onclick = () => { $('other-menu').hidden = true; openReorganize(zoomId ?? null, zoomId ? disp(node(zoomId)) : 'the whole map'); }; // M278: one tidy, over the current view
 $('enrich-btn').onclick = async () => {
   $('other-menu').hidden = true;
   $('round-line').textContent = '✚ reading the conversation record for depth…';

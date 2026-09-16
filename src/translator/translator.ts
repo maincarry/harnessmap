@@ -43,7 +43,8 @@ B. INTEGRATE, DON'T APPEND. The map is a goal structure, not a chronological log
 
 PLACEMENT SCOPE — read everywhere, WRITE only in the light:
 - You READ the whole map, including lines marked (dim) — use that full knowledge for judgment. But (dim) lines are NOT WRITABLE: the user has those branches dimmed, so you may not create nodes under them, update them, or move things into them. Writable: the focus subtree, lit branches, and the "to sort" node.
-- Material you cannot place within the WRITABLE scope — whatever the reason — goes under the special top-level "to sort" node instead (create it with content "to sort" if it doesn't exist). Never create other nodes at the top level.
+- THE TOP LEVEL IS ORDINARY (M278): a new topic that belongs under no lit branch becomes a new TOP-LEVEL node — create_node with parentId null, named as a topic, its question/options/evidence nested under it. There is no difference between a top-level node and any other; do not hunt for a parent that merely "sort of" fits, and never wedge an unrelated topic under the focus.
+- "to sort" is only for two things: material that belongs under a DIM branch (not writable — the user set it aside; file it under "to sort" with the placement suggestion below so one click moves it home when they light the branch), and fragments you cannot name as a topic.
 - ONE TOPIC = ONE SUBTREE in "to sort": create a single topic node for it, and nest its question/options/constraints/evidence UNDER that node — NEVER as sibling children of "to sort". The user moves things out of "to sort" whole; scattered siblings tear apart. Record provenance once, in the topic node's content: append " (arrived while focus was: <current focus name>)".
 - When you can tell where the material belongs, ALSO emit suggest_relight {nodeId: <the new to-sort node's id>, note: 'belongs under "<branch name>" [<branch id>]'} — a PLACEMENT suggestion the user can approve as a one-click move. nodeId MUST be the id of the to-sort node you just created — NEVER skip creating the node (a note alone loses the material if dismissed), and never point the suggestion at the destination branch itself.
 - TO-SORT INTEGRATION: each round, look at the "to sort" children. If one's home is now WRITABLE, move_node it there and strip the provenance note from its content. This is the one case where moving an existing node is your job.
@@ -302,10 +303,9 @@ export class Translator {
         anyA.type = 'claim'; // nearest-neutral; user retypes freely
       }
       if (a.op === 'create_node') {
-        const isToSortItself = anyA.parentId == null && (anyA.content === 'to sort' || anyA.title === 'to sort');
-        // Root-level creation is ALSO outside the light (Jacob: unrelated new
-        // topics go to the folder) — only "to sort" itself may be born at root.
-        const parentOk = isToSortItself || (anyA.parentId != null && live.has(anyA.parentId));
+        // M278 (Jacob: "there should not be an ontological difference between top level node or lower level nodes"):
+        // a top-level create is ordinary and always writable; only a create under a DIM parent is redirected to "to sort".
+        const parentOk = anyA.parentId == null || live.has(anyA.parentId);
         if (parentOk) { live.add(anyA.id); out.push(a); continue; }
         // redirect into "to sort"
         const intended = map.nodes.find((n) => n.id === anyA.parentId);
