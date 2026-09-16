@@ -556,6 +556,27 @@ console.log('\n== 6o. the backend is a choice that persists (M264) ==');
   check('an empty choice returns to auto-detection and removes the file', back.ok && back.source === 'auto' && !exB(join(HOME, 'backend')));
 }
 
+console.log('\n== 6p. updates: judged by commit, nudged once per build, self-update route (M265) ==');
+{
+  const st = await (await fetch(`${BASE}/api/state`)).json();
+  check('state carries the update info (current build, latest build, availability)', st.update && typeof st.update.available === 'boolean' && 'latestBuild' in st.update && st.update.build === st.build);
+  const uc = await (await fetch(`${BASE}/api/update-check`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json();
+  check('the update check reports the build comparison and whether this copy can update itself', typeof uc.canSelfUpdate === 'boolean' && 'updateBuild' in uc && uc.build === st.build);
+  // the nudge: a fake newer remote build is announced once at session start, then not again
+  const envN = { ...HOOK_ENV } as any;
+  const runN = (payload: any) => { const p = Bun.spawnSync(['bun', 'run', join('hooks', 'session-start.ts')], { env: envN, stdin: new TextEncoder().encode(JSON.stringify(payload)), stdout: 'pipe', stderr: 'pipe' }); return { code: p.exitCode, out: p.stdout.toString() }; };
+  await fetch(`${BASE}/api/dev/setting`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: 'latest_build', value: 'f00dbabe0000000000000000000000000000cafe' }) });
+  const n1 = runN({ session_id: 'upd-1', cwd: PROJ });
+  const n2 = runN({ session_id: 'upd-2', cwd: PROJ });
+  const nudged1 = /newer map is available \(build f00dbab/.test(ctxOf(n1.out)), nudged2 = /newer map is available/.test(ctxOf(n2.out));
+  check('a newer remote build is announced at session start, once, with "update map" as the way', n1.code === 0 && nudged1 && /update map/.test(ctxOf(n1.out)) && !nudged2, `first=${nudged1} second=${nudged2}`);
+  const up = await fetch(`${BASE}/api/update`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  const uj = await up.json();
+  const alive = (await fetch(`${BASE}/api/state`)).ok;
+  check('the self-update route answers honestly (nothing to pull on a current checkout, or a clear error) and the server stays up', (uj.ok === true && uj.changed === false) || (uj.ok === false && typeof uj.error === 'string'), JSON.stringify(uj).slice(0, 120));
+  check('server still answering after the update call', alive);
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');

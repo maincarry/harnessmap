@@ -135,7 +135,11 @@ function bootstrapProject(pid: string): string {
 // fetches ONLY the latest version number from GitHub (disclosed in the
 // README; fail-silent offline; HARNESSMAP_LATEST_OVERRIDE is the test seam).
 let latestKnown: string | null = store.getSetting('latest_ver') || null;
+// M265 (Jacob: "my codex version didn't change… couldn't the codex hook push user to update?"): during product
+// testing the version number rarely moves while the code does — "newer" is judged by the repo's main COMMIT too.
+let latestBuild: string | null = store.getSetting('latest_build') || null;
 async function checkLatest(force = false): Promise<string | null> {
+  if (process.env.HARNESSMAP_LATEST_BUILD_OVERRIDE) latestBuild = process.env.HARNESSMAP_LATEST_BUILD_OVERRIDE;
   if (process.env.HARNESSMAP_LATEST_OVERRIDE) { latestKnown = process.env.HARNESSMAP_LATEST_OVERRIDE; return latestKnown; }
   const last = Number(store.getSetting('latest_checked') ?? 0);
   if (!force && Date.now() - last < 20 * 3600_000) return latestKnown;
@@ -144,8 +148,52 @@ async function checkLatest(force = false): Promise<string | null> {
     const v = ((await r.json()) as any)?.version;
     if (typeof v === 'string' && v) { latestKnown = v; store.setSetting('latest_ver', v); }
   } catch { /* offline is fine */ }
+  if (!process.env.HARNESSMAP_LATEST_BUILD_OVERRIDE) {
+    try {
+      const r = await fetch('https://api.github.com/repos/maincarry/harnessmap/commits/main', { headers: { accept: 'application/vnd.github.sha', 'user-agent': 'harnessmap' }, signal: AbortSignal.timeout(4000) });
+      const sha = (await r.text()).trim();
+      if (r.ok && /^[0-9a-f]{40}$/.test(sha)) { latestBuild = sha; store.setSetting('latest_build', sha); }
+    } catch { /* offline is fine */ }
+  }
   store.setSetting('latest_checked', String(Date.now()));
   return latestKnown;
+}
+// The build on the repo's main differs from this server's — an update by commit (BUILD is a short sha; the remote a full one).
+const updateBuild = (): string | null => (latestBuild && BUILD && !latestBuild.startsWith(BUILD) && !BUILD.startsWith(latestBuild) ? latestBuild.slice(0, 7) : null);
+const updateInfo = () => ({ current: VERSION, build: BUILD, latest: latestKnown, latestBuild: latestBuild ? latestBuild.slice(0, 7) : null, available: Boolean(updateAvailable() || updateBuild()), kind: updateAvailable() ? 'version' : updateBuild() ? 'build' : null });
+// M265: the server updates itself — the installer's update half, run from the page or the "update map" skill:
+// pull, reinstall, respawn on the same env, exit. A non-git copy (a harness's plugin cache) cannot; it says how instead.
+let updating = false;
+async function selfUpdate(): Promise<{ ok: boolean; changed?: boolean; from?: string; to?: string; hooksChanged?: boolean; restarting?: boolean; error?: string; how?: string }> {
+  const root = join(here, '..');
+  if (!existsSync(join(root, '.git'))) return { ok: false, error: 'this copy of the map is not a git checkout', how: 'Claude Code: /plugin update map@harnessmap, then restart. Codex: rerun the one-line installer from the README.' };
+  if (updating) return { ok: false, error: 'an update is already running' };
+  updating = true;
+  try {
+    const git = (args: string[]) => { const r = Bun.spawnSync(['git', '-C', root, ...args], { stdout: 'pipe', stderr: 'pipe', timeout: 90_000 }); return { code: r.exitCode, out: r.stdout.toString().trim(), err: r.stderr.toString().trim() }; };
+    const from = BUILD;
+    const pull = git(['pull', '-q', '--ff-only']);
+    if (pull.code !== 0) return { ok: false, from, error: `git pull failed: ${(pull.err || pull.out).slice(-300)}` };
+    const to = git(['rev-parse', '--short', 'HEAD']).out;
+    if (!to || to === from) return { ok: true, changed: false, from, to: to || from };
+    try { Bun.spawnSync([process.execPath, 'install', '--production'], { cwd: root, stdout: 'ignore', stderr: 'ignore', timeout: 180_000 }); } catch {}
+    const changedFiles = git(['diff', '--name-only', `${from}..${to}`]).out.split('\n');
+    const hooksChanged = changedFiles.some((f) => f === 'hooks/codex-hooks.json' || f === 'hooks/build-codex-hooks.ts' || f === 'hooks/enable-codex.ts');
+    // Codex user-level hooks point at absolute paths under this checkout; if their DEFINITIONS changed, re-derive them
+    // (Codex then asks the user to trust the new definitions once — nothing here may forge that).
+    if (hooksChanged && existsSync(join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'hooks.json'))) {
+      try { Bun.spawnSync([process.execPath, 'run', 'hooks/enable-codex.ts', '--force'], { cwd: root, stdout: 'ignore', stderr: 'ignore', timeout: 30_000 }); } catch {}
+    }
+    store.audit('self_update', { from, to, hooksChanged });
+    // Respawn on the same environment (home, db, port), then leave; the child waits for the port to free up.
+    const home = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
+    try { mkdirSync(home, { recursive: true }); } catch {}
+    const log = Bun.file(join(home, 'server.log'));
+    Bun.spawn([process.execPath, 'run', 'src/server.ts'], { cwd: root, stdout: log, stderr: log, stdin: 'ignore', env: { ...process.env, HARNESSMAP_WAIT_PORT: '1' }, detached: true }).unref();
+    setTimeout(() => process.exit(0), 700);
+    return { ok: true, changed: true, from, to, hooksChanged, restarting: true };
+  } catch (err) { return { ok: false, error: String(err).slice(0, 300) }; }
+  finally { updating = false; }
 }
 const newer = (a: string, b: string) => { // is a newer than b (x.y.z)
   const A = a.split('.').map(Number), B = b.split('.').map(Number);
@@ -1321,6 +1369,7 @@ function state() {
     home: (() => { const h = store.getSetting(`home:${projectId}`); return h && store.getNode(h)?.status !== 'removed' ? h : null; })(),
     influenceOff: influenceOff(projectId),
     auto: autoSettings(projectId), // M263
+    update: updateInfo(), // M265
     undoNext: store.listUndo(projectId, 1)[0]?.label ?? null, // M263b: the button says what it would take back
     updateAvailable: updateAvailable(),
     feedbackEmail: process.env.HARNESSMAP_FEEDBACK_EMAIL ?? 'yuhinc@sas.upenn.edu',
@@ -1357,6 +1406,12 @@ function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
 }
 
+// M265: after a self-update the new server starts while the old one is still leaving — wait for the port.
+if (process.env.HARNESSMAP_WAIT_PORT) {
+  for (let i = 0; i < 40; i++) {
+    try { const probe = Bun.listen({ hostname: HOST, port: PORT, socket: { data() {} } }); probe.stop(true); break; } catch { Bun.sleepSync(250); }
+  }
+}
 const server = Bun.serve({
   port: PORT,
   hostname: HOST,
@@ -2745,7 +2800,12 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // M161: menu-triggered update check.
     if (path === '/api/update-check' && req.method === 'POST') {
       await checkLatest(true);
-      return json({ current: VERSION, latest: latestKnown, updateAvailable: updateAvailable(), backend: backendName(), harnesses: Object.keys(harnessAvailability()).filter((k) => (harnessAvailability() as any)[k]) });
+      return json({ current: VERSION, latest: latestKnown, updateAvailable: updateAvailable(), updateBuild: updateBuild(), build: BUILD, canSelfUpdate: existsSync(join(here, '..', '.git')), backend: backendName(), harnesses: Object.keys(harnessAvailability()).filter((k) => (harnessAvailability() as any)[k]) });
+    }
+    // M265: update from the page or the "update map" skill — pull, reinstall, restart; the reply comes before the restart.
+    if (path === '/api/update' && req.method === 'POST') {
+      const r = await selfUpdate();
+      return json(r, r.ok ? 200 : 409);
     }
 
     // M159b: feedback log — local record of what the user chose to report.
@@ -2772,6 +2832,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const b2 = (await req.json()) as { key: string; value: string };
       store.setSetting(b2.key, b2.value);
       if (b2.key === 'latest_ver') latestKnown = b2.value || null;
+      if (b2.key === 'latest_build') latestBuild = b2.value || null; // M265 seam
       if (b2.key === 'memory_serving' || b2.key === 'map_budget') reAnchorPanes(projectId); // a serving-mode change recomposes the pane next turn
       return json({ ok: true });
     }
@@ -3025,13 +3086,17 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // M161: one concise upgrade line, on session start only, at most once
       // a day — never per prompt, never repeated (Mark: no bombardment).
       checkLatest().catch(() => {});
-      const uv = updateAvailable();
-      const today = new Date().toISOString().slice(0, 10);
-      if (uv && store.getSetting('update_nudged') !== today && !influenceOff((body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId)) {
-        store.setSetting('update_nudged', today);
-        announce = [announce, harness === 'codex'
-          ? `[harnessmap] upgrade available (v${uv}): rerun the one-line installer from the README (it pulls the update and restarts the map server). Tell the user in one short line.`
-          : `[harnessmap] upgrade available (v${uv}): run /plugin update map@harnessmap (then restart) to upgrade. Tell the user in one short line.`].filter(Boolean).join('\n');
+      const uv = updateAvailable(); const ub = updateBuild();
+      // M265: once per NEW build (not per day) — the map is in product testing and moves by commit.
+      const nudgeKey = uv ? `v${uv}` : ub ? `b${ub}` : null;
+      if (nudgeKey && store.getSetting('update_nudged') !== nudgeKey && !influenceOff((body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId)) {
+        store.setSetting('update_nudged', nudgeKey);
+        const what = uv ? `v${uv}` : `build ${ub}`;
+        announce = [announce, existsSync(join(here, '..', '.git'))
+          ? `[harnessmap] a newer map is available (${what}; this one is ${BUILD || VERSION}). The user can say "update map" — the map skill updates and restarts the map server in about 20 seconds, no terminal needed — or press ⬆ on the map page. Tell the user in one short line; do not update on your own.`
+          : harness === 'codex'
+            ? `[harnessmap] a newer map is available (${what}): rerun the one-line installer from the README (it pulls the update and restarts the map server). Tell the user in one short line.`
+            : `[harnessmap] a newer map is available (${what}): run /plugin update map@harnessmap (then restart) to upgrade. Tell the user in one short line.`].filter(Boolean).join('\n');
       }
       const pid2 = (body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId;
       store.metric(pid2, 'session.start');
