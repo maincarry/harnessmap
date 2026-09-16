@@ -1,0 +1,72 @@
+{
+  "name": "a pinned depth is served: whole story for a pinned node away from the focus; one line for a node pinned at one line (M282)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Garden redesign: layout, plants, irrigation"
+    },
+    {
+      "key": "layout",
+      "content": "Layout: raised beds along the south fence, a gravel path, a small seating corner",
+      "parent": "proj"
+    },
+    {
+      "key": "plants",
+      "content": "Plants: tomatoes, basil, a fig tree, lavender along the path",
+      "parent": "proj"
+    },
+    {
+      "key": "irrig",
+      "content": "Irrigation: drip lines on a timer, rain barrel feed",
+      "parent": "proj"
+    }
+  ],
+  "focus": "layout",
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "user": "For the layout: the raised beds should be three, each 2.4 by 1.2 metres, cedar, 45 cm high, and the path 90 cm wide so the wheelbarrow fits.",
+      "assistant": "Layout details recorded: three cedar raised beds 2.4×1.2 m, 45 cm high; gravel path 90 cm wide for the wheelbarrow.",
+      "then": [
+        {
+          "do": "pin",
+          "key": "irrig",
+          "depth": 2
+        },
+        {
+          "do": "pin",
+          "key": "plants",
+          "depth": 0
+        },
+        {
+          "do": "wait",
+          "ms": 12000
+        }
+      ]
+    },
+    {
+      "user": "And the seating corner: a bench under the fig, facing west for the evening light.",
+      "assistant": "Added to the layout: a bench under the fig tree in the seating corner, facing west.",
+      "then": [
+        {
+          "nodeMatching": "bench|seating",
+          "under": "layout"
+        },
+        {
+          "servedAtLeast": "irrig",
+          "is": 2
+        },
+        {
+          "servedAt": "plants",
+          "is": 0
+        },
+        {
+          "servedAtLeast": "layout",
+          "is": 2
+        }
+      ]
+    }
+  ]
+}

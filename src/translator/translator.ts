@@ -298,6 +298,8 @@ export class Translator {
     };
     for (const a of alterations) {
       const anyA: any = a;
+      // M285 (loop find): a title the person typed on the card is theirs — the filer's update may change the statement, never that title
+      if (a.op === 'update_node' && anyA.title !== undefined && anyA.id && this.store.getSetting(`titleBy:${anyA.id}`) === 'user') { delete anyA.title; this.store.audit('guard_hand_title', { id: String(anyA.id).slice(0, 8) }); }
       if ((a.op === 'create_node' || a.op === 'update_node') && anyA.type && !CANON_TYPES.includes(anyA.type)) {
         this.store.audit('offlist_type', { type: anyA.type });
         anyA.type = 'claim'; // nearest-neutral; user retypes freely

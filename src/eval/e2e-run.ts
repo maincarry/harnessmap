@@ -79,6 +79,8 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'dim') await post(`/api/chats/${cid()}/lit`, { nodeId: keys[a.key], on: false });
         else if (a.do === 'release') await post(`/api/chats/${cid()}/release`, { nodeId: keys[a.key] });
         else if (a.do === 'pin') await post(`/api/chats/${cid()}/depth`, { nodeId: keys[a.key], depth: a.depth ?? null });
+        else if (a.do === 'title') await post(`/api/nodes/${keys[a.key]}`, { title: a.title, chatId: cid() }); // a title typed on the card
+        else if (a.do === 'wait') await sleep(a.ms ?? 5000);
         s = await state(); continue;
       }
       const f = chatOf(s).focusContainerId; const ts = toSortOf(s);
@@ -96,6 +98,9 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.countUnder) check(label, (s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length <= a.max, `count=${(s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length}`);
       else if (a.topLevelMatching) check(label, (s.nodes ?? []).some((n: any) => n.parentId === null && match(s, n, a.topLevelMatching)));
       else if (a.undoNext) check(label, rx(a.undoNext).test(s.undoNext ?? ''), `undoNext=${s.undoNext}`);
+      else if (a.servedAt !== undefined) { const d = s.served ? s.served[keys[a.servedAt]] : undefined; check(label, d === a.is, `served=${d} pinsUnmet=${(s.pinsUnmet ?? []).includes(keys[a.servedAt])}`); }
+      else if (a.servedAtLeast !== undefined) { const d = s.served ? s.served[keys[a.servedAtLeast]] : undefined; check(label, d !== undefined && d >= a.is, `served=${d} pinsUnmet=${(s.pinsUnmet ?? []).includes(keys[a.servedAtLeast])}`); }
+      else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }
   }

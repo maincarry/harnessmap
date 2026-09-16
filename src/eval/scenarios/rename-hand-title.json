@@ -1,0 +1,56 @@
+{
+  "name": "a title typed on the card survives auto rename and the healer; an agent-made stale title is refreshed (M282)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Kitchen renovation: budget, contractor, timeline"
+    },
+    {
+      "key": "cab",
+      "content": "Cabinets: we were going to reuse the old oak cabinets and repaint them white",
+      "parent": "proj"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "rounds": [
+    {
+      "user": "Quick check-in on the renovation: nothing new yet, just opening the file.",
+      "assistant": "Understood — nothing new; the renovation notes stand.",
+      "then": [
+        {
+          "do": "title",
+          "key": "cab",
+          "title": "Cabinet plan (mine)"
+        },
+        {
+          "titleOf": "cab",
+          "is": "^Cabinet plan \\(mine\\)$"
+        }
+      ]
+    },
+    {
+      "user": "On the cabinets, we've changed our mind completely — the old oak is warped, so we are buying new flat-panel cabinets in matte navy from the Swedish place, delivery in three weeks.",
+      "assistant": "Updated: the cabinets are no longer reused; new flat-panel matte navy cabinets from the Swedish supplier, delivery in three weeks.",
+      "then": [
+        {
+          "do": "wait",
+          "ms": 15000
+        },
+        {
+          "titleOf": "cab",
+          "is": "^Cabinet plan \\(mine\\)$"
+        },
+        {
+          "nodeMatching": "navy|flat-panel",
+          "under": "proj"
+        },
+        {
+          "noAudit": "auto_renamed"
+        }
+      ]
+    }
+  ]
+}
