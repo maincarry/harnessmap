@@ -1,0 +1,40 @@
+{
+ "name": "one round per (session, text) within ten minutes: the same exchange observed twice files once (M270)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Podcast launch"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Episode one is an interview with the harbour master about the tide tables; record on the 3rd.",
+   "assistant": "Episode 1: harbour master, tide tables, recording on the 3rd.",
+   "then": [
+    {
+     "nodeMatching": "harbour|tide"
+    }
+   ]
+  },
+  {
+   "user": "Episode one is an interview with the harbour master about the tide tables; record on the 3rd.",
+   "assistant": "Episode 1: harbour master, tide tables, recording on the 3rd.",
+   "then": [
+    {
+     "audit": "observe_dup"
+    },
+    {
+     "newNodes": 0
+    },
+    {
+     "countUnder": "proj",
+     "max": 3
+    }
+   ]
+  }
+ ]
+}

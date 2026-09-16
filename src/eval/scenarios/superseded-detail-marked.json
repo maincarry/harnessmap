@@ -1,0 +1,61 @@
+{
+ "name": "a corrected number is kept as a superseded detail, never deleted (M211): the old value stays on record, marked",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Van conversion"
+  },
+  {
+   "key": "solar",
+   "parent": "proj",
+   "content": "Solar: roof panels and the leisure battery"
+  }
+ ],
+ "focus": "solar",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The roof takes two 200 W panels, so 400 W total, feeding a 100 Ah lithium battery.",
+   "assistant": "Solar: two 200 W panels (400 W) into a 100 Ah lithium battery.",
+   "then": [
+    {
+     "do": "wait",
+     "ms": 8000
+    },
+    {
+     "detailOf": "solar",
+     "text": "400|200 W"
+    }
+   ]
+  },
+  {
+   "user": "Correction: the roof only fits one 200 W panel plus a 100 W one, so 300 W total. Battery stays 100 Ah.",
+   "assistant": "Corrected: 200 W + 100 W = 300 W of panels; battery still 100 Ah.",
+   "then": [
+    {
+     "do": "wait",
+     "ms": 8000
+    },
+    {
+     "detailOf": "solar",
+     "text": "300"
+    },
+    {
+     "detailOf": "solar",
+     "text": "400",
+     "status": "superseded"
+    },
+    {
+     "memoryHas": "solar",
+     "field": "medium",
+     "text": "300"
+    },
+    {
+     "noNodeMatching": "^(?!.*300).*400 W"
+    }
+   ]
+  }
+ ]
+}

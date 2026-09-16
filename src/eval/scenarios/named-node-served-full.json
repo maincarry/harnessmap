@@ -1,0 +1,49 @@
+{
+ "name": "the question is the consent: a lit node the prompt names by title is served at the top of the block with its statement, ahead of the warmth order (M85)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Bakery opening"
+  },
+  {
+   "key": "menu",
+   "parent": "proj",
+   "content": "Opening menu: sourdough, rye, croissants and a seasonal tart"
+  },
+  {
+   "key": "lease",
+   "parent": "proj",
+   "content": "The lease on Mill Street runs five years with a break clause at year two and rent of 2,400 a month"
+  },
+  {
+   "key": "staff",
+   "parent": "proj",
+   "content": "Staffing: two bakers from 4 am, one counter person from 7 am"
+  }
+ ],
+ "focus": "menu",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Add a cardamom bun to the opening menu.",
+   "assistant": "Cardamom bun added to the opening menu.",
+   "then": [
+    {
+     "do": "context",
+     "prompt": "Remind me what the lease says about the break clause."
+    },
+    {
+     "contextHas": "break clause|year two"
+    },
+    {
+     "contextHas": "2,400|2400"
+    },
+    {
+     "contextHas": "what you just asked about|lease"
+    }
+   ]
+  }
+ ]
+}

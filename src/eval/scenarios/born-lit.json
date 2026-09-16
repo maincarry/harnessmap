@@ -1,0 +1,34 @@
+{
+ "name": "new nodes are born lit in the view that made them; a second view sees them too (M66)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Allotment plot 14"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "We are putting potatoes in the north bed and beans on the trellis along the fence this year.",
+   "assistant": "North bed: potatoes. Fence trellis: beans.",
+   "then": [
+    {
+     "nodeMatching": "potato",
+     "under": "proj"
+    },
+    {
+     "litMatching": "potato"
+    },
+    {
+     "litMatching": "bean|trellis"
+    },
+    {
+     "newNodes": 4
+    }
+   ]
+  }
+ ]
+}

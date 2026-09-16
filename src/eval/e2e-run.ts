@@ -15,7 +15,8 @@ import { join, basename } from 'node:path';
 const file = process.argv[2]; if (!file) { console.error('usage: e2e-run.ts <scenario.json>'); process.exit(2); }
 const sc = JSON.parse(readFileSync(file, 'utf8'));
 const PORT = Number(process.env.E2E_PORT ?? 8792); const BASE = `http://127.0.0.1:${PORT}`;
-const TMP = `/tmp/claude-1000/harnessmap-e2e-${basename(file, '.json')}`; const DB = join(TMP, 'e2e.sqlite');
+const TMP = `/tmp/claude-1000/harnessmap-e2e-${basename(file, '.json')}${process.env.E2E_MODELS ? `-${process.env.E2E_MODELS}` : ''}`;
+const DB = join(TMP, 'e2e.sqlite'); // TMP is per ensemble: a batch may run the same scenario on two ensembles at once
 let pass = 0, fail = 0; const notes: string[] = [];
 const check = (name: string, cond: boolean, detail = '') => { if (cond) { pass++; console.log(`  PASS ${name}`); } else { fail++; console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`); notes.push(`${name}${detail ? ` — ${detail}` : ''}`); } };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -74,8 +75,9 @@ async function round(user: string, assistant: string, session = 'e2e-1', roundHa
   const t0 = Date.now();
   const nodesBefore = ((await state()).nodes ?? []).length;
   const before = await filerCount(); const autoBefore = (await audit()).filter((r: any) => /^auto_/.test(r.kind)).length;
-  await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness, forked_from: roundFork ?? null });
-  for (let i = 0; i < 40; i++) { await sleep(3000); if ((await filerCount()) > before) break; }
+  const ob = await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness, forked_from: roundFork ?? null });
+  const dup = ob.body?.reason === 'duplicate round'; // M270: nothing will be filed — do not wait for it
+  for (let i = 0; i < 40 && !dup; i++) { await sleep(3000); if ((await filerCount()) > before) break; }
   if (sc.auto?.on) { for (let i = 0; i < 30; i++) { await sleep(3000); if ((await audit()).filter((r: any) => /^auto_/.test(r.kind)).length > autoBefore) break; } }
   await sleep(sc.settleMs ?? 6000);
   s = await state();
@@ -182,6 +184,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.markOf) { const n = (s.nodes ?? []).find((x: any) => match(s, x, a.markOf)); const m = n ? (s.recency ?? {})[n.id] ?? null : undefined; check(label, n !== undefined && m === a.is, n ? `mark=${m}` : 'no node matched'); }
       else if (a.summaryHas) { const c = (s.chats ?? []).find((x: any) => x.id === cid()); check(label, !!c && rx(a.summaryHas).test(c.summary ?? ''), `summary=${(c?.summary ?? '(none)').slice(0, 120)}`); }
       else if (a.recUnder) { const id = lastRec?.containerId; check(label, !!id && (id === keys[a.recUnder] || under(s, id, keys[a.recUnder])), lastRec ? `rec=${lastRec.name} (${(lastRec.reason ?? '').slice(0, 80)})` : 'no recommendation'); }
+      else if (a.detailOf) { const m = await get(`/api/nodes/${keys[a.detailOf]}/memory`); const ds = (m?.details ?? []) as any[]; const hit = ds.find((d: any) => rx(a.text).test(String(d.text ?? d.detail ?? ''))); check(label, !!hit && (!a.status || String(hit.status ?? 'live') === a.status), ds.length ? ds.map((d: any) => `${d.status ?? 'live'}: ${String(d.text ?? d.detail ?? '').slice(0, 60)}`).join(' | ') : 'no details'); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }

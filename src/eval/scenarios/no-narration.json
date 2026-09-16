@@ -1,0 +1,42 @@
+{
+ "name": "nodes state facts, never narrate the dialogue (M64): no node reads 'the user asked' or 'the assistant said'",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Moving house"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Can you tell me what I should sort out first for the move?",
+   "assistant": "First the lease notice (60 days), then the movers' quote, then the address changes.",
+   "then": [
+    {
+     "noNodeMatching": "the user (asked|said|wants)|the assistant|you asked|I told"
+    },
+    {
+     "nodeMatching": "notice|60 days|movers|address"
+    }
+   ]
+  },
+  {
+   "user": "Ok, and I asked the landlord: notice is 90 days, not 60.",
+   "assistant": "Noted: the notice period is 90 days.",
+   "then": [
+    {
+     "noNodeMatching": "the user (asked|said|wants)|the assistant|you asked|I told"
+    },
+    {
+     "nodeMatching": "90.day|ninety"
+    },
+    {
+     "noNodeMatching": "^(?!.*90).*60.day"
+    }
+   ]
+  }
+ ]
+}
