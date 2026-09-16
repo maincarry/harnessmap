@@ -45,6 +45,9 @@ check('a round that stayed inside the focus does not re-aim', roundLeftFocus(st,
 check('a round that touched the focus node itself does not re-aim', roundLeftFocus(st, 'A', [{ op: 'update_node', id: 'A' }]) === false);
 check('a round that landed outside the focus re-aims', roundLeftFocus(st, 'A', [{ op: 'update_node', id: 'a1' }, { op: 'create_node', id: 'b1' }]) === true);
 check('a round with nothing filed does not re-aim', roundLeftFocus(st, 'A', []) === false);
+check('a focus that is the whole map (the only top-level topic) is no aim: every filed round re-aims', roundLeftFocus(st, 'root', [{ op: 'update_node', id: 'a1' }]) === true);
+st.applyAlterations(pid, [{ op: 'create_node', id: 'root2', parentId: null, content: 'Second area', title: 'Second area', status: 'live', author: 'user' }] as any, { kind: 'system' } as any);
+check('with two top-level topics, a top-level focus is a real aim again (inside = skip)', roundLeftFocus(st, 'root', [{ op: 'update_node', id: 'a1' }]) === false);
 
 // 4. exact restore (the undo of an aim)
 const rows = st.getLitRows('c1');

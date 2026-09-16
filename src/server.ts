@@ -851,11 +851,13 @@ function announceAuto(pid: string, chatId: string, line: string, extra: Record<s
 }
 // The per-round pass: placement out of to-sort, stale titles, then the aim.
 let autoBusy = false;
-async function runAuto(pid: string, chatId: string, userText: string, assistantText: string, alterations: any[]): Promise<void> {
+async function runAuto(pid: string, chatId: string, userText: string, assistantText: string, alterations: any[], roundSummary = ''): Promise<void> {
   const a = autoActive(pid); if (!a) return;
   if (lag > 0) return; // more rounds queued: the last one aims
   if (autoBusy) return;
   autoBusy = true;
+  // Never silent: when auto mode is on and does nothing, the round line says why (a quiet suffix, no undo chip).
+  const quiet: string[] = [];
   try {
     const chat = store.getChat(chatId); if (!chat || chat.projectId !== pid) return;
     const lines: string[] = [];
@@ -913,21 +915,21 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         const tail = `USER: ${userText.slice(-1500)}\n\nAGENT: ${assistantText.slice(-1500)}`;
         if (a.focus) {
           const r = await proposeReaim(store, pid, chatId, tail);
-          if ('error' in r) store.audit('auto_aim_error', { error: r.error });
-          else { const res = applyAim(chatId, r, { focus: true, light: a.light, source: 'auto' }); if (res.focusChanged || res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
+          if ('error' in r) { store.audit('auto_aim_error', { error: r.error }); quiet.push(`aim failed: ${r.error.slice(0, 80)}`); }
+          else { const res = applyAim(chatId, r, { focus: true, light: a.light, source: 'auto' }); if (res.focusChanged || res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); else quiet.push('aim unchanged'); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
         } else {
           const r = await proposeAutolit(store, pid, chatNow.focusContainerId, store.getLit(chatId));
-          if ('error' in r) store.audit('auto_aim_error', { error: r.error });
-          else { const res = applyAim(chatId, { lit: r.lit, dim: r.dim, summary: r.summary }, { focus: false, light: true, source: 'auto' }); if (res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
+          if ('error' in r) { store.audit('auto_aim_error', { error: r.error }); quiet.push(`light failed: ${r.error.slice(0, 80)}`); }
+          else { const res = applyAim(chatId, { lit: r.lit, dim: r.dim, summary: r.summary }, { focus: false, light: true, source: 'auto' }); if (res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); else quiet.push('light unchanged'); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
         }
-      } else store.audit('auto_aim_skip', { why: 'round stayed inside the focus' });
-    }
+      } else { store.audit('auto_aim_skip', { why: 'round stayed inside the focus' }); quiet.push('stayed inside the focus, no re-aim'); }
+    } else if ((a.focus || a.light) && importPending(pid)) quiet.push('an import is pending, no re-aim');
     if (lines.length) {
       const f = store.getChat(chatId)?.focusContainerId;
       const parent = f ? store.getNode(f)?.parentId ?? null : null;
       announceAuto(pid, chatId, `auto mode: ${lines.join(' · ')}`, { undo: true, zoom: a.zoom ? parent : undefined });
-    }
-  } catch (err) { store.audit('auto_mode_error', { error: String(err).slice(0, 200) }); }
+    } else broadcast({ type: 'auto', chatId, line: `↳ ${roundSummary} · auto mode: ${quiet.join(', ') || 'nothing to do'}`, undo: false });
+  } catch (err) { store.audit('auto_mode_error', { error: String(err).slice(0, 200) }); broadcast({ type: 'auto', chatId, line: `auto mode failed: ${String(err).slice(0, 100)}`, undo: false }); }
   finally { autoBusy = false; }
 }
 // 4. tidy (off by default): the review's own proposal self-applies when it is small and non-destructive; anything bigger stays in ⟳ to tidy.
@@ -1190,7 +1192,7 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
       // M68: heal any broken display names this round left behind.
       healTitles(5, roundPid).catch(() => {});
       // M263: auto mode — place, rename, aim (each its own undo entry; announced on the page).
-      runAuto(roundPid, params.chatId, params.userText, params.assistantText, out.result.alterations as any[]).catch(() => {});
+      runAuto(roundPid, params.chatId, params.userText, params.assistantText, out.result.alterations as any[], out.result.summary).catch(() => {});
       // M41: fold this exchange into the focus node's chat memory (async).
       // M191: the round's provenance rides along so new facts carry links.
       const roundProv = params.provenance ? {

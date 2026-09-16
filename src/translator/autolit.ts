@@ -241,10 +241,20 @@ export function aimCascade(store: Store, lit: string[], dim: string[], keep: Set
 
 // M263: the skip rule — a round whose changes all fell inside the current
 // focus (or touched nothing) has nothing to re-aim.
+// A focus that is the map's whole root (the only top-level topic, everything
+// beneath it) is no aim at all — every round "stays inside" it. Such a map
+// re-aims on every filed round until the focus narrows (Jacob, 2026-09-15:
+// "auto mode is not working" on a fresh map).
 export function roundLeftFocus(store: Store, focusId: string | null, alterations: any[]): boolean {
   const touched = alterations.map((a) => a?.id ?? a?.nodeId).filter(Boolean) as string[];
   if (!touched.length) return false;
   if (!focusId) return true;
+  const f = store.getNode(focusId);
+  if (!f) return true;
+  if (f.parentId === null) {
+    const tops = store.getNodes(f.projectId).filter((n) => n.parentId === null && n.status !== 'removed' && !((n.title ?? n.content) ?? '').startsWith('to sort'));
+    if (tops.length <= 1) return true; // the whole map is the focus: unaimed
+  }
   const inside = new Set([focusId, ...descendantNodes(store, focusId)]);
   return touched.some((id) => !inside.has(id));
 }
