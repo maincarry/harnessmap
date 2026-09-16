@@ -1,0 +1,45 @@
+{
+ "name": "'tell me more about X' files the facts as children under X, not as a narration node (M75)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Mesh wifi choice"
+  },
+  {
+   "key": "nest",
+   "parent": "proj",
+   "content": "Google Nest WiFi Pro: simple setup, wired backhaul supported"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "tell me more about the google nest",
+   "assistant": "Nest WiFi Pro: Wi-Fi 6E on the 6 GHz band (fast, shorter range); the 2-pack runs about $200–230; the app shows connected devices and a speed test but no per-device bandwidth; port forwarding is limited and there is no VLAN support.",
+   "then": [
+    {
+     "nodeMatching": "6 GHz|6E",
+     "under": "nest"
+    },
+    {
+     "nodeMatching": "200|230|\\$",
+     "under": "nest"
+    },
+    {
+     "nodeMatching": "VLAN|port forward",
+     "under": "nest"
+    },
+    {
+     "noNodeMatching": "user asked|tell me more|the user (wants|asked)"
+    },
+    {
+     "countUnder": "proj",
+     "max": 3
+    }
+   ]
+  }
+ ]
+}

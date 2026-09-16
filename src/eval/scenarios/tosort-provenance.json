@@ -1,0 +1,48 @@
+{
+ "name": "a stray whose home is dim lands in to sort and carries where it arrived from (M55/M77: arrivals carry provenance)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Thesis"
+  },
+  {
+   "key": "ch1",
+   "parent": "proj",
+   "content": "Chapter 1: trust in local news"
+  },
+  {
+   "key": "travel",
+   "parent": "proj",
+   "content": "Travel: the Lisbon conference in October"
+  }
+ ],
+ "focus": "ch1",
+ "dim": [
+  "travel"
+ ],
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "By the way, the Lisbon hotel is booked for the 12th to the 15th.",
+   "assistant": "Noted: Lisbon hotel, 12th to 15th.",
+   "then": [
+    {
+     "inToSort": "hotel|12th"
+    },
+    {
+     "nodeMatching": "hotel|12th",
+     "notUnder": "travel"
+    },
+    {
+     "nodeMatching": "arrived while"
+    },
+    {
+     "suggestionFor": "hotel|12th",
+     "kind": "relight"
+    }
+   ]
+  }
+ ]
+}

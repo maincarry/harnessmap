@@ -321,6 +321,15 @@ export class Translator {
       // M302 (loop find, bug under M64/M271): a narrated move ("User requested to resume discussing internet setup") is not a fact —
       // the transcript's job, and the focus already records it. Dropped mechanically; the prompt says the same.
       if (a.op === 'create_node' && typeof anyA.content === 'string' && /^(the )?(user|person|they) (asked|requested|wants?|wanted|would like|decided) to (resume|return|switch|go back|come back|pick (it |this )?back|talk|discuss|set aside|move on)/i.test(anyA.content.trim())) { this.store.audit('guard_narration', { content: anyA.content.slice(0, 80) }); continue; }
+      // M305b (loop find, same rule): a narrating clause inside an otherwise fine statement ("Rocket design: user wants to talk about it; angle
+      // not yet narrowed") is cut out, never the node — dropping it would be the over-skip Jacob reported (M302b).
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string') {
+        const src = String(anyA.content).trim();
+        let trimmed = src.replace(/\b(the )?(user|person) (asked|requested|wants?|wanted|would like|decided) to (resume|return to|switch to|talk about|discuss|explore|open|dig into)[^.;—\n]*[.;,]?\s*/gi, '')
+          .replace(/([:;,—-])\s*[;,.]\s*/g, '$1 ').replace(/\s+([;,.])/g, '$1').replace(/^\s*[:;,—-]+\s*/, '').replace(/\s*[:;,—-]+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+        if (trimmed && /[.!?]$/.test(src) && !/[.!?]$/.test(trimmed)) trimmed += '.';
+        if (trimmed && trimmed !== src && trimmed.length >= 12) { this.store.audit('guard_narration_trim', { from: anyA.content.slice(0, 80), to: trimmed.slice(0, 80) }); anyA.content = trimmed; }
+      }
       // M285 (loop find): a title the person typed on the card is theirs — the filer's update may change the statement, never that title
       if (a.op === 'update_node' && anyA.title !== undefined && anyA.id && this.store.getSetting(`titleBy:${anyA.id}`) === 'user') { delete anyA.title; this.store.audit('guard_hand_title', { id: String(anyA.id).slice(0, 8) }); }
       if ((a.op === 'create_node' || a.op === 'update_node') && anyA.type && !CANON_TYPES.includes(anyA.type)) {
@@ -378,7 +387,22 @@ export class Translator {
         continue;
       }
       if (a.op === 'update_node' || a.op === 'move_node') {
-        if (!live.has(anyA.id)) { this.store.audit('guard_dim_drop', { op: a.op }); continue; }
+        if (!live.has(anyA.id)) {
+          // M305 (loop find, bug under M77/M55): an update aimed at a DIM node used to be dropped whole, and the material with it
+          // (a hotel booking said while Travel was dim vanished). Out-of-light material lands in "to sort" with its provenance and
+          // a one-click placement — so the new statement goes there, pointing at the dim home.
+          const dimNode = a.op === 'update_node' ? map.nodes.find((n) => n.id === anyA.id) : undefined;
+          const newContent = typeof anyA.content === 'string' ? anyA.content.trim() : '';
+          if (dimNode && newContent && newContent !== dimNode.content.trim()) {
+            const home = ensureToSort();
+            const newId = randomUUID();
+            out.push({ op: 'create_node', id: newId, parentId: home, content: `${newContent} (arrived while focus was: ${focusName})`, type: anyA.type ?? dimNode.type, status: 'exploratory', author: 'agent' } as any);
+            out.push({ op: 'suggest_relight', nodeId: newId, note: `belongs under "${dimNode.title || dimNode.content.slice(0, 50)}" [${dimNode.id.slice(0, 8)}]` } as any);
+            this.store.audit('guard_dim_redirect', { id: String(anyA.id).slice(0, 8) });
+            continue;
+          }
+          this.store.audit('guard_dim_drop', { op: a.op }); continue;
+        }
         if (a.op === 'move_node' && anyA.parentId && !live.has(anyA.parentId)) { this.store.audit('guard_dim_drop', { op: 'move_node' }); continue; }
         out.push(a);
         continue;

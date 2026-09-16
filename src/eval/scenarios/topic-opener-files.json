@@ -1,0 +1,39 @@
+{
+ "name": "a topic opener with no facts yet ('let's talk about philosophy') still makes a node — a new topic always lands (M64); regression for M302b (Jacob 2026-09-16: 'it says I talked about nothing')",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Home internet setup"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "let's talk about philosophy",
+   "assistant": "Happy to. Where do you want to start — ethics, mind, knowledge, or a particular thinker?",
+   "then": [
+    {
+     "nodeMatching": "philosoph"
+    },
+    {
+     "newNodes": 6
+    }
+   ]
+  },
+  {
+   "user": "Want to talk about rocket design",
+   "assistant": "Sure. Conceptual (how rockets work, staging, propulsion) or something specific like engine design or reentry?",
+   "then": [
+    {
+     "nodeMatching": "rocket"
+    },
+    {
+     "noNodeMatching": "user (wants|asked|requested) to"
+    }
+   ]
+  }
+ ]
+}
