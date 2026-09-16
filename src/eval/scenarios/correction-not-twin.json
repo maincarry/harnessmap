@@ -9,7 +9,7 @@
     { "user": "The map says this session has no file or command tools. That is wrong — you ran commands and read files a minute ago. This session does have file and command tools.",
       "assistant": "Corrected: this session does have file and command tools; file work does not need a separate terminal.",
       "then": [
-        { "nodeMatching": "does have file and command tools|has file and command tools", "under": "sess" },
+        { "nodeMatching": "^(?!.*\\bno file)(?=.*file and command tools).*", "under": "sess" },
         { "countUnder": "sess", "max": 1 },
         { "noNodeMatching": "twin" }
       ] }

@@ -1182,6 +1182,7 @@ function brokenTitles(pid: string) {
     if (n.status === 'removed') return false;
     if (n.content.startsWith('to sort')) return false;
     if (n.title && store.getSetting(`titleBy:${n.id}`) === 'user') return false; // M282: hand titles are the person's
+    if (n.author === 'system') return false; // M285 (loop find): the tutorial's sentences are meant to be read whole, not retitled
     return longName(n.title || n.content);
   });
 }
