@@ -48,6 +48,9 @@ export class Store {
     for (const [col, typ] of [['harness', 'TEXT'], ['title', 'TEXT'], ['status', 'TEXT'], ['ended_at', 'TEXT'], ['end_reason', 'TEXT']] as const) {
       if (hcols.length && !hcols.includes(col)) this.db.exec(`ALTER TABLE harness_sessions ADD COLUMN ${col} ${typ}`);
     }
+    // M263 (Jacob's auto mode): who lit a node — the person by hand ('user') or the map ('map'/null). Auto mode never dims a hand-lit node.
+    const lcols = (this.db.prepare('PRAGMA table_info(lit)').all() as any[]).map((r) => r.name);
+    if (lcols.length && !lcols.includes('lit_by')) this.db.exec('ALTER TABLE lit ADD COLUMN lit_by TEXT');
     const ccols = (this.db.prepare('PRAGMA table_info(chats)').all() as any[]).map((r) => r.name);
     if (ccols.length && !ccols.includes('host_session_id')) this.db.exec('ALTER TABLE chats ADD COLUMN host_session_id TEXT');
     // M191: structured memory — the 'minimal' resolution column beside the
@@ -115,7 +118,7 @@ export class Store {
   }
 
   copyLit(fromChatId: string, toChatId: string): void {
-    this.db.prepare('INSERT OR IGNORE INTO lit (chat_id, container_id) SELECT ?, container_id FROM lit WHERE chat_id = ?').run(toChatId, fromChatId);
+    this.db.prepare('INSERT OR IGNORE INTO lit (chat_id, container_id, lit_by) SELECT ?, container_id, lit_by FROM lit WHERE chat_id = ?').run(toChatId, fromChatId);
   }
 
   ensureProject(name: string): string {
@@ -292,9 +295,11 @@ export class Store {
   }
 
   // ---- lit set ----
-  setLit(chatId: string, nodeId: string, on: boolean): void {
+  // M263: `by` = 'user' when the person lit it by hand; a hand-lit row keeps
+  // that mark even if the map lights it again later. Dimming clears the row.
+  setLit(chatId: string, nodeId: string, on: boolean, by: 'user' | 'map' | null = null): void {
     if (on) {
-      this.db.prepare('INSERT OR IGNORE INTO lit (chat_id, container_id) VALUES (?, ?)').run(chatId, nodeId);
+      this.db.prepare("INSERT INTO lit (chat_id, container_id, lit_by) VALUES (?, ?, ?) ON CONFLICT(chat_id, container_id) DO UPDATE SET lit_by = CASE WHEN excluded.lit_by = 'user' THEN 'user' ELSE lit.lit_by END").run(chatId, nodeId, by);
     } else {
       this.db.prepare('DELETE FROM lit WHERE chat_id = ? AND container_id = ?').run(chatId, nodeId);
     }
@@ -302,6 +307,25 @@ export class Store {
 
   getLit(chatId: string): string[] {
     return (this.db.prepare('SELECT container_id FROM lit WHERE chat_id = ?').all(chatId) as any[]).map((r) => r.container_id);
+  }
+
+  // M263: the hand-lit subset (auto mode's protected set).
+  getUserLit(chatId: string): string[] {
+    return (this.db.prepare("SELECT container_id FROM lit WHERE chat_id = ? AND lit_by = 'user'").all(chatId) as any[]).map((r) => r.container_id);
+  }
+
+  // M263: the exact lit rows (for an undo that restores the light as it was, not only re-lights).
+  getLitRows(chatId: string): { id: string; by: string | null }[] {
+    return (this.db.prepare('SELECT container_id, lit_by FROM lit WHERE chat_id = ?').all(chatId) as any[]).map((r) => ({ id: r.container_id, by: r.lit_by ?? null }));
+  }
+
+  restoreLit(chatId: string, rows: { id: string; by: string | null }[]): void {
+    const tx = this.db.transaction(() => {
+      this.db.prepare('DELETE FROM lit WHERE chat_id = ?').run(chatId);
+      const ins = this.db.prepare('INSERT OR IGNORE INTO lit (chat_id, container_id, lit_by) VALUES (?, ?, ?)');
+      for (const r of rows) ins.run(chatId, r.id, r.by);
+    });
+    tx();
   }
 
   // ---- save points ----

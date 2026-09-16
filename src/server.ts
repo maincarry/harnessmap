@@ -15,7 +15,7 @@ import { matchNodes, rareTokens, coverageOf, kinOf } from './map/match.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
 import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
 import { listMinds, getAreaAdvice } from './translator/governors.js';
-import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit } from './translator/autolit.js';
+import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit, aimCascade, roundLeftFocus } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion } from './translator/mapchat.js';
@@ -704,6 +704,11 @@ function applyUndo(entry: { label: string; inverse: any[]; meta: any }): void {
     if (!store.getChat(chatId)) continue;
     for (const nid of ids as string[]) if (store.getNode(nid)?.status !== 'removed') store.setLit(chatId, nid, true);
   }
+  // M263: an aim (auto or by the button) is undone by restoring the light EXACTLY as it was — re-lighting alone cannot undim.
+  for (const [chatId, rows] of Object.entries(meta.litRows ?? {})) {
+    if (!store.getChat(chatId)) continue;
+    store.restoreLit(chatId, (rows as { id: string; by: string | null }[]).filter((r) => store.getNode(r.id)?.status !== 'removed'));
+  }
   for (const [chatId, nid] of Object.entries(meta.focus ?? {})) {
     if (store.getChat(chatId) && store.getNode(nid as string)?.status !== 'removed') applyFocus(chatId, nid as string);
   }
@@ -720,6 +725,170 @@ function applyFocus(chatId: string, nodeId: string): void {
 function lightNewNodes(alterations: any[], chatId: string) {
   for (const a of alterations) {
     if (a?.op === 'create_node' && a.id) store.setLit(chatId, a.id, true);
+  }
+}
+
+// ---- M263 (Jacob): auto mode — the map aims itself each round ----
+// Per map. What it may do is the person's choice (checkboxes); what it may
+// never do is mechanical: dim the focus's ancestors, dim a hand-lit node,
+// exceed the block's budget, act on a subtree with a pending proposal, act
+// silently, or act at all while the map's influence is closed. Every auto
+// action is one undo entry.
+export interface AutoSettings { on: boolean; focus: boolean; light: boolean; rename: boolean; place: boolean; tidy: boolean; zoom: boolean }
+const AUTO_DEFAULTS: AutoSettings = { on: false, focus: true, light: true, rename: true, place: true, tidy: false, zoom: false };
+function autoSettings(pid: string): AutoSettings {
+  try { return { ...AUTO_DEFAULTS, ...JSON.parse(store.getSetting(`auto:${pid}`) ?? '{}') }; } catch { return { ...AUTO_DEFAULTS }; }
+}
+function setAutoSettings(pid: string, patch: Partial<AutoSettings>): AutoSettings {
+  const next = { ...autoSettings(pid), ...patch };
+  store.setSetting(`auto:${pid}`, JSON.stringify(next));
+  return next;
+}
+function autoActive(pid: string): AutoSettings | null {
+  const a = autoSettings(pid);
+  return a.on && !influenceOff(pid) ? a : null;
+}
+function importPending(pid: string): boolean {
+  try { return Boolean((store as any).db.prepare('SELECT 1 FROM pending_proposals WHERE project_id = ? LIMIT 1').get(pid)); } catch { return false; }
+}
+// One aim, applied under the guards, as one undo entry. Used by the ▶/☀
+// buttons' merged re-aim and by auto mode alike.
+function applyAim(chatId: string, r: { focus?: string; focusName?: string; lit: string[]; dim: string[]; summary: string }, opts: { focus: boolean; light: boolean; source: 'auto' | 'user' }): { focusChanged: boolean; lit: number; dim: number; kept: number; label: string } {
+  const chat = store.getChat(chatId)!;
+  const pid = chat.projectId;
+  const prevFocus = chat.focusContainerId;
+  const prevRows = store.getLitRows(chatId);
+  let focusChanged = false;
+  if (opts.focus && r.focus && r.focus !== prevFocus && store.getNode(r.focus)?.status !== 'removed') {
+    applyFocus(chatId, r.focus);
+    chats.noteMapChange(chatId, `focus moved to "${r.focusName ?? nodeName(store.getNode(r.focus))}"${opts.source === 'auto' ? ' (auto mode)' : ''}`);
+    focusChanged = true;
+  }
+  let toDim: string[] = [], toLight: string[] = [], kept: string[] = [];
+  if (opts.light) {
+    const keep = focusPathOf(chatId);
+    const protectedIds = new Set(opts.source === 'auto' ? store.getUserLit(chatId) : []);
+    ({ toDim, toLight, kept } = aimCascade(store, r.lit, r.dim, keep, protectedIds));
+    // M199: dim first, then light.
+    for (const d of toDim) store.setLit(chatId, d, false);
+    for (const d of toLight) store.setLit(chatId, d, true, 'map');
+    if (toDim.length + toLight.length > 0) chats.noteMapChange(chatId, `background lighting ${opts.source === 'auto' ? 'auto-adjusted by auto mode' : 'auto-adjusted'}: ${r.summary}`);
+    if (kept.length) store.audit('auto_kept_user_lit', { n: kept.length });
+  }
+  clearNudges();
+  const fname = r.focus ? nodeName(store.getNode(r.focus)) : '';
+  const parts = [focusChanged ? `focus → "${fname}"` : '', toLight.length ? `lit ${toLight.length}` : '', toDim.length ? `dimmed ${toDim.length}` : ''].filter(Boolean);
+  const label = `${opts.source === 'auto' ? 'auto mode' : 're-aim'}: ${parts.join(', ') || 'no change'}`;
+  if (focusChanged || toDim.length + toLight.length > 0) {
+    store.pushUndo(pid, label, [], { focus: prevFocus && focusChanged ? { [chatId]: prevFocus } : {}, litRows: { [chatId]: prevRows } });
+    reAnchorSessions(pid, opts.source === 'auto' ? 'auto mode aimed' : 'auto-light applied');
+  }
+  return { focusChanged, lit: toLight.length, dim: toDim.length, kept: kept.length, label };
+}
+function toSortRootOf(pid: string) {
+  return store.getNodes(pid).find((n) => n.parentId === null && n.status !== 'removed' && ((n.title ?? '') === 'to sort' || n.content.startsWith('to sort')));
+}
+function announceAuto(pid: string, chatId: string, line: string, extra: Record<string, unknown> = {}) {
+  store.audit('auto_mode', { line: line.slice(0, 120) });
+  broadcast({ type: 'auto', chatId, line, ...extra });
+  broadcast({ type: 'map', ...state() });
+}
+// The per-round pass: placement out of to-sort, stale titles, then the aim.
+let autoBusy = false;
+async function runAuto(pid: string, chatId: string, userText: string, assistantText: string, alterations: any[]): Promise<void> {
+  const a = autoActive(pid); if (!a) return;
+  if (lag > 0) return; // more rounds queued: the last one aims
+  if (autoBusy) return;
+  autoBusy = true;
+  try {
+    const chat = store.getChat(chatId); if (!chat || chat.projectId !== pid) return;
+    const lines: string[] = [];
+    // 1. place: this round's to-sort arrivals go to a LIT home the placement agent names; a dim home stays a dot.
+    if (a.place && !importPending(pid)) {
+      const toSort = toSortRootOf(pid);
+      const arrivals = toSort ? alterations.filter((x) => (x.op === 'create_node' || x.op === 'move_node') && x.parentId === toSort.id && x.id).map((x) => x.id as string).slice(0, 3) : [];
+      const blocked = new Set(store.getOpenSuggestions(pid).filter((sg) => sg.kind !== 'relight').map((sg) => sg.nodeId));
+      for (const id of arrivals) {
+        const n = store.getNode(id); if (!n || n.status === 'removed' || n.parentId !== toSort!.id) continue;
+        const r = await suggestHomes(store, pid, id); if ('error' in r) continue;
+        const litNow = new Set(store.getLit(chatId));
+        const home = r.candidates.find((c) => litNow.has(c.nodeId) && !blocked.has(c.nodeId));
+        if (!home) { store.audit('auto_place_skip', { id: id.slice(0, 8), candidates: r.candidates.length }); continue; }
+        const cleaned = n.content.replace(/\s*\(arrived while focus was:[^)]*\)\s*$/, '');
+        const alts = [{ op: 'move_node', id, parentId: home.nodeId } as any, ...(cleaned !== n.content ? [{ op: 'update_node', id, content: cleaned } as any] : [])];
+        const inverse = inverseOfAlterations(alts);
+        store.applyAlterations(pid, alts, { kind: 'system' });
+        store.pushUndo(pid, `auto mode: placed "${nodeName(n)}" under "${home.name}"`, inverse, null);
+        for (const sg of store.getOpenSuggestions(pid)) if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
+        chats.noteMapChange(chatId, `auto mode moved "${nodeName(n)}" out of "to sort" into "${home.name}"`);
+        lines.push(`placed "${nodeName(n)}" → "${home.name}"`);
+      }
+    }
+    // 2. rename: a touched node whose title no longer matches its statement gets a fresh one (mechanical staleness test first, one cheap call only when it fails).
+    if (a.rename) {
+      const words = (t: string) => new Set(t.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3));
+      let n = 0;
+      for (const x of alterations) {
+        if (n >= 3 || x.op !== 'update_node' || !x.id || typeof x.content !== 'string') continue;
+        const node = store.getNode(x.id); if (!node || node.status === 'removed' || !node.title) continue;
+        const tw = [...words(node.title)]; if (!tw.length) continue;
+        const cw = words(node.content);
+        const overlap = tw.filter((w) => cw.has(w)).length / tw.length;
+        if (overlap >= 0.5) continue; // the title still names the statement
+        const t = await suggestTitle(store, node.id);
+        if ('title' in t && t.title && t.title !== node.title) {
+          store.pushUndo(pid, `auto mode: renamed "${node.title}" → "${t.title}"`, [{ op: 'update_node', id: node.id, title: node.title }], null);
+          store.applyAlterations(pid, [{ op: 'update_node', id: node.id, title: t.title } as any], { kind: 'system' });
+          store.audit('auto_renamed', { id: node.id.slice(0, 8), title: t.title });
+          lines.push(`renamed "${node.title}" → "${t.title}"`);
+          n++;
+        }
+      }
+    }
+    // 3. the aim: only when the round left the focus (or the person asked to focus somewhere), never over a pending import.
+    if ((a.focus || a.light) && !importPending(pid)) {
+      const chatNow = store.getChat(chatId)!;
+      const asked = nudgeFocusTarget && a.focus && nudgeFocusTarget.id !== chatNow.focusContainerId ? nudgeFocusTarget : null;
+      const left = roundLeftFocus(store, chatNow.focusContainerId, alterations);
+      if (asked) {
+        const res = applyAim(chatId, { focus: asked.id, focusName: asked.name, lit: [], dim: [], summary: '' }, { focus: true, light: false, source: 'auto' });
+        if (res.focusChanged) lines.push(`focus → "${asked.name}" (you asked)`);
+      } else if (left) {
+        const tail = `USER: ${userText.slice(-1500)}\n\nAGENT: ${assistantText.slice(-1500)}`;
+        if (a.focus) {
+          const r = await proposeReaim(store, pid, chatId, tail);
+          if ('error' in r) store.audit('auto_aim_error', { error: r.error });
+          else { const res = applyAim(chatId, r, { focus: true, light: a.light, source: 'auto' }); if (res.focusChanged || res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
+        } else {
+          const r = await proposeAutolit(store, pid, chatNow.focusContainerId, store.getLit(chatId));
+          if ('error' in r) store.audit('auto_aim_error', { error: r.error });
+          else { const res = applyAim(chatId, { lit: r.lit, dim: r.dim, summary: r.summary }, { focus: false, light: true, source: 'auto' }); if (res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
+        }
+      } else store.audit('auto_aim_skip', { why: 'round stayed inside the focus' });
+    }
+    if (lines.length) {
+      const f = store.getChat(chatId)?.focusContainerId;
+      const parent = f ? store.getNode(f)?.parentId ?? null : null;
+      announceAuto(pid, chatId, `auto mode: ${lines.join(' · ')}`, { undo: true, zoom: a.zoom ? parent : undefined });
+    }
+  } catch (err) { store.audit('auto_mode_error', { error: String(err).slice(0, 200) }); }
+  finally { autoBusy = false; }
+}
+// 4. tidy (off by default): the review's own proposal self-applies when it is small and non-destructive; anything bigger stays in ⟳ to tidy.
+async function autoTidy(pid: string, chatId: string): Promise<void> {
+  const a = autoActive(pid); if (!a?.tidy || importPending(pid)) return;
+  for (const sg of store.getOpenSuggestions(pid)) {
+    if (sg.kind !== 'restructure' || sg.nodeId === '__top__' || !store.getNode(sg.nodeId)) continue;
+    const p = await proposeReorganize(store, pid, sg.nodeId, sg.note);
+    if (!p || 'error' in p) continue;
+    const favs = new Set(store.getFavorites());
+    const small = p.alterations.length > 0 && p.alterations.length <= 8
+      && !p.alterations.some((x: any) => x.status === 'removed')
+      && !p.alterations.some((x: any) => x.op === 'update_node' && favs.has(x.id) && (x.title !== undefined || x.content !== undefined));
+    if (!small) { store.setSuggestionProposal(sg.id, JSON.stringify(p), subtreeHash(pid, sg.nodeId, sg.note), true); store.audit('auto_tidy_left', { suggestion: sg.id.slice(0, 8), n: p.alterations.length }); continue; }
+    const name = nodeName(store.getNode(sg.nodeId));
+    applyReorganize(pid, p.alterations, { chatId, containerName: name, suggestionId: sg.id, label: `auto mode: tidied "${name}" (${p.alterations.length} change(s))` });
+    announceAuto(pid, chatId, `auto mode: tidied "${name}" (${p.alterations.length} change(s))`, { undo: true });
   }
 }
 
@@ -964,6 +1133,8 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
       describeRelations(store, chat.focusContainerId).catch(() => {});
       // M68: heal any broken display names this round left behind.
       healTitles(5, roundPid).catch(() => {});
+      // M263: auto mode — place, rename, aim (each its own undo entry; announced on the page).
+      runAuto(roundPid, params.chatId, params.userText, params.assistantText, out.result.alterations as any[]).catch(() => {});
       // M41: fold this exchange into the focus node's chat memory (async).
       // M191: the round's provenance rides along so new facts carry links.
       const roundProv = params.provenance ? {
@@ -1033,6 +1204,7 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
           store.audit('auto_mapcheck', { after: tct, overdue });
           checkMap(store, roundPid, chat.focusContainerId ?? null)
             .then(() => broadcast({ type: 'map', ...state() }))
+            .then(() => autoTidy(roundPid, params.chatId)) // M263: self-applies only the small, non-destructive review
             .catch(() => {});
         } else {
           store.setSetting(tk, String(AUTOTIDY > 0 ? Math.min(tct, threshold) : tct));
@@ -1073,6 +1245,64 @@ function ensureValidFocus() {
   }
 }
 
+// The apply half of a tidy / expand / import proposal — shared by the route and auto mode (M263).
+function applyReorganize(applyPid: string, alterations: any[], o: { chatId?: string; containerName?: string; suggestionId?: string; memories?: Record<string, string>; origin?: string; jobId?: string; placedAreas?: string[]; label?: string }): void {
+  const { chatId, containerName, suggestionId, memories, origin, jobId, label } = o;
+  const placedAreas = o.placedAreas ?? [];
+  const tidyInverse = inverseOfAlterations(alterations);
+  const tidyMeta = captureFocusLit(alterations.map((a: any) => a.id).filter(Boolean));
+  store.applyAlterations(applyPid, alterations, { kind: 'reorganize' });
+  if (placedAreas.length) {
+    // The big-picture step (Mark): an import placed across the map is
+    // followed by an offer to look at the whole — a ⟳ tidy suggestion on
+    // the map's root (or the first area touched), propose → approve as ever.
+    const tops = store.getNodes(applyPid).filter((n) => n.status !== 'removed' && n.parentId === null && !((n.title ?? n.content) ?? '').startsWith('to sort'));
+    const at = tops.length === 1 ? tops[0].id : placedAreas[0];
+    const names = placedAreas.map((id) => store.getNode(id)).filter(Boolean).map((n) => (n!.title || n!.content).slice(0, 30));
+    store.upsertSuggestion(applyPid, at, `an import just placed material under ${placedAreas.length} existing area(s) (${names.slice(0, 4).join(', ')}${names.length > 4 ? '…' : ''}) — a ⟳ tidy of the whole map would reconcile twins and regroup`);
+    store.audit('import_placed_applied', { areas: placedAreas.length });
+  }
+  store.pushUndo(applyPid, label ?? `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))`, tidyInverse, tidyMeta);
+  store.metric(applyPid, 'interaction.tidy_apply', alterations.length);
+  // M191/Q4 (Mark): an IMPORT lands dim — the user chooses focus and may
+  // auto-light; born-lit (M66) stays for normal per-round filing.
+  if (origin !== 'import') lightNewNodes(alterations, mainChatId);
+  // M187: imported depth lands in the memory layer (tiered attention
+  // serves it from here on).
+  if (memories) {
+    for (const [nid, mem] of Object.entries(memories)) {
+      if (store.getNode(nid) && typeof mem === 'string' && mem) setNodeMemory(store, nid, mem.slice(0, 1500));
+    }
+    store.metric(applyPid, 'memory.stored', Object.values(memories).join('').length, { source: 'import' });
+  }
+  // M182: renames/creates from a tidy can carry long content — heal their
+  // SHORT display titles right away, not on the next round (guards, not
+  // prompts: the naming rule now also lives in the reorganizer prompt,
+  // but the display layer enforces it mechanically).
+  healTitles(12, applyPid).catch(() => {});
+  touch(alterations.map((a: any) => a.id ?? a.nodeId ?? a.containerId).filter(Boolean));
+  // M122: a root-scope tidy can insert a container ABOVE the focus path —
+  // re-run applyFocus so the ancestor chain stays lit (M111 invariant).
+  // M123: and EVERY chat whose focus a tidy deletion removed is rescued
+  // to the removed node's parent (or a surviving top-level node).
+  for (const c of store.getChats(applyPid)) {
+    const f = c.focusContainerId ? store.getNode(c.focusContainerId) : undefined;
+    if (f && f.status !== 'removed') { if (c.id === (chatId ?? mainChatId)) applyFocus(c.id, f.id); continue; }
+    const fb = (f?.parentId && store.getNode(f.parentId)?.status !== 'removed' ? f.parentId : undefined)
+      ?? store.getNodes(applyPid).find((x) => x.parentId === null && x.status !== 'removed')?.id;
+    if (fb) applyFocus(c.id, fb);
+  }
+  if (suggestionId) store.setSuggestionStatus(suggestionId, 'done');
+  if (origin === 'import') {
+    store.audit('import_applied', { creates: alterations.filter((a: any) => a.op === 'create_node').length, jobId: jobId ?? null });
+    // M195c (Jacob): the summary (captured above, before the proposal was
+    // consumed) is the standard — brain cycle, then verify against it.
+    brainCycle(store, applyPid).then(() => verifyImport(store, applyPid)).then(() => importAutoFinish(applyPid)).then(() => reAnchorPanes(applyPid)).catch(() => {});
+  }
+  if (chatId) chats.noteMapChange(chatId, `reorganized the "${containerName ?? 'selected'}" subtree (${alterations.length} change(s))`);
+  broadcast({ type: 'map', ...state() });
+}
+
 function state() {
   ensureValidFocus();
   const map = loadMap(store, projectId);
@@ -1082,6 +1312,7 @@ function state() {
     projects: store.listProjects(),
     home: (() => { const h = store.getSetting(`home:${projectId}`); return h && store.getNode(h)?.status !== 'removed' ? h : null; })(),
     influenceOff: influenceOff(projectId),
+    auto: autoSettings(projectId), // M263
     updateAvailable: updateAvailable(),
     feedbackEmail: process.env.HARNESSMAP_FEEDBACK_EMAIL ?? 'yuhinc@sas.upenn.edu',
     version: VERSION,
@@ -1094,7 +1325,7 @@ function state() {
     chats: (() => {
       const pins = new Set<string>(JSON.parse(store.getSetting(`chatpins:${projectId}`) ?? '[]'));
       return store.getChats(projectId).filter((c) => c.status !== 'archived').map((c) => ({
-        ...c, lit: store.getLit(c.id),
+        ...c, lit: store.getLit(c.id), userLit: store.getUserLit(c.id), // M263: hand-lit nodes (auto mode never dims them)
         lastActivity: ((store as any).db.prepare('SELECT MAX(created_at) t FROM turns WHERE chat_id = ?').get(c.id) as any)?.t ?? c.createdAt,
         pinned: pins.has(c.id),
         summary: (getConversationSummary(store, c.id) ?? '').slice(0, 200) || null,
@@ -1269,7 +1500,7 @@ const server = Bun.serve({
       let kept = 0;
       for (const id of ids) {
         if (!body.on && path.has(id)) { kept++; continue; }
-        store.setLit(litMatch[1], id, body.on);
+        store.setLit(litMatch[1], id, body.on, body.on && !(body as any).bulk ? 'user' : null); // M263: hand-lit is remembered
       store.metric(projectId, body.on ? 'interaction.light' : 'interaction.dim');
       }
       const n = store.getNode(nodeId);
@@ -1612,13 +1843,7 @@ const server = Bun.serve({
       const r = await proposeReaim(store, projectId, chatId, body.tail ?? '');
       if ('error' in r) return json({ error: r.error }, 502);
       if (body.apply !== false) {
-        if (r.focus !== chat.focusContainerId) { store.setChatFocus(chatId, r.focus); chats.noteMapChange(chatId, `focus moved to "${r.focusName}"`); }
-        clearNudges();
-        const pathA = focusPathOf(chatId);
-        for (const id of r.dim) for (const d of [id, ...descendantNodes(store, id)]) { if (!pathA.has(d)) store.setLit(chatId, d, false); }
-        for (const id of r.lit) for (const d of [id, ...descendantNodes(store, id)]) store.setLit(chatId, d, true);
-        if (r.lit.length + r.dim.length > 0) chats.noteMapChange(chatId, `background lighting auto-adjusted: ${r.summary}`);
-        reAnchorSessions(projectId, 'auto-light applied');
+        applyAim(chatId, r, { focus: true, light: true, source: 'user' }); // M263: one undo entry
         broadcast({ type: 'map', ...state() });
       }
       store.audit('reaim_merged', { focus: r.focus.slice(0, 8), lit: r.lit.length, dim: r.dim.length, over: !!r.overBudget });
@@ -1641,12 +1866,10 @@ const server = Bun.serve({
         const would = litSetCost(store, resultingLit(store, store.getLit(chatId), lit, dim, pathA));
         const capNow = litCap(store);
         if (would.chars > capNow) { store.audit('guard_lit_budget_apply', { nodes: would.nodes, chars: would.chars, cap: capNow }); return json({ error: `over budget: ${would.nodes} nodes ≈ ${would.chars} chars lit, limit ${capNow}` }, 409); }
-        // M199: dim first, then light — a lit child inside a dimmed chapter survives.
-        for (const id of dim) for (const d of [id, ...descendantNodes(store, id)]) { if (!pathA.has(d)) store.setLit(chatId, d, false); }
-        for (const id of lit) for (const d of [id, ...descendantNodes(store, id)]) store.setLit(chatId, d, true);
-        if (lit.length + dim.length > 0) { chats.noteMapChange(chatId, `background lighting auto-adjusted: ${body.summary ?? ''}`); reAnchorSessions(projectId, 'auto-light applied'); }
+        // M199: dim first, then light — a lit child inside a dimmed chapter survives. M263: one undo entry.
+        const res = applyAim(chatId, { lit, dim, summary: body.summary ?? '' }, { focus: false, light: true, source: 'user' });
         broadcast({ type: 'map', ...state() });
-        return json({ ok: true, lit: lit.length, dim: dim.length });
+        return json({ ok: true, lit: res.lit, dim: res.dim, undo: res.label });
       }
       const r = await proposeAutolit(store, projectId, chat.focusContainerId, store.getLit(chatId), body.feedback, body.priorSummary);
       if ('error' in r) return json({ error: r.error }, 502);
@@ -2075,58 +2298,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // M216: which EXISTING areas this import places material into (judged
       // before apply — afterwards the new nodes exist too).
       const placedAreas = origin === 'import' ? [...new Set((alterations as any[]).filter((a) => a.op === 'create_node' && a.parentId && store.getNode(a.parentId)).map((a) => a.parentId as string))] : [];
-      const tidyInverse = inverseOfAlterations(alterations);
-      const tidyMeta = captureFocusLit(alterations.map((a: any) => a.id).filter(Boolean));
-      store.applyAlterations(applyPid, alterations, { kind: 'reorganize' });
-      if (placedAreas.length) {
-        // The big-picture step (Mark): an import placed across the map is
-        // followed by an offer to look at the whole — a ⟳ tidy suggestion on
-        // the map's root (or the first area touched), propose → approve as ever.
-        const tops = store.getNodes(applyPid).filter((n) => n.status !== 'removed' && n.parentId === null && !((n.title ?? n.content) ?? '').startsWith('to sort'));
-        const at = tops.length === 1 ? tops[0].id : placedAreas[0];
-        const names = placedAreas.map((id) => store.getNode(id)).filter(Boolean).map((n) => (n!.title || n!.content).slice(0, 30));
-        store.upsertSuggestion(applyPid, at, `an import just placed material under ${placedAreas.length} existing area(s) (${names.slice(0, 4).join(', ')}${names.length > 4 ? '…' : ''}) — a ⟳ tidy of the whole map would reconcile twins and regroup`);
-        store.audit('import_placed_applied', { areas: placedAreas.length });
-      }
-      store.pushUndo(applyPid, `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))`, tidyInverse, tidyMeta);
-      store.metric(applyPid, 'interaction.tidy_apply', alterations.length);
-      // M191/Q4 (Mark): an IMPORT lands dim — the user chooses focus and may
-      // auto-light; born-lit (M66) stays for normal per-round filing.
-      if (origin !== 'import') lightNewNodes(alterations, mainChatId);
-      // M187: imported depth lands in the memory layer (tiered attention
-      // serves it from here on).
-      if (memories) {
-        for (const [nid, mem] of Object.entries(memories)) {
-          if (store.getNode(nid) && typeof mem === 'string' && mem) setNodeMemory(store, nid, mem.slice(0, 1500));
-        }
-        store.metric(applyPid, 'memory.stored', Object.values(memories).join('').length, { source: 'import' });
-      }
-      // M182: renames/creates from a tidy can carry long content — heal their
-      // SHORT display titles right away, not on the next round (guards, not
-      // prompts: the naming rule now also lives in the reorganizer prompt,
-      // but the display layer enforces it mechanically).
-      healTitles(12, applyPid).catch(() => {});
-      touch(alterations.map((a: any) => a.id ?? a.nodeId ?? a.containerId).filter(Boolean));
-      // M122: a root-scope tidy can insert a container ABOVE the focus path —
-      // re-run applyFocus so the ancestor chain stays lit (M111 invariant).
-      // M123: and EVERY chat whose focus a tidy deletion removed is rescued
-      // to the removed node's parent (or a surviving top-level node).
-      for (const c of store.getChats(applyPid)) {
-        const f = c.focusContainerId ? store.getNode(c.focusContainerId) : undefined;
-        if (f && f.status !== 'removed') { if (c.id === (chatId ?? mainChatId)) applyFocus(c.id, f.id); continue; }
-        const fb = (f?.parentId && store.getNode(f.parentId)?.status !== 'removed' ? f.parentId : undefined)
-          ?? store.getNodes(applyPid).find((x) => x.parentId === null && x.status !== 'removed')?.id;
-        if (fb) applyFocus(c.id, fb);
-      }
-      if (suggestionId) store.setSuggestionStatus(suggestionId, 'done');
-      if (origin === 'import') {
-        store.audit('import_applied', { creates: alterations.filter((a: any) => a.op === 'create_node').length, jobId: jobId ?? null });
-        // M195c (Jacob): the summary (captured above, before the proposal was
-        // consumed) is the standard — brain cycle, then verify against it.
-        brainCycle(store, applyPid).then(() => verifyImport(store, applyPid)).then(() => importAutoFinish(applyPid)).then(() => reAnchorPanes(applyPid)).catch(() => {});
-      }
-      if (chatId) chats.noteMapChange(chatId, `reorganized the "${containerName ?? 'selected'}" subtree (${alterations.length} change(s))`);
-      broadcast({ type: 'map', ...state() });
+      applyReorganize(applyPid, alterations, { chatId, containerName, suggestionId, memories, origin, jobId, placedAreas });
       return json({ ok: true, undo: `tidy on "${containerName ?? 'the map'}" (${alterations.length} change(s))` });
     }
 
@@ -2361,6 +2533,31 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     }
     if (path === '/api/undo/list' && req.method === 'GET') {
       return json({ entries: store.listUndo(projectId) });
+    }
+
+    // M263: auto mode — per map; the checkboxes are the person's, the guards are not.
+    if (path === '/api/auto' && req.method === 'GET') return json({ auto: autoSettings(projectId) });
+    if (path === '/api/auto' && req.method === 'POST') {
+      const body = await req.json().catch(() => ({})) as Partial<AutoSettings>;
+      const patch: Partial<AutoSettings> = {};
+      for (const k of ['on', 'focus', 'light', 'rename', 'place', 'tidy', 'zoom'] as const) if (typeof body[k] === 'boolean') patch[k] = body[k];
+      const next = setAutoSettings(projectId, patch);
+      store.audit('auto_settings', { ...next });
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true, auto: next });
+    }
+    if (path === '/api/auto/run' && req.method === 'POST') {
+      // aim now, skip rule waived — the button's "aim now" and the tests
+      const a = autoSettings(projectId);
+      const chat = store.getChat(mainChatId); if (!chat) return json({ error: 'no chat' }, 404);
+      const turns = store.getTurns(mainChatId).slice(-2);
+      const u = turns.find((t) => t.role === 'user')?.content ?? ''; const as = turns.find((t) => t.role === 'assistant')?.content ?? '';
+      const r = await proposeReaim(store, projectId, mainChatId, `USER: ${u.slice(-1500)}\n\nAGENT: ${as.slice(-1500)}`);
+      if ('error' in r) return json({ error: r.error }, 502);
+      const res = applyAim(mainChatId, r, { focus: a.focus, light: a.light, source: 'auto' });
+      if (res.focusChanged || res.lit + res.dim > 0) announceAuto(projectId, mainChatId, res.label, { undo: true });
+      else broadcast({ type: 'map', ...state() });
+      return json({ ok: true, ...res });
     }
 
     // M143: influence switch

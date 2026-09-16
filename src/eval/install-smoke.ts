@@ -436,6 +436,44 @@ console.log('\n== 6l. which map: the list, the folder map, throwaway folders, a 
   try { ul(join(HOME, 'session')); } catch {}
 }
 
+console.log('\n== 6m. auto mode: the switch, the hand-lit mark, one undo per aim (M263) ==');
+{
+  const a0 = await (await fetch(`${BASE}/api/auto`)).json();
+  check('auto mode starts OFF with the ruled defaults (focus, light, rename, place on; tidy, zoom off)', a0.auto && a0.auto.on === false && a0.auto.focus && a0.auto.light && a0.auto.rename && a0.auto.place && !a0.auto.tidy && !a0.auto.zoom);
+  const a1 = await (await fetch(`${BASE}/api/auto`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on: true, tidy: true, nonsense: 'x' }) })).json();
+  const stA = await (await fetch(`${BASE}/api/state`)).json();
+  check('the switch and the checkboxes persist per map and ride the state', a1.auto.on === true && a1.auto.tidy === true && stA.auto?.on === true && stA.auto?.tidy === true && !('nonsense' in a1.auto));
+  const runR = await fetch(`${BASE}/api/auto/run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  const alive = (await fetch(`${BASE}/api/state`)).ok;
+  check('"aim now" without a working model fails politely and the server stays up', (runR.status === 502 || runR.ok) && alive);
+  // the hand-lit mark and the exact undo
+  const chat = (stA.chats ?? []).find((c: any) => c.id === stA.mainChatId);
+  const pathIds = new Set<string>(); for (let n = (stA.nodes ?? []).find((x: any) => x.id === chat?.focusContainerId); n; n = (stA.nodes ?? []).find((x: any) => x.id === n.parentId)) pathIds.add(n.id);
+  let off = (stA.nodes ?? []).find((n: any) => !pathIds.has(n.id) && !String(n.title ?? n.content).startsWith('to sort'));
+  if (!off && chat) { // a fresh map: make one
+    const top = (stA.nodes ?? []).find((n: any) => n.parentId === null && !String(n.title ?? n.content).startsWith('to sort'));
+    const made = await (await fetch(`${BASE}/api/nodes`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: 'a side topic lit by hand', parentId: top?.id }) })).json();
+    const stA2 = await (await fetch(`${BASE}/api/state`)).json();
+    off = (stA2.nodes ?? []).find((n: any) => n.id === made.id) ?? (stA2.nodes ?? []).find((n: any) => !pathIds.has(n.id) && !String(n.title ?? n.content).startsWith('to sort'));
+  }
+  check('a node off the focus path exists to light by hand', !!off && !!chat);
+  if (!off || !chat) throw new Error('6m: no node to light');
+  await fetch(`${BASE}/api/chats/${chat.id}/lit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: off.id, on: true }) });
+  const stB = await (await fetch(`${BASE}/api/state`)).json();
+  const chatB = (stB.chats ?? []).find((c: any) => c.id === chat.id);
+  check('a node lit by hand is marked as the user\'s in the state', (chatB.userLit ?? []).includes(off.id) && chatB.lit.includes(off.id));
+  const before = [...chatB.lit].sort().join();
+  const ap = await (await fetch(`${BASE}/api/chats/${chat.id}/autolit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ apply: { lit: [], dim: [off.id] }, summary: 'test dim' }) })).json();
+  const stC = await (await fetch(`${BASE}/api/state`)).json();
+  const chatC = (stC.chats ?? []).find((c: any) => c.id === chat.id);
+  check('the ☀ button\'s apply dims and is one undo entry', ap.ok && ap.dim >= 1 && !chatC.lit.includes(off.id) && typeof ap.undo === 'string');
+  const und = await (await fetch(`${BASE}/api/undo`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json();
+  const stD = await (await fetch(`${BASE}/api/state`)).json();
+  const chatD = (stD.chats ?? []).find((c: any) => c.id === chat.id);
+  check('undo restores the light exactly as it was, the hand mark included', /re-aim|auto/.test(und.label ?? '') && [...chatD.lit].sort().join() === before && (chatD.userLit ?? []).includes(off.id));
+  await fetch(`${BASE}/api/auto`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on: false, tidy: false }) });
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');

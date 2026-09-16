@@ -221,3 +221,30 @@ export async function proposeReaim(store: Store, projectId: string, chatId: stri
     return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
   }
 }
+
+// M263 (Jacob's auto mode): the mechanical half of applying an aim. Computes
+// exactly which nodes go dark and which light up, under the guards that are
+// rules, not prompts: the focus's ancestor chain never dims (M111), a node
+// the person lit by hand never dims (auto mode), dim cascades before light
+// so a lit child inside a dimmed chapter survives (M199).
+export function aimCascade(store: Store, lit: string[], dim: string[], keep: Set<string>, protectedIds: Set<string>): { toDim: string[]; toLight: string[]; kept: string[] } {
+  const toDim: string[] = []; const kept: string[] = [];
+  for (const id of dim) for (const d of [id, ...descendantNodes(store, id)]) {
+    if (keep.has(d)) continue;
+    if (protectedIds.has(d)) { kept.push(d); continue; }
+    toDim.push(d);
+  }
+  const toLight: string[] = [];
+  for (const id of lit) for (const d of [id, ...descendantNodes(store, id)]) toLight.push(d);
+  return { toDim: [...new Set(toDim)], toLight: [...new Set(toLight)], kept: [...new Set(kept)] };
+}
+
+// M263: the skip rule — a round whose changes all fell inside the current
+// focus (or touched nothing) has nothing to re-aim.
+export function roundLeftFocus(store: Store, focusId: string | null, alterations: any[]): boolean {
+  const touched = alterations.map((a) => a?.id ?? a?.nodeId).filter(Boolean) as string[];
+  if (!touched.length) return false;
+  if (!focusId) return true;
+  const inside = new Set([focusId, ...descendantNodes(store, focusId)]);
+  return touched.some((id) => !inside.has(id));
+}

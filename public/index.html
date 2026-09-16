@@ -137,6 +137,7 @@
   @keyframes beatpulse { 50% { opacity: .35; } }
   #beat .step.on { animation: beatpulse 1.2s infinite; }
   header .lag.behind { color: var(--warn); }
+  .hbtn.on { color: var(--accent); border-color: var(--accent); font-weight: 600; }
   .hbtn { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px;
           font-size: 12px; cursor: pointer; padding: 2px 8px; }
 
@@ -441,6 +442,7 @@
       <select id="proj-sel" class="hbtn" title="switch map — each map is completely separate"></select>
       <button class="hbtn" id="legend-btn" title="tutorial: a guided walk through every part of the map (the reference card is at the end)">?</button>
       <button class="hbtn" id="sideview-btn" title="side view: map only — for the Codex app's side panel or a narrow window; click again to show the conversation pane (remembered in this browser)">▯</button>
+      <button class="hbtn" id="auto-btn" title="auto mode: the map aims itself after each round — focus, light, stale titles, placement out of to sort (this map; every action is one undo). Right-click or long-press to choose what it may do">◎ auto</button>
       <button class="hbtn" id="ctx-btn" hidden title="see the exact map description the CHAT agent receives next turn">chat agent's view</button>
       <span id="beat" title="the turn lifecycle: message seen → agent replying → filed onto the map" style="margin-left:auto;font-weight:400;font-size:12px;color:var(--muted)">waiting for activity</span>
       <span class="lag" id="lag" style="margin-left:10px">map current</span>
@@ -470,6 +472,7 @@
           <button id="map-check" title="review the whole map now — anything needing a restructure lands in the ⟳ to tidy folder, or you get a clean bill (the map also reviews itself every 10 rounds)">⟳ tidy map</button>
           <button id="tidy-top" title="group and clean the top level — only here may the tidy agent propose domain containers and move top-level threads under them; you approve">⟳ tidy top level</button>
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
+          <button id="auto-settings-btn" title="auto mode: choose what the map may do by itself after each round, and switch it on or off">◎ auto mode…</button>
           <button id="lit-all" title="light every node in the current view — all of it enters the chat agent's background">☀ light all (this view)</button>
           <button id="dim-all" title="dim every node in the current view — the chat agent stops seeing all of it (you still see everything)">◐ dim all (this view)</button>
           <button id="prefs-btn" title="standing preferences every map agent follows — how to group, name, and clean your maps; edit anytime">☰ map preferences</button>
@@ -802,7 +805,7 @@ function renderTree() {
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
 }
 
-function renderAll() { applyAutoFold(); renderCrumbs(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); }
+function renderAll() { applyAutoFold(); renderCrumbs(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); paintAuto(); }
 // M88: one server, many projects (each its own map) and many chats (views).
 function renderSwitchers() {
   const ps = $('proj-sel');
@@ -1452,6 +1455,64 @@ function paintInfluence() {
     ? 'the map is currently silent: no context reaches your Claude sessions, nothing is announced — but filing continues. Click to reopen its influence'
     : "close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime";
 }
+// M263 (Jacob): auto mode — one small button; click toggles, right-click or a
+// long press opens the checkboxes. The server does the work after each round.
+function paintAuto() {
+  const a = S.auto || {}; const b = $('auto-btn'); if (!b) return;
+  const what = ['focus', 'light', 'rename', 'place', 'tidy', 'zoom'].filter((k) => a[k]);
+  b.classList.toggle('on', !!a.on);
+  b.textContent = a.on ? '◉ auto' : '◎ auto';
+  b.title = a.on
+    ? `auto mode is ON for this map: after each round the map may ${what.join(', ') || 'do nothing (choose in the settings)'} — every action shows here with ↩ undo. Click to switch off; right-click for the settings`
+    : 'auto mode is off: the map only proposes. Click to let it aim itself after each round (focus, light, stale titles, placement out of to sort — each one undo). Right-click or long-press to choose what it may do';
+}
+async function toggleAuto() {
+  const next = !(S.auto && S.auto.on);
+  try {
+    const r = await post('/api/auto', { on: next });
+    S.auto = r.auto; paintAuto();
+    $('round-line').textContent = next ? 'auto mode on — the map aims itself after each round; every action appears here with ↩ undo' : 'auto mode off — the map proposes again; nothing moves without you';
+  } catch (err) { $('round-line').textContent = `auto mode: ${err.message}`; }
+}
+function openAutoSettings() {
+  const a = S.auto || {};
+  const rows = [
+    ['focus', '▶ focus', 'move the focus when a round leaves the current topic (the aiming agent decides; your ancestors stay lit)'],
+    ['light', '☀ light', 'light and dim the background for that focus — never a node you lit by hand, never over the budget'],
+    ['rename', '✎ rename', 'retitle a node this round changed when its name no longer fits its statement'],
+    ['place', '⇢ place', 'move a new "to sort" arrival into a home the placement agent names — only when that home is lit'],
+    ['tidy', '⟳ tidy', 'let the periodic review apply its own small, non-destructive proposal (≤ 8 moves, nothing removed, favorites untouched); bigger ones still wait in ⟳ to tidy'],
+    ['zoom', '◱ zoom', 'follow the focus with the view (this browser only)'],
+  ];
+  const ov = document.createElement('div'); ov.className = 'overlay';
+  ov.innerHTML = `<div class="modal" style="width:min(520px,94vw)">
+    <h3>◎ auto mode</h3>
+    <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">what the map may do by itself after each round, on this map. Every action is announced under the map and is one ↩ undo. Off entirely while map influence is closed.</div>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-bottom:8px"><input type="checkbox" id="as-on" ${a.on ? 'checked' : ''}> auto mode on</label>
+    ${rows.map(([k, name, why]) => `<label style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;font-size:13px"><input type="checkbox" data-k="${k}" ${a[k] ? 'checked' : ''} style="margin-top:3px"><span><b>${name}</b><br><span style="color:var(--muted);font-size:12px">${why}</span></span></label>`).join('')}
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">never automatic: favorites, home, move, merge, delete, import, enrich, your marks. The aim skips rounds that stayed inside the focus.</div>
+    <div class="actions"><button id="as-now" title="aim now, whatever the skip rule says">aim now</button><button id="as-close" class="primary">done</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  const save = async (patch) => { try { const r = await post('/api/auto', patch); S.auto = r.auto; paintAuto(); } catch (err) { $('round-line').textContent = `auto mode: ${err.message}`; } };
+  ov.querySelector('#as-on').onchange = (e) => save({ on: e.target.checked });
+  for (const cb of ov.querySelectorAll('input[data-k]')) cb.onchange = (e) => save({ [e.target.dataset.k]: e.target.checked });
+  ov.querySelector('#as-close').onclick = () => ov.remove();
+  ov.querySelector('#as-now').onclick = async () => {
+    const b = ov.querySelector('#as-now'); b.disabled = true; b.textContent = '…aiming';
+    try { const r = await post('/api/auto/run', {}); $('round-line').textContent = r.label; } catch (err) { $('round-line').textContent = `aim failed: ${err.message}`; }
+    ov.remove();
+  };
+  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+}
+{
+  const b = $('auto-btn'); let pressT = null, longPressed = false;
+  b.onclick = () => { if (longPressed) { longPressed = false; return; } toggleAuto(); };
+  b.oncontextmenu = (e) => { e.preventDefault(); openAutoSettings(); };
+  b.onpointerdown = () => { longPressed = false; pressT = setTimeout(() => { longPressed = true; openAutoSettings(); }, 550); };
+  b.onpointerup = b.onpointerleave = () => { if (pressT) { clearTimeout(pressT); pressT = null; } };
+  $('auto-settings-btn').onclick = () => { $('other-menu').hidden = true; openAutoSettings(); };
+}
 $('sideview-btn').onclick = () => {
   const next = !sideViewOn();
   try { if (next) localStorage.setItem('hm-sideview', '1'); else localStorage.removeItem('hm-sideview'); } catch {}
@@ -1656,6 +1717,7 @@ const CONTROLS = [
     ['auto-focus', '▶', 'auto-focus', 'the map proposes where the conversation should aim; you approve'],
     ['auto-lit', '☀', 'auto-light', 'the map proposes the background for the current focus; you approve'],
     ['auto-zoom', '◱', 'auto-zoom', 'declutter the view to where you are working; view only'],
+    ['auto-settings-btn', '◎', 'auto mode', 'the map aims itself after each round — focus, light, stale titles, placement; you choose what, every action one undo'],
     ['lit-mgr-btn', '▶☀', 'manage focus & light', 'the whole map in one list: focus, lit, dim'],
     ['lit-all', '☀', 'light all (this view)', 'everything in the current view enters the background'],
     ['dim-all', '◐', 'dim all (this view)', 'the agent stops seeing everything in this view'],
@@ -3229,6 +3291,7 @@ function openLegend() {
         <tr><td>▶ auto-focus</td><td>the focus agent suggests what to talk about next — you confirm</td></tr>
         <tr><td>☀ auto-light</td><td>the lighting agent picks which nodes belong in the background for the current focus — shown as a proposal you approve</td></tr>
         <tr><td>◱ auto-zoom</td><td>the zoom agent suggests which branch to view alone — you confirm; your lighting is untouched</td></tr>
+        <tr><td>◎ auto</td><td>auto mode (header button, beside ▯): after each round the map aims itself — moves the focus when the talk left it, lights and dims for it (never a node you lit by hand, never over the budget), retitles a changed node whose name went stale, and files a new "to sort" arrival into a lit home. Optional: let the periodic review apply its small tidies; follow the focus with the view. Every action shows under the map with ↩ undo. Right-click the button to choose</td></tr>
         <tr><td>◐ dim all outside</td><td>dim everything outside the zoomed branch in one press — the chat agent stops seeing all of it (zoom in first, so "outside" means something)</td></tr>
         <tr><td>⇪ import</td><td>bring outside material onto the map — paste notes, pick a project document, or a past session (Claude Code or Codex); the import agent proposes one organized subtree you approve</td></tr>
         <tr><td>↩ undo</td><td>undo the last destructive action — delete, merge, tidy, move (Ctrl/Cmd+Z works anywhere)</td></tr>
@@ -3877,6 +3940,11 @@ function connect() {
         box.scrollTop = box.scrollHeight;
       }
       $('round-line').textContent = 'host session active — agent replying…';
+    } else if (m.type === 'auto') {
+      // M263: auto mode acted — say so where the round summary goes, with the undo chip
+      $('round-line').classList.remove('working');
+      if (m.undo) undoToast(m.line); else $('round-line').textContent = m.line;
+      if (m.zoom !== undefined && S.auto && S.auto.zoom && m.chatId === S.mainChatId) setZoom(m.zoom);
     } else if (m.type === 'host_session') {
       // M251: the host session closed or came back — the tab and the strip follow on the next state; say it once in the status line
       $('round-line').textContent = m.status === 'closed' ? 'the host session closed — its view stays; resume it to continue' : 'the host session is back — the map re-attached';
