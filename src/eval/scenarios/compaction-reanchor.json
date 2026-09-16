@@ -1,0 +1,14 @@
+{
+  "name": "injection mechanics: the first turn gets the full block, the next a delta or nothing, and after a compaction the full block again (M59/M60)",
+  "seed": [
+    { "key": "proj", "content": "Garden redesign: layout, plants, irrigation" },
+    { "key": "layout", "content": "Layout: raised beds along the south fence", "parent": "proj" }
+  ],
+  "focus": "layout", "auto": { "on": false },
+  "rounds": [
+    { "user": "The beds will be cedar, three of them.", "assistant": "Layout: three cedar raised beds.",
+      "then": [ { "do": "context", "session": "e2e-1" }, { "contextChars": true, "min": 400 }, { "audit": "inject_full" } ] },
+    { "user": "And the path between them 90 cm wide.", "assistant": "Path 90 cm wide between the beds.",
+      "then": [ { "do": "context", "session": "e2e-1" }, { "audit": "inject_delta|inject_none|inject_full" }, { "noAudit": "inject_full" }, { "do": "compact", "session": "e2e-1" }, { "do": "context", "session": "e2e-1" }, { "audit": "inject_full" }, { "contextChars": true, "min": 400 } ] }
+  ]
+}

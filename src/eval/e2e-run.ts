@@ -65,12 +65,16 @@ async function round(user: string, assistant: string, session = 'e2e-1') {
   s = await state();
 }
 let auditMark = (await audit()).length;
+let lastContext: any = null;
 for (const [i, r] of (sc.rounds ?? []).entries()) {
   console.log(`-- round ${i + 1}: ${String(r.user).slice(0, 70)}`);
   await round(r.user, r.assistant, r.session);
-  const since = (await audit()).slice(auditMark); auditMark += since.length;
+  // the round's audit window: everything since the last round ended — including what this round's `do` actions cause;
+  // read fresh at each assertion, and the mark advances only when the round's assertions are done
+  let since: any[] = [];
   for (const a of r.then ?? []) {
     const label = JSON.stringify(a).slice(0, 90);
+    since = (await audit()).slice(auditMark);
     try {
       if (a.do) {
         if (a.do === 'undo') { const u = await post('/api/undo', {}); check(`do undo (${u.body.label ?? u.body.error})`, u.body.ok === true); }
@@ -81,6 +85,8 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'pin') await post(`/api/chats/${cid()}/depth`, { nodeId: keys[a.key], depth: a.depth ?? null });
         else if (a.do === 'title') await post(`/api/nodes/${keys[a.key]}`, { title: a.title, chatId: cid() }); // a title typed on the card
         else if (a.do === 'wait') await sleep(a.ms ?? 5000);
+        else if (a.do === 'context') { const r = await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(a.session ?? 'e2e-1')}&cwd=${encodeURIComponent(join(TMP, 'proj'))}`); lastContext = await r.json().catch(() => ({})); } // what the next turn would receive
+        else if (a.do === 'compact') await post('/api/harness/compacted', { session_id: a.session ?? 'e2e-1' });
         s = await state(); continue;
       }
       const f = chatOf(s).focusContainerId; const ts = toSortOf(s);
@@ -104,10 +110,12 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.mainSessionIs) check(label, chatOf(s).host?.sessionId === a.mainSessionIs, `main view's session=${chatOf(s).host?.sessionId ?? '(map chat)'}`);
       else if (a.viewFocusIs || a.viewFocusUnder) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); const want = keys[a.viewFocusIs ?? a.viewFocusUnder]; check(label, !!v && (a.viewFocusIs ? v.focusContainerId === want : (v.focusContainerId === want || under(s, v.focusContainerId, want))), v ? `focus=${nameOf(s, v.focusContainerId)}` : 'no such view'); }
       else if (a.viewLit || a.viewDark) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); const id = keys[a.viewLit ?? a.viewDark]; check(label, !!v && (a.viewLit ? v.lit.includes(id) : !v.lit.includes(id)), v ? '' : 'no such view'); }
+      else if (a.contextChars) { const n = String(lastContext?.context ?? lastContext?.additionalContext ?? lastContext?.text ?? '').length; check(label, a.min !== undefined ? n >= a.min : n <= (a.max ?? 0), `chars=${n} keys=${Object.keys(lastContext ?? {}).join(',')}`); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }
   }
+  auditMark = (await audit()).length;
 }
 let tokens = 0; try { const c = await get('/api/cost?window=24h'); tokens = Number(c?.total?.tokens ?? 0); } catch {}
 const line = `${new Date().toISOString().slice(0, 16)} · ${sc.name} · ${pass} passed, ${fail} failed · ≈${Math.round(tokens / 1000)}k tokens${notes.length ? ' · ' + notes.join(' ; ').slice(0, 400) : ''}`;
