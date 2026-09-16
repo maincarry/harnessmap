@@ -24,7 +24,12 @@ find_codex() {
 }
 if ! find_codex; then say "codex is not on PATH and no Codex app was found - install the Codex CLI (npm i -g @openai/codex) or the Codex app first; the map's hooks will attach once it is."; fi
 mkdir -p "$(dirname "${APP}")"
-if [ -d "${APP}/.git" ]; then say "updating ${APP}..."; git -C "${APP}" pull -q --ff-only || true; else say "fetching the map into ${APP}..."; git clone -q "${REPO}" "${APP}"; fi
+if [ -d "${APP}/.git" ]; then
+  say "updating ${APP}..."; BEFORE=$(git -C "${APP}" rev-parse --short HEAD 2>/dev/null || echo "?")
+  # M266: a pull that cannot fast-forward (a stray local change in OUR app folder) used to fail silently and leave the old code running.
+  if ! git -C "${APP}" pull -q --ff-only 2>/dev/null; then say "the app folder could not fast-forward - resetting it to main (it holds no data of yours; maps live in ~/.harnessmap)"; git -C "${APP}" fetch -q origin main && git -C "${APP}" reset -q --hard origin/main; fi
+  AFTER=$(git -C "${APP}" rev-parse --short HEAD 2>/dev/null || echo "?"); say "code: ${BEFORE} -> ${AFTER}$([ "${BEFORE}" = "${AFTER}" ] && echo ' (already current)')"
+else say "fetching the map into ${APP}..."; git clone -q "${REPO}" "${APP}"; fi
 ( cd "${APP}" && bun install --production >/dev/null 2>&1 || true )
 # Codex does not execute plugin-bundled hooks yet (openai/codex #16430, open), and hooks the user
 # adds are skipped until trusted, often without a prompt (#35306). So: user-level hooks, then /hooks.
@@ -41,7 +46,11 @@ MACHINE=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"m
 if [ -n "${MACHINE}" ] && [ "${MACHINE}" != "$(hostname)" ]; then say "port 8790 is answered by a map server on ANOTHER machine ('${MACHINE}') - an SSH port forward? Close that tunnel (or move it off 8790), then rerun this installer."; exit 1; fi
 BACKEND=$(curl -s -m 2 http://127.0.0.1:8790/api/backend 2>/dev/null | grep -o '"backend":"[a-z]*"' | cut -d'"' -f4)
 if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && [ -n "${HEADSHA}" ] && { [ "${RUNNING}" != "${HEADSHA}" ] || [ "${BACKEND}" != "codex" ]; }; then say "restarting the map server on the updated code (${RUNNING:-old} -> ${HEADSHA})"; curl -s -m 3 -X POST http://127.0.0.1:8790/api/shutdown >/dev/null 2>&1; sleep 2; pkill -f "bun run src/server.ts" 2>/dev/null; sleep 1; fi
-if ! curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then ( cd "${APP}" && nohup bun run src/server.ts > "${HOME}/.harnessmap/server.log" 2>&1 & ); for i in 1 2 3 4 5 6 7 8 9 10; do sleep 1; curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && break; done; fi
+# M266: the server always runs on the SAME home and database the hooks use (~/.harnessmap/map.sqlite); an earlier installer
+# started it without them, so the map on the page depended on who started the server. A database left in the app folder moves over once.
+mkdir -p "${HOME}/.harnessmap"
+if [ -f "${APP}/harnessmap.sqlite" ] && [ ! -f "${HOME}/.harnessmap/map.sqlite" ]; then say "moving your maps from ${APP}/harnessmap.sqlite to ~/.harnessmap/map.sqlite"; mv "${APP}/harnessmap.sqlite" "${HOME}/.harnessmap/map.sqlite"; rm -f "${APP}/harnessmap.sqlite-wal" "${APP}/harnessmap.sqlite-shm"; fi
+if ! curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then ( cd "${APP}" && HARNESSMAP_HOME="${HOME}/.harnessmap" HARNESSMAP_DB="${HOME}/.harnessmap/map.sqlite" nohup bun run src/server.ts > "${HOME}/.harnessmap/server.log" 2>&1 & ); for i in 1 2 3 4 5 6 7 8 9 10; do sleep 1; curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && break; done; fi
 if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then say "the map is up at http://127.0.0.1:8790"; (command -v open >/dev/null 2>&1 && open http://127.0.0.1:8790) || (command -v xdg-open >/dev/null 2>&1 && xdg-open http://127.0.0.1:8790) || true; else say "the map server did not answer - see ${HOME}/.harnessmap/server.log"; fi
 printf '\n\033[1m%s\033[0m\n' "ONE MANUAL STEP (Codex requires it; nothing can do it for you):"
 printf '%s\n' "  1. open a terminal in any project folder and run:  codex" "  2. type  /hooks  and trust the harnessmap entries (Codex skips untrusted hooks silently; the app cannot trust them, the CLI can, and both share the setting)" "  3. start a NEW thread (CLI or app) and say:  open map  - the map attaches to THAT session only (it is off everywhere else); say  close map  to detach"

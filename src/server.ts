@@ -172,7 +172,11 @@ async function selfUpdate(): Promise<{ ok: boolean; changed?: boolean; from?: st
   try {
     const git = (args: string[]) => { const r = Bun.spawnSync(['git', '-C', root, ...args], { stdout: 'pipe', stderr: 'pipe', timeout: 90_000 }); return { code: r.exitCode, out: r.stdout.toString().trim(), err: r.stderr.toString().trim() }; };
     const from = BUILD;
-    const pull = git(['pull', '-q', '--ff-only']);
+    let pull = git(['pull', '-q', '--ff-only']);
+    // M266: our own app folder (~/.harnessmap/app) holds no user data — when it cannot fast-forward, reset it to main.
+    // A developer's checkout anywhere else is never reset.
+    const ours = root.replace(/[\\/]+$/, '') === join(process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap'), 'app').replace(/[\\/]+$/, '') || root === (process.env.HARNESSMAP_APP ?? '');
+    if (pull.code !== 0 && ours) { const f = git(['fetch', '-q', 'origin', 'main']); if (f.code === 0) pull = git(['reset', '-q', '--hard', 'origin/main']); }
     if (pull.code !== 0) return { ok: false, from, error: `git pull failed: ${(pull.err || pull.out).slice(-300)}` };
     const to = git(['rev-parse', '--short', 'HEAD']).out;
     if (!to || to === from) return { ok: true, changed: false, from, to: to || from };

@@ -18,7 +18,12 @@ if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
 }
 if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { Say "codex is not on PATH - install the Codex CLI (npm i -g @openai/codex) or the Codex app first; the map's hooks will attach once it is." }
 New-Item -ItemType Directory -Force -Path (Split-Path $App) | Out-Null
-if (Test-Path (Join-Path $App '.git')) { Say "updating $App..."; try { git -C $App pull -q --ff-only } catch {} } else { Say "fetching the map into $App..."; git clone -q $Repo $App }
+if (Test-Path (Join-Path $App '.git')) {
+  Say "updating $App..."; $Before = ''; try { $Before = (git -C $App rev-parse --short HEAD).Trim() } catch {}
+  # M266: a pull that cannot fast-forward used to fail silently and leave the old code running.
+  git -C $App pull -q --ff-only 2>$null; if ($LASTEXITCODE -ne 0) { Say "the app folder could not fast-forward - resetting it to main (it holds no data of yours; maps live in ~\.harnessmap)"; git -C $App fetch -q origin main; git -C $App reset -q --hard origin/main }
+  $After = ''; try { $After = (git -C $App rev-parse --short HEAD).Trim() } catch {}; Say "code: $Before -> $After$(if ($Before -eq $After) { ' (already current)' })"
+} else { Say "fetching the map into $App..."; git clone -q $Repo $App }
 Push-Location $App; try { bun install --production | Out-Null } catch {} ; Pop-Location
 # Codex does not execute plugin-bundled hooks yet (openai/codex #16430), and hooks the user adds are
 # skipped until trusted, often without a prompt (#35306). So: user-level hooks, then /hooks in the CLI.
@@ -45,6 +50,10 @@ if ($st -and $Head -and (($st.build -ne $Head) -or ($Backend -ne 'codex'))) {
 }
 if (-not (State)) {
   $bun = (Get-Command bun).Source
+  # M266: the same home and database the hooks use; a database left in the app folder by an earlier installer moves over once
+  $Hm = Join-Path $HOME '.harnessmap'; New-Item -ItemType Directory -Force -Path $Hm | Out-Null
+  if ((Test-Path (Join-Path $App 'harnessmap.sqlite')) -and -not (Test-Path (Join-Path $Hm 'map.sqlite'))) { Say "moving your maps to ~\.harnessmap\map.sqlite"; Move-Item (Join-Path $App 'harnessmap.sqlite') (Join-Path $Hm 'map.sqlite'); Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $App 'harnessmap.sqlite-wal'), (Join-Path $App 'harnessmap.sqlite-shm') }
+  $env:HARNESSMAP_HOME = $Hm; $env:HARNESSMAP_DB = (Join-Path $Hm 'map.sqlite')
   Start-Process -FilePath $bun -ArgumentList "run","src/server.ts" -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput (Join-Path $HOME ".harnessmap\server.log") -RedirectStandardError (Join-Path $HOME ".harnessmap\server.err.log") | Out-Null
   foreach ($i in 1..12) { Start-Sleep -Seconds 1; if (State) { break } }
 }
