@@ -1,0 +1,16 @@
+{
+  "name": "a to-sort item whose home becomes writable (the branch gets lit) is moved home by the filer on the next round, arrival note stripped (M48/M49) — auto mode off",
+  "seed": [
+    { "key": "proj", "content": "Thesis: trust in institutions" },
+    { "key": "ch1", "content": "Chapter 1: methods", "parent": "proj" },
+    { "key": "travel", "content": "Travel: conferences and trips", "parent": "proj" },
+    { "key": "lisbon", "content": "Lisbon conference in November", "parent": "travel" }
+  ],
+  "focus": "ch1", "dim": ["travel"], "auto": { "on": false },
+  "rounds": [
+    { "user": "Side note for the Lisbon conference: the hotel by the river is booked, three nights from the 11th.", "assistant": "Noted: Lisbon hotel by the river, three nights from the 11th.",
+      "then": [ { "nodeMatching": "hotel", "notUnder": "travel" }, { "do": "light", "key": "travel" } ] },
+    { "user": "Back to methods: the interviewers get a two-day training before fieldwork.", "assistant": "Methods: two-day interviewer training before fieldwork.",
+      "then": [ { "nodeMatching": "hotel", "under": "travel" }, { "noNodeMatching": "arrived while focus was" } ] }
+  ]
+}
