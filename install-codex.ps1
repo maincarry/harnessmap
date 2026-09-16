@@ -41,7 +41,11 @@ if (Get-Command codex -ErrorAction SilentlyContinue) {
   } else { Say "skills already registered as a Codex plugin from this app" }
 }
 # M264: installed through Codex = the map's agents run on Codex (the user's ChatGPT plan), whatever else is on this machine
-New-Item -ItemType Directory -Force -Path (Join-Path $HOME '.harnessmap') | Out-Null; Set-Content -Path (Join-Path $HOME '.harnessmap\backend') -Value 'codex'; Say "the map's agents will run on codex (your ChatGPT plan) - switch in the map's models panel"
+New-Item -ItemType Directory -Force -Path (Join-Path $HOME '.harnessmap') | Out-Null
+# M284: the installer sets the DEFAULT engine only when no choice exists yet
+$BeFile = Join-Path $HOME '.harnessmap\backend'
+if (-not (Test-Path $BeFile) -or -not (Get-Content $BeFile -Raw).Trim()) { Set-Content -Path $BeFile -Value 'codex'; Say "the map's agents will run on codex (your ChatGPT plan) - switch in the map's models panel" } else { Say "engine kept as chosen: $((Get-Content $BeFile -Raw).Trim())" }
+$WantBackend = (Get-Content $BeFile -Raw).Trim()
 # a server already running on OLDER code is restarted (M236): the build it reports must match the app on disk
 $Head = ''; try { $Head = (git -C $App rev-parse --short HEAD).Trim() } catch {}
 $st = State
@@ -49,8 +53,8 @@ $st = State
 # binding to it would file this machine's talk onto that map, and nothing here can close the tunnel.
 if ($st -and $st.machine -and ($st.machine.ToLower() -ne $env:COMPUTERNAME.ToLower())) { throw "port 8790 is answered by a map server on ANOTHER machine ('$($st.machine)') - an SSH port forward? Close that tunnel (or move it off 8790), then rerun this installer." }
 $Backend = ''; try { $Backend = (Invoke-RestMethod "$B/api/backend" -TimeoutSec 2).backend } catch {}
-if ($st -and $Head -and (($st.build -ne $Head) -or ($Backend -ne 'codex'))) {
-  Say "restarting the map server on the updated code ($($st.build) -> $Head, backend $Backend -> codex)"
+if ($st -and $Head -and (($st.build -ne $Head) -or ($Backend -and ($Backend -ne $WantBackend)))) {
+  Say "restarting the map server on the updated code ($($st.build) -> $Head, backend $Backend -> $WantBackend)"
   try { Invoke-RestMethod -Method Post "$B/api/shutdown" -TimeoutSec 3 | Out-Null } catch {}
   Start-Sleep -Seconds 2
   Get-CimInstance Win32_Process -Filter "Name = 'bun.exe'" | Where-Object { $_.CommandLine -like '*src/server.ts*' -or $_.CommandLine -like '*src\server.ts*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }

@@ -275,12 +275,13 @@ function purgeInnerSessions(): { views: number; nodes: number; duplicates: numbe
   // Inner (the map's own) sessions: not the session the person opened, and either our prompt as the first user turn,
   // no real user turn at all, or Codex's auto-title for exec threads.
   let opened = ''; try { opened = (readFileSync(join(process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap'), 'session'), 'utf8').split('\n')[0] ?? '').trim(); } catch {}
-  const rows = (db.prepare(`SELECT c.id, c.project_id, c.host_session_id,
+  const rows = (db.prepare(`SELECT c.id, c.project_id, c.host_session_id, c.created_at,
       (SELECT content FROM turns t WHERE t.chat_id = c.id AND t.role = 'user' ORDER BY idx LIMIT 1) first_user,
       (SELECT title FROM harness_sessions h WHERE h.session_id = c.host_session_id) title
     FROM chats c WHERE c.host_session_id IS NOT NULL AND c.status != 'archived'`).all() as any[])
     .filter((r) => r.host_session_id !== opened && (
-      !String(r.first_user ?? '').trim() || String(r.first_user).includes('SYSTEM INSTRUCTIONS:') || r.title === 'Automatic Note Filing'));
+      // M284: a view with no user message yet counts as junk only when it is older than ten minutes — a thread that just attached and has not spoken is not junk
+      (!String(r.first_user ?? '').trim() && Date.now() - new Date(String(r.created_at) + 'Z').getTime() > 600_000) || String(r.first_user ?? '').includes('SYSTEM INSTRUCTIONS:') || r.title === 'Automatic Note Filing'));
   if (!rows.length) return { views: 0, nodes: 0, duplicates };
   const byProject = new Map<string, string[]>();
   for (const r of rows) {

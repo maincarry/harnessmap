@@ -47,7 +47,10 @@ if command -v codex >/dev/null 2>&1; then
   else say "skills already registered as a Codex plugin from this app"; fi
 fi
 # M264: installed through Codex = the map's agents run on Codex (the user's ChatGPT plan), whatever else is on this machine
-mkdir -p "${HOME}/.harnessmap"; printf 'codex\n' > "${HOME}/.harnessmap/backend"; say "the map's agents will run on codex (your ChatGPT plan) - switch in the map's ⚙ models panel"
+# M284: the installer sets the DEFAULT engine only when no choice exists yet — a choice made in ⚙ models survives a rerun
+mkdir -p "${HOME}/.harnessmap"
+if [ ! -s "${HOME}/.harnessmap/backend" ]; then printf 'codex\n' > "${HOME}/.harnessmap/backend"; say "the map's agents will run on codex (your ChatGPT plan) - switch in the map's ⚙ models panel"; else say "engine kept as chosen: $(cat "${HOME}/.harnessmap/backend")"; fi
+WANT_BACKEND=$(cat "${HOME}/.harnessmap/backend" 2>/dev/null || echo codex)
 # start the map server now and open the page - the user sees the map before Codex is even involved
 # a server already running on OLDER code is restarted (M236): the build it reports must match the app on disk
 HEADSHA=$(git -C "${APP}" rev-parse --short HEAD 2>/dev/null || echo "")
@@ -59,7 +62,7 @@ MACHINE=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"m
 # a harnessmap answering on this port from ANOTHER machine = an SSH port forward; nothing here can close it
 if [ -n "${MACHINE}" ] && [ "${MACHINE}" != "$(hostname)" ]; then say "port 8790 is answered by a map server on ANOTHER machine ('${MACHINE}') - an SSH port forward? Close that tunnel (or move it off 8790), then rerun this installer."; exit 1; fi
 BACKEND=$(curl -s -m 2 http://127.0.0.1:8790/api/backend 2>/dev/null | grep -o '"backend":"[a-z]*"' | cut -d'"' -f4 || true)
-if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && [ -n "${HEADSHA}" ] && { [ "${RUNNING}" != "${HEADSHA}" ] || [ "${BACKEND}" != "codex" ]; }; then say "restarting the map server on the updated code (${RUNNING:-old} -> ${HEADSHA})"; curl -s -m 3 -X POST http://127.0.0.1:8790/api/shutdown >/dev/null 2>&1
+if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && [ -n "${HEADSHA}" ] && { [ "${RUNNING}" != "${HEADSHA}" ] || { [ -n "${BACKEND}" ] && [ "${BACKEND}" != "${WANT_BACKEND}" ]; }; }; then say "restarting the map server on the updated code (${RUNNING:-old} -> ${HEADSHA})"; curl -s -m 3 -X POST http://127.0.0.1:8790/api/shutdown >/dev/null 2>&1
   # M269: wait for the port to free up instead of fixed sleeps (up to 5 s), then make sure nothing old lingers
   for i in $(seq 1 20); do curl -s -m 1 -o /dev/null http://127.0.0.1:8790/api/state || break; sleep 0.25; done
   if curl -s -m 1 -o /dev/null http://127.0.0.1:8790/api/state; then pkill -f "bun run src/server.ts" 2>/dev/null; sleep 1; fi
