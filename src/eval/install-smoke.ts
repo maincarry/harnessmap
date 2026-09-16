@@ -545,8 +545,10 @@ console.log('\n== 6o. the backend is a choice that persists (M264) ==');
   check('an unknown backend is refused', bad.status === 400);
   const codexHere = g0.backends.find((b: any) => b.id === 'codex')?.available;
   if (codexHere) {
+    await J('/api/models', { task: 'chat', model: 'claude-haiku-4-5' }); // a Claude id chosen for a role
     const r = await (await J('/api/backend', { backend: 'codex' })).json();
     const m = await (await fetch(`${BASE}/api/models`)).json();
+    check('switching engines drops a role choice that belonged to the other engine', (m.roles ?? []).every((x: any) => !/^claude/.test(x.chosen ?? '')));
     check('choosing codex persists to <home>/backend, the catalog switches to gpt ids, the source reads "chosen"', r.ok && r.backend === 'codex' && exB(join(HOME, 'backend')) && rfB(join(HOME, 'backend'), 'utf8').trim() === 'codex' && m.backend === 'codex' && m.backendSource === 'chosen' && m.catalog.every((c: any) => /^gpt/.test(c.id)));
   } else {
     const r = await J('/api/backend', { backend: 'codex' });

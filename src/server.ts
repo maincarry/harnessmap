@@ -261,7 +261,7 @@ function sessionChat(sessionId: string): string | null {
 function backendChoices(): { id: Backend; label: string; available: boolean; note: string }[] {
   const avail = harnessAvailability();
   return [
-    { id: 'codex', label: 'Codex (your ChatGPT plan)', available: !!codexBin(), note: 'codex exec on the codex CLI — PATH or the Codex app' },
+    { id: 'codex', label: 'GPT via Codex (your ChatGPT plan)', available: !!codexBin(), note: 'codex exec on the codex CLI — PATH or the Codex app' },
     { id: 'subscription', label: 'Claude (your Claude subscription)', available: !!avail.claude, note: 'claude -p on Claude Code; sign in with `claude` first' },
     { id: 'api', label: 'Anthropic API key', available: !!process.env.ANTHROPIC_API_KEY, note: 'ANTHROPIC_API_KEY in the server\'s environment; billed per token' },
   ];
@@ -2673,7 +2673,10 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       if (want === 'codex' && !codexBin()) return json({ error: 'the codex CLI was not found (PATH or the Codex app) — install it, then choose codex' }, 409);
       if (want === 'api' && !process.env.ANTHROPIC_API_KEY) return json({ error: 'no ANTHROPIC_API_KEY in the server\'s environment — the api backend needs one' }, 409);
       setBackend(want);
-      store.audit('backend_chosen', { backend: want ?? '(auto)', now: backendName() });
+      // A role's chosen model belongs to one engine — a Claude id chosen while running on GPT (or the reverse) is dropped (Jacob).
+      const ids = new Set(modelCatalog().map((c) => c.id)); let dropped = 0;
+      for (const r of ROLES) { const c = store.getSetting(`model:${r.task}`); if (c && !ids.has(c)) { store.setSetting(`model:${r.task}`, ''); dropped++; } }
+      store.audit('backend_chosen', { backend: want ?? '(auto)', now: backendName(), dropped });
       broadcast({ type: 'map', ...state() });
       return json({ ok: true, backend: backendName(), source: backendSource(), catalog: modelCatalog() });
     }
