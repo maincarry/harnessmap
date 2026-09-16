@@ -944,10 +944,41 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
   autoBusy = true;
   // Never silent: when auto mode is on and does nothing, the round line says why (a quiet suffix, no undo chip).
   const quiet: string[] = [];
+  let announced = false;
   try {
     const chat = store.getChat(chatId); if (!chat || chat.projectId !== pid) return;
     const lines: string[] = [];
-    // 1. place: this round's to-sort arrivals go to a LIT home the placement agent names; a dim home stays a dot.
+    // 1. THE AIM FIRST (M274, Jacob: "what happens first so that the map updates essential things for user immediately"):
+    // focus + light decide what the agent sees next turn and what the page highlights — one call, announced at once.
+    // Housekeeping (placement, titles) follows, and is skipped when the next round is already waiting. (or the person asked to focus somewhere), never over a pending import.
+    if ((a.focus || a.light) && !importPending(pid)) {
+      const chatNow = store.getChat(chatId)!;
+      const asked = nudgeFocusTarget && a.focus && nudgeFocusTarget.id !== chatNow.focusContainerId ? nudgeFocusTarget : null;
+      const left = roundLeftFocus(store, chatNow.focusContainerId, alterations);
+      if (asked) {
+        const res = applyAim(chatId, { focus: asked.id, focusName: asked.name, lit: [], dim: [], summary: '' }, { focus: true, light: false, source: 'auto' });
+        if (res.focusChanged) lines.push(`focus → "${asked.name}" (you asked)`);
+      } else if (left) {
+        const tail = `USER: ${userText.slice(-1500)}\n\nAGENT: ${assistantText.slice(-1500)}`;
+        if (a.focus) {
+          const r = await proposeReaim(store, pid, chatId, tail);
+          if ('error' in r) { store.audit('auto_aim_error', { error: r.error }); quiet.push(`aim failed: ${r.error.slice(0, 80)}`); }
+          else { const res = applyAim(chatId, r, { focus: true, light: a.light, source: 'auto' }); if (res.focusChanged || res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); else quiet.push('aim unchanged'); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
+        } else {
+          const r = await proposeAutolit(store, pid, chatNow.focusContainerId, store.getLit(chatId));
+          if ('error' in r) { store.audit('auto_aim_error', { error: r.error }); quiet.push(`light failed: ${r.error.slice(0, 80)}`); }
+          else { const res = applyAim(chatId, { lit: r.lit, dim: r.dim, summary: r.summary }, { focus: false, light: true, source: 'auto' }); if (res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); else quiet.push('light unchanged'); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
+        }
+      } else { store.audit('auto_aim_skip', { why: 'round stayed inside the focus' }); quiet.push('stayed inside the focus, no re-aim'); }
+    } else if ((a.focus || a.light) && importPending(pid)) quiet.push('an import is pending, no re-aim');
+    if (lines.length) {
+      const f = store.getChat(chatId)?.focusContainerId;
+      const parent = f ? store.getNode(f)?.parentId ?? null : null;
+      announceAuto(pid, chatId, `auto mode: ${[...lines, ...quiet].join(' · ')}`, { undo: true, zoom: a.zoom ? parent : undefined });
+      lines.length = 0; quiet.length = 0; announced = true;
+    }
+    if (lag > 0) { store.audit('auto_housekeeping_deferred', { lag }); return; } // the next round is waiting: placement and titles wait for a quieter round
+    // 2. place: this round's to-sort arrivals go to a LIT home the placement agent names; a dim home stays a dot.
     if (a.place && !importPending(pid)) {
       const toSort = toSortRootOf(pid);
       // M273 (Jacob: "in the automode, why aren't to-sort things sorted?"): not only this round's arrivals — the
@@ -978,7 +1009,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
       if (keptDim) quiet.push(`${keptDim} in "to sort" kept — their home is dimmed (light it and auto mode files them)`);
       if (noHome) quiet.push(`${noHome} in "to sort" have no home on the map yet`);
     }
-    // 2. rename: a touched node whose title no longer matches its statement gets a fresh one (mechanical staleness test first, one cheap call only when it fails).
+    // 3. rename (last, cosmetic): a touched node whose title no longer matches its statement gets a fresh one (mechanical staleness test first, one cheap call only when it fails).
     if (a.rename) {
       const words = (t: string) => new Set(t.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3));
       let n = 0;
@@ -999,32 +1030,9 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         }
       }
     }
-    // 3. the aim: only when the round left the focus (or the person asked to focus somewhere), never over a pending import.
-    if ((a.focus || a.light) && !importPending(pid)) {
-      const chatNow = store.getChat(chatId)!;
-      const asked = nudgeFocusTarget && a.focus && nudgeFocusTarget.id !== chatNow.focusContainerId ? nudgeFocusTarget : null;
-      const left = roundLeftFocus(store, chatNow.focusContainerId, alterations);
-      if (asked) {
-        const res = applyAim(chatId, { focus: asked.id, focusName: asked.name, lit: [], dim: [], summary: '' }, { focus: true, light: false, source: 'auto' });
-        if (res.focusChanged) lines.push(`focus → "${asked.name}" (you asked)`);
-      } else if (left) {
-        const tail = `USER: ${userText.slice(-1500)}\n\nAGENT: ${assistantText.slice(-1500)}`;
-        if (a.focus) {
-          const r = await proposeReaim(store, pid, chatId, tail);
-          if ('error' in r) { store.audit('auto_aim_error', { error: r.error }); quiet.push(`aim failed: ${r.error.slice(0, 80)}`); }
-          else { const res = applyAim(chatId, r, { focus: true, light: a.light, source: 'auto' }); if (res.focusChanged || res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); else quiet.push('aim unchanged'); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
-        } else {
-          const r = await proposeAutolit(store, pid, chatNow.focusContainerId, store.getLit(chatId));
-          if ('error' in r) { store.audit('auto_aim_error', { error: r.error }); quiet.push(`light failed: ${r.error.slice(0, 80)}`); }
-          else { const res = applyAim(chatId, { lit: r.lit, dim: r.dim, summary: r.summary }, { focus: false, light: true, source: 'auto' }); if (res.lit + res.dim > 0) lines.push(res.label.replace(/^auto mode: /, '')); else quiet.push('light unchanged'); if (res.kept) lines.push(`${res.kept} hand-lit kept`); }
-        }
-      } else { store.audit('auto_aim_skip', { why: 'round stayed inside the focus' }); quiet.push('stayed inside the focus, no re-aim'); }
-    } else if ((a.focus || a.light) && importPending(pid)) quiet.push('an import is pending, no re-aim');
-    if (lines.length) {
-      const f = store.getChat(chatId)?.focusContainerId;
-      const parent = f ? store.getNode(f)?.parentId ?? null : null;
-      announceAuto(pid, chatId, `auto mode: ${[...lines, ...quiet].join(' · ')}`, { undo: true, zoom: a.zoom ? parent : undefined });
-    } else broadcast({ type: 'auto', chatId, line: `↳ ${roundSummary} · auto mode: ${quiet.join(', ') || 'nothing to do'}`, undo: false });
+    if (lines.length) announceAuto(pid, chatId, `auto mode: ${[...lines, ...quiet].join(' · ')}`, { undo: true });
+    else if (!announced) broadcast({ type: 'auto', chatId, line: `↳ ${roundSummary} · auto mode: ${quiet.join(', ') || 'nothing to do'}`, undo: false });
+    else if (quiet.length) broadcast({ type: 'auto', chatId, line: `auto mode: ${quiet.join(', ')}`, undo: false });
   } catch (err) { store.audit('auto_mode_error', { error: String(err).slice(0, 200) }); broadcast({ type: 'auto', chatId, line: `auto mode failed: ${String(err).slice(0, 100)}`, undo: false }); }
   finally { autoBusy = false; }
 }
