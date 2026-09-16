@@ -950,14 +950,21 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
     // 1. place: this round's to-sort arrivals go to a LIT home the placement agent names; a dim home stays a dot.
     if (a.place && !importPending(pid)) {
       const toSort = toSortRootOf(pid);
-      const arrivals = toSort ? alterations.filter((x) => (x.op === 'create_node' || x.op === 'move_node') && x.parentId === toSort.id && x.id).map((x) => x.id as string).slice(0, 3) : [];
+      // M273 (Jacob: "in the automode, why aren't to-sort things sorted?"): not only this round's arrivals — the
+      // backlog too, oldest first, up to three per round, each item retried no sooner than 30 minutes after its last try.
+      const arrivals = toSort ? alterations.filter((x) => (x.op === 'create_node' || x.op === 'move_node') && x.parentId === toSort.id && x.id).map((x) => x.id as string) : [];
+      const backlog = toSort ? store.childrenOf(toSort.id).filter((k: any) => k.status !== 'removed' && !arrivals.includes(k.id)).sort((x: any, y: any) => String(x.createdAt ?? '').localeCompare(String(y.createdAt ?? ''))).map((k: any) => k.id as string) : [];
+      const dueNow = (id: string) => Date.now() - Number(store.getSetting(`auto_place_tried:${id}`) ?? 0) > 1_800_000;
+      const queue = [...arrivals, ...backlog.filter(dueNow)].slice(0, 3);
       const blocked = new Set(store.getOpenSuggestions(pid).filter((sg) => sg.kind !== 'relight').map((sg) => sg.nodeId));
-      for (const id of arrivals) {
+      let keptDim = 0, noHome = 0;
+      for (const id of queue) {
         const n = store.getNode(id); if (!n || n.status === 'removed' || n.parentId !== toSort!.id) continue;
-        const r = await suggestHomes(store, pid, id); if ('error' in r) continue;
+        store.setSetting(`auto_place_tried:${id}`, String(Date.now()));
+        const r = await suggestHomes(store, pid, id); if ('error' in r) { noHome++; continue; }
         const litNow = new Set(store.getLit(chatId));
         const home = r.candidates.find((c) => litNow.has(c.nodeId) && !blocked.has(c.nodeId));
-        if (!home) { store.audit('auto_place_skip', { id: id.slice(0, 8), candidates: r.candidates.length }); continue; }
+        if (!home) { store.audit('auto_place_skip', { id: id.slice(0, 8), candidates: r.candidates.length }); if (r.candidates.length) keptDim++; else noHome++; continue; }
         const cleaned = n.content.replace(/\s*\(arrived while focus was:[^)]*\)\s*$/, '');
         const alts = [{ op: 'move_node', id, parentId: home.nodeId } as any, ...(cleaned !== n.content ? [{ op: 'update_node', id, content: cleaned } as any] : [])];
         const inverse = inverseOfAlterations(alts);
@@ -967,6 +974,9 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         chats.noteMapChange(chatId, `auto mode moved "${nodeName(n)}" out of "to sort" into "${home.name}"`);
         lines.push(`placed "${nodeName(n)}" → "${home.name}"`);
       }
+      // Visible either way: what stayed in "to sort" and why (a dim home is the person's to light; no home = nothing fits yet).
+      if (keptDim) quiet.push(`${keptDim} in "to sort" kept — their home is dimmed (light it and auto mode files them)`);
+      if (noHome) quiet.push(`${noHome} in "to sort" have no home on the map yet`);
     }
     // 2. rename: a touched node whose title no longer matches its statement gets a fresh one (mechanical staleness test first, one cheap call only when it fails).
     if (a.rename) {
@@ -1013,7 +1023,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
     if (lines.length) {
       const f = store.getChat(chatId)?.focusContainerId;
       const parent = f ? store.getNode(f)?.parentId ?? null : null;
-      announceAuto(pid, chatId, `auto mode: ${lines.join(' · ')}`, { undo: true, zoom: a.zoom ? parent : undefined });
+      announceAuto(pid, chatId, `auto mode: ${[...lines, ...quiet].join(' · ')}`, { undo: true, zoom: a.zoom ? parent : undefined });
     } else broadcast({ type: 'auto', chatId, line: `↳ ${roundSummary} · auto mode: ${quiet.join(', ') || 'nothing to do'}`, undo: false });
   } catch (err) { store.audit('auto_mode_error', { error: String(err).slice(0, 200) }); broadcast({ type: 'auto', chatId, line: `auto mode failed: ${String(err).slice(0, 100)}`, undo: false }); }
   finally { autoBusy = false; }
