@@ -105,6 +105,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'sessionEnd') await post('/api/harness/session-end', { session_id: a.session, reason: a.reason ?? 'other', cwd: join(TMP, 'proj') });
         else if (a.do === 'sessionStart') await post('/api/harness/session-start', { session_id: a.session, cwd: join(TMP, 'proj'), source: a.source ?? 'resume', harness: a.harness ?? sc.harness ?? 'codex' });
         else if (a.do === 'statement') await post(`/api/nodes/${keys[a.key]}`, { content: a.content, chatId: cid() }); // the person edits the statement on the card
+        else if (a.do === 'pref') await post('/api/prefs', { append: a.text }); // a standing preference (or "glossary: X instead of Y")
         else if (a.do === 'influence') { const cur = await get('/api/influence'); if (!!cur.off !== !!a.off) await post('/api/influence/toggle', {}); }
         s = await state(); continue;
       }
