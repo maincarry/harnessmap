@@ -1,0 +1,11 @@
+{
+  "name": "enrich this node: when the discussion under a node outran what was filed (long answers, few user facts), the proposal draws the missing children from the record; apply adds them; undo removes them (M189)",
+  "seed": [ { "key": "proj", "content": "Home coffee setup" }, { "key": "grinder", "content": "Grinder choice", "parent": "proj" } ],
+  "focus": "grinder", "auto": { "on": false }, "settleMs": 8000,
+  "rounds": [
+    { "user": "What should I look for in a grinder?", "assistant": "Five things. Burr type: flat burrs give a more uniform grind and clarity, conical burrs are more forgiving and quieter. Burr size: 54 mm is the entry point for espresso, 64 mm and up grinds faster and cooler. Retention: single-dosing grinders keep under 0.3 g behind, hopper grinders can hold 2–5 g of stale grounds. Adjustment: stepless lets you dial espresso precisely, stepped is easier for filter. Motor speed: slower burrs (under 1400 rpm) heat the coffee less.", "then": [] },
+    { "user": "and which ones do people actually buy?", "assistant": "Three tiers people settle on. Entry: the Baratza Encore ESP around 200, conical, stepped, fine for filter and okay for espresso. Mid: the DF64 around 400, 64 mm flat burrs, single-dose, stepless — the value pick for espresso. High: the Niche Zero around 700, 63 mm conical, near-zero retention, quiet; or the Eureka Mignon Specialita around 500 for a hopper machine with a timer.", "then": [] },
+    { "user": "ok", "assistant": "Take your time — the DF64 is the usual answer for espresso at home.",
+      "then": [ { "do": "enrich", "key": "grinder" }, { "tidyChanged": true }, { "nodeMatching": "DF64|Niche|Encore|burr|retention", "under": "grinder" } ] }
+  ]
+}
