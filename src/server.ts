@@ -139,6 +139,19 @@ let latestKnown: string | null = store.getSetting('latest_ver') || null;
 // M265 (Jacob: "my codex version didn't change… couldn't the codex hook push user to update?"): during product
 // testing the version number rarely moves while the code does — "newer" is judged by the repo's main COMMIT too.
 let latestBuild: string | null = store.getSetting('latest_build') || null;
+// M281 (Jacob: "the update function should carry update description right?"): the commits between this build and main —
+// their first lines are the update's description, shown in ⬆, in the hook's nudge and by the doctor.
+let latestChanges: { sha: string; message: string; date: string }[] = (() => { try { return JSON.parse(store.getSetting('latest_changes') ?? '[]'); } catch { return []; } })();
+async function fetchChanges(): Promise<void> {
+  if (!BUILD || !latestBuild || latestBuild.startsWith(BUILD)) { latestChanges = []; store.setSetting('latest_changes', '[]'); return; }
+  try {
+    const r = await fetch(`https://api.github.com/repos/maincarry/harnessmap/compare/${BUILD}...main`, { headers: { accept: 'application/vnd.github+json', 'user-agent': 'harnessmap' }, signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return;
+    const j = await r.json() as any;
+    latestChanges = (j.commits ?? []).map((c: any) => ({ sha: String(c.sha ?? '').slice(0, 7), message: String(c.commit?.message ?? '').split('\n')[0].slice(0, 160), date: String(c.commit?.author?.date ?? '').slice(0, 10) })).reverse();
+    store.setSetting('latest_changes', JSON.stringify(latestChanges));
+  } catch { /* offline is fine */ }
+}
 async function checkLatest(force = false): Promise<string | null> {
   if (process.env.HARNESSMAP_LATEST_BUILD_OVERRIDE) latestBuild = process.env.HARNESSMAP_LATEST_BUILD_OVERRIDE;
   if (process.env.HARNESSMAP_LATEST_OVERRIDE) { latestKnown = process.env.HARNESSMAP_LATEST_OVERRIDE; return latestKnown; }
@@ -156,12 +169,13 @@ async function checkLatest(force = false): Promise<string | null> {
       if (r.ok && /^[0-9a-f]{40}$/.test(sha)) { latestBuild = sha; store.setSetting('latest_build', sha); }
     } catch { /* offline is fine */ }
   }
+  await fetchChanges(); // M281
   store.setSetting('latest_checked', String(Date.now()));
   return latestKnown;
 }
 // The build on the repo's main differs from this server's — an update by commit (BUILD is a short sha; the remote a full one).
 const updateBuild = (): string | null => (latestBuild && BUILD && !latestBuild.startsWith(BUILD) && !BUILD.startsWith(latestBuild) ? latestBuild.slice(0, 7) : null);
-const updateInfo = () => ({ current: VERSION, build: BUILD, latest: latestKnown, latestBuild: latestBuild ? latestBuild.slice(0, 7) : null, available: Boolean(updateAvailable() || updateBuild()), kind: updateAvailable() ? 'version' : updateBuild() ? 'build' : null });
+const updateInfo = () => ({ current: VERSION, build: BUILD, latest: latestKnown, latestBuild: latestBuild ? latestBuild.slice(0, 7) : null, available: Boolean(updateAvailable() || updateBuild()), kind: updateAvailable() ? 'version' : updateBuild() ? 'build' : null, changes: updateBuild() ? latestChanges : [] });
 // M265: the server updates itself — the installer's update half, run from the page or the "update map" skill:
 // pull, reinstall, respawn on the same env, exit. A non-git copy (a harness's plugin cache) cannot; it says how instead.
 let updating = false;
@@ -2936,7 +2950,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // M161: menu-triggered update check.
     if (path === '/api/update-check' && req.method === 'POST') {
       await checkLatest(true);
-      return json({ current: VERSION, latest: latestKnown, updateAvailable: updateAvailable(), updateBuild: updateBuild(), build: BUILD, canSelfUpdate: existsSync(join(here, '..', '.git')), backend: backendName(), harnesses: Object.keys(harnessAvailability()).filter((k) => (harnessAvailability() as any)[k]) });
+      return json({ current: VERSION, latest: latestKnown, updateAvailable: updateAvailable(), updateBuild: updateBuild(), build: BUILD, canSelfUpdate: existsSync(join(here, '..', '.git')), changes: updateBuild() ? latestChanges : [], backend: backendName(), harnesses: Object.keys(harnessAvailability()).filter((k) => (harnessAvailability() as any)[k]) });
     }
     // M267: the doctor's probe — one tiny call through the configured engine; the decisive "does it work" check.
     if (path === '/api/doctor/probe' && req.method === 'POST') {
@@ -3238,8 +3252,9 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       if (nudgeKey && store.getSetting('update_nudged') !== nudgeKey && !influenceOff((body.cwd ? store.projectForCwd(body.cwd) : null) ?? projectId)) {
         store.setSetting('update_nudged', nudgeKey);
         const what = uv ? `v${uv}` : `build ${ub}`;
+        const desc = latestChanges.length ? ` — ${latestChanges.length} change(s), latest: ${latestChanges[0].message.slice(0, 90)}` : '';
         announce = [announce, existsSync(join(here, '..', '.git'))
-          ? `[harnessmap] a newer map is available (${what}; this one is ${BUILD || VERSION}). The user can say "update map" — the map skill updates and restarts the map server in about 20 seconds, no terminal needed — or press ⬆ on the map page. Tell the user in one short line; do not update on your own.`
+          ? `[harnessmap] a newer map is available (${what}; this one is ${BUILD || VERSION}${desc}). The user can say "update map" — the map skill updates and restarts the map server in about 20 seconds, no terminal needed — or press ⬆ on the map page, which lists every change. Tell the user in one short line; do not update on your own.`
           : harness === 'codex'
             ? `[harnessmap] a newer map is available (${what}): rerun the one-line installer from the README (it pulls the update and restarts the map server). Tell the user in one short line.`
             : `[harnessmap] a newer map is available (${what}): run /plugin update map@harnessmap (then restart) to upgrade. Tell the user in one short line.`].filter(Boolean).join('\n');

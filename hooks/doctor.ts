@@ -62,7 +62,7 @@ if (st && !NO_UPDATE_CHECK) {
       const u = await postJ('/api/update', {}, 200_000);
       if (u.json?.ok && u.json.changed) { say('FIX', `updated ${u.json.from} → ${u.json.to}; the server is restarting${u.json.hooksChanged ? ' — the hook definitions changed' : ''}`); if (u.json.hooksChanged) say('YOU', 'Codex will ask you to trust the changed hook entries once more: run codex, then /hooks'); }
       else say(u.json?.ok ? 'OK' : 'FAIL', u.json?.ok ? 'nothing to pull — already current' : `update failed: ${u.json?.error ?? u.error ?? 'HTTP ' + u.status}${u.json?.how ? ' — ' + u.json.how : ''}`);
-    } else if (newer) say('WARN', `a newer map is available (${newer}; this one is ${uc.build || uc.current}) — say "update map", press ⬆ on the map page, or run the doctor with --update`);
+    } else if (newer) say('WARN', `a newer map is available (${newer}; this one is ${uc.build || uc.current})${(uc.changes ?? []).length ? ` — ${uc.changes.length} change(s): ${uc.changes.slice(0, 3).map((c: any) => c.message.slice(0, 70)).join(' · ')}${uc.changes.length > 3 ? ' …' : ''}` : ''} — say "update map", press ⬆ on the map page, or run the doctor with --update`);
     else say('OK', `the code is current (build ${uc.build || disk || uc.current})`);
   } else say('WARN', 'could not check for updates (offline?)');
 }
