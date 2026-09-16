@@ -2192,9 +2192,11 @@ function openNodeDetail(id) {
       <div id="nd-min" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">medium — the same five organs in up to 150 words; what the agent usually receives</label>
       <div id="nd-mem" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">long — the same five organs with nothing left out; served in full when the block has room <button id="nd-long-toggle" class="hbtn" style="margin-left:6px;font-size:11px">show</button></label>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">long — the same five organs with nothing left out; served whole when the block has room <button id="nd-long-toggle" class="hbtn" style="margin-left:6px;font-size:11px">show</button></label>
       <pre id="nd-long" hidden style="border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);font:inherit;font-size:13px;line-height:1.5;color:var(--muted);white-space:pre-wrap;max-height:48vh;overflow:auto;margin:0">loading…</pre>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">specifics — the dated facts behind the three lengths (struck through = superseded)</label>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">full — the record itself: the exchanges that touched this node (or the imported source), verbatim, on request <button id="nd-full-toggle" class="hbtn" style="margin-left:6px;font-size:11px">show</button></label>
+      <pre id="nd-full" hidden style="border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);font:inherit;font-size:12.5px;line-height:1.5;color:var(--muted);white-space:pre-wrap;max-height:48vh;overflow:auto;margin:0">loading…</pre>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">specifics — the dated facts behind the four lengths (struck through = superseded)</label>
       <div id="nd-det" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
       <button id="nd-expand" class="hbtn" style="display:none;margin-top:6px" title="enrich this one node: the map reads what was discussed here and proposes the depth beneath it as child nodes — the same as ✚ enrich map, for one node; you approve">✚ enrich this node</button>
       <div class="actions">
@@ -2225,6 +2227,9 @@ function openNodeDetail(id) {
     // M223 (Jacob: "you didn't fix the node description???"): the long organ
     // text — the whole node — shows here in full; it was served to the agent
     // but never to the page.
+    // M280 (Jacob: "min med long full, four length"): full = the raw record behind the three written lengths, fetched on request
+    { const fl = ov.querySelector('#nd-full'), ft = ov.querySelector('#nd-full-toggle'); let loaded = false;
+      if (ft) ft.onclick = async () => { fl.hidden = !fl.hidden; ft.textContent = fl.hidden ? 'show' : 'hide'; if (!fl.hidden && !loaded) { loaded = true; try { const f = await post2get(`/api/nodes/${id}/full`); fl.textContent = f.full || 'no record yet — nothing has been discussed at this node and it was not imported'; fl.style.color = 'var(--ink)'; } catch (err) { fl.textContent = `could not load: ${err.message}`; } } }; }
     const lg = ov.querySelector('#nd-long'), lt = ov.querySelector('#nd-long-toggle');
     if (lg) {
       lg.textContent = r.long ?? 'not written yet — the memory agent writes the long text as the map digests discussion here (or ⚙ convert)';
