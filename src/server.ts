@@ -2834,6 +2834,14 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       await checkLatest(true);
       return json({ current: VERSION, latest: latestKnown, updateAvailable: updateAvailable(), updateBuild: updateBuild(), build: BUILD, canSelfUpdate: existsSync(join(here, '..', '.git')), backend: backendName(), harnesses: Object.keys(harnessAvailability()).filter((k) => (harnessAvailability() as any)[k]) });
     }
+    // M267: the doctor's probe — one tiny call through the configured engine; the decisive "does it work" check.
+    if (path === '/api/doctor/probe' && req.method === 'POST') {
+      const t0 = Date.now();
+      try {
+        const reply = await call({ task: 'title', system: 'Reply with the single word OK and nothing else.', user: 'ping', maxTokens: 8, timeoutMs: 45_000 });
+        return json({ ok: true, backend: backendName(), model: modelFor('title'), ms: Date.now() - t0, reply: String(reply ?? '').slice(0, 40) });
+      } catch (err) { return json({ ok: false, backend: backendName(), model: modelFor('title'), ms: Date.now() - t0, error: String(err instanceof Error ? err.message : err).slice(0, 300) }, 502); }
+    }
     // M265: update from the page or the "update map" skill — pull, reinstall, restart; the reply comes before the restart.
     if (path === '/api/update' && req.method === 'POST') {
       const r = await selfUpdate();

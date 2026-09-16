@@ -62,5 +62,7 @@ Write-Host ""; Write-Host "ONE MANUAL STEP (Codex requires it; nothing can do it
 Write-Host "  1. open a terminal in any project folder and run:  codex"
 Write-Host "  2. type  /hooks  and trust the harnessmap entries (Codex skips untrusted hooks silently; the CLI can trust them, the app cannot, and both share the setting)"
 Write-Host "  3. start a NEW thread (CLI or app) and say:  open map  - the map attaches to THAT session only (it is off everywhere else); say  close map  to detach"
-Say "To check any time:  irm https://raw.githubusercontent.com/maincarry/harnessmap/main/test-codex.ps1 | iex"
+# M267: the doctor's report closes the install
+Push-Location $App; try { $env:HARNESSMAP_HOME = (Join-Path $HOME '.harnessmap'); & bun run hooks/doctor.ts --fix 2>&1 | ForEach-Object { "  $_" } } catch {} ; Pop-Location
+Say "Any time something looks wrong: say 'map doctor' in Codex (it diagnoses and repairs), or run:  irm https://raw.githubusercontent.com/maincarry/harnessmap/main/test-codex.ps1 | iex"
 Say "All data stays in ~\.harnessmap."
