@@ -1,0 +1,17 @@
+{
+  "name": "asking the guide for a change returns a proposal and changes nothing until applied; applying it is one undo (M77/M80)",
+  "seed": [
+    { "key": "proj", "content": "Thesis: trust in institutions" },
+    { "key": "ch1", "content": "Chapter 1: methods", "parent": "proj" },
+    { "key": "travel", "content": "Travel: conferences and trips", "parent": "proj" },
+    { "key": "lisbon", "content": "Lisbon conference in November: flights and hotel", "parent": "travel" }
+  ],
+  "focus": "ch1", "auto": { "on": false },
+  "rounds": [
+    { "user": "Methods: the survey runs online, fifteen minutes.", "assistant": "Methods: online survey, fifteen minutes.",
+      "then": [ { "lit": "travel" }, { "do": "ask", "question": "dim everything about travel — I don't want the agent thinking about trips while we write methods" },
+                { "askProposes": "light", "dimMatching": "travel|lisbon" }, { "lit": "travel" },
+                { "do": "applyAsk" }, { "dark": "travel" }, { "dark": "lisbon" }, { "lit": "ch1" },
+                { "undoNext": "re-aim|auto mode|light" }, { "do": "undo" }, { "lit": "travel" } ] }
+  ]
+}
