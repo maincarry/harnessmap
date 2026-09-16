@@ -66,6 +66,7 @@ async function round(user: string, assistant: string, session = 'e2e-1') {
 }
 let auditMark = (await audit()).length;
 let lastContext: any = null;
+let lastTidy: any = null;
 for (const [i, r] of (sc.rounds ?? []).entries()) {
   console.log(`-- round ${i + 1}: ${String(r.user).slice(0, 70)}`);
   await round(r.user, r.assistant, r.session);
@@ -87,6 +88,14 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'wait') await sleep(a.ms ?? 5000);
         else if (a.do === 'context') { const r = await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(a.session ?? 'e2e-1')}&cwd=${encodeURIComponent(join(TMP, 'proj'))}`); lastContext = await r.json().catch(() => ({})); } // what the next turn would receive
         else if (a.do === 'compact') await post('/api/harness/compacted', { session_id: a.session ?? 'e2e-1' });
+        else if (a.do === 'tidy') { // propose + apply a tidy of a subtree (or the whole map with key null), as the ⚡ does
+          const nodeId = a.key ? keys[a.key] : null;
+          const pv = await post('/api/reorganize/preview', { nodeId, hint: a.hint });
+          lastTidy = pv.body;
+          if (pv.body?.alterations?.length) { const ap = await post('/api/reorganize/apply', { alterations: pv.body.alterations, chatId: cid(), containerName: a.key ? nameOf(s, nodeId!) : 'the whole map' }); lastTidy.applied = ap.body; }
+          check(`do tidy (${pv.body?.alterations?.length ?? 0} change(s))`, Array.isArray(pv.body?.alterations), JSON.stringify(pv.body).slice(0, 120));
+        }
+        else if (a.do === 'influence') { const cur = await get('/api/influence'); if (!!cur.off !== !!a.off) await post('/api/influence/toggle', {}); }
         s = await state(); continue;
       }
       const f = chatOf(s).focusContainerId; const ts = toSortOf(s);
@@ -99,7 +108,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.lit) check(label, chatOf(s).lit.includes(keys[a.lit]));
       else if (a.dark) check(label, !chatOf(s).lit.includes(keys[a.dark]));
       else if (a.audit) { const kinds = String(a.audit).split('|'); check(label, since.some((e: any) => kinds.includes(e.kind) && (!a.matching || rx(a.matching).test(JSON.stringify(e.detail)))), `kinds: ${[...new Set(since.map((e: any) => e.kind))].join(',').slice(0, 160)}`); }
-      else if (a.noAudit) check(label, !since.some((e: any) => e.kind === a.noAudit));
+      else if (a.noAudit) { const kinds = String(a.noAudit).split('|'); check(label, !since.some((e: any) => kinds.includes(e.kind)), `kinds: ${[...new Set(since.map((e: any) => e.kind))].join(',').slice(0, 160)}`); }
       else if (a.auditAny) { const all = await audit(); const kinds = String(a.auditAny).split('|'); check(label, all.some((e: any) => kinds.includes(e.kind) && (!a.matching || rx(a.matching).test(JSON.stringify(e.detail)))), `kinds: ${[...new Set(all.map((e: any) => e.kind))].join(',').slice(0, 160)}`); }
       else if (a.statusOf) { const n = (s.nodes ?? []).find((x: any) => match(s, x, a.statusOf)); check(label, !!n && rx(`^(${a.is})$`).test(n.status ?? ''), n ? `status=${n.status} (${(n.title || n.content).slice(0, 40)})` : 'no node'); }
       else if (a.countUnder) check(label, (s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length <= a.max, `count=${(s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length}`);
@@ -111,6 +120,8 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.viewFocusIs || a.viewFocusUnder) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); const want = keys[a.viewFocusIs ?? a.viewFocusUnder]; check(label, !!v && (a.viewFocusIs ? v.focusContainerId === want : (v.focusContainerId === want || under(s, v.focusContainerId, want))), v ? `focus=${nameOf(s, v.focusContainerId)}` : 'no such view'); }
       else if (a.viewLit || a.viewDark) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); const id = keys[a.viewLit ?? a.viewDark]; check(label, !!v && (a.viewLit ? v.lit.includes(id) : !v.lit.includes(id)), v ? '' : 'no such view'); }
       else if (a.contextChars) { const n = String(lastContext?.context ?? lastContext?.additionalContext ?? lastContext?.text ?? '').length; check(label, a.min !== undefined ? n >= a.min : n <= (a.max ?? 0), `chars=${n} keys=${Object.keys(lastContext ?? {}).join(',')}`); }
+      else if (a.parentOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.parentOf]); check(label, !!n && ((a.is === null && n.parentId === null) || n.parentId === keys[a.is]), n ? `parent=${nameOf(s, n.parentId)}` : 'no node'); }
+      else if (a.tidyChanged !== undefined) check(label, (lastTidy?.alterations?.length ?? 0) > 0 === a.tidyChanged, `alterations=${lastTidy?.alterations?.length ?? 0}`);
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }

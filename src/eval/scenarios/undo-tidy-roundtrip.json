@@ -1,0 +1,27 @@
+{
+  "name": "apply a tidy proposal, undo it: every node is back where it was and lit as it was (M136)",
+  "seed": [
+    { "key": "root", "content": "Moving house: everything for the move in October" },
+    { "key": "a", "content": "Call the movers for a quote", "parent": "root" },
+    { "key": "a2", "content": "Get a quote from the moving company", "parent": "root" },
+    { "key": "b", "content": "Compare two moving companies on price", "parent": "root" },
+    { "key": "c", "content": "Pack the books first", "parent": "root" },
+    { "key": "d", "content": "Buy boxes and tape", "parent": "root" },
+    { "key": "e", "content": "Change address at the bank", "parent": "root" },
+    { "key": "f", "content": "Change address for the electricity account", "parent": "root" },
+    { "key": "g", "content": "Cancel the old internet contract", "parent": "root" },
+    { "key": "x", "content": "Grandmother's lasagna recipe: two layers of béchamel, bake 40 minutes", "parent": "root" }
+  ],
+  "focus": "root", "dim": ["x"], "auto": { "on": false },
+  "rounds": [
+    { "user": "Also forward the mail at the post office for six months.", "assistant": "Added: mail forwarding for six months.",
+      "then": [
+        { "do": "tidy", "key": "root", "hint": "merge the duplicate quote tasks; group the address changes; the recipe does not belong here" },
+        { "tidyChanged": true },
+        { "do": "undo" },
+        { "parentOf": "a", "is": "root" }, { "parentOf": "a2", "is": "root" }, { "parentOf": "e", "is": "root" }, { "parentOf": "f", "is": "root" }, { "parentOf": "x", "is": "root" },
+        { "nodeMatching": "Get a quote from the moving company" }, { "nodeMatching": "lasagna" },
+        { "dark": "x" }, { "lit": "a" }, { "focusIs": "root" }
+      ] }
+  ]
+}

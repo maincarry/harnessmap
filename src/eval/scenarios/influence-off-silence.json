@@ -1,0 +1,16 @@
+{
+  "name": "with map influence closed, the session receives no block (one final silence notice, then nothing) while filing continues; reopening serves again (M143)",
+  "seed": [
+    { "key": "proj", "content": "Bakery business plan: menu, lease, launch" },
+    { "key": "menu", "content": "Menu: sourdough, croissants, one seasonal tart", "parent": "proj" }
+  ],
+  "focus": "menu", "auto": { "on": false },
+  "rounds": [
+    { "user": "Add a rye loaf to the menu on weekends.", "assistant": "Menu: rye loaf on weekends added.",
+      "then": [ { "do": "context", "session": "e2e-1" }, { "audit": "inject_full" }, { "do": "influence", "off": true } ] },
+    { "user": "The lease: the landlord offered a five-year term at 3,200 a month with the first two months free.", "assistant": "Lease offer: five years, 3,200/month, two months free.",
+      "then": [ { "nodeMatching": "lease|3,?200|landlord" }, { "do": "context", "session": "e2e-1" }, { "do": "context", "session": "e2e-1" }, { "noAudit": "inject_full|inject_delta" }, { "do": "influence", "off": false } ] },
+    { "user": "Launch date: aim for the first Saturday of November.", "assistant": "Launch: first Saturday of November.",
+      "then": [ { "nodeMatching": "november|launch" }, { "do": "context", "session": "e2e-1" }, { "audit": "inject_full|inject_delta" } ] }
+  ]
+}
