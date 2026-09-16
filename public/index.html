@@ -2196,7 +2196,7 @@ function openNodeDetail(id) {
       <pre id="nd-long" hidden style="border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);font:inherit;font-size:13px;line-height:1.5;color:var(--muted);white-space:pre-wrap;max-height:48vh;overflow:auto;margin:0">loading…</pre>
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">specifics — the dated facts behind the three lengths (struck through = superseded)</label>
       <div id="nd-det" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
-      <button id="nd-expand" class="hbtn" style="display:none;margin-top:6px" title="the tidy agent proposes child nodes from this discussion — preview first, nothing changes until you apply">⟳ file this discussion onto the map</button>
+      <button id="nd-expand" class="hbtn" style="display:none;margin-top:6px" title="enrich this one node: the map reads what was discussed here and proposes the depth beneath it as child nodes — the same as ✚ enrich map, for one node; you approve">✚ enrich this node</button>
       <div class="actions">
         <button id="nd-cancel" title="close without saving changes">cancel</button>
         <button id="nd-save" class="primary" title="save these edits to the node">save</button>
@@ -3212,11 +3212,11 @@ async function openReorganize(nodeId, name, opts = {}) {
   const sz = isRoot ? S.nodes.filter(n => n.status !== 'removed').length : subtreeIds(nodeId).length;
   const est = isExpand ? 20 : Math.round(12 + sz * 1.5);
   const warn = est > 60 ? `\n\n⚠ This subtree has ${sz} nodes — expect roughly ${est}s (over a minute).` : '';
-  if (!opts.skipConfirm && !(await uiConfirm(isExpand ? `File “${name}”'s earlier discussion onto the map? The tidy agent proposes child nodes from what was discussed here — nothing changes until you apply.` : isRoot ? `Tidy the top level? The tidy agent may propose domain containers to group your top-level threads — nothing changes until you apply.${warn}` : `Reorganize the “${name}” subtree? I'll propose a cleanup for your review — nothing changes until you apply.${warn}`, isExpand ? 'file discussion' : isRoot ? 'tidy top level' : 'tidy'))) return;
-  const stop = opWatch(isExpand ? `reading “${name}”'s earlier discussion` : `preparing a cleanup proposal for “${name}”`, est);
+  if (!opts.skipConfirm && !(await uiConfirm(isExpand ? `Enrich “${name}”? The map reads what was discussed here and proposes the depth beneath it as child nodes — nothing changes until you apply.` : isRoot ? `Tidy the top level? The tidy agent may propose domain containers to group your top-level threads — nothing changes until you apply.${warn}` : `Reorganize the “${name}” subtree? I'll propose a cleanup for your review — nothing changes until you apply.${warn}`, isExpand ? 'enrich' : isRoot ? 'tidy' : 'tidy'))) return;
+  const stop = opWatch(isExpand ? `enriching “${name}” from what was discussed here` : `preparing a cleanup proposal for “${name}”`, est);
   let p;
   try { p = await post(isExpand ? '/api/expand/preview' : '/api/reorganize/preview', { nodeId, hint: opts.hint, feedback: opts.feedback, priorSummary: opts.priorSummary, suggestionId: opts.suggestionId }); stop(); if (p.cached) $('round-line').textContent = 'proposal was precomputed — instant'; }
-  catch (err) { stop(); $('round-line').textContent = `${isExpand ? 'filing' : 'tidy'} failed: ${err.message}`; return; }
+  catch (err) { stop(); $('round-line').textContent = `${isExpand ? 'enrich' : 'tidy'} failed: ${err.message}`; return; }
   const removalIdx = new Set(p.alterations.map((a, i) => (a.op === 'update_node' && a.status === 'removed') ? i : -1).filter(i => i >= 0));
   // M118 (Jacob): the proposal led with two raw tree dumps to diff by eye.
   // Now it leads with the changes themselves in plain words, one per row
@@ -3248,11 +3248,11 @@ async function openReorganize(nodeId, name, opts = {}) {
   ov.className = 'overlay';
   ov.innerHTML = `
     <div class="modal">
-      <h3>${isExpand ? `⟳ file the earlier discussion — “${esc(name)}”` : `⟳ tidy proposal — “${esc(name)}”`}</h3>
+      <h3>${isExpand ? `✚ enrich “${esc(name)}”` : `⟳ tidy proposal — “${esc(name)}”`}</h3>
       <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">the tidy agent proposes ${p.alterations.length} ${isExpand ? 'new node(s) from what was discussed here' : 'change(s) to this subtree'} — nothing changes until you apply</div>
       ${(() => { const favs = new Set(S.favorites || []); if (!favs.size) return ''; const hit = new Map(); for (const a of p.alterations) { if (a.op === 'move_node' && favs.has(a.id)) hit.set(a.id, 'moved'); else if (a.op === 'update_node' && a.status === 'removed') { for (const id of subtreeIds(a.id)) if (favs.has(id)) hit.set(id, id === a.id ? 'removed' : 'removed with its parent'); } else if (a.op === 'update_node' && favs.has(a.id) && (a.content !== undefined || a.title !== undefined)) hit.set(a.id, 'reworded'); } return hit.size ? `<div style="font-size:12px;margin:0 0 8px;padding:6px 8px;border:1px solid var(--danger);border-radius:8px"><b>⚠ ${hit.size} favorite${hit.size > 1 ? 's' : ''} touched:</b> ${[...hit].map(([id, how]) => `★ “${esc(nameOf(id))}” ${how}`).join(' · ')} — a favorite that moves stays pinned at its new place; a removed one is unpinned.</div>` : ''; })()}
       <div style="font-size:13px">${p.alterations.length ? p.alterations.map((a, i) => changeRow(a, i)).join('')
-        : `<div style="color:var(--muted)">${isExpand ? 'the earlier discussion holds nothing worth filing that isn’t already on the map.' : ''}${isExpand ? '' : `the tidy agent proposes NO changes ${isRoot ? 'to the top level' : 'inside this subtree'}.`}${!isExpand && !isRoot && node(nodeId)?.parentId === null ? ' If the suggestion was about grouping the top-level threads themselves, that needs the top level as the target — use the button below.' : ''}</div>
+        : `<div style="color:var(--muted)">${isExpand ? 'what was discussed here holds nothing that isn’t already on the map.' : ''}${isExpand ? '' : `the tidy agent proposes NO changes ${isRoot ? 'to the top level' : 'inside this subtree'}.`}${!isExpand && !isRoot && node(nodeId)?.parentId === null ? ' If the suggestion was about grouping the top-level threads themselves, that needs the top level as the target — use the button below.' : ''}</div>
           ${!isExpand && !isRoot && node(nodeId)?.parentId === null ? `<button id="ro-root-bridge" class="hbtn" style="margin-top:8px" title="re-run this cleanup with the whole top level as the target — only there can threads be grouped under new containers">⟳ run tidy top level instead</button>` : ''}`}</div>
       <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--hair)"><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">why</span><div style="font-size:13px;color:var(--muted);margin-top:2px">${esc(p.summary)}</div></div>
       <details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">see the full before → after</summary>
