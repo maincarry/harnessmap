@@ -30,11 +30,22 @@ if [ -d "${APP}/.git" ]; then
   if ! git -C "${APP}" pull -q --ff-only 2>/dev/null; then say "the app folder could not fast-forward - resetting it to main (it holds no data of yours; maps live in ~/.harnessmap)"; git -C "${APP}" fetch -q origin main && git -C "${APP}" reset -q --hard origin/main; fi
   AFTER=$(git -C "${APP}" rev-parse --short HEAD 2>/dev/null || echo "?"); say "code: ${BEFORE} -> ${AFTER}$([ "${BEFORE}" = "${AFTER}" ] && echo ' (already current)')"
 else say "fetching the map into ${APP}..."; git clone -q "${REPO}" "${APP}"; fi
-( cd "${APP}" && bun install --production >/dev/null 2>&1 || true )
+# M269 (Jacob: "the installation and reinstallation process is quite quite long"): dependencies are installed only when the
+# lockfile changed since the last install (or node_modules is missing) — the same result, without the wait on a rerun.
+mkdir -p "${HOME}/.harnessmap"
+LOCKHASH=$(cksum "${APP}/bun.lock" "${APP}/package.json" 2>/dev/null | tr '\n' ' ')
+if [ ! -d "${APP}/node_modules" ] || [ "$(cat "${HOME}/.harnessmap/deps-hash" 2>/dev/null)" != "${LOCKHASH}" ]; then
+  say "installing dependencies..."; ( cd "${APP}" && bun install --production >/dev/null 2>&1 ) && printf '%s' "${LOCKHASH}" > "${HOME}/.harnessmap/deps-hash" || say "dependency install reported an error - the server may still start; the doctor at the end will say"
+fi
 # Codex does not execute plugin-bundled hooks yet (openai/codex #16430, open), and hooks the user
 # adds are skipped until trusted, often without a prompt (#35306). So: user-level hooks, then /hooks.
 ( cd "${APP}" && bun run hooks/enable-codex.ts --force ) || { say "could not register the hooks - see the error above"; exit 1; }
-if command -v codex >/dev/null 2>&1; then codex plugin remove map@harnessmap >/dev/null 2>&1; codex plugin marketplace add "${APP}" >/dev/null 2>&1 && codex plugin add map@harnessmap >/dev/null 2>&1 && say "skills registered as a Codex plugin (marketplace 'harnessmap', plugin 'map')" || true; fi
+# M269: the plugin is (re)registered only when it is not yet registered from THIS app folder — two slow CLI calls saved on a rerun
+if command -v codex >/dev/null 2>&1; then
+  if [ "$(cat "${HOME}/.harnessmap/plugin-app" 2>/dev/null)" != "${APP}" ]; then
+    codex plugin remove map@harnessmap >/dev/null 2>&1; codex plugin marketplace add "${APP}" >/dev/null 2>&1 && codex plugin add map@harnessmap >/dev/null 2>&1 && printf '%s' "${APP}" > "${HOME}/.harnessmap/plugin-app" && say "skills registered as a Codex plugin (marketplace 'harnessmap', plugin 'map')" || true
+  else say "skills already registered as a Codex plugin from this app"; fi
+fi
 # M264: installed through Codex = the map's agents run on Codex (the user's ChatGPT plan), whatever else is on this machine
 mkdir -p "${HOME}/.harnessmap"; printf 'codex\n' > "${HOME}/.harnessmap/backend"; say "the map's agents will run on codex (your ChatGPT plan) - switch in the map's ⚙ models panel"
 # start the map server now and open the page - the user sees the map before Codex is even involved
@@ -42,21 +53,28 @@ mkdir -p "${HOME}/.harnessmap"; printf 'codex\n' > "${HOME}/.harnessmap/backend"
 HEADSHA=$(git -C "${APP}" rev-parse --short HEAD 2>/dev/null || echo "")
 # M266c (Jacob: "the whole localhost is dead"): under `set -euo pipefail` these probes ABORTED the installer whenever no server
 # was running (curl fails, grep finds nothing) — before it ever started one. Each probe now tolerates an absent server.
-RUNNING=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"build":"[a-z0-9]*"' | cut -d'"' -f4 || true)
-MACHINE=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"machine":"[^"]*"' | cut -d'"' -f4 || true)
+# (head -1: the state carries "build" twice since M265 — the running build and the update info — and two lines never equalled one, so every rerun restarted)
+RUNNING=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"build":"[a-z0-9]*"' | head -1 | cut -d'"' -f4 || true)
+MACHINE=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"machine":"[^"]*"' | head -1 | cut -d'"' -f4 || true)
 # a harnessmap answering on this port from ANOTHER machine = an SSH port forward; nothing here can close it
 if [ -n "${MACHINE}" ] && [ "${MACHINE}" != "$(hostname)" ]; then say "port 8790 is answered by a map server on ANOTHER machine ('${MACHINE}') - an SSH port forward? Close that tunnel (or move it off 8790), then rerun this installer."; exit 1; fi
 BACKEND=$(curl -s -m 2 http://127.0.0.1:8790/api/backend 2>/dev/null | grep -o '"backend":"[a-z]*"' | cut -d'"' -f4 || true)
-if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && [ -n "${HEADSHA}" ] && { [ "${RUNNING}" != "${HEADSHA}" ] || [ "${BACKEND}" != "codex" ]; }; then say "restarting the map server on the updated code (${RUNNING:-old} -> ${HEADSHA})"; curl -s -m 3 -X POST http://127.0.0.1:8790/api/shutdown >/dev/null 2>&1; sleep 2; pkill -f "bun run src/server.ts" 2>/dev/null; sleep 1; fi
+if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && [ -n "${HEADSHA}" ] && { [ "${RUNNING}" != "${HEADSHA}" ] || [ "${BACKEND}" != "codex" ]; }; then say "restarting the map server on the updated code (${RUNNING:-old} -> ${HEADSHA})"; curl -s -m 3 -X POST http://127.0.0.1:8790/api/shutdown >/dev/null 2>&1
+  # M269: wait for the port to free up instead of fixed sleeps (up to 5 s), then make sure nothing old lingers
+  for i in $(seq 1 20); do curl -s -m 1 -o /dev/null http://127.0.0.1:8790/api/state || break; sleep 0.25; done
+  if curl -s -m 1 -o /dev/null http://127.0.0.1:8790/api/state; then pkill -f "bun run src/server.ts" 2>/dev/null; sleep 1; fi
+fi
 # M266: the server always runs on the SAME home and database the hooks use (~/.harnessmap/map.sqlite); an earlier installer
 # started it without them, so the map on the page depended on who started the server. A database left in the app folder moves over once.
 mkdir -p "${HOME}/.harnessmap"
 if [ -f "${APP}/harnessmap.sqlite" ] && [ ! -f "${HOME}/.harnessmap/map.sqlite" ]; then say "moving your maps from ${APP}/harnessmap.sqlite to ~/.harnessmap/map.sqlite"; mv "${APP}/harnessmap.sqlite" "${HOME}/.harnessmap/map.sqlite"; rm -f "${APP}/harnessmap.sqlite-wal" "${APP}/harnessmap.sqlite-shm"; fi
-if ! curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then ( cd "${APP}" && HARNESSMAP_HOME="${HOME}/.harnessmap" HARNESSMAP_DB="${HOME}/.harnessmap/map.sqlite" nohup bun run src/server.ts > "${HOME}/.harnessmap/server.log" 2>&1 & ); for i in 1 2 3 4 5 6 7 8 9 10; do sleep 1; curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && break; done; fi
+# M269: the server is started the way every hook starts it — detached, on the hooks' home and database, health-waited —
+# instead of a shell background job (which kept this script waiting on the server when run through a pipe).
+if ! curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then ( cd "${APP}" && echo '{}' | HARNESSMAP_HOME="${HOME}/.harnessmap" HARNESSMAP_SESSION_GATE=open bun run hooks/session-start.ts >/dev/null 2>&1 ) || true; for i in $(seq 1 40); do curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && break; sleep 0.25; done; fi
 if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then say "the map is up at http://127.0.0.1:8790"; (command -v open >/dev/null 2>&1 && open http://127.0.0.1:8790) || (command -v xdg-open >/dev/null 2>&1 && xdg-open http://127.0.0.1:8790) || true; else say "the map server did not answer - see ${HOME}/.harnessmap/server.log"; fi
 printf '\n\033[1m%s\033[0m\n' "ONE MANUAL STEP (Codex requires it; nothing can do it for you):"
 printf '%s\n' "  1. open a terminal in any project folder and run:  codex" "  2. type  /hooks  and trust the harnessmap entries (Codex skips untrusted hooks silently; the app cannot trust them, the CLI can, and both share the setting)" "  3. start a NEW thread (CLI or app) and say:  open map  - the map attaches to THAT session only (it is off everywhere else); say  close map  to detach"
 # M267: the doctor's report closes the install — what works, what the person still has to do
-( cd "${APP}" && HARNESSMAP_HOME="${HOME}/.harnessmap" bun run hooks/doctor.ts --fix 2>&1 | sed 's/^/  /' ) || true
+( cd "${APP}" && HARNESSMAP_HOME="${HOME}/.harnessmap" bun run hooks/doctor.ts --fix --no-update-check --probe-timeout=20000 2>&1 | sed 's/^/  /' ) || true
 say "Any time something looks wrong: say \"map doctor\" in Codex (it diagnoses and repairs), or run:  bash <(curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/main/test-codex.sh)"
 say "The map lives at http://127.0.0.1:8790 once a session starts. All data stays in ~/.harnessmap."

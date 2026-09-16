@@ -24,13 +24,21 @@ if (Test-Path (Join-Path $App '.git')) {
   git -C $App pull -q --ff-only 2>$null; if ($LASTEXITCODE -ne 0) { Say "the app folder could not fast-forward - resetting it to main (it holds no data of yours; maps live in ~\.harnessmap)"; git -C $App fetch -q origin main; git -C $App reset -q --hard origin/main }
   $After = ''; try { $After = (git -C $App rev-parse --short HEAD).Trim() } catch {}; Say "code: $Before -> $After$(if ($Before -eq $After) { ' (already current)' })"
 } else { Say "fetching the map into $App..."; git clone -q $Repo $App }
-Push-Location $App; try { bun install --production | Out-Null } catch {} ; Pop-Location
+# M269: dependencies only when the lockfile changed (or node_modules is missing)
+$Hm0 = Join-Path $HOME '.harnessmap'; New-Item -ItemType Directory -Force -Path $Hm0 | Out-Null
+$LockHash = ''; try { $LockHash = (Get-FileHash (Join-Path $App 'bun.lock') -Algorithm SHA1).Hash + (Get-FileHash (Join-Path $App 'package.json') -Algorithm SHA1).Hash } catch {}
+$PrevHash = ''; try { $PrevHash = Get-Content (Join-Path $Hm0 'deps-hash') -Raw -ErrorAction Stop } catch {}
+if (-not (Test-Path (Join-Path $App 'node_modules')) -or ($PrevHash.Trim() -ne $LockHash)) { Say "installing dependencies..."; Push-Location $App; try { bun install --production | Out-Null; Set-Content -NoNewline -Path (Join-Path $Hm0 'deps-hash') -Value $LockHash } catch {} ; Pop-Location }
 # Codex does not execute plugin-bundled hooks yet (openai/codex #16430), and hooks the user adds are
 # skipped until trusted, often without a prompt (#35306). So: user-level hooks, then /hooks in the CLI.
 Push-Location $App; try { bun run hooks/enable-codex.ts --force } catch { Pop-Location; throw "could not register the hooks - see the error above" }; Pop-Location
 if (Get-Command codex -ErrorAction SilentlyContinue) {
-  try { codex plugin remove map@harnessmap 2>$null | Out-Null } catch {}
-  try { codex plugin marketplace add $App | Out-Null; codex plugin add map@harnessmap | Out-Null; Say "skills registered as a Codex plugin (marketplace 'harnessmap', plugin 'map')" } catch {}
+  # M269: (re)register only when not yet registered from THIS app folder
+  $PrevApp = ''; try { $PrevApp = (Get-Content (Join-Path $Hm0 'plugin-app') -Raw -ErrorAction Stop).Trim() } catch {}
+  if ($PrevApp -ne $App) {
+    try { codex plugin remove map@harnessmap 2>$null | Out-Null } catch {}
+    try { codex plugin marketplace add $App | Out-Null; codex plugin add map@harnessmap | Out-Null; Set-Content -NoNewline -Path (Join-Path $Hm0 'plugin-app') -Value $App; Say "skills registered as a Codex plugin (marketplace 'harnessmap', plugin 'map')" } catch {}
+  } else { Say "skills already registered as a Codex plugin from this app" }
 }
 # M264: installed through Codex = the map's agents run on Codex (the user's ChatGPT plan), whatever else is on this machine
 New-Item -ItemType Directory -Force -Path (Join-Path $HOME '.harnessmap') | Out-Null; Set-Content -Path (Join-Path $HOME '.harnessmap\backend') -Value 'codex'; Say "the map's agents will run on codex (your ChatGPT plan) - switch in the map's models panel"
@@ -63,6 +71,6 @@ Write-Host "  1. open a terminal in any project folder and run:  codex"
 Write-Host "  2. type  /hooks  and trust the harnessmap entries (Codex skips untrusted hooks silently; the CLI can trust them, the app cannot, and both share the setting)"
 Write-Host "  3. start a NEW thread (CLI or app) and say:  open map  - the map attaches to THAT session only (it is off everywhere else); say  close map  to detach"
 # M267: the doctor's report closes the install
-Push-Location $App; try { $env:HARNESSMAP_HOME = (Join-Path $HOME '.harnessmap'); & bun run hooks/doctor.ts --fix 2>&1 | ForEach-Object { "  $_" } } catch {} ; Pop-Location
+Push-Location $App; try { $env:HARNESSMAP_HOME = (Join-Path $HOME '.harnessmap'); & bun run hooks/doctor.ts --fix --no-update-check --probe-timeout=20000 2>&1 | ForEach-Object { "  $_" } } catch {} ; Pop-Location
 Say "Any time something looks wrong: say 'map doctor' in Codex (it diagnoses and repairs), or run:  irm https://raw.githubusercontent.com/maincarry/harnessmap/main/test-codex.ps1 | iex"
 Say "All data stays in ~\.harnessmap."

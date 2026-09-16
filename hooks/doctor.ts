@@ -18,6 +18,8 @@ import { codexBin, claudeBin } from '../src/harness-bins.js';
 const APP = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]+$/, '');
 const args = new Set(process.argv.slice(2));
 const FIX = args.has('--fix'), UPDATE = args.has('--update'), PROBE = !args.has('--no-probe');
+const NO_UPDATE_CHECK = args.has('--no-update-check'); // the installer just pulled — nothing to ask GitHub
+const PROBE_MS = Number([...args].find((a) => a.startsWith('--probe-timeout='))?.split('=')[1] ?? 60_000) || 60_000;
 type Level = 'OK' | 'FIX' | 'YOU' | 'WARN' | 'FAIL';
 const lines: { level: Level; text: string }[] = [];
 const say = (level: Level, text: string) => lines.push({ level, text });
@@ -52,7 +54,7 @@ else if (st) {
 }
 
 // 3. is the code current
-if (st) {
+if (st && !NO_UPDATE_CHECK) {
   const uc = (await postJ('/api/update-check', {}, 8000)).json;
   if (uc) {
     const newer = uc.updateAvailable ? `v${uc.updateAvailable}` : uc.updateBuild ? `build ${uc.updateBuild}` : '';
@@ -104,7 +106,7 @@ if (existsSync(hooksFile)) {
 
 // 7. does the engine answer
 if (PROBE && st) {
-  const p = await postJ('/api/doctor/probe', {}, 60_000);
+  const p = await postJ('/api/doctor/probe', {}, PROBE_MS);
   if (p.json?.ok) say('OK', `the engine answers: ${p.json.backend} · ${p.json.model} · ${p.json.ms} ms`);
   else {
     const err = p.json?.error ?? p.error ?? `HTTP ${p.status}`;
