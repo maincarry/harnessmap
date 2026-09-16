@@ -1313,6 +1313,7 @@ function state() {
     home: (() => { const h = store.getSetting(`home:${projectId}`); return h && store.getNode(h)?.status !== 'removed' ? h : null; })(),
     influenceOff: influenceOff(projectId),
     auto: autoSettings(projectId), // M263
+    undoNext: store.listUndo(projectId, 1)[0]?.label ?? null, // M263b: the button says what it would take back
     updateAvailable: updateAvailable(),
     feedbackEmail: process.env.HARNESSMAP_FEEDBACK_EMAIL ?? 'yuhinc@sas.upenn.edu',
     version: VERSION,
@@ -1416,6 +1417,7 @@ const server = Bun.serve({
       store.applyAlterations(pid, [
         { op: 'create_node', id, parentId: body.parentId ?? null, content, status: 'live', author: 'user' },
       ], { kind: 'user_edit' });
+      store.pushUndo(pid, `added "${content.slice(0, 60)}"`, [{ op: 'update_node', id, status: 'removed' }], null); // M263b: an added node can be taken back
       touch([id]);
       store.setLit(pchat, id, true); // M66: new nodes are born lit
       chats.noteMapChange(pchat, content === 'untitled'
@@ -1427,7 +1429,7 @@ const server = Bun.serve({
         appendMarker(content === 'untitled' ? 'focus moved to a new node' : `focus moved to "${content.slice(0, 60)}"`);
       }
       broadcast({ type: 'map', ...state() });
-      return json({ id, chatId: mainChatId, content, name: content });
+      return json({ id, chatId: mainChatId, content, name: content, undo: `added "${content.slice(0, 60)}"` });
     }
 
     const msgMatch = path.match(/^\/api\/chats\/([\w-]+)\/messages$/);
@@ -2944,19 +2946,25 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         }
       }
       const cleaned = n.content.replace(/\s*\(arrived while focus was:[^)]*\)\s*$/, '');
-      store.applyAlterations(projectId, [
+      const destName = parentId ? nodeName(store.getNode(parentId)) : null;
+      const placeLabel = parentId ? `placed "${nodeName(n)}" under "${destName}"` : `promoted "${nodeName(n)}" to the top level`;
+      // M263b: leaving "to sort" by hand is undoable like a move (it was not — Jacob: "the undo is a bit bad")
+      store.pushUndo(n.projectId, placeLabel, [
+        { op: 'move_node', id, parentId: n.parentId },
+        ...(cleaned !== n.content ? [{ op: 'update_node', id, content: n.content }] : []),
+      ], null);
+      store.applyAlterations(n.projectId, [
         { op: 'move_node', id, parentId: parentId ?? null } as any,
         ...(cleaned !== n.content ? [{ op: 'update_node', id, content: cleaned } as any] : []),
       ], { kind: 'user_edit' });
       for (const sg of store.getOpenSuggestions(projectId)) {
         if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
       }
-      const destName = parentId ? nodeName(store.getNode(parentId)) : null;
       chats.noteMapChange(mainChatId, parentId
         ? `moved "${nodeName(n)}" out of "to sort" into "${destName}"`
         : `promoted "${nodeName(n)}" from "to sort" to a top-level topic`);
       broadcast({ type: 'map', ...state() });
-      return json({ ok: true });
+      return json({ ok: true, undo: placeLabel });
     }
 
     // ---- harness adapter surface (M58): Claude Code hooks call these. ----

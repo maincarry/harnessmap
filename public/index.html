@@ -805,7 +805,7 @@ function renderTree() {
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
 }
 
-function renderAll() { applyAutoFold(); renderCrumbs(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); paintAuto(); }
+function renderAll() { applyAutoFold(); renderCrumbs(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); paintAuto(); paintUndo(); }
 // M88: one server, many projects (each its own map) and many chats (views).
 function renderSwitchers() {
   const ps = $('proj-sel');
@@ -1457,6 +1457,13 @@ function paintInfluence() {
 }
 // M263 (Jacob): auto mode — one small button; click toggles, right-click or a
 // long press opens the checkboxes. The server does the work after each round.
+// M263b: the undo button names what it would take back (or says there is nothing)
+function paintUndo() {
+  const b = $('undo-btn'); if (!b) return;
+  b.textContent = S.undoNext ? `↩ undo: ${S.undoNext.length > 42 ? S.undoNext.slice(0, 40) + '…' : S.undoNext}` : '↩ undo';
+  b.title = S.undoNext ? `take back the last change — ${S.undoNext} (Ctrl/Cmd+Z works too)` : 'nothing to undo yet — deletes, merges, tidies, moves, placements, added nodes and aims all land here (Ctrl/Cmd+Z)';
+  b.disabled = !S.undoNext;
+}
 function paintAuto() {
   const a = S.auto || {}; const b = $('auto-btn'); if (!b) return;
   const what = ['focus', 'light', 'rename', 'place', 'tidy', 'zoom'].filter((k) => a[k]);
@@ -2004,7 +2011,7 @@ $('tree').addEventListener('click', async (e) => {
   const promoteId = t.closest('[data-promote]')?.dataset.promote;
   if (promoteId) {
     if (!(await uiConfirm(`Make “${disp(node(promoteId))}” a top-level topic of your map?`, 'make top-level'))) return;
-    try { await post(`/api/nodes/${promoteId}/place`, { parentId: null }); $('round-line').textContent = 'promoted to a top-level topic'; }
+    try { const r = await post(`/api/nodes/${promoteId}/place`, { parentId: null }); undoToast(r.undo || 'promoted to a top-level topic'); }
     catch (err) { $('round-line').textContent = `promote failed: ${err.message}`; }
     return;
   }
@@ -2114,7 +2121,7 @@ function openPlacePicker(id) {
     const dest = e.target.closest('[data-dest]')?.dataset.dest;
     if (dest) {
       ov.remove();
-      try { await post(`/api/nodes/${id}/place`, { parentId: dest }); $('round-line').textContent = `placed under “${disp(node(dest))}”`; }
+      try { const r = await post(`/api/nodes/${id}/place`, { parentId: dest }); undoToast(r.undo || `placed under “${disp(node(dest))}”`); }
       catch (err) { $('round-line').textContent = `place failed: ${err.message}`; }
     }
   });

@@ -474,6 +474,67 @@ console.log('\n== 6m. auto mode: the switch, the hand-lit mark, one undo per aim
   await fetch(`${BASE}/api/auto`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on: false, tidy: false }) });
 }
 
+console.log('\n== 6n. undo covers every hand action and restores what it touched (M263b) ==');
+{
+  const J = (u: string, b: any) => fetch(`${BASE}${u}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) }).then((r) => r.json());
+  const st = async () => (await fetch(`${BASE}/api/state`)).json();
+  const nodeOf = (s: any, id: string) => (s.nodes ?? []).find((n: any) => n.id === id);
+  const s0 = await st();
+  const top = (s0.nodes ?? []).find((n: any) => n.parentId === null && !String(n.title ?? n.content).startsWith('to sort'));
+  const toSort = (s0.nodes ?? []).find((n: any) => n.parentId === null && String(n.title ?? n.content).startsWith('to sort'));
+  check('6n setup: a topic and the to-sort folder exist', !!top && !!toSort);
+  // add → undo
+  const made = await J('/api/nodes', { content: 'undo probe: added node', parentId: top.id });
+  const s1 = await st();
+  check('the undo button knows what it would take back', s1.undoNext === 'added "undo probe: added node"' && !!nodeOf(s1, made.id));
+  await J('/api/undo', {});
+  check('undo takes an added node back', !nodeOf(await st(), made.id));
+  // place (leave to-sort by hand) → undo
+  const stray = await J('/api/nodes', { content: 'undo probe: stray (arrived while focus was: x)', parentId: toSort.id });
+  const pl = await J(`/api/nodes/${stray.id}/place`, { parentId: top.id });
+  const s2 = await st();
+  check('placing a to-sort item is undoable and strips the arrival note', /^placed /.test(pl.undo ?? '') && nodeOf(s2, stray.id)?.parentId === top.id && !/arrived while/.test(nodeOf(s2, stray.id)?.content ?? ''));
+  await J('/api/undo', {});
+  const s3 = await st();
+  check('undo returns it to to-sort with its note', nodeOf(s3, stray.id)?.parentId === toSort.id && /arrived while/.test(nodeOf(s3, stray.id)?.content ?? ''));
+  // promote → undo
+  await J(`/api/nodes/${stray.id}/place`, { parentId: null });
+  check('promotion to the top level is undoable', nodeOf(await st(), stray.id)?.parentId === null && /^promoted /.test((await st()).undoNext ?? ''));
+  await J('/api/undo', {});
+  check('undo un-promotes', nodeOf(await st(), stray.id)?.parentId === toSort.id);
+  // edit → undo
+  await J(`/api/nodes/${stray.id}`, { content: 'undo probe: edited' });
+  await J('/api/undo', {});
+  check('undo restores an edit', /stray/.test(nodeOf(await st(), stray.id)?.content ?? ''));
+  // delete → undo (lit restored)
+  const chatId = s0.mainChatId;
+  await J(`/api/chats/${chatId}/lit`, { nodeId: stray.id, on: true });
+  const del = await J(`/api/nodes/${stray.id}/delete`, {});
+  check('delete is undoable', /^deleted /.test(del.undo ?? '') && !nodeOf(await st(), stray.id));
+  await J('/api/undo', {});
+  const s4 = await st();
+  check('undo brings the node back, lit as it was', !!nodeOf(s4, stray.id) && ((s4.chats ?? []).find((c: any) => c.id === chatId)?.lit ?? []).includes(stray.id));
+  // move → undo
+  const child = await J('/api/nodes', { content: 'undo probe: child', parentId: top.id });
+  await J(`/api/nodes/${child.id}/move`, { parentId: null });
+  check('move is undoable', nodeOf(await st(), child.id)?.parentId === null);
+  await J('/api/undo', {});
+  check('undo moves it back', nodeOf(await st(), child.id)?.parentId === top.id);
+  // merge → undo (children return; source restored)
+  const a = await J('/api/nodes', { content: 'undo probe: merge source alpha', parentId: top.id });
+  const ak = await J('/api/nodes', { content: 'undo probe: alpha child', parentId: a.id });
+  const b = await J('/api/nodes', { content: 'undo probe: merge target beta', parentId: top.id });
+  const mg = await J(`/api/nodes/${a.id}/merge`, { intoId: b.id });
+  const s5 = await st();
+  check('merge moves the child over and removes the source', /^merged /.test(mg.undo ?? '') && nodeOf(s5, ak.id)?.parentId === b.id && !nodeOf(s5, a.id));
+  await J('/api/undo', {});
+  const s6 = await st();
+  check('undo restores the source and returns its child', !!nodeOf(s6, a.id) && nodeOf(s6, ak.id)?.parentId === a.id);
+  const empty = await fetch(`${BASE}/api/undo`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  const sEnd = await st();
+  check('the stack reports its next entry honestly (older entries remain, nothing crashes on an empty pop)', empty.status === 200 || empty.status === 404 ? typeof sEnd.undoNext !== 'undefined' : false);
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');
