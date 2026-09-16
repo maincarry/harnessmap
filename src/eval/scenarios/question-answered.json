@@ -1,0 +1,9 @@
+{
+  "name": "a question asked and answered in one round is one question node, status answered, under the focus (topic-map rule)",
+  "seed": [ { "key": "proj", "content": "Garden redesign: layout, plants, irrigation" }, { "key": "plants", "content": "Plants: tomatoes, basil, a fig tree", "parent": "proj" } ],
+  "focus": "plants", "auto": { "on": false },
+  "rounds": [
+    { "user": "Quick question: how far apart should the tomato plants go?", "assistant": "About 60 cm apart in the row, rows 90 cm apart, for indeterminate varieties.",
+      "then": [ { "nodeMatching": "60 cm|apart|spacing", "under": "plants" }, { "statusOf": "60 cm|apart|spacing", "is": "answered|noted|decided|live" }, { "newNodes": 2 } ] }
+  ]
+}

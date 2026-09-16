@@ -1,0 +1,36 @@
+{
+  "name": "types and statuses on the map stay within the fixed vocabulary; an off-list label from the filer is normalised (translator guard)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Startup: product, hiring, fundraising"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "user": "A hunch, not a decision: maybe we should skip the seed round and go straight to revenue. Also a hard rule: no hire before the first paying customer. And a metric to watch: weekly active teams.",
+      "assistant": "Recorded: the no-seed-round idea as a tentative claim; the no-hire rule as a constraint; weekly active teams as the metric to watch.",
+      "then": [
+        {
+          "nodeMatching": "seed round|revenue"
+        },
+        {
+          "nodeMatching": "no hire|paying customer"
+        },
+        {
+          "nodeMatching": "weekly active"
+        },
+        {
+          "noAudit": "offlist_status"
+        },
+        {
+          "typesOk": true
+        }
+      ]
+    }
+  ]
+}
