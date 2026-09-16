@@ -53,6 +53,7 @@ export class Store {
     if (lcols.length && !lcols.includes('lit_by')) this.db.exec('ALTER TABLE lit ADD COLUMN lit_by TEXT');
     const ccols = (this.db.prepare('PRAGMA table_info(chats)').all() as any[]).map((r) => r.name);
     if (ccols.length && !ccols.includes('host_session_id')) this.db.exec('ALTER TABLE chats ADD COLUMN host_session_id TEXT');
+    if (ccols.length && !ccols.includes('name')) this.db.exec('ALTER TABLE chats ADD COLUMN name TEXT'); // M268: session rename on the map
     // M191: structured memory — the 'minimal' resolution column beside the
     // medium-resolution summary ('text'). Early builds named these gist /
     // memory_facts; Jacob dropped those words — rename if found.
@@ -261,8 +262,13 @@ export class Store {
   getChats(projectId: string): Chat[] {
     return (this.db.prepare('SELECT * FROM chats WHERE project_id = ? ORDER BY created_at').all(projectId) as any[]).map((r) => ({
       id: r.id, projectId: r.project_id, focusContainerId: r.focus_container_id,
-      sdkSessionId: r.sdk_session_id, status: r.status, createdAt: r.created_at, hostSessionId: r.host_session_id ?? null,
+      sdkSessionId: r.sdk_session_id, status: r.status, createdAt: r.created_at, hostSessionId: r.host_session_id ?? null, name: r.name ?? null,
     }));
+  }
+
+  // M268: a session's name on the map (null = follow the harness's title)
+  setChatName(id: string, name: string | null): void {
+    this.db.prepare('UPDATE chats SET name = ? WHERE id = ?').run(name && name.trim() ? name.trim().slice(0, 80) : null, id);
   }
 
   getChat(id: string): Chat | undefined {
@@ -270,7 +276,7 @@ export class Store {
     if (!r) return undefined;
     return {
       id: r.id, projectId: r.project_id, focusContainerId: r.focus_container_id,
-      sdkSessionId: r.sdk_session_id, status: r.status, createdAt: r.created_at, hostSessionId: r.host_session_id ?? null,
+      sdkSessionId: r.sdk_session_id, status: r.status, createdAt: r.created_at, hostSessionId: r.host_session_id ?? null, name: r.name ?? null,
     };
   }
 

@@ -141,6 +141,7 @@ export interface Chat {
   status: 'active' | 'archived';
   createdAt: string;
   hostSessionId?: string | null; // M251: set when this view mirrors a host session (Claude Code / Codex); such a view is read-only on the page
+  name?: string | null; // M268: a name given on the map — wins over the harness's thread title
 }
 
 export interface SavePoint {

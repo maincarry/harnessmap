@@ -66,7 +66,7 @@ console.log('\n== 1. first session on a fresh machine ==');
   check('database created under the harnessmap home', existsSync(join(HOME, 'map.sqlite')));
   const st = await (await fetch(`${BASE}/api/state`)).json();
   check('server healthy and answering', Array.isArray(st.nodes) && !!st.projectId);
-  check('fresh folder became its own map (named after it)', st.projects.some((p: any) => p.name === 'my-fresh-project'));
+  check('a fresh folder lands on the map "default" — no map named after the folder (M268, Jacob)', st.projects.some((p: any) => p.name === 'default') && !st.projects.some((p: any) => p.name === 'my-fresh-project') && (st.projects.find((p: any) => p.id === st.projectId) ?? {}).name === 'default');
   check('system to-sort present on the fresh map', st.nodes.some((n: any) => n.content === 'to sort' && n.parentId === null));
 }
 
@@ -112,7 +112,7 @@ console.log('\n== 6. restart path: hook revives a stopped server ==');
   const r = await runHook('session-start.ts', { session_id: 'fresh-3', cwd: PROJ });
   check('session-start respawns a stopped server', r.code === 0);
   const st = await (await fetch(`${BASE}/api/state`)).json().catch(() => null);
-  check('server is back with the same data', !!st && st.projects.some((p: any) => p.name === 'my-fresh-project'));
+  check('server is back with the same data', !!st && st.projects.some((p: any) => p.name === 'default') && (st.nodes ?? []).length > 0);
 }
 
 console.log('\n== 6b. repo hygiene: no conversation history, logs or databases tracked (M222) ==');
@@ -161,7 +161,7 @@ console.log('\n== 6d. default OFF: the map attaches only to the session that sai
   wf2(join(HOME, 'open-next'), '');
   const d = run('on-prompt.ts', { session_id: 'gate-D', prompt: 'a question from another repo', cwd: PROJ2 });
   const st2 = await (await fetch(`${BASE}/api/state`)).json();
-  check('a session claimed mid-way is bound to its own cwd project (no SessionStart ever ran for it)', d.code === 0 && ctxOf(d.out).length > 50 && st2.projects.some((p: any) => p.name === 'other-repo'));
+  check('a session claimed mid-way is served and lands on "default" (no map named after its folder; M268)', d.code === 0 && ctxOf(d.out).length > 50 && !st2.projects.some((p: any) => p.name === 'other-repo'));
   try { ul2(join(HOME, 'session')); } catch {}
 }
 
@@ -406,7 +406,7 @@ console.log('\n== 6l. which map: the list, the folder map, throwaway folders, a 
   const run = (file: string, payload: any) => { const p = Bun.spawnSync(['bun', 'run', join('hooks', file)], { env: gatedEnv, stdin: new TextEncoder().encode(JSON.stringify(payload)), stdout: 'pipe', stderr: 'pipe' }); return { code: p.exitCode, out: p.stdout.toString() }; };
   const listFor = async (cwd: string) => (await (await fetch(`${BASE}/api/maps?cwd=${encodeURIComponent(cwd)}`)).json());
   const l1 = await listFor(PROJ);
-  check('the maps list names the folder\'s own map first and carries no timing text', Array.isArray(l1.maps) && l1.maps.length > 1 && l1.maps[0].isFolderMap === true && l1.folderMap?.id === l1.maps[0].id && !JSON.stringify(l1.maps).includes('ago'));
+  check('a folder without a map of its own: the list puts "default" first, folderMap is null, no timing text (M268)', Array.isArray(l1.maps) && l1.maps.length >= 1 && l1.maps[0].isDefault === true && l1.folderMap === null && !JSON.stringify(l1.maps).includes('ago'));
   const scratch = join(TMP, 'Documents', 'Codex', '2026-09-15', 'q'); mkdirSync(scratch, { recursive: true });
   const l2 = await listFor(scratch);
   check('a throwaway app folder has no folder map and no "create a map for this folder"', l2.folderMap === null && l2.scratchFolder === true && l2.suggestedFolderMapName === null);
@@ -577,6 +577,19 @@ console.log('\n== 6p. updates: judged by commit, nudged once per build, self-upd
   const alive = (await fetch(`${BASE}/api/state`)).ok;
   check('the self-update route answers honestly (nothing to pull on a current checkout, or a clear error) and the server stays up', (uj.ok === true && uj.changed === false) || (uj.ok === false && typeof uj.error === 'string'), JSON.stringify(uj).slice(0, 120));
   check('server still answering after the update call', alive);
+}
+
+console.log('\n== 6q. a session can be renamed on the map; the harness keeps its own name (M268) ==');
+{
+  const st = await (await fetch(`${BASE}/api/state`)).json();
+  const hostChat = (st.chats ?? []).find((c: any) => c.host) ?? (st.chats ?? [])[0];
+  const r = await (await fetch(`${BASE}/api/chats/${hostChat.id}/name`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Header colour decision' }) })).json();
+  const st2 = await (await fetch(`${BASE}/api/state`)).json();
+  const c2 = (st2.chats ?? []).find((c: any) => c.id === hostChat.id);
+  check('the name lands on the view and, for a host session, wins as the tab title while the harness title is kept', r.ok && c2.name === 'Header colour decision' && (!c2.host || (c2.host.title === 'Header colour decision' && 'harnessTitle' in c2.host)));
+  await fetch(`${BASE}/api/chats/${hostChat.id}/name`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: '' }) });
+  const st3 = await (await fetch(`${BASE}/api/state`)).json();
+  check('an empty name clears it — the harness title shows again', ((st3.chats ?? []).find((c: any) => c.id === hostChat.id) ?? {}).name === null);
 }
 
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');

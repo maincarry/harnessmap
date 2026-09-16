@@ -10,10 +10,11 @@ The map is OFF by default and attaches to one session only — the one where the
    - If `maps` holds ONE map, the choice is that map — do not ask.
    - If it holds several, ASK and END YOUR TURN with nothing else done:
      Which map?
-     1) <folder map name> — this folder's map          ← only when folderMap is set; if it is null and scratchFolder is false, offer instead: 1) create a map for this folder: <suggestedFolderMapName>
+     1) <first map name> — this folder's map            ← when folderMap is set; otherwise the first map is "default" — write: 1) default — the default map
      2) <next map name>
      3) …                                                ← every other map, in the order given (already by last use); no times, no counts
-     Reply with a number or a name.
+     N) create a map for this folder: <suggestedFolderMapName>   ← last line, only when folderMap is null and scratchFolder is false
+     Reply with a number or a name (Enter = 1).
    On the user's next message, take their number or name as the choice (a number is the line they picked; a name is matched by the server; "create a map for this folder" = the folder's suggested name).
 1b. Make this request this session's. Run ONE of these with the choice (it prints a request id; you do NOT need to repeat it, and do not mention it to the user):
    macOS/Linux: `mkdir -p .harnessmap && k=$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n') && printf '%s\n%s\nmap=%s' "$k" "$PWD" "<the chosen map's name or id>" > .harnessmap/open-next && echo "harnessmap request $k"`

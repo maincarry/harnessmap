@@ -242,10 +242,14 @@ let mainChatId = (() => {
 })();
 // M91 migration: DBs from before the binding policy have sessions but no
 // cwd bindings — without this, their next session would auto-create a ghost
-// project instead of reaching their existing map.
+// project instead of reaching their existing map. M268: a folder is never
+// bound to the map "default" (an unbound folder lands there anyway).
 try {
-  const legacy = (store as any).db.prepare('SELECT DISTINCT cwd FROM harness_sessions WHERE cwd IS NOT NULL').all() as any[];
-  for (const r of legacy) if (r.cwd && !store.projectForCwd(r.cwd)) store.bindCwd(r.cwd, projectId);
+  const activeName = store.listProjects().find((p) => p.id === projectId)?.name;
+  if (activeName !== 'default') {
+    const legacy = (store as any).db.prepare('SELECT DISTINCT cwd FROM harness_sessions WHERE cwd IS NOT NULL').all() as any[];
+    for (const r of legacy) if (r.cwd && !store.projectForCwd(r.cwd)) store.bindCwd(r.cwd, projectId);
+  }
 } catch { /* fresh DB */ }
 
 function activeChatOf(pid: string): string {
@@ -349,20 +353,21 @@ function projectForCwdOrCreate(cwd: string): string {
   // M261 (Mark: "when I create a new map in the UI, would the agent know which map to use?"): a map made on the
   // page has no folder. The first session that says "open map" from a folder with no map of its own ADOPTS the map
   // the page is showing, if that map has no folder yet — create a map on the page, say "open map" in the session, done.
+  // M268 (Jacob, 2026-09-15: "the default map when user open things should be called default, not o or llm or
+  // other folder name"): a folder with no map of its own lands on the map named "default", which always exists and
+  // is never renamed (M91's adoption and M261's page-map adoption are retired). A folder map exists only when the
+  // person chose "create a map for this folder" in the open skill's question (resolveMapChoice binds it).
   if (!pid) {
-    const pname = basename(cwd) || 'workspace';
-    const all = store.listProjects();
-    const adoptable = all.length === 1 && all[0].name === 'default'
-      && store.getNodes(all[0].id).filter((n) => n.status !== 'removed'
-        && n.author !== 'system' // tutorial seeds + tray are furniture, not content (M123/M178)
-        && !((n.title ?? n.content) ?? '').startsWith('to sort')).length <= 1;
-    if (adoptable) { pid = all[0].id; store.renameProject(pid, pname); }
-    else { pid = store.createProject(pname); bootstrapProject(pid); }
-    store.bindCwd(cwd, pid);
+    pid = defaultProjectId();
     setActive(pid);
-    store.audit('project_bound', { name: pname, adopted: adoptable });
+    store.audit('project_default', { folder: basename(cwd) });
   } else if (!store.projectForCwd(cwd)) store.bindCwd(cwd, pid);
   return pid;
+}
+function defaultProjectId(): string {
+  const d = store.listProjects().find((p) => p.name === 'default');
+  if (d) return d.id;
+  const pid = store.createProject('default'); bootstrapProject(pid); return pid;
 }
 // M244 (Mark, Windows Codex, 2026-09-10): under the session gate (M239) a
 // session is claimed at its first PROMPT after "open map" — its SessionStart
@@ -479,7 +484,8 @@ function hostSessionOf(chat: { id: string; hostSessionId?: string | null }): Rec
   return {
     sessionId: chat.hostSessionId, harness, label: harness === 'codex' ? 'Codex' : harness === 'claude' ? 'Claude Code' : 'session',
     status: row.status ?? 'live', reason: row.end_reason ?? null, endedAt: row.ended_at ?? null,
-    title: row.title ?? (first ? first.replace(/\s+/g, ' ').slice(0, 60) : null),
+    title: (chat as any).name ?? row.title ?? (first ? first.replace(/\s+/g, ' ').slice(0, 60) : null), // M268: a name given on the map wins
+    harnessTitle: row.title ?? null,
     resume: harness === 'codex' ? `codex resume ${chat.hostSessionId}` : harness === 'claude' ? `claude --resume ${chat.hostSessionId}` : null,
     embedded: !!listTerms().find((t) => (getTerm(t.id) as any)?.chatId === chat.id),
     forkedFrom: store.getSetting(`fork:${chat.hostSessionId}`) ?? null, // M255
@@ -1613,13 +1619,24 @@ const server = Bun.serve({
     // M262 (Mark): the open skill asks which map when there is more than one. Maps ordered by last use (the timing
     // is for ordering only, never shown); the folder's own map first when the folder has one; a throwaway app
     // folder (~/Documents/Codex/<date>/<x>) has no folder map.
+    // M268 (Jacob): rename a session on the map — the name wins over the harness's thread title; empty = follow the harness again
+    const nameMatch = path.match(/^\/api\/chats\/([\w-]+)\/name$/);
+    if (nameMatch && req.method === 'POST') {
+      const c = store.getChat(nameMatch[1]); if (!c) return json({ error: 'unknown chat' }, 404);
+      const { name } = await req.json().catch(() => ({})) as { name?: string };
+      store.setChatName(c.id, name ?? null);
+      store.audit('chat_renamed', { chat: c.id.slice(0, 8), name: (name ?? '').slice(0, 40) });
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true, name: store.getChat(c.id)?.name ?? null });
+    }
     if (path === '/api/maps' && req.method === 'GET') {
       const cwd = url.searchParams.get('cwd') ?? '';
       const db = (store as any).db;
       const lastUse = (pid: string): string => (db.prepare('SELECT MAX(x) t FROM (SELECT MAX(hs.last_active) x FROM harness_sessions hs JOIN chats c ON c.id = hs.chat_id WHERE c.project_id = ? UNION ALL SELECT MAX(t.created_at) FROM turns t JOIN chats c ON c.id = t.chat_id WHERE c.project_id = ?)').get(pid, pid) as any)?.t ?? '';
       const folderMap = cwd && !scratchRootOf(cwd) ? (store.projectForCwd(cwd) ?? null) : null;
-      const maps = store.listProjects().map((p) => ({ id: p.id, name: p.name, folder: store.cwdsForProject(p.id)[0] ?? null, nodes: store.getNodes(p.id).filter((n) => n.status !== 'removed' && n.author !== 'system').length, current: p.id === projectId, isFolderMap: p.id === folderMap, _t: lastUse(p.id) || p.createdAt }))
-        .sort((a, b) => (a.isFolderMap ? -1 : b.isFolderMap ? 1 : 0) || b._t.localeCompare(a._t))
+      const maps = store.listProjects().map((p) => ({ id: p.id, name: p.name, folder: store.cwdsForProject(p.id)[0] ?? null, nodes: store.getNodes(p.id).filter((n) => n.status !== 'removed' && n.author !== 'system').length, current: p.id === projectId, isFolderMap: p.id === folderMap, isDefault: p.name === 'default', _t: lastUse(p.id) || p.createdAt }))
+        // M268: the folder's own map first; else the map "default" (where a session with no choice lands); then by last use
+        .sort((a, b) => (a.isFolderMap ? -1 : b.isFolderMap ? 1 : 0) || (folderMap ? 0 : (a.isDefault ? -1 : b.isDefault ? 1 : 0)) || b._t.localeCompare(a._t))
         .map(({ _t, ...m }) => m);
       return json({ maps, folder: cwd || null, folderMap: folderMap ? { id: folderMap, name: store.listProjects().find((p) => p.id === folderMap)?.name ?? '' } : null, scratchFolder: !!(cwd && scratchRootOf(cwd)), suggestedFolderMapName: cwd && !scratchRootOf(cwd) ? (basename(cwd) || 'workspace') : null });
     }
@@ -3118,7 +3135,9 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
           const pname = store.listProjects().find((x) => x.id === pid)?.name ?? 'this project';
           announce = !store.getSetting('announced_ever')
             ? `[harnessmap — first run] The map plugin is active. A live map of this work — topics, decisions, questions, filed automatically as you talk — is at ${url} (this repo's map: "${pname}"). Each repo gets its own map; maps can be merged later from the map-site dropdown. ALL data stays on this machine in ${DB_PATH} — nothing is sent anywhere. Tell the user: the map is live at that URL, storage is local-only, and OFFER to open it in their browser (only run the open command if they say yes).`
-            : `[harnessmap] This repo now has its own map, "${pname}" — same map site: ${url}. Mention it to the user in one short line.`;
+            : pname === 'default'
+              ? `[harnessmap] This session is on the map "default" (${url}); "open map <name>" uses or creates another. Mention it to the user in one short line.`
+              : `[harnessmap] This folder's map is "${pname}" — same map site: ${url}. Mention it to the user in one short line.`;
           store.setSetting('announced_ever', '1');
           store.setSetting(`announced:${pid}`, '1');
         }

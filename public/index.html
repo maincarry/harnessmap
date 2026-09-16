@@ -836,16 +836,17 @@ function renderTabs() {
     const focusName = f ? disp(f) : 'session';
     const hasTerm = !!chatTerms.get(c.id);
     const h = c.host;
-    const name = h ? (h.title || focusName) : focusName;
+    const name = c.name || (h ? (h.title || focusName) : focusName); // M268: a name given on the map wins
     const b = document.createElement('button');
     b.className = 'tab' + (c.id === S.mainChatId && activeTab === 'session' ? ' on' : '');
     b.dataset.tab = c.id;
     b.dataset.tip = h
-      ? `${h.label} session${h.status === 'closed' ? ' — closed' : ' — live'}: “${name}” — read-only here; it files onto this map; its own focus and lighting apply`
+      ? `${h.label} session${h.status === 'closed' ? ' — closed' : ' — live'}: “${name}”${c.name && h.harnessTitle && h.harnessTitle !== c.name ? ` (in ${h.label}: “${h.harnessTitle}”)` : ''} — read-only here; it files onto this map; its own focus and lighting apply. ✎ renames it on the map`
       : `map chat (the map's own agent, no tools) focused on “${focusName}”${hasTerm ? ' — live terminal attached' : ''} — click to switch`;
     const mark = h ? `<span class="dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;background:${h.status === 'closed' ? 'var(--muted)' : '#3f9d5a'}"></span>${h.harness === 'codex' ? 'Codex' : h.harness === 'claude' ? 'Claude' : 'session'} · ` : (hasTerm ? '⌨ ' : '💬 ');
-    b.innerHTML = `${c.pinned ? '📌 ' : ''}${mark}${esc(name.slice(0, 26))}${c.id === S.mainChatId ? '<span class="tx" data-tip="close this tab: ends its terminal if one is running and puts the view away — everything it filed stays on the map">✕</span>' : ''}`;
+    b.innerHTML = `${c.pinned ? '📌 ' : ''}${mark}${esc(name.slice(0, 26))}${c.id === S.mainChatId ? '<span class="tx trn" data-tip="rename this session on the map (the harness keeps its own name)">✎</span><span class="tx" data-tip="close this tab: ends its terminal if one is running and puts the view away — everything it filed stays on the map">✕</span>' : ''}`;
     b.onclick = async (e) => {
+      if (e.target.classList?.contains('trn')) { await renameSession(c); return; }
       if (e.target.classList?.contains('tx')) { await closeSessionTab(c.id); return; }
       if (c.id !== S.mainChatId) await post(`/api/chats/${c.id}/activate`, {});
       showSession(c.id);
@@ -862,6 +863,15 @@ function renderTabs() {
     b.onclick = () => { const c = older[0]; post(`/api/chats/${c.id}/activate`, {}).then(() => showSession(c.id)); };
     list.appendChild(b);
   }
+}
+// M268 (Jacob): rename a session on the map; empty name = follow the harness's title again
+async function renameSession(c) {
+  const h = c.host;
+  const current = c.name || (h && h.title) || '';
+  const v = await uiPrompt(`Name this session on the map${h && h.harnessTitle ? ` (${h.label} calls it “${h.harnessTitle}”; leave empty to follow that name)` : ' (leave empty to clear)'}:`, current, 'rename');
+  if (v === null) return;
+  try { await post(`/api/chats/${c.id}/name`, { name: v.trim() }); $('round-line').textContent = v.trim() ? `session renamed to “${v.trim()}”` : 'session name cleared — it follows the harness again'; }
+  catch (err) { $('round-line').textContent = `rename failed: ${err.message}`; }
 }
 $('proj-sel').onchange = async (e) => {
   const v = e.target.value;
@@ -1441,7 +1451,8 @@ function openSessions() {
       const f = node(c.focusContainerId);
       return `<div class="sr-row" style="align-items:baseline;gap:10px">
         <button class="rowbtn ${c.pinned ? 'on' : ''}" data-spin="${c.id}" title="${c.pinned ? 'unpin — back to recency order' : 'pin: keep this session first in the tab bar'}">📌</button>
-        <span style="min-width:140px;font-weight:${c.id === S.mainChatId ? '600' : '400'}">${esc(f ? disp(f).slice(0, 26) : 'session')}</span>
+        <span style="min-width:140px;font-weight:${c.id === S.mainChatId ? '600' : '400'}">${esc((c.name || (c.host && c.host.title) || (f ? disp(f) : 'session')).slice(0, 26))}</span>
+        <button class="rowbtn" data-srename="${c.id}" title="rename this session on the map">✎</button>
         <span style="flex:1;color:var(--muted);font-size:12px">${esc((c.summary ?? '').slice(0, 90) || '—')}</span>
         <span style="color:var(--muted);font-size:11px;white-space:nowrap">${ago(c.lastActivity)}</span>
         <button class="rowbtn" data-sopen="${c.id}" title="switch to this session">open</button>
@@ -1460,6 +1471,7 @@ function openSessions() {
   ov.querySelector('#sv-close').onclick = () => ov.remove();
   for (const b of ov.querySelectorAll('[data-spin]')) b.onclick = async () => { await post(`/api/chats/${b.dataset.spin}/pin`, {}); ov.remove(); openSessions(); };
   for (const b of ov.querySelectorAll('[data-sopen]')) b.onclick = () => { ov.remove(); showSession(b.dataset.sopen); };
+  for (const b of ov.querySelectorAll('[data-srename]')) b.onclick = async () => { const c = (S.chats || []).find((x) => x.id === b.dataset.srename); ov.remove(); if (c) { await renameSession(c); openSessions(); } };
   for (const b of ov.querySelectorAll('[data-sclose]')) b.onclick = async () => { if (!(await uiConfirm('Close this session? Everything it filed stays on the map.', 'close session'))) return; await post(`/api/chats/${b.dataset.sclose}/archive`, {}); ov.remove(); openSessions(); };
 }
 // M143 (Jacob): close map influence — sessions hear nothing from the map
