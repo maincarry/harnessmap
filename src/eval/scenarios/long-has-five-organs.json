@@ -1,0 +1,70 @@
+{
+  "name": "after three rounds on one node its whole story carries the five headings and the summary begins with the statement (M214/M288)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Allotment: what to grow this year"
+    },
+    {
+      "key": "beans",
+      "content": "Beans: borlotti on the back fence, sown in late April",
+      "parent": "proj"
+    }
+  ],
+  "focus": "beans",
+  "auto": {
+    "on": false
+  },
+  "settleMs": 20000,
+  "rounds": [
+    {
+      "user": "The beans go in two rows on tall canes from the shed.",
+      "assistant": "Beans: two rows, tall canes from the shed.",
+      "then": []
+    },
+    {
+      "user": "Water them every second evening once the pods set; last year I overwatered.",
+      "assistant": "Beans: water every second evening after pod set; last year's overwatering noted.",
+      "then": []
+    },
+    {
+      "user": "Harvest in September, dry the pods indoors for two weeks.",
+      "assistant": "Beans: harvest September, dry pods indoors two weeks.",
+      "then": [
+        {
+          "memoryHas": "beans",
+          "field": "long",
+          "text": "NAME"
+        },
+        {
+          "memoryHas": "beans",
+          "field": "long",
+          "text": "DESCRIPTION"
+        },
+        {
+          "memoryHas": "beans",
+          "field": "long",
+          "text": "FIT"
+        },
+        {
+          "memoryHas": "beans",
+          "field": "long",
+          "text": "MODLOG"
+        },
+        {
+          "memoryHas": "beans",
+          "field": "long",
+          "text": "CHAT MEMORY"
+        },
+        {
+          "memoryHas": "beans",
+          "field": "minimal",
+          "text": "borlotti|bean"
+        },
+        {
+          "memoryStartsWithStatement": "beans"
+        }
+      ]
+    }
+  ]
+}

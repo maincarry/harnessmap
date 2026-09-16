@@ -1,0 +1,53 @@
+{
+  "name": "after the focus moves from A to B, B is served at whole story and A is still served (at least one line); B's depth is never below A's (M214/M282)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Garden redesign"
+    },
+    {
+      "key": "a",
+      "content": "Layout: three cedar raised beds along the south fence, a 90 cm gravel path, a seating corner under the fig with a bench facing west",
+      "parent": "proj"
+    },
+    {
+      "key": "b",
+      "content": "Irrigation: drip lines on a timer fed from two rain barrels, with a bypass valve for the hose in dry weeks",
+      "parent": "proj"
+    }
+  ],
+  "focus": "a",
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "user": "The beds will be 45 cm high.",
+      "assistant": "Layout: beds 45 cm high.",
+      "then": [
+        {
+          "servedAtLeast": "a",
+          "is": 2
+        },
+        {
+          "do": "focus",
+          "key": "b"
+        }
+      ]
+    },
+    {
+      "user": "The timer runs at 6 am for twenty minutes.",
+      "assistant": "Irrigation: 6 am, twenty minutes.",
+      "then": [
+        {
+          "servedAtLeast": "b",
+          "is": 2
+        },
+        {
+          "servedAtLeast": "a",
+          "is": 0
+        }
+      ]
+    }
+  ]
+}

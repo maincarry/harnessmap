@@ -43,7 +43,16 @@ process.on('exit', () => server.kill());
 let up = false; for (let i = 0; i < 30; i++) { try { await get('/api/state'); up = true; break; } catch { await sleep(500); } }
 if (!up) { console.error('server never came up'); process.exit(1); }
 
-console.log(`\n== ${sc.name} ==`);
+// M294 (Jacob: "test the product under different model settings… low med high ensemble"): E2E_MODELS=low|mid|high sets every
+// role's model before the run; the summary line names the ensemble so the ledger shows where they diverge.
+const ENSEMBLE = (process.env.E2E_MODELS ?? 'mid') as 'low' | 'mid' | 'high';
+const ENSEMBLES: Record<string, Record<string, string>> = {
+  low: { 'per-turn': 'claude-haiku-4-5', 'on-demand': 'claude-haiku-4-5' },
+  mid: { 'per-turn': '', 'on-demand': '' }, // the defaults
+  high: { 'per-turn': 'claude-sonnet-4-6', 'on-demand': 'claude-opus-4-8' },
+};
+for (const [g, m] of Object.entries(ENSEMBLES[ENSEMBLE] ?? {})) await post('/api/models', { task: `group:${g}`, model: m });
+console.log(`\n== ${sc.name} == [models: ${ENSEMBLE}]`);
 let s = await state();
 const keys: Record<string, string> = {};
 const rootTop = (s.nodes ?? []).find((n: any) => n.parentId === null && !String(n.title ?? n.content).startsWith('to sort'));
@@ -60,7 +69,9 @@ if (sc.auto) await post('/api/auto', sc.auto);
 // clear the seed's own undo entries from consideration by remembering the baseline count
 async function filerCount() { return (await audit('inference')).filter((r: any) => JSON.stringify(r.detail).includes('"filer"')).length; }
 let nodesAddedThisRound = 0;
+const roundMs: number[] = [];
 async function round(user: string, assistant: string, session = 'e2e-1', roundHarness: string | undefined = undefined, roundFork: string | undefined = undefined) {
+  const t0 = Date.now();
   const nodesBefore = ((await state()).nodes ?? []).length;
   const before = await filerCount(); const autoBefore = (await audit()).filter((r: any) => /^auto_/.test(r.kind)).length;
   await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness, forked_from: roundFork ?? null });
@@ -69,6 +80,7 @@ async function round(user: string, assistant: string, session = 'e2e-1', roundHa
   await sleep(sc.settleMs ?? 6000);
   s = await state();
   nodesAddedThisRound = (s.nodes ?? []).length - nodesBefore;
+  roundMs.push(Date.now() - t0 - (sc.settleMs ?? 6000));
 }
 let auditMark = (await audit()).length;
 let lastContext: any = null;
@@ -141,6 +153,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.topLevelMatching) check(label, (s.nodes ?? []).some((n: any) => n.parentId === null && match(s, n, a.topLevelMatching)));
       else if (a.undoNext) check(label, rx(a.undoNext).test(s.undoNext ?? ''), `undoNext=${s.undoNext}`);
       else if (a.servedAt !== undefined) { const d = s.served ? s.served[keys[a.servedAt]] : undefined; check(label, d === a.is, `served=${d} pinsUnmet=${(s.pinsUnmet ?? []).includes(keys[a.servedAt])}`); }
+      else if (a.servedAtMost !== undefined) { const d = s.served ? s.served[keys[a.servedAtMost]] : undefined; check(label, d !== undefined && d <= a.is, `served=${d}`); }
       else if (a.servedAtLeast !== undefined) { const d = s.served ? s.served[keys[a.servedAtLeast]] : undefined; check(label, d !== undefined && d >= a.is, `served=${d} pinsUnmet=${(s.pinsUnmet ?? []).includes(keys[a.servedAtLeast])}`); }
       else if (a.mainSessionIs) check(label, chatOf(s).host?.sessionId === a.mainSessionIs, `main view's session=${chatOf(s).host?.sessionId ?? '(map chat)'}`);
       else if (a.viewFocusIs || a.viewFocusUnder) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); const want = keys[a.viewFocusIs ?? a.viewFocusUnder]; check(label, !!v && (a.viewFocusIs ? v.focusContainerId === want : (v.focusContainerId === want || under(s, v.focusContainerId, want))), v ? `focus=${nameOf(s, v.focusContainerId)}` : 'no such view'); }
@@ -151,6 +164,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.parentOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.parentOf]); check(label, !!n && ((a.is === null && n.parentId === null) || n.parentId === keys[a.is]), n ? `parent=${nameOf(s, n.parentId)}` : 'no node'); }
       else if (a.tidyChanged !== undefined) check(label, (lastTidy?.alterations?.length ?? 0) > 0 === a.tidyChanged, `alterations=${lastTidy?.alterations?.length ?? 0}`);
       else if (a.viewStatus) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); check(label, !!v && v.host?.status === a.is && (!a.resume || rx(a.resume).test(String(v.host?.resume ?? ''))), v ? `status=${v.host?.status} resume=${v.host?.resume}` : 'no such view'); }
+      else if (a.memoryStartsWithStatement) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.memoryStartsWithStatement]); const m = await get(`/api/nodes/${keys[a.memoryStartsWithStatement]}/memory`); const med = String(m?.medium ?? m?.text ?? ''); const norm = (t: string) => t.toLowerCase().replace(/\s+/g, ' ').trim(); check(label, !!n && norm(med).startsWith(norm(n.content).slice(0, 40)), `statement=${(n?.content ?? '').slice(0, 60)} · medium=${med.slice(0, 80)}`); }
       else if (a.memoryHas) { const m = await get(`/api/nodes/${keys[a.memoryHas]}/memory`); const field = a.field ?? 'long'; const text = String(m?.[field] ?? (field === 'medium' ? m?.text : '') ?? ''); /* the memory route names the medium length 'text' */ check(label, rx(a.text).test(text), `${field}=${text.slice(0, 160)}`); }
       else if (a.viewTitle) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); check(label, !!v && rx(a.is).test(String(v.host?.title ?? '')), v ? `title=${v.host?.title}` : 'no such view'); }
       else if (a.distinctNodes) { const ids = (a.distinctNodes as string[]).map((r) => ((s.nodes ?? []).filter((n: any) => match(s, n, r)).map((n: any) => n.id))); const ok = ids.every((l) => l.length) && new Set(ids.map((l) => l[0])).size === ids.length && !(ids.length === 2 && ids[0].length === 1 && ids[1].length === 1 && ids[0][0] === ids[1][0]); check(label, ok, `matches: ${ids.map((l) => l.length).join('/')}`); }
@@ -167,7 +181,9 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
   auditMark = (await audit()).length;
 }
 let tokens = 0; try { const c = await get('/api/cost?window=24h'); tokens = Number(c?.total?.tokens ?? 0); } catch {}
-const line = `${new Date().toISOString().slice(0, 16)} · ${sc.name} · ${pass} passed, ${fail} failed · ≈${Math.round(tokens / 1000)}k tokens${notes.length ? ' · ' + notes.join(' ; ').slice(0, 400) : ''}`;
+// M295 (Jacob: "experiment with speeding up the map updates"): the speed baseline — median round wall time (filing landed, minus the settle) and per-agent latency
+let speed = ''; try { const inf = (await audit('inference')).filter((r: any) => r.detail?.ok); const by: Record<string, number[]> = {}; for (const r of inf) (by[r.detail.task] ??= []).push(Number(r.detail.ms)); const med = (a: number[]) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; }; speed = `round ${med(roundMs) / 1000 | 0}s · ` + Object.entries(by).map(([t, a]) => `${t} ${Math.round(med(a) / 100) / 10}s×${a.length}`).join(' '); } catch {}
+const line = `${new Date().toISOString().slice(0, 16)} · ${sc.name} · [${ENSEMBLE}] ${pass} passed, ${fail} failed · ≈${Math.round(tokens / 1000)}k tokens${speed ? ' · ' + speed : ''}${notes.length ? ' · ' + notes.join(' ; ').slice(0, 400) : ''}`;
 console.log(`\n================ ${line} ================`);
 try { appendFileSync('docs/E2E-LEDGER.md', `- ${line}\n`); } catch {}
 server.kill();
