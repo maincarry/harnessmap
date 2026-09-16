@@ -75,7 +75,8 @@ const focusNow = chatOf(s).focusContainerId;
 check('auto mode aimed (an auto_mode line was announced)', ev2.some((e: any) => e.kind === 'auto_mode' && /focus|lit|dim/.test(String(e.detail?.line))), JSON.stringify(ev2.map((e: any) => [e.kind, e.detail?.line ?? e.detail?.why ?? e.detail?.error]).slice(0, 6)));
 check('the focus moved into chapter 2 (or a node under it)', focusNow === ch2 || under(s, focusNow, ch2), `focus=${(nodeByTitle(s, '') , (s.nodes ?? []).find((n: any) => n.id === focusNow)?.title ?? focusNow)}`);
 check('the undo button names the aim', /^auto mode/.test(s.undoNext ?? ''), s.undoNext ?? 'none');
-const und = await post('/api/undo', {});
+// housekeeping entries (rename, placement) may sit above the aim on the stack — undo down to the aim (at most three pops)
+let und: any = { body: {} }; for (let i = 0; i < 3; i++) { und = await post('/api/undo', {}); if (/focus →|re-aim/.test(und.body.label ?? '')) break; }
 s = await state();
 const litAfterUndo = new Set(chatOf(s).lit);
 check('undo puts the focus back on chapter 1 and every node lit before the pivot is lit again', und.body.ok && chatOf(s).focusContainerId === ch1 && litBefore.split(',').every((id) => litAfterUndo.has(id)), `focus=${chatOf(s).focusContainerId === ch1} missing=${litBefore.split(',').filter((id) => !litAfterUndo.has(id)).length}`);

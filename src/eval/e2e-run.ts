@@ -90,7 +90,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.notInToSort) check(label, !ts || !(s.nodes ?? []).some((n: any) => match(s, n, a.notInToSort) && under(s, n.id, ts.id)));
       else if (a.lit) check(label, chatOf(s).lit.includes(keys[a.lit]));
       else if (a.dark) check(label, !chatOf(s).lit.includes(keys[a.dark]));
-      else if (a.audit) check(label, since.some((e: any) => e.kind === a.audit && (!a.matching || rx(a.matching).test(JSON.stringify(e.detail)))), `kinds: ${[...new Set(since.map((e: any) => e.kind))].join(',').slice(0, 160)}`);
+      else if (a.audit) { const kinds = String(a.audit).split('|'); check(label, since.some((e: any) => kinds.includes(e.kind) && (!a.matching || rx(a.matching).test(JSON.stringify(e.detail)))), `kinds: ${[...new Set(since.map((e: any) => e.kind))].join(',').slice(0, 160)}`); }
       else if (a.noAudit) check(label, !since.some((e: any) => e.kind === a.noAudit));
       else if (a.statusOf) { const n = (s.nodes ?? []).find((x: any) => match(s, x, a.statusOf)); check(label, !!n && n.status === a.is, n ? `status=${n.status}` : 'no node'); }
       else if (a.countUnder) check(label, (s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length <= a.max, `count=${(s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length}`);

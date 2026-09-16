@@ -1,0 +1,92 @@
+{
+  "name": "a branch dimmed by hand stays dark while the talk merely mentions it (M277); the person's own words switching to it lift the set-aside (M285)",
+  "seed": [
+    {
+      "key": "thesis",
+      "content": "Thesis: trust in institutions (survey study)"
+    },
+    {
+      "key": "ch1",
+      "content": "Chapter 1: methods",
+      "parent": "thesis"
+    },
+    {
+      "key": "lit",
+      "content": "Literature review: prior work on institutional trust",
+      "parent": "thesis"
+    },
+    {
+      "key": "putnam",
+      "content": "Putnam (2000): social capital and declining trust",
+      "parent": "lit"
+    },
+    {
+      "key": "norris",
+      "content": "Norris (2011): critical citizens and democratic deficit",
+      "parent": "lit"
+    }
+  ],
+  "focus": "ch1",
+  "dim": [
+    "lit"
+  ],
+  "auto": {
+    "on": true
+  },
+  "rounds": [
+    {
+      "user": "For the methods chapter we should cite Putnam's social capital argument when we justify the trust measure.",
+      "assistant": "Noted for methods: the trust measure is justified with reference to Putnam's social capital argument.",
+      "then": [
+        {
+          "dark": "lit"
+        },
+        {
+          "dark": "putnam"
+        }
+      ]
+    },
+    {
+      "user": "Also Norris's critical citizens idea belongs in the methods rationale — mention it beside Putnam.",
+      "assistant": "Added to the methods rationale: Norris's critical citizens, beside Putnam.",
+      "then": [
+        {
+          "dark": "lit"
+        },
+        {
+          "dark": "norris"
+        }
+      ]
+    },
+    {
+      "user": "Also the Putnam and Norris entries in the literature review need the 2020s trust studies added, and the review needs a section on institutional performance — just noting it for later.",
+      "assistant": "Noted for later: update the Putnam and Norris entries with 2020s trust studies; add an institutional-performance section to the literature review.",
+      "then": [
+        {
+          "dark": "lit"
+        },
+        {
+          "dark": "putnam"
+        },
+        {
+          "noAudit": "nudge_focus_request"
+        },
+        {
+          "audit": "auto_kept_user_dim|auto_aim_skip|auto_mode"
+        }
+      ]
+    },
+    {
+      "user": "Let's switch to the literature review chapter now and work on it.",
+      "assistant": "Switching to the literature review chapter.",
+      "then": [
+        {
+          "focusUnder": "lit"
+        },
+        {
+          "lit": "lit"
+        }
+      ]
+    }
+  ]
+}

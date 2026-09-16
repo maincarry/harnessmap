@@ -930,6 +930,9 @@ function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit:
   }
   if (opts.source === 'user' && opts.focus) store.setSetting(`focusBy:${chatId}`, 'auto');
   if (opts.focus && r.focus && r.focus !== prevFocus && store.getNode(r.focus)?.status !== 'removed') {
+    // M285 (loop find): the person's WORDS or hand moved the focus into a branch they had set aside — that lifts the
+    // set-aside on the focus path (their newer act wins over their older one); auto's own aims never reach a hand dim.
+    if (opts.focusAsked || opts.source === 'user') { const pathIds: string[] = []; for (let n = store.getNode(r.focus); n; n = n.parentId ? store.getNode(n.parentId) : undefined) pathIds.push(n.id); store.setUserDim(chatId, pathIds, false); }
     applyFocus(chatId, r.focus);
     chats.noteMapChange(chatId, `focus moved to "${r.focusName ?? nodeName(store.getNode(r.focus))}"${opts.source === 'auto' ? ' (auto mode)' : ''}`);
     focusChanged = true;
@@ -1063,6 +1066,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         if (n >= 3 || x.op !== 'update_node' || !x.id || typeof x.content !== 'string') continue;
         const node = store.getNode(x.id); if (!node || node.status === 'removed' || !node.title) continue;
         if (store.getSetting(`titleBy:${node.id}`) === 'user') continue; // M282
+        if (node.author === 'user') continue; // M285 (loop find): a node the person wrote is named in their words — the auto rename turned "Chapter 2: results" into "Trust in local news"
         const tw = [...words(node.title)]; if (!tw.length) continue;
         const cw = words(node.content);
         const overlap = tw.filter((w) => cw.has(w)).length / tw.length;
@@ -2037,6 +2041,7 @@ const server = Bun.serve({
       store.metric(projectId, 'interaction.zoom');
       clearNudges();
       store.clearMark(nodeId);
+      { const pathIds: string[] = []; for (let n = store.getNode(nodeId); n; n = n.parentId ? store.getNode(n.parentId) : undefined) pathIds.push(n.id); store.setUserDim(focusMatch[1], pathIds, false); } // M285: focusing by hand lifts a set-aside on the path
       applyFocus(focusMatch[1], nodeId);
       store.setSetting(`focusBy:${focusMatch[1]}`, 'user'); // M282 (Jacob): a focus set by hand HOLDS against auto mode
       store.metric(projectId, 'interaction.focus');

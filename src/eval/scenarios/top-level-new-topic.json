@@ -1,0 +1,25 @@
+{
+  "name": "an unrelated new topic becomes a top-level node, not a child of the focus (M278)",
+  "seed": [
+    { "key": "thesis", "content": "Thesis: trust in institutions (survey study)" },
+    { "key": "ch1", "content": "Chapter 1: methods", "parent": "thesis" },
+    { "key": "sampling", "content": "sampling plan: 400 respondents stratified by region", "parent": "ch1" }
+  ],
+  "focus": "ch1", "auto": { "on": false },
+  "rounds": [
+    { "user": "Different thing entirely: I want to start learning Portuguese before the Lisbon trip — maybe a tutor twice a week and Anki decks for vocabulary.",
+      "assistant": "A plan: a tutor twice a week for conversation and Anki decks for vocabulary, starting this month, aimed at basic conversation by November.",
+      "then": [
+        { "nodeMatching": "portuguese", "notUnder": "ch1" },
+        { "nodeMatching": "portuguese", "notUnder": "thesis" },
+        { "topLevelMatching": "portuguese" },
+        { "notInToSort": "portuguese" }
+      ] },
+    { "user": "Back to the sampling plan: add a pilot wave of 30 respondents before the main fieldwork.",
+      "assistant": "Added: a pilot wave of 30 respondents precedes the main fieldwork.",
+      "then": [
+        { "nodeMatching": "pilot", "under": "ch1" },
+        { "focusIs": "ch1" }
+      ] }
+  ]
+}
