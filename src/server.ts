@@ -2092,6 +2092,25 @@ const server = Bun.serve({
       return json({ ok: true, name: nodeName(n) });
     }
     // The lighting half of the old zoom, now an explicit user choice.
+    // M299 (loop find): light all / dim all (this view) was one request per top-level node, so it left several undo entries and
+    // undo took back only the last — now one action, one undo, the focus path protected on dim.
+    const litAllMatch = path.match(/^\/api\/chats\/([\w-]+)\/lit-all$/);
+    if (litAllMatch && req.method === 'POST') {
+      const chatId = litAllMatch[1]; const c = store.getChat(chatId); if (!c) return json({ error: 'unknown chat' }, 404);
+      const b = await req.json().catch(() => ({})) as { on?: boolean; nodeId?: string | null };
+      const on = b.on !== false;
+      const tops = b.nodeId ? [b.nodeId] : store.getNodes(c.projectId).filter((n) => n.parentId === null && n.status !== 'removed').map((n) => n.id);
+      const ids = new Set<string>(); for (const t of tops) { ids.add(t); for (const d of descendantNodes(store, t)) ids.add(d); }
+      const pathP = focusPathOf(chatId);
+      const prevRows = store.getLitRows(chatId);
+      clearNudges();
+      let changed = 0;
+      for (const id of ids) { if (!on && pathP.has(id)) continue; const was = prevRows.some((r) => r.id === id); if (was !== on) changed++; store.setLit(chatId, id, on, null); }
+      const scopeName = b.nodeId ? nodeName(store.getNode(b.nodeId)) : 'the whole map';
+      if (changed) { store.pushUndo(c.projectId, `${on ? 'lit' : 'dimmed'} everything in ${scopeName} (${changed})`, [], { litRows: { [chatId]: prevRows } }); chats.noteMapChange(chatId, on ? `lit everything in ${scopeName} (${changed} node(s))` : `dimmed everything in ${scopeName} (${changed} node(s); the focus path stayed lit)`); reAnchorSessions(c.projectId, 'lighting changed'); }
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true, changed, undo: changed ? `${on ? 'lit' : 'dimmed'} everything in ${scopeName} (${changed})` : null });
+    }
     const dimOutMatch = path.match(/^\/api\/chats\/([\w-]+)\/dim-outside$/);
     if (dimOutMatch && req.method === 'POST') {
       const chatId = dimOutMatch[1];

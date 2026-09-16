@@ -1,0 +1,11 @@
+{
+  "name": "a node the filer added carries the new mark, a changed one the changed mark, until the person looks at it (M106/M107)",
+  "seed": [ { "key": "proj", "content": "Podcast: episodes and guests" }, { "key": "ep", "content": "Episode 12: the marine biologist, recording Tuesday", "parent": "proj" } ],
+  "focus": "proj", "auto": { "on": false },
+  "rounds": [
+    { "user": "New guest for episode 13: the glaciologist from Tromsø, tentative for next month.", "assistant": "Episode 13: the glaciologist from Tromsø, tentative next month.",
+      "then": [ { "markOf": "glaciolog|Tromsø|Episode 13", "is": "new" }, { "markOf": "Episode 12", "is": null } ] },
+    { "user": "Correction on episode 12: the recording moved to Thursday, not Tuesday.", "assistant": "Episode 12: recording moved to Thursday.",
+      "then": [ { "markOf": "Episode 12", "is": "changed" }, { "do": "seen", "matching": "Episode 12" }, { "markOf": "Episode 12", "is": null }, { "markOf": "glaciolog|Tromsø|Episode 13", "is": "new" } ] }
+  ]
+}

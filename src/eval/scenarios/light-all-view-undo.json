@@ -1,0 +1,93 @@
+{
+  "name": "light all (this view) lights every node and is one undo; dim all dims everything but the focus path and is one undo (M296)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Garden redesign"
+    },
+    {
+      "key": "layout",
+      "content": "Layout: beds and paths",
+      "parent": "proj"
+    },
+    {
+      "key": "plants",
+      "content": "Plants: tomatoes and basil",
+      "parent": "proj"
+    },
+    {
+      "key": "irrig",
+      "content": "Irrigation: drip lines",
+      "parent": "proj"
+    }
+  ],
+  "focus": "layout",
+  "dim": [
+    "plants",
+    "irrig"
+  ],
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "user": "The beds are cedar.",
+      "assistant": "Layout: cedar beds.",
+      "then": [
+        {
+          "dark": "plants"
+        },
+        {
+          "dark": "irrig"
+        },
+        {
+          "do": "litAll",
+          "on": true
+        },
+        {
+          "lit": "plants"
+        },
+        {
+          "lit": "irrig"
+        },
+        {
+          "undoNext": "^lit everything"
+        },
+        {
+          "do": "undo"
+        },
+        {
+          "dark": "plants"
+        },
+        {
+          "dark": "irrig"
+        },
+        {
+          "lit": "layout"
+        },
+        {
+          "do": "litAll",
+          "on": false
+        },
+        {
+          "dark": "plants"
+        },
+        {
+          "lit": "layout"
+        },
+        {
+          "lit": "proj"
+        },
+        {
+          "undoNext": "^dimmed everything"
+        },
+        {
+          "do": "undo"
+        },
+        {
+          "lit": "layout"
+        }
+      ]
+    }
+  ]
+}

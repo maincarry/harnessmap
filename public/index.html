@@ -2321,9 +2321,9 @@ async function addNode(parentId) {
 
 // ---- lit-all / dim-all within the current view ----
 async function litScope(on) {
-  const tops = zoomId ? [zoomId] : S.nodes.filter(n => n.parentId === null).map(n => n.id);
-  for (const id of tops) await post(`/api/chats/${S.mainChatId}/lit`, { nodeId: id, on, bulk: true });
-  if (!on) $('round-line').textContent = 'dimmed the view — the focus path stays lit (protected)';
+  // M299: one action, one undo (it was one request per top-level node, and undo took back only the last)
+  try { const r = await post(`/api/chats/${S.mainChatId}/lit-all`, { on, nodeId: zoomId ?? null }); if (r.undo) undoToast(r.undo); else $('round-line').textContent = on ? 'everything in view was already lit' : 'nothing to dim beyond the focus path'; }
+  catch (err) { $('round-line').textContent = `${on ? 'light all' : 'dim all'} failed: ${err.message}`; }
 }
 $('lit-all').onclick = () => litScope(true);
 $('dim-all').onclick = () => litScope(false);
