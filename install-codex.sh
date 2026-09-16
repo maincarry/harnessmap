@@ -67,7 +67,7 @@ fi
 # M266: the server always runs on the SAME home and database the hooks use (~/.harnessmap/map.sqlite); an earlier installer
 # started it without them, so the map on the page depended on who started the server. A database left in the app folder moves over once.
 mkdir -p "${HOME}/.harnessmap"
-if [ -f "${APP}/harnessmap.sqlite" ] && [ ! -f "${HOME}/.harnessmap/map.sqlite" ]; then say "moving your maps from ${APP}/harnessmap.sqlite to ~/.harnessmap/map.sqlite"; mv "${APP}/harnessmap.sqlite" "${HOME}/.harnessmap/map.sqlite"; rm -f "${APP}/harnessmap.sqlite-wal" "${APP}/harnessmap.sqlite-shm"; fi
+if [ -f "${APP}/harnessmap.sqlite" ] && [ ! -f "${HOME}/.harnessmap/map.sqlite" ]; then say "moving your maps from ${APP}/harnessmap.sqlite to ~/.harnessmap/map.sqlite"; for ext in "" "-wal" "-shm"; do [ -f "${APP}/harnessmap.sqlite${ext}" ] && mv "${APP}/harnessmap.sqlite${ext}" "${HOME}/.harnessmap/map.sqlite${ext}"; done; fi
 # M269: the server is started the way every hook starts it — detached, on the hooks' home and database, health-waited —
 # instead of a shell background job (which kept this script waiting on the server when run through a pipe).
 if ! curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state; then ( cd "${APP}" && echo '{}' | HARNESSMAP_HOME="${HOME}/.harnessmap" HARNESSMAP_SESSION_GATE=open bun run hooks/session-start.ts >/dev/null 2>&1 ) || true; for i in $(seq 1 40); do curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && break; sleep 0.25; done; fi

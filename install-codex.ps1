@@ -60,7 +60,7 @@ if (-not (State)) {
   $bun = (Get-Command bun).Source
   # M266: the same home and database the hooks use; a database left in the app folder by an earlier installer moves over once
   $Hm = Join-Path $HOME '.harnessmap'; New-Item -ItemType Directory -Force -Path $Hm | Out-Null
-  if ((Test-Path (Join-Path $App 'harnessmap.sqlite')) -and -not (Test-Path (Join-Path $Hm 'map.sqlite'))) { Say "moving your maps to ~\.harnessmap\map.sqlite"; Move-Item (Join-Path $App 'harnessmap.sqlite') (Join-Path $Hm 'map.sqlite'); Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $App 'harnessmap.sqlite-wal'), (Join-Path $App 'harnessmap.sqlite-shm') }
+  if ((Test-Path (Join-Path $App 'harnessmap.sqlite')) -and -not (Test-Path (Join-Path $Hm 'map.sqlite'))) { Say "moving your maps to ~\.harnessmap\map.sqlite"; foreach ($ext in @('', '-wal', '-shm')) { if (Test-Path (Join-Path $App "harnessmap.sqlite$ext")) { Move-Item (Join-Path $App "harnessmap.sqlite$ext") (Join-Path $Hm "map.sqlite$ext") } } }
   $env:HARNESSMAP_HOME = $Hm; $env:HARNESSMAP_DB = (Join-Path $Hm 'map.sqlite')
   Start-Process -FilePath $bun -ArgumentList "run","src/server.ts" -WorkingDirectory $App -WindowStyle Hidden -RedirectStandardOutput (Join-Path $HOME ".harnessmap\server.log") -RedirectStandardError (Join-Path $HOME ".harnessmap\server.err.log") | Out-Null
   foreach ($i in 1..12) { Start-Sleep -Seconds 1; if (State) { break } }
