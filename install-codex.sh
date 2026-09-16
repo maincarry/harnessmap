@@ -40,11 +40,13 @@ mkdir -p "${HOME}/.harnessmap"; printf 'codex\n' > "${HOME}/.harnessmap/backend"
 # start the map server now and open the page - the user sees the map before Codex is even involved
 # a server already running on OLDER code is restarted (M236): the build it reports must match the app on disk
 HEADSHA=$(git -C "${APP}" rev-parse --short HEAD 2>/dev/null || echo "")
-RUNNING=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"build":"[a-z0-9]*"' | cut -d'"' -f4)
-MACHINE=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"machine":"[^"]*"' | cut -d'"' -f4)
+# M266c (Jacob: "the whole localhost is dead"): under `set -euo pipefail` these probes ABORTED the installer whenever no server
+# was running (curl fails, grep finds nothing) — before it ever started one. Each probe now tolerates an absent server.
+RUNNING=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"build":"[a-z0-9]*"' | cut -d'"' -f4 || true)
+MACHINE=$(curl -s -m 2 http://127.0.0.1:8790/api/state 2>/dev/null | grep -o '"machine":"[^"]*"' | cut -d'"' -f4 || true)
 # a harnessmap answering on this port from ANOTHER machine = an SSH port forward; nothing here can close it
 if [ -n "${MACHINE}" ] && [ "${MACHINE}" != "$(hostname)" ]; then say "port 8790 is answered by a map server on ANOTHER machine ('${MACHINE}') - an SSH port forward? Close that tunnel (or move it off 8790), then rerun this installer."; exit 1; fi
-BACKEND=$(curl -s -m 2 http://127.0.0.1:8790/api/backend 2>/dev/null | grep -o '"backend":"[a-z]*"' | cut -d'"' -f4)
+BACKEND=$(curl -s -m 2 http://127.0.0.1:8790/api/backend 2>/dev/null | grep -o '"backend":"[a-z]*"' | cut -d'"' -f4 || true)
 if curl -s -m 2 -o /dev/null http://127.0.0.1:8790/api/state && [ -n "${HEADSHA}" ] && { [ "${RUNNING}" != "${HEADSHA}" ] || [ "${BACKEND}" != "codex" ]; }; then say "restarting the map server on the updated code (${RUNNING:-old} -> ${HEADSHA})"; curl -s -m 3 -X POST http://127.0.0.1:8790/api/shutdown >/dev/null 2>&1; sleep 2; pkill -f "bun run src/server.ts" 2>/dev/null; sleep 1; fi
 # M266: the server always runs on the SAME home and database the hooks use (~/.harnessmap/map.sqlite); an earlier installer
 # started it without them, so the map on the page depended on who started the server. A database left in the app folder moves over once.
