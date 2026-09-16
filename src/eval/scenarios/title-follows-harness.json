@@ -1,0 +1,51 @@
+{
+  "name": "a Codex thread's name from session_index shows on its tab, and a rename in Codex follows within a round; a name given on the map wins (M251/M268)",
+  "env": {
+    "CODEX_HOME": "$TMP/dot-codex"
+  },
+  "files": {
+    "dot-codex/session_index.jsonl": "{\"id\":\"e2e-C\",\"thread_name\":\"Sourdough schedule\",\"updated_at\":\"2026-09-16T00:00:00Z\"}\n"
+  },
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Bakery: recipes and schedules"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "session": "e2e-C",
+      "user": "The sourdough needs a 14-hour cold retard; bake at 6 am.",
+      "assistant": "Sourdough: 14-hour cold retard, bake at 6 am.",
+      "then": [
+        {
+          "viewTitle": "Sourdough schedule",
+          "session": "e2e-C",
+          "is": "^Sourdough schedule$"
+        },
+        {
+          "do": "writefile",
+          "path": "dot-codex/session_index.jsonl",
+          "content": "{\"id\":\"e2e-C\",\"thread_name\":\"Sourdough schedule\",\"updated_at\":\"2026-09-16T00:00:00Z\"}\n{\"id\":\"e2e-C\",\"thread_name\":\"Bread timings\",\"updated_at\":\"2026-09-16T00:10:00Z\"}\n"
+        }
+      ]
+    },
+    {
+      "session": "e2e-C",
+      "user": "Croissants: laminate the night before, proof two hours in the morning.",
+      "assistant": "Croissants: laminate the evening before; two-hour morning proof.",
+      "then": [
+        {
+          "viewTitle": "renamed in Codex",
+          "session": "e2e-C",
+          "is": "^Bread timings$"
+        }
+      ]
+    }
+  ],
+  "harness": "codex"
+}

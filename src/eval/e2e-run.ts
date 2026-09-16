@@ -31,6 +31,9 @@ const rx = (p: string) => new RegExp(p, 'i');
 const match = (s: any, n: any, p: string) => rx(p).test((n.title ?? '') + ' ' + n.content);
 
 rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'proj'), { recursive: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
+const expand = (v: string) => String(v).replaceAll('$TMP', TMP);
+for (const [rel, content] of Object.entries(sc.files ?? {})) { const fp = join(TMP, rel); mkdirSync(join(fp, '..'), { recursive: true }); writeFileSync(fp, expand(String(content))); }
+if (sc.env) for (const k of Object.keys(sc.env)) sc.env[k] = expand(sc.env[k]);
 try { writeFileSync(join(TMP, 'home', '.claude', '.credentials.json'), readFileSync(join(process.env.HOME ?? '', '.claude', '.credentials.json')), { mode: 0o600 }); } catch { console.warn('no subscription credentials to copy'); }
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
   env: { ...process.env, ANTHROPIC_API_KEY: undefined as any, HARNESSMAP_INFERENCE: undefined as any, HARNESSMAP_DB: DB, HARNESSMAP_HOME: join(TMP, 'home', '.harnessmap'), PORT: String(PORT), HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home'), ...(sc.env ?? {}) }, // a scenario may set server env (e.g. the review rhythm)
@@ -56,9 +59,9 @@ for (const k of sc.lit ?? []) await post(`/api/chats/${cid()}/lit`, { nodeId: ke
 if (sc.auto) await post('/api/auto', sc.auto);
 // clear the seed's own undo entries from consideration by remembering the baseline count
 async function filerCount() { return (await audit('inference')).filter((r: any) => JSON.stringify(r.detail).includes('"filer"')).length; }
-async function round(user: string, assistant: string, session = 'e2e-1') {
+async function round(user: string, assistant: string, session = 'e2e-1', roundHarness: string | undefined = undefined) {
   const before = await filerCount(); const autoBefore = (await audit()).filter((r: any) => /^auto_/.test(r.kind)).length;
-  await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant });
+  await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness });
   for (let i = 0; i < 40; i++) { await sleep(3000); if ((await filerCount()) > before) break; }
   if (sc.auto?.on) { for (let i = 0; i < 30; i++) { await sleep(3000); if ((await audit()).filter((r: any) => /^auto_/.test(r.kind)).length > autoBefore) break; } }
   await sleep(sc.settleMs ?? 6000);
@@ -69,7 +72,7 @@ let lastContext: any = null;
 let lastTidy: any = null;
 for (const [i, r] of (sc.rounds ?? []).entries()) {
   console.log(`-- round ${i + 1}: ${String(r.user).slice(0, 70)}`);
-  await round(r.user, r.assistant, r.session);
+  await round(r.user, r.assistant, r.session, r.harness ?? sc.harness);
   // the round's audit window: everything since the last round ended — including what this round's `do` actions cause;
   // read fresh at each assertion, and the mark advances only when the round's assertions are done
   let since: any[] = [];
@@ -95,6 +98,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
           if (pv.body?.alterations?.length) { const ap = await post('/api/reorganize/apply', { alterations: pv.body.alterations, chatId: cid(), containerName: a.key ? nameOf(s, nodeId!) : 'the whole map' }); lastTidy.applied = ap.body; }
           check(`do tidy (${pv.body?.alterations?.length ?? 0} change(s))`, Array.isArray(pv.body?.alterations), JSON.stringify(pv.body).slice(0, 120));
         }
+        else if (a.do === 'writefile') { const fp = join(TMP, a.path); mkdirSync(join(fp, '..'), { recursive: true }); writeFileSync(fp, expand(String(a.content))); }
         else if (a.do === 'influence') { const cur = await get('/api/influence'); if (!!cur.off !== !!a.off) await post('/api/influence/toggle', {}); }
         s = await state(); continue;
       }
@@ -122,6 +126,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.contextChars) { const n = String(lastContext?.context ?? lastContext?.additionalContext ?? lastContext?.text ?? '').length; check(label, a.min !== undefined ? n >= a.min : n <= (a.max ?? 0), `chars=${n} keys=${Object.keys(lastContext ?? {}).join(',')}`); }
       else if (a.parentOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.parentOf]); check(label, !!n && ((a.is === null && n.parentId === null) || n.parentId === keys[a.is]), n ? `parent=${nameOf(s, n.parentId)}` : 'no node'); }
       else if (a.tidyChanged !== undefined) check(label, (lastTidy?.alterations?.length ?? 0) > 0 === a.tidyChanged, `alterations=${lastTidy?.alterations?.length ?? 0}`);
+      else if (a.viewTitle) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); check(label, !!v && rx(a.is).test(String(v.host?.title ?? '')), v ? `title=${v.host?.title}` : 'no such view'); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }
