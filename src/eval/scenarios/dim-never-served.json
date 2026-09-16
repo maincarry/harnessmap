@@ -1,0 +1,15 @@
+{
+  "name": "a dimmed descendant of the focus is absent from the block (only its name as set-aside); lighting it puts its statement back (M253)",
+  "seed": [
+    { "key": "proj", "content": "Thesis: trust in institutions" },
+    { "key": "ch1", "content": "Chapter 1: methods", "parent": "proj" },
+    { "key": "pilot", "content": "Pilot wave: thirty respondents in Lisbon before the main fieldwork, run by Ana", "parent": "ch1" },
+    { "key": "sampling", "content": "Sampling plan: four hundred respondents stratified by region", "parent": "ch1" }
+  ],
+  "focus": "ch1", "dim": ["pilot"], "auto": { "on": false },
+  "rounds": [
+    { "user": "For the methods chapter: the survey runs online, mobile-first, fifteen minutes long.", "assistant": "Methods: online survey, mobile-first, fifteen minutes.",
+      "then": [ { "do": "context", "session": "e2e-1" }, { "contextHas": "four hundred respondents|stratified" }, { "contextLacks": "run by Ana|thirty respondents in Lisbon" }, { "contextHas": "set aside|dimmed|Pilot wave" },
+                { "do": "light", "key": "pilot" }, { "do": "context", "session": "e2e-1" }, { "contextHas": "run by Ana|thirty respondents" } ] }
+  ]
+}

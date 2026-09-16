@@ -1750,8 +1750,10 @@ const server = Bun.serve({
       store.metric(projectId, body.on ? 'interaction.light' : 'interaction.dim');
       }
       const n = store.getNode(nodeId);
+      // M290 (loop find): lighting one node re-anchors nothing (under four ids), so the next turn saw only "lit: X" and not what X
+      // says until the next full block — the notice now carries the statement, so the light takes effect on the very next turn.
       chats.noteMapChange(litMatch[1], body.on
-        ? `lit as background: "${nodeName(n)}"${ids.length > 1 ? ' (and everything under it)' : ''}`
+        ? `lit as background: "${nodeName(n)}"${ids.length > 1 ? ' (and everything under it)' : ''}${n && n.content && n.content !== nodeName(n) ? ` — ${n.content.slice(0, 300)}` : ''}`
         : `set aside (dimmed): "${nodeName(n)}"${ids.length > 1 ? ' and everything under it' : ''} — don't bring it up or draw on its earlier discussion unless the user does`);
       if (ids.length > 3) reAnchorSessions(projectId, 'lighting changed');
       broadcast({ type: 'map', ...state() });

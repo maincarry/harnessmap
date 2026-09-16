@@ -59,13 +59,16 @@ for (const k of sc.lit ?? []) await post(`/api/chats/${cid()}/lit`, { nodeId: ke
 if (sc.auto) await post('/api/auto', sc.auto);
 // clear the seed's own undo entries from consideration by remembering the baseline count
 async function filerCount() { return (await audit('inference')).filter((r: any) => JSON.stringify(r.detail).includes('"filer"')).length; }
+let nodesAddedThisRound = 0;
 async function round(user: string, assistant: string, session = 'e2e-1', roundHarness: string | undefined = undefined, roundFork: string | undefined = undefined) {
+  const nodesBefore = ((await state()).nodes ?? []).length;
   const before = await filerCount(); const autoBefore = (await audit()).filter((r: any) => /^auto_/.test(r.kind)).length;
   await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness, forked_from: roundFork ?? null });
   for (let i = 0; i < 40; i++) { await sleep(3000); if ((await filerCount()) > before) break; }
   if (sc.auto?.on) { for (let i = 0; i < 30; i++) { await sleep(3000); if ((await audit()).filter((r: any) => /^auto_/.test(r.kind)).length > autoBefore) break; } }
   await sleep(sc.settleMs ?? 6000);
   s = await state();
+  nodesAddedThisRound = (s.nodes ?? []).length - nodesBefore;
 }
 let auditMark = (await audit()).length;
 let lastContext: any = null;
@@ -126,6 +129,8 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.mainSessionIs) check(label, chatOf(s).host?.sessionId === a.mainSessionIs, `main view's session=${chatOf(s).host?.sessionId ?? '(map chat)'}`);
       else if (a.viewFocusIs || a.viewFocusUnder) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); const want = keys[a.viewFocusIs ?? a.viewFocusUnder]; check(label, !!v && (a.viewFocusIs ? v.focusContainerId === want : (v.focusContainerId === want || under(s, v.focusContainerId, want))), v ? `focus=${nameOf(s, v.focusContainerId)}` : 'no such view'); }
       else if (a.viewLit || a.viewDark) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); const id = keys[a.viewLit ?? a.viewDark]; check(label, !!v && (a.viewLit ? v.lit.includes(id) : !v.lit.includes(id)), v ? '' : 'no such view'); }
+      else if (a.contextHas || a.contextLacks) { const t = String(lastContext?.context ?? lastContext?.additionalContext ?? lastContext?.text ?? ''); const m = t.match(rx(a.contextHas ?? a.contextLacks)); const at = m ? t.slice(Math.max(0, (m.index ?? 0) - 90), (m.index ?? 0) + 110).replace(/\n/g, ' ⏎ ') : ''; check(label, a.contextHas ? !!m : !m, `context chars=${t.length}${at ? ` · around: …${at}…` : ''}`); }
+      else if (a.newNodes !== undefined) check(label, nodesAddedThisRound <= a.newNodes, `added=${nodesAddedThisRound}`);
       else if (a.contextChars) { const n = String(lastContext?.context ?? lastContext?.additionalContext ?? lastContext?.text ?? '').length; check(label, a.min !== undefined ? n >= a.min : n <= (a.max ?? 0), `chars=${n} keys=${Object.keys(lastContext ?? {}).join(',')}`); }
       else if (a.parentOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.parentOf]); check(label, !!n && ((a.is === null && n.parentId === null) || n.parentId === keys[a.is]), n ? `parent=${nameOf(s, n.parentId)}` : 'no node'); }
       else if (a.tidyChanged !== undefined) check(label, (lastTidy?.alterations?.length ?? 0) > 0 === a.tidyChanged, `alterations=${lastTidy?.alterations?.length ?? 0}`);

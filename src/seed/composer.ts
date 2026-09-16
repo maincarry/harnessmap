@@ -1,4 +1,5 @@
 import { Store } from '../store/db.js';
+import { rareTokens } from '../map/match.js'; // M291: paraphrases of a dimmed node are found by shared rare words
 import { getNodeMemory, getAllNodeMemories, getAllMinimals, getAllCurrentDetails, getAllLongs, nodeFull } from '../translator/memory.js';
 import { chatAwareness } from '../translator/mapstatus.js';
 import {
@@ -261,6 +262,7 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const SERVING = String(store.getSetting('memory_serving') || process.env.HARNESSMAP_MEMORY_SERVING || 'on');
   const subKept: string[] = [];
   const trimmedLit: string[] = [];
+  let redactedN = 0; // M291
   const pinsUnmet: string[] = []; // M282
   const served: Record<string, 0 | 1 | 2 | 3> = {}; // M282
   const memKept: string[] = [];
@@ -270,6 +272,29 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     const minBy = getAllMinimals(store);
     const detailsBy = getAllCurrentDetails(store);
     const longBy = getAllLongs(store); // M214: the long resolution written by the memory agent
+    // M291 (loop find): a dimmed node's statement leaked through its PARENT's memory text ("Pilot wave: thirty respondents
+    // in Lisbon…, run by Ana" inside the chapter's summary). M253 says a set-aside node is never served — so any served
+    // memory text drops the sentences that carry a dimmed node's statement or title. Mechanical, per node, audited.
+    const dimKeys: string[] = []; const dimRare: Set<string>[] = [];
+    for (const n of nodes) {
+      if (litSet.has(n.id)) continue;
+      const c = String(n.content ?? '').trim(); if (c.length >= 25) dimKeys.push(c.slice(0, 60).toLowerCase());
+      const t = String((n as any).title ?? '').trim(); if (t.length >= 12) dimKeys.push(t.toLowerCase());
+      const rare = new Set(rareTokens(store, project, `${t} ${c}`)); if (rare.size >= 2) dimRare.push(rare);
+    }
+    const wordsOf = (t: string) => new Set(t.toLowerCase().split(/[^a-z0-9\u00c0-\u024f]+/).filter((w) => w.length > 2));
+    const redact = (text: string | null | undefined): string => {
+      if (!text || (!dimKeys.length && !dimRare.length)) return text ?? '';
+      const parts = text.split(/(?<=[.!?])\s+|\n+/);
+      const kept = parts.filter((p) => {
+        const l = p.toLowerCase();
+        if (dimKeys.some((k) => l.includes(k))) return false;
+        const ws = wordsOf(p);
+        return !dimRare.some((r) => { let n = 0; for (const w of r) if (ws.has(w)) { n++; if (n >= 2) return true; } return false; }); // a paraphrase carries the dimmed node's rare words
+      });
+      if (kept.length !== parts.length) redactedN += parts.length - kept.length;
+      return kept.join(' ');
+    };
     const historyBy = store.contentHistoryAll(project); // M203: timeline of changed nodes
     const marks = store.getMarks(project);
     // Warmth (M191, Mark: "focus proximity strongest, same tree first"):
@@ -328,12 +353,12 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     // shape line, now carrying the one-sentence current view when one exists).
     const pads = (e: LitEntry) => e.shape.match(/^\s*/)?.[0] ?? '  ';
     const minimal = (e: LitEntry): string => {
-      const g = minBy.get(e.id);
+      const g = redact(minBy.get(e.id)) || undefined;
       const roll = hiddenBelow.has(e.id) ? ` (+${hiddenBelow.get(e.id)} inside)` : '';
       return `${e.shape}${roll}${g ? ` — ${g}` : ''}`;
     };
     const mediumExtra = (e: LitEntry): string | null => {
-      const blob = memByNode.get(e.id);
+      const blob = redact(memByNode.get(e.id)) || undefined;
       const hist = historyBy.get(e.id); // M204: a changed node says so at medium too (one short marker)
       const mark = hist && hist.length > 1 ? ` · changed ${hist.length - 1}×, latest ${hist[hist.length - 1].at.slice(0, 10)}` : '';
       // M282 (Jacob): the summary depth serves the STATEMENT itself (the substance lines) and then the memory writer's
@@ -352,10 +377,10 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       // fit at long stays at medium and the branch is marked ❗, M162).
       const details = detailsBy.get(e.id) ?? [];
       const lines = [...e.substance];
-      const longText = longBy.get(e.id);
+      const longText = redact(longBy.get(e.id)) || undefined;
       if (longText) lines.push(`${pads(e)}  (${longText})`); // M214: all five organs in full, one text
       else {
-        const med = memByNode.get(e.id);
+        const med = redact(memByNode.get(e.id)) || undefined;
         if (med) lines.push(`${pads(e)}  (${med})`);
         if (details.length) lines.push(`${pads(e)}  remembered: ${details.map((f) => f.date ? `${f.text} (${f.date})` : f.text).join(' · ')}`);
       }
@@ -606,5 +631,6 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   ].map((sec) => ({ ...sec, chars: sec.text.length })).filter((sec) => sec.chars > 0);
   const usedChars = BUDGET_CHARS - Math.max(0, budget);
   const thinking = [`budget: ${BUDGET_CHARS.toLocaleString()} chars — used ~${usedChars.toLocaleString()}`, ...thinkingLines].join('\n');
+  if (redactedN) { try { store.audit('dim_redacted', { sentences: redactedN }); } catch {} }
   return { text, trimmedLit, sections, budget: BUDGET_CHARS, thinking, served, pinsUnmet: [...new Set(pinsUnmet)] };
 }
