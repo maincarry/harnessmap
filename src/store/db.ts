@@ -120,6 +120,9 @@ export class Store {
 
   copyLit(fromChatId: string, toChatId: string): void {
     this.db.prepare('INSERT OR IGNORE INTO lit (chat_id, container_id, lit_by) SELECT ?, container_id, lit_by FROM lit WHERE chat_id = ?').run(toChatId, fromChatId);
+    // M277: a view born from another carries what the person set aside there too (found by the live check: a host view
+    // copied the light but not the hand-dims, and the aim re-lit the branch the person had dimmed on the page)
+    const dim = this.getUserDim(fromChatId); if (dim.length) this.setUserDim(toChatId, dim, true);
   }
 
   ensureProject(name: string): string {
@@ -315,6 +318,15 @@ export class Store {
     return (this.db.prepare('SELECT container_id FROM lit WHERE chat_id = ?').all(chatId) as any[]).map((r) => r.container_id);
   }
 
+  // M277: nodes the person DIMMED by hand ("set aside") — the map never re-lights them on its own (M194/M253).
+  getUserDim(chatId: string): string[] {
+    try { return JSON.parse(this.getSetting(`userdim:${chatId}`) ?? '[]'); } catch { return []; }
+  }
+  setUserDim(chatId: string, ids: string[], on: boolean): void {
+    const cur = new Set(this.getUserDim(chatId));
+    for (const id of ids) { if (on) cur.add(id); else cur.delete(id); }
+    this.setSetting(`userdim:${chatId}`, JSON.stringify([...cur]));
+  }
   // M263: the hand-lit subset (auto mode's protected set).
   getUserLit(chatId: string): string[] {
     return (this.db.prepare("SELECT container_id FROM lit WHERE chat_id = ? AND lit_by = 'user'").all(chatId) as any[]).map((r) => r.container_id);

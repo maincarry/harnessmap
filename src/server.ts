@@ -895,31 +895,38 @@ function importPending(pid: string): boolean {
 }
 // One aim, applied under the guards, as one undo entry. Used by the ▶/☀
 // buttons' merged re-aim and by auto mode alike.
-function applyAim(chatId: string, r: { focus?: string; focusName?: string; lit: string[]; dim: string[]; summary: string }, opts: { focus: boolean; light: boolean; source: 'auto' | 'user' }): { focusChanged: boolean; lit: number; dim: number; kept: number; label: string } {
+function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit: string[]; dim: string[]; summary: string }, opts: { focus: boolean; light: boolean; source: 'auto' | 'user' }): { focusChanged: boolean; lit: number; dim: number; kept: number; label: string } {
+  let r = r0;
   const chat = store.getChat(chatId)!;
   const pid = chat.projectId;
   const prevFocus = chat.focusContainerId;
   const prevRows = store.getLitRows(chatId);
   let focusChanged = false;
+  // M275 guard (found by the live check): the aim never makes a "to sort" item the focus — a stray the filer could
+  // not place is by definition not the conversation's topic (it focused "Book Lisbon flight" and dimmed the thesis).
+  const inToSort = (id: string) => { const ts = toSortRootOf(pid); return !!ts && (id === ts.id || descendantNodes(store, ts.id).includes(id)); };
+  if (opts.focus && r.focus && inToSort(r.focus)) { store.audit('guard_focus_to_sort', { id: r.focus.slice(0, 8), source: opts.source }); r = { ...r, focus: undefined, focusName: undefined }; }
   if (opts.focus && r.focus && r.focus !== prevFocus && store.getNode(r.focus)?.status !== 'removed') {
     applyFocus(chatId, r.focus);
     chats.noteMapChange(chatId, `focus moved to "${r.focusName ?? nodeName(store.getNode(r.focus))}"${opts.source === 'auto' ? ' (auto mode)' : ''}`);
     focusChanged = true;
   }
-  let toDim: string[] = [], toLight: string[] = [], kept: string[] = [];
+  let toDim: string[] = [], toLight: string[] = [], kept: string[] = [], keptDim: string[] = [];
   if (opts.light) {
     const keep = focusPathOf(chatId);
     const protectedIds = new Set(opts.source === 'auto' ? store.getUserLit(chatId) : []);
-    ({ toDim, toLight, kept } = aimCascade(store, r.lit, r.dim, keep, protectedIds));
+    const handDim = new Set(opts.source === 'auto' ? store.getUserDim(chatId) : []); // M277: set aside by the person stays aside
+    ({ toDim, toLight, kept, keptDim } = aimCascade(store, r.lit, r.dim, keep, protectedIds, handDim));
     // M199: dim first, then light.
     for (const d of toDim) store.setLit(chatId, d, false);
     for (const d of toLight) store.setLit(chatId, d, true, 'map');
     if (toDim.length + toLight.length > 0) chats.noteMapChange(chatId, `background lighting ${opts.source === 'auto' ? 'auto-adjusted by auto mode' : 'auto-adjusted'}: ${r.summary}`);
     if (kept.length) store.audit('auto_kept_user_lit', { n: kept.length });
+    if (keptDim.length) store.audit('auto_kept_user_dim', { n: keptDim.length });
   }
   clearNudges();
   const fname = r.focus ? nodeName(store.getNode(r.focus)) : '';
-  const parts = [focusChanged ? `focus → "${fname}"` : '', toLight.length ? `lit ${toLight.length}` : '', toDim.length ? `dimmed ${toDim.length}` : ''].filter(Boolean);
+  const parts = [focusChanged ? `focus → "${fname}"` : '', toLight.length ? `lit ${toLight.length}` : '', toDim.length ? `dimmed ${toDim.length}` : '', keptDim.length ? `${keptDim.length} set aside by you kept dark` : ''].filter(Boolean);
   const label = `${opts.source === 'auto' ? 'auto mode' : 're-aim'}: ${parts.join(', ') || 'no change'}`;
   if (focusChanged || toDim.length + toLight.length > 0) {
     store.pushUndo(pid, label, [], { focus: prevFocus && focusChanged ? { [chatId]: prevFocus } : {}, litRows: { [chatId]: prevRows } });
@@ -1675,6 +1682,7 @@ const server = Bun.serve({
         return json({ error: 'this node is on the focus path — it stays lit while the conversation is aimed through it. Move the focus first if you really want it dark.' }, 409);
       }
       let kept = 0;
+      if (!(body as any).bulk) store.setUserDim(litMatch[1], ids.filter((id) => body.on || !path.has(id)), !body.on); // M277: a hand dim is remembered as "set aside"; a hand light lifts it
       for (const id of ids) {
         if (!body.on && path.has(id)) { kept++; continue; }
         store.setLit(litMatch[1], id, body.on, body.on && !(body as any).bulk ? 'user' : null); // M263: hand-lit is remembered
@@ -2737,6 +2745,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     if (path === '/api/auto/run' && req.method === 'POST') {
       // aim now, skip rule waived — the button's "aim now" and the tests
       const a = autoSettings(projectId);
+      const ob = await req.json().catch(() => ({})) as { focus?: boolean; light?: boolean }; // M276: the ⚡ buttons force what they stand for
+      if (typeof ob.focus === 'boolean') a.focus = ob.focus; if (typeof ob.light === 'boolean') a.light = ob.light;
       const chat = store.getChat(mainChatId); if (!chat) return json({ error: 'no chat' }, 404);
       const turns = store.getTurns(mainChatId).slice(-2);
       const u = turns.find((t) => t.role === 'user')?.content ?? ''; const as = turns.find((t) => t.role === 'assistant')?.content ?? '';

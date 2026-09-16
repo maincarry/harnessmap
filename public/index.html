@@ -138,6 +138,7 @@
   #beat .step.on { animation: beatpulse 1.2s infinite; }
   header .lag.behind { color: var(--warn); }
   .hbtn.on { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+  #other-menu .justdo { flex: 0 0 auto; width: auto; min-width: 0; padding: 4px 8px; text-align: center; }
   .hbtn { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px;
           font-size: 12px; cursor: pointer; padding: 2px 8px; }
 
@@ -456,9 +457,9 @@
       <div id="other-wrap" style="position:relative;margin-left:auto">
         <button id="other-btn" title="all other map functions">⋯ other<span class="nudge-dot" hidden>●</span></button>
         <div id="other-menu" hidden>
-          <button id="auto-focus" title="the focus agent suggests what to talk about next — you confirm">▶ auto-focus<span class="nudge-dot" hidden>●</span></button>
-          <button id="auto-lit" title="the lighting agent picks which nodes belong in the background for the current focus">☀ auto-light<span class="nudge-dot" hidden>●</span></button>
-          <button id="auto-zoom" title="the zoom agent suggests which branch to view alone — you confirm">◱ auto-zoom</button>
+          <div style="display:flex;gap:4px"><button id="auto-focus" style="flex:1" title="the focus agent suggests what to talk about next — you confirm">▶ auto-focus<span class="nudge-dot" hidden>●</span></button><button class="justdo" data-do="focus" title="just do it: re-aim the focus now, no proposal (one ↩ undo)">⚡</button></div>
+          <div style="display:flex;gap:4px"><button id="auto-lit" style="flex:1" title="the lighting agent picks which nodes belong in the background for the current focus">☀ auto-light<span class="nudge-dot" hidden>●</span></button><button class="justdo" data-do="light" title="just do it: re-light for the focus now, no proposal (one ↩ undo)">⚡</button></div>
+          <div style="display:flex;gap:4px"><button id="auto-zoom" style="flex:1" title="the zoom agent suggests which branch to view alone — you confirm">◱ auto-zoom</button><button class="justdo" data-do="zoom" title="just do it: zoom to the branch the zoom agent picks, no proposal (view only)">⚡</button></div>
           <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
           <button id="mapstatus-btn" title="the map's own standing judgment — the overall map status report, per-area content report, structural review, and the direct line to tune the map status agent">🩺 map status</button>
           <button id="ctx-refresh-btn" title="hand every host session (Claude Code or Codex) on this map a fresh full view of the map on its next message — use after big lighting or focus changes, or a long conversation">⟲ refresh agent context</button>
@@ -470,7 +471,7 @@
           <div id="other-more" hidden>
           <button id="enrich-btn" title="the map too coarse? the machinery reads this map's own conversation record, finds thin nodes that were discussed at length, and proposes the depth under them — you approve">✚ enrich map</button>
           <button id="map-check" title="review the whole map now — anything needing a restructure lands in the ⟳ to tidy folder, or you get a clean bill (the map also reviews itself every 10 rounds)">⟳ tidy map</button>
-          <button id="tidy-top" title="group and clean the top level — only here may the tidy agent propose domain containers and move top-level threads under them; you approve">⟳ tidy top level</button>
+          <div style="display:flex;gap:4px"><button id="tidy-top" style="flex:1" title="group and clean the top level — only here may the tidy agent propose domain containers and move top-level threads under them; you approve">⟳ tidy top level</button><button class="justdo" data-do="tidy-top" title="just do it: tidy the top level now and apply the proposal without review (one ↩ undo)">⚡</button></div>
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
           <button id="auto-settings-btn" title="auto mode: choose what the map may do by itself after each round, and switch it on or off">◎ auto mode…</button>
           <button id="lit-all" title="light every node in the current view — all of it enters the chat agent's background">☀ light all (this view)</button>
@@ -2355,6 +2356,7 @@ function openSpecialistProposal(kind) {
         <input id="sp-feedback" placeholder="or tell it what you want instead…" style="flex:1;min-width:140px;border:1px solid var(--hair);border-radius:8px;padding:6px 10px;background:var(--bg);color:var(--ink);font:inherit" />
         <button id="sp-again" title="re-propose with your direction">↻</button>
         <button id="sp-cancel" title="close without applying — nothing changes">cancel</button>
+        <button id="sp-now" title="just do it: apply as soon as the proposal arrives (or right now if it has) — one ↩ undo">⚡ just do it</button>
         <button id="sp-apply" class="primary" disabled title="apply this proposal to the map">apply</button>
       </div>
     </div>`;
@@ -2400,8 +2402,11 @@ function openSpecialistProposal(kind) {
         applyBtn.disabled = !(r.lit.length + r.dim.length);
       }
     } catch (err) { body.textContent = `failed: ${err.message}`; }
+    if (justDo && !applyBtn.disabled) applyBtn.click();
   };
   ov.querySelector('#sp-again').onclick = () => { const f = fb.value.trim(); fb.value = ''; fetchProposal(f || undefined); };
+  let justDo = false; // M276
+  ov.querySelector('#sp-now').onclick = () => { justDo = true; ov.querySelector('#sp-now').textContent = '⚡ applying as it arrives…'; if (!applyBtn.disabled) applyBtn.click(); };
   fb.onkeydown = (e) => { if (e.key === 'Enter') ov.querySelector('#sp-again').click(); };
   ov.querySelector('#sp-cancel').onclick = () => ov.remove();
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
@@ -2436,6 +2441,23 @@ $('auto-focus').onclick = autoFocus;
 
 const autoZoom = () => openSpecialistProposal('zoom');
 $('auto-zoom').onclick = autoZoom;
+// M276 (Jacob): ⚡ just do — the same agents, applied at once, no proposal; every one is an ↩ undo (zoom is view only)
+for (const b of document.querySelectorAll('.justdo')) b.onclick = async (e) => {
+  e.stopPropagation(); $('other-menu').hidden = true;
+  const what = b.dataset.do;
+  try {
+    if (what === 'focus' || what === 'light') {
+      $('round-line').textContent = what === 'focus' ? '⚡ re-aiming the focus…' : '⚡ re-lighting for the focus…';
+      const r = await post('/api/auto/run', { focus: what === 'focus', light: what === 'light' });
+      if (r.focusChanged || r.lit + r.dim > 0) undoToast(r.label.replace(/^auto mode/, '⚡')); else $('round-line').textContent = what === 'focus' ? '⚡ the focus already fits — nothing changed' : '⚡ the light already fits — nothing changed';
+    } else if (what === 'zoom') {
+      $('round-line').textContent = '⚡ asking the zoom agent…';
+      const r = await post(`/api/chats/${S.mainChatId}/recommend`, { kind: 'zoom' });
+      setZoom(r.containerId); await post(`/api/chats/${S.mainChatId}/zoomin`, { nodeId: r.containerId, focus: false });
+      $('round-line').textContent = `⚡ zoomed the view into “${r.name}” (lighting unchanged)`;
+    } else if (what === 'tidy-top') openReorganize(null, 'the top level', { skipConfirm: true, justDo: true });
+  } catch (err) { $('round-line').textContent = `⚡ failed: ${err.message}`; }
+};
 
 // On-demand map check (Jacob): demand suggestions — or get the clean bill.
 $('tidy-top').onclick = () => { $('other-menu').hidden = true; openReorganize(null, 'the top level'); };
@@ -3296,6 +3318,7 @@ async function openReorganize(nodeId, name, opts = {}) {
   if (bridge) bridge.onclick = () => { ov.remove(); openReorganize(null, 'the top level', { skipConfirm: true, hint: opts.hint }); };
   ov.querySelector('#ro-feedback').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); goAgain(); } });
   ov.querySelector('#ro-cancel').onclick = () => { ov.remove(); $('round-line').textContent = 'reorganize cancelled'; };
+  if (opts.justDo) setTimeout(() => ov.querySelector('#ro-apply')?.click(), 0); // M276: ⚡ — apply the proposal as it arrives
   ov.querySelector('#ro-apply').onclick = async () => {
     const keep = new Set([...ov.querySelectorAll('input[data-ridx]')].filter(cb => cb.checked).map(cb => Number(cb.dataset.ridx)));
     const chosen = p.alterations.filter((a, idx) => !removalIdx.has(idx) || keep.has(idx));

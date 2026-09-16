@@ -227,16 +227,18 @@ export async function proposeReaim(store: Store, projectId: string, chatId: stri
 // rules, not prompts: the focus's ancestor chain never dims (M111), a node
 // the person lit by hand never dims (auto mode), dim cascades before light
 // so a lit child inside a dimmed chapter survives (M199).
-export function aimCascade(store: Store, lit: string[], dim: string[], keep: Set<string>, protectedIds: Set<string>): { toDim: string[]; toLight: string[]; kept: string[] } {
-  const toDim: string[] = []; const kept: string[] = [];
+// M277: and the mirror image — a node the person DIMMED by hand ("set aside") is never re-lit by the map on its own
+// (`handDim`); the focus path is the one exception, handled by applyFocus (M111).
+export function aimCascade(store: Store, lit: string[], dim: string[], keep: Set<string>, protectedIds: Set<string>, handDim: Set<string> = new Set()): { toDim: string[]; toLight: string[]; kept: string[]; keptDim: string[] } {
+  const toDim: string[] = []; const kept: string[] = []; const keptDim: string[] = [];
   for (const id of dim) for (const d of [id, ...descendantNodes(store, id)]) {
     if (keep.has(d)) continue;
     if (protectedIds.has(d)) { kept.push(d); continue; }
     toDim.push(d);
   }
   const toLight: string[] = [];
-  for (const id of lit) for (const d of [id, ...descendantNodes(store, id)]) toLight.push(d);
-  return { toDim: [...new Set(toDim)], toLight: [...new Set(toLight)], kept: [...new Set(kept)] };
+  for (const id of lit) for (const d of [id, ...descendantNodes(store, id)]) { if (handDim.has(d)) { keptDim.push(d); continue; } toLight.push(d); }
+  return { toDim: [...new Set(toDim)], toLight: [...new Set(toLight)], kept: [...new Set(kept)], keptDim: [...new Set(keptDim)] };
 }
 
 // M263: the skip rule — a round whose changes all fell inside the current

@@ -37,6 +37,8 @@ const r1 = aimCascade(st, ['a2'], ['B', 'A'], keep, new Set(st.getUserLit('c1'))
 check('dimming a chapter skips the hand-lit node inside it and reports it kept', same(r1.toDim, ['B', 'a1', 'a2']) && same(r1.kept, ['b1']));
 check('the focus path never dims (A on the path is skipped; its non-path children do go dark)', !r1.toDim.includes('A') && !r1.toDim.includes('root'));
 check('lighting cascades to the subtree', same(r1.toLight, ['a2']));
+const r3 = aimCascade(st, ['B'], [], keep, new Set(), new Set(['b1']));
+check('a node the person dimmed by hand is not re-lit by the map (its siblings are)', same(r3.toLight, ['B']) && same(r3.keptDim, ['b1']));
 const r2 = aimCascade(st, ['B'], ['root'], keep, new Set());
 check('dimming the root dims everything off the path, nothing on it', same(r2.toDim, ['a1', 'a2', 'B', 'b1']) && same(r2.toLight, ['B', 'b1']));
 
