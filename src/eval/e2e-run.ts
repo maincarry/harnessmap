@@ -101,6 +101,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'writefile') { const fp = join(TMP, a.path); mkdirSync(join(fp, '..'), { recursive: true }); writeFileSync(fp, expand(String(a.content))); }
         else if (a.do === 'sessionEnd') await post('/api/harness/session-end', { session_id: a.session, reason: a.reason ?? 'other', cwd: join(TMP, 'proj') });
         else if (a.do === 'sessionStart') await post('/api/harness/session-start', { session_id: a.session, cwd: join(TMP, 'proj'), source: a.source ?? 'resume', harness: a.harness ?? sc.harness ?? 'codex' });
+        else if (a.do === 'statement') await post(`/api/nodes/${keys[a.key]}`, { content: a.content, chatId: cid() }); // the person edits the statement on the card
         else if (a.do === 'influence') { const cur = await get('/api/influence'); if (!!cur.off !== !!a.off) await post('/api/influence/toggle', {}); }
         s = await state(); continue;
       }
@@ -129,6 +130,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.parentOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.parentOf]); check(label, !!n && ((a.is === null && n.parentId === null) || n.parentId === keys[a.is]), n ? `parent=${nameOf(s, n.parentId)}` : 'no node'); }
       else if (a.tidyChanged !== undefined) check(label, (lastTidy?.alterations?.length ?? 0) > 0 === a.tidyChanged, `alterations=${lastTidy?.alterations?.length ?? 0}`);
       else if (a.viewStatus) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); check(label, !!v && v.host?.status === a.is && (!a.resume || rx(a.resume).test(String(v.host?.resume ?? ''))), v ? `status=${v.host?.status} resume=${v.host?.resume}` : 'no such view'); }
+      else if (a.memoryHas) { const m = await get(`/api/nodes/${keys[a.memoryHas]}/memory`); const field = a.field ?? 'long'; const text = String(m?.[field] ?? (field === 'medium' ? m?.text : '') ?? ''); /* the memory route names the medium length 'text' */ check(label, rx(a.text).test(text), `${field}=${text.slice(0, 160)}`); }
       else if (a.viewTitle) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); check(label, !!v && rx(a.is).test(String(v.host?.title ?? '')), v ? `title=${v.host?.title}` : 'no such view'); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');

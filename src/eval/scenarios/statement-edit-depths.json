@@ -1,0 +1,17 @@
+{
+  "name": "an edited statement is carried verbatim into the summary and whole story on the next write; the one line compresses it (M282)",
+  "seed": [
+    { "key": "proj", "content": "Allotment: what to grow this year" },
+    { "key": "beans", "content": "Beans: runner beans along the back fence, sown in May", "parent": "proj" }
+  ],
+  "focus": "beans", "auto": { "on": false }, "settleMs": 25000,
+  "rounds": [
+    { "user": "For the beans: I'll use the tall canes from the shed, two rows.", "assistant": "Beans: tall canes from the shed, two rows.",
+      "then": [ { "memoryHas": "beans", "field": "long", "text": "runner beans|back fence|canes" },
+                { "do": "statement", "key": "beans", "content": "Beans: borlotti beans on the back fence, sown in late April, two rows on tall canes" } ] },
+    { "user": "Also for the beans: water them every second evening once the pods set.", "assistant": "Beans: water every second evening once pods set.",
+      "then": [ { "memoryHas": "beans", "field": "long", "text": "borlotti beans on the back fence, sown in late April, two rows on tall canes" },
+                { "memoryHas": "beans", "field": "medium", "text": "borlotti beans on the back fence, sown in late April, two rows on tall canes" },
+                { "memoryHas": "beans", "field": "minimal", "text": "borlotti|bean" } ] }
+  ]
+}

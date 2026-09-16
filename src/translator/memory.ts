@@ -24,7 +24,7 @@ const STRUCTURE_RULES = `THE NODE'S BODY has five organs (Jacob, M192c/M214 — 
 THE DESCRIPTION ORGAN IS THE STATEMENT, VERBATIM (M282, Jacob): in the medium and long lengths, copy the node's statement (the text after NODE [id]:) word for word as the DESCRIPTION — never rephrase, shorten, or "improve" it; if the statement is wrong or stale, that is the filer's to correct and you say so under CHAT MEMORY. Only the minimal length compresses it.
 Maintain the node at THREE LENGTHS. Each length is the WHOLE node — all five organs — compressed to that size, never the shorter one plus extra elements:
 - minimal: ONE sentence (hard cap ~300 chars) carrying all five: what it is, its standing, where it sits, how it changed, the gist of the discussion.
-- memory: the MEDIUM length — up to 150 words covering all five organs. Integrate, don't append; plain language; drop the least consequential first.
+- memory: the MEDIUM length — up to 150 words covering all five organs, and it BEGINS with the statement verbatim (the description organ), then fit, what changed, what was said. Integrate, don't append; plain language; drop the least consequential first — never the statement.
 - long: all five organs IN FULL — extensive, no cap, each organ under its own heading (NAME, DESCRIPTION, FIT, MODLOG, CHAT MEMORY): the complete description and standing with every specific and its source; the fit spelled out; the modlog as a dated list of what changed and why; the whole discussion arc in order with who said what and why. Someone reading only this knows everything the map knows about this node.
 - details: durable specifics this exchange established — a decision and its why, a number, an exact command, a quoted ruling. 0-3 per round, one tight sentence each, with the date when known. Plumbing for superseding one specific later; the long text carries them in prose.
 - supersede: the numbers of EXISTING details (as numbered in the input) that this exchange overturned or made obsolete.`;
@@ -64,9 +64,18 @@ function renderExisting(db: any, nodeId: string): { text: string; currentIds: nu
 
 function writeStructured(store: Store, nodeId: string, u: { memory?: string; minimal?: string; long?: string; details?: { text: string; date?: string }[]; supersede?: number[] }, shownIds: number[], prov: RoundProv): void {
   const db = (store as any).db;
-  const blob = String(u.memory ?? '').trim();
+  let blob = String(u.memory ?? '').trim();
   const minimal = String(u.minimal ?? '').trim().slice(0, MINIMAL_CAP);
-  const long = String(u.long ?? '').trim(); // M214: no cap — long is everything
+  let long = String(u.long ?? '').trim(); // M214: no cap — long is everything
+  // M282/M288 (loop find): the description organ IS the statement, verbatim, at the medium and long lengths. The writer is
+  // told so; when it paraphrases anyway, the statement is put back in front — mechanically, so the card's summary and
+  // whole story never read differently from the statement the filer wrote.
+  const stmt = String(store.getNode(nodeId)?.content ?? '').trim();
+  const norm = (t: string) => t.toLowerCase().replace(/\s+/g, ' ').trim();
+  if (stmt && stmt.length <= 600) {
+    if (blob && !norm(blob).includes(norm(stmt))) { blob = `${stmt} — ${blob}`; store.audit('memory_statement_prefixed', { id: nodeId.slice(0, 8), length: 'medium' }); }
+    if (long && !norm(long).includes(norm(stmt))) { long = long.replace(/(DESCRIPTION\s*\n)/, `$1${stmt}\n`); if (!norm(long).includes(norm(stmt))) long = `DESCRIPTION\n${stmt}\n\n${long}`; store.audit('memory_statement_prefixed', { id: nodeId.slice(0, 8), length: 'long' }); }
+  }
   if (blob || minimal || long) {
     db.prepare(`INSERT INTO node_memory (node_id, medium, minimal, long, updated_at) VALUES (?, ?, ?, ?, datetime('now'))
                 ON CONFLICT(node_id) DO UPDATE SET medium = CASE WHEN excluded.medium != '' THEN excluded.medium ELSE node_memory.medium END,
