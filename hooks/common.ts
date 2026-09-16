@@ -13,6 +13,10 @@ export const HOME = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap'
 // terminal skill. An empty file ~/.harnessmap/OFF and every hook exits at once,
 // injecting nothing and filing nothing, until the file is removed.
 if (existsSync(join(HOME, 'OFF'))) { process.exit(0); }
+// M271 (Jacob's Mac, 2026-09-15: fifty "Codex · SYSTEM INSTRUCTIONS…" sessions): the map's OWN inference calls run
+// `codex exec`, and Codex runs the user's hooks for those too. They are marked HARNESSMAP_INNER — a hook inside one
+// of them exits at once, whatever else is set, so the map can never file itself.
+if (process.env.HARNESSMAP_INNER) { process.exit(0); }
 
 function port(): string {
   try { return readFileSync(join(HOME, 'port'), 'utf8').trim() || '8790'; } catch { return '8790'; }
@@ -28,6 +32,7 @@ export const BASE = process.env.HARNESSMAP_URL ?? `http://127.0.0.1:${port()}`;
 // HARNESSMAP_SESSION_GATE=open lets a test harness treat every session as
 // opened; the smoke suite proves the gate with it unset.
 export function gateSession(input: any, event: 'SessionStart' | 'UserPromptSubmit' | 'Stop' | 'PreCompact' | 'PostCompact' | 'SessionEnd'): boolean {
+  if (process.env.HARNESSMAP_SESSION_GATE === 'closed') return false; // M271: an inner codex exec is never a session
   if (process.env.HARNESSMAP_SESSION_GATE === 'open') return true;
   const sid = String(input?.session_id ?? '');
   const sessFile = join(HOME, 'session');

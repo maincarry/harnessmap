@@ -42,6 +42,8 @@ const VERSION = (() => { try { return JSON.parse(readFileSync(join(here, '..', '
 // left Jacob's Mac running stale code for an hour (2026-09-09).
 const BUILD = (() => { try { const r = Bun.spawnSync(['git', '-C', join(here, '..'), 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore' }); return r.exitCode === 0 ? r.stdout.toString().trim() : ''; } catch { return ''; } })();
 const PORT = Number(process.env.PORT ?? 8790);
+// M271: the server never needs the hooks' test gate — and must never hand it to a child (a codex exec whose hooks would then treat themselves as opened sessions)
+delete process.env.HARNESSMAP_SESSION_GATE;
 const REQUESTED_HOST = process.env.HOST ?? '127.0.0.1';
 const DB_PATH = process.env.HARNESSMAP_DB ?? join(here, '..', 'harnessmap.sqlite');
 
@@ -240,6 +242,37 @@ let mainChatId = (() => {
   store.setSetting(`active_chat:${projectId}`, id);
   return id;
 })();
+// M271: self-healing after the inner-session storm — views whose host session's first user turn is one of OUR
+// prompts ("SYSTEM INSTRUCTIONS:" is the codex exec prompt's first line) are the map filing itself. Archive those
+// views, forget their sessions, remove the nodes their rounds created (one undo entry). Runs at boot and on demand.
+function purgeInnerSessions(): { views: number; nodes: number } {
+  const db = (store as any).db;
+  const rows = db.prepare("SELECT c.id, c.project_id, c.host_session_id FROM chats c WHERE c.host_session_id IS NOT NULL AND c.status != 'archived' AND (SELECT content FROM turns t WHERE t.chat_id = c.id AND t.role = 'user' ORDER BY idx LIMIT 1) LIKE 'SYSTEM INSTRUCTIONS:%'").all() as any[];
+  if (!rows.length) return { views: 0, nodes: 0 };
+  const byProject = new Map<string, string[]>();
+  for (const r of rows) {
+    const created: string[] = [];
+    for (const rd of db.prepare('SELECT alterations FROM rounds WHERE chat_id = ?').all(r.id) as any[]) {
+      try { for (const a of JSON.parse(rd.alterations)) if (a.op === 'create_node' && a.id && store.getNode(a.id)?.status !== 'removed') created.push(a.id); } catch {}
+    }
+    byProject.set(r.project_id, [...(byProject.get(r.project_id) ?? []), ...created]);
+    store.archiveChat(r.id);
+    db.prepare('DELETE FROM harness_sessions WHERE session_id = ?').run(r.host_session_id);
+    db.prepare('UPDATE chats SET host_session_id = NULL WHERE id = ?').run(r.id);
+  }
+  let nodes = 0;
+  for (const [pid, ids] of byProject) {
+    const uniq = [...new Set(ids)].filter((id) => store.getNode(id)?.status !== 'removed');
+    if (!uniq.length) continue;
+    const inverse = uniq.map((id) => ({ op: 'update_node', id, status: store.getNode(id)!.status }));
+    store.applyAlterations(pid, uniq.map((id) => ({ op: 'update_node', id, status: 'removed' } as any)), { kind: 'system' });
+    store.pushUndo(pid, `removed ${uniq.length} node(s) the map had filed from its own prompts`, inverse, null);
+    nodes += uniq.length;
+  }
+  store.audit('inner_sessions_purged', { views: rows.length, nodes });
+  return { views: rows.length, nodes };
+}
+try { const r = purgeInnerSessions(); if (r.views) console.error(`[harnessmap] removed ${r.views} view(s) and ${r.nodes} node(s) the map had filed from its own inference calls (M271)`); } catch (err) { console.error('[harnessmap] inner-session purge failed:', err); }
 // M91 migration: DBs from before the binding policy have sessions but no
 // cwd bindings — without this, their next session would auto-create a ghost
 // project instead of reaching their existing map. M268: a folder is never
@@ -2677,6 +2710,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ ok: true, ...res });
     }
 
+    if (path === '/api/dev/purge-inner' && req.method === 'POST') { const r = purgeInnerSessions(); broadcast({ type: 'map', ...state() }); return json({ ok: true, ...r }); } // M271
     // M143: influence switch
     if (path === '/api/influence' && req.method === 'GET') {
       return json({ off: influenceOff(projectId) });

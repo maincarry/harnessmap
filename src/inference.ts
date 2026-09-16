@@ -282,6 +282,9 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
       const prompt = `SYSTEM INSTRUCTIONS:\n${opts.system}${jsonNote}\n\n---\n\n${user}`;
       const args = [codexBin() ?? 'codex', 'exec', '-', ...(useModel ? ['-m', useModel] : []), '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '-C', dir, '-o', outFile, ...(schemaFile ? ['--output-schema', schemaFile] : [])];
       const env: Record<string, string> = {}; for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v;
+      // M271: this codex exec is the MAP's own call — Codex runs the user's hooks for it too; they must exit at once
+      // (else the filer's own prompt is filed as a session, its Stop files a round, which calls the filer… — Jacob's 50 rounds).
+      env.HARNESSMAP_INNER = '1'; env.HARNESSMAP_SESSION_GATE = 'closed';
       const p = Bun.spawn(args, { stdin: new Response(prompt), stdout: 'pipe', stderr: 'pipe', env });
       const limitMs = opts.timeoutMs ?? 120_000;
       let timedOut = false;

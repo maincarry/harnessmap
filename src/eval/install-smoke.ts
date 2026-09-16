@@ -592,6 +592,22 @@ console.log('\n== 6q. a session can be renamed on the map; the harness keeps its
   check('an empty name clears it — the harness title shows again', ((st3.chats ?? []).find((c: any) => c.id === hostChat.id) ?? {}).name === null);
 }
 
+console.log('\n== 6r. the map never files its own inference calls (M271) ==');
+{
+  const p = Bun.spawnSync(['bun', 'run', join('hooks', 'on-prompt.ts')], { env: { ...HOOK_ENV, HARNESSMAP_INNER: '1' } as any, stdin: new TextEncoder().encode(JSON.stringify({ session_id: 'inner-y', cwd: PROJ, prompt: 'SYSTEM INSTRUCTIONS: You must file this' })), stdout: 'pipe', stderr: 'pipe' });
+  check('HARNESSMAP_INNER makes every hook exit before doing anything', p.exitCode === 0 && p.stdout.toString().trim() === '');
+  // the self-heal: a host view whose first user turn is one of our prompts is purged with the nodes its rounds created
+  await runHook('session-start.ts', { session_id: 'inner-z', cwd: PROJ, model: 'gpt-5.6-luna' });
+  await runHook('on-prompt.ts', { session_id: 'inner-z', cwd: PROJ, prompt: 'SYSTEM INSTRUCTIONS: You are the filer. Decide: the header is vermilion.' });
+  await runHook('on-stop.ts', { session_id: 'inner-z', cwd: PROJ, turn_id: 't', last_assistant_message: 'Filed: vermilion header decided.' });
+  await sleep(600);
+  const st0 = await (await fetch(`${BASE}/api/state`)).json();
+  const junk = (st0.chats ?? []).find((c: any) => c.host?.sessionId === 'inner-z');
+  const pr = await (await fetch(`${BASE}/api/dev/purge-inner`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json();
+  const st1 = await (await fetch(`${BASE}/api/state`)).json();
+  check('the purge archives such a view and forgets its session', !!junk && pr.ok && pr.views >= 1 && !(st1.chats ?? []).some((c: any) => c.host?.sessionId === 'inner-z'));
+}
+
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');
 {
   const { sliceRound, isCodexRollout } = await import('../agent/harness-adapter.js');
