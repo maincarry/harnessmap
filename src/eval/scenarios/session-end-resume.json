@@ -1,0 +1,14 @@
+{
+  "name": "SessionEnd closes the view with a resume hint; the same id resuming re-attaches to the same view and the page follows it (M251)",
+  "harness": "codex",
+  "seed": [ { "key": "proj", "content": "Podcast: episodes and guests" } ],
+  "focus": "proj", "auto": { "on": false },
+  "rounds": [
+    { "session": "e2e-S", "user": "Episode 12 guest confirmed: the marine biologist, recording next Tuesday.", "assistant": "Episode 12: marine biologist confirmed, recording Tuesday.",
+      "then": [ { "viewStatus": "live", "session": "e2e-S", "is": "live" }, { "do": "sessionEnd", "session": "e2e-S", "reason": "other" }, { "viewStatus": "closed", "session": "e2e-S", "is": "closed", "resume": "codex resume e2e-S" } ] },
+    { "session": "e2e-T", "user": "A second thread: sponsor read for episode 12 is the coffee company.", "assistant": "Episode 12 sponsor: the coffee company.",
+      "then": [ { "mainSessionIs": "e2e-T" }, { "do": "sessionStart", "session": "e2e-S", "source": "resume" }, { "viewStatus": "back", "session": "e2e-S", "is": "live" }, { "mainSessionIs": "e2e-S" } ] },
+    { "session": "e2e-S", "user": "Episode 12 runtime target: 45 minutes.", "assistant": "Episode 12: 45-minute target.",
+      "then": [ { "nodeMatching": "45|runtime" }, { "viewStatus": "still live", "session": "e2e-S", "is": "live" } ] }
+  ]
+}

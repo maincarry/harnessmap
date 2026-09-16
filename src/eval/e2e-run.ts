@@ -59,9 +59,9 @@ for (const k of sc.lit ?? []) await post(`/api/chats/${cid()}/lit`, { nodeId: ke
 if (sc.auto) await post('/api/auto', sc.auto);
 // clear the seed's own undo entries from consideration by remembering the baseline count
 async function filerCount() { return (await audit('inference')).filter((r: any) => JSON.stringify(r.detail).includes('"filer"')).length; }
-async function round(user: string, assistant: string, session = 'e2e-1', roundHarness: string | undefined = undefined) {
+async function round(user: string, assistant: string, session = 'e2e-1', roundHarness: string | undefined = undefined, roundFork: string | undefined = undefined) {
   const before = await filerCount(); const autoBefore = (await audit()).filter((r: any) => /^auto_/.test(r.kind)).length;
-  await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness });
+  await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness, forked_from: roundFork ?? null });
   for (let i = 0; i < 40; i++) { await sleep(3000); if ((await filerCount()) > before) break; }
   if (sc.auto?.on) { for (let i = 0; i < 30; i++) { await sleep(3000); if ((await audit()).filter((r: any) => /^auto_/.test(r.kind)).length > autoBefore) break; } }
   await sleep(sc.settleMs ?? 6000);
@@ -72,7 +72,7 @@ let lastContext: any = null;
 let lastTidy: any = null;
 for (const [i, r] of (sc.rounds ?? []).entries()) {
   console.log(`-- round ${i + 1}: ${String(r.user).slice(0, 70)}`);
-  await round(r.user, r.assistant, r.session, r.harness ?? sc.harness);
+  await round(r.user, r.assistant, r.session, r.harness ?? sc.harness, r.forkedFrom);
   // the round's audit window: everything since the last round ended — including what this round's `do` actions cause;
   // read fresh at each assertion, and the mark advances only when the round's assertions are done
   let since: any[] = [];
@@ -82,9 +82,9 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
     try {
       if (a.do) {
         if (a.do === 'undo') { const u = await post('/api/undo', {}); check(`do undo (${u.body.label ?? u.body.error})`, u.body.ok === true); }
-        else if (a.do === 'focus') await post(`/api/chats/${cid()}/focus`, { nodeId: keys[a.key] });
+        else if (a.do === 'focus') { const v = a.session ? (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session) : null; await post(`/api/chats/${v ? v.id : cid()}/focus`, { nodeId: keys[a.key] }); }
         else if (a.do === 'light') await post(`/api/chats/${cid()}/lit`, { nodeId: keys[a.key], on: true });
-        else if (a.do === 'dim') await post(`/api/chats/${cid()}/lit`, { nodeId: keys[a.key], on: false });
+        else if (a.do === 'dim') { const v = a.session ? (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session) : null; await post(`/api/chats/${v ? v.id : cid()}/lit`, { nodeId: keys[a.key], on: false }); }
         else if (a.do === 'release') await post(`/api/chats/${cid()}/release`, { nodeId: keys[a.key] });
         else if (a.do === 'pin') await post(`/api/chats/${cid()}/depth`, { nodeId: keys[a.key], depth: a.depth ?? null });
         else if (a.do === 'title') await post(`/api/nodes/${keys[a.key]}`, { title: a.title, chatId: cid() }); // a title typed on the card
@@ -99,6 +99,8 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
           check(`do tidy (${pv.body?.alterations?.length ?? 0} change(s))`, Array.isArray(pv.body?.alterations), JSON.stringify(pv.body).slice(0, 120));
         }
         else if (a.do === 'writefile') { const fp = join(TMP, a.path); mkdirSync(join(fp, '..'), { recursive: true }); writeFileSync(fp, expand(String(a.content))); }
+        else if (a.do === 'sessionEnd') await post('/api/harness/session-end', { session_id: a.session, reason: a.reason ?? 'other', cwd: join(TMP, 'proj') });
+        else if (a.do === 'sessionStart') await post('/api/harness/session-start', { session_id: a.session, cwd: join(TMP, 'proj'), source: a.source ?? 'resume', harness: a.harness ?? sc.harness ?? 'codex' });
         else if (a.do === 'influence') { const cur = await get('/api/influence'); if (!!cur.off !== !!a.off) await post('/api/influence/toggle', {}); }
         s = await state(); continue;
       }
@@ -126,6 +128,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.contextChars) { const n = String(lastContext?.context ?? lastContext?.additionalContext ?? lastContext?.text ?? '').length; check(label, a.min !== undefined ? n >= a.min : n <= (a.max ?? 0), `chars=${n} keys=${Object.keys(lastContext ?? {}).join(',')}`); }
       else if (a.parentOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.parentOf]); check(label, !!n && ((a.is === null && n.parentId === null) || n.parentId === keys[a.is]), n ? `parent=${nameOf(s, n.parentId)}` : 'no node'); }
       else if (a.tidyChanged !== undefined) check(label, (lastTidy?.alterations?.length ?? 0) > 0 === a.tidyChanged, `alterations=${lastTidy?.alterations?.length ?? 0}`);
+      else if (a.viewStatus) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); check(label, !!v && v.host?.status === a.is && (!a.resume || rx(a.resume).test(String(v.host?.resume ?? ''))), v ? `status=${v.host?.status} resume=${v.host?.resume}` : 'no such view'); }
       else if (a.viewTitle) { const v = (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session); check(label, !!v && rx(a.is).test(String(v.host?.title ?? '')), v ? `title=${v.host?.title}` : 'no such view'); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');

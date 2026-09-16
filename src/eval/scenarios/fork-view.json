@@ -1,0 +1,16 @@
+{
+  "name": "a forked session's view starts as a copy of the parent's focus and light, then diverges independently (M255)",
+  "seed": [
+    { "key": "proj", "content": "Novel draft: two storylines" },
+    { "key": "chA", "content": "Storyline A: the lighthouse keeper", "parent": "proj" },
+    { "key": "chB", "content": "Storyline B: the cartographer", "parent": "proj" }
+  ],
+  "focus": "chA", "auto": { "on": false },
+  "rounds": [
+    { "session": "e2e-P", "user": "In storyline A the keeper finds the letter in chapter two, not chapter four.", "assistant": "Storyline A: the letter is found in chapter two.",
+      "then": [ { "do": "focus", "key": "chB", "session": "e2e-P" }, { "do": "dim", "key": "chA", "session": "e2e-P" }, { "viewFocusIs": "chB", "session": "e2e-P" }, { "viewDark": "chA", "session": "e2e-P" } ] },
+    { "session": "e2e-F", "forkedFrom": "e2e-P", "user": "Continuing in the fork: the cartographer's map is drawn on vellum, not paper.", "assistant": "Storyline B: the map is on vellum.",
+      "then": [ { "viewFocusIs": "chB", "session": "e2e-F" }, { "viewDark": "chA", "session": "e2e-F" }, { "nodeMatching": "vellum", "under": "chB" },
+                { "do": "focus", "key": "chA", "session": "e2e-F" }, { "viewFocusIs": "chA", "session": "e2e-F" }, { "viewFocusIs": "chB", "session": "e2e-P" }, { "viewLit": "chA", "session": "e2e-F" }, { "viewDark": "chA", "session": "e2e-P" } ] }
+  ]
+}
