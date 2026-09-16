@@ -1,0 +1,16 @@
+{
+  "name": "a pasted note imports as one organized subtree (proposal → apply); imported nodes land dim; undo removes the whole import (M142/M191 Q4)",
+  "seed": [ { "key": "proj", "content": "Bakery business plan" } ],
+  "focus": "proj", "auto": { "on": false },
+  "rounds": [
+    { "user": "Nothing new — just opening the plan.", "assistant": "The plan stands.",
+      "then": [
+        { "do": "importText", "text": "Supplier notes from the tasting week\n\nFlour: Hartmann mill, organic T65, 0.92 per kilo at 200 kg a month; deliveries Tuesday. Their T80 was too coarse for the croissant dough.\n\nButter: Val d'Or 84% fat, 6.10 per kilo; Lescure is nicer but 8.40 and the difference did not show in the bake.\n\nCoffee: Northwind roasters, house blend at 18 per kilo, they lend a grinder if we take 15 kilos a month. Decision: Northwind for the opening, revisit in six months.\n\nOpen question: whether to make the sourdough starter from scratch or buy the mother from the old bakery in town." },
+        { "do": "applyImport" },
+        { "nodeMatching": "Hartmann|T65" }, { "nodeMatching": "Val d'Or|butter" }, { "nodeMatching": "Northwind|coffee" }, { "nodeMatching": "starter|mother" },
+        { "darkMatching": "Hartmann|T65" }, { "darkMatching": "Northwind" },
+        { "undoNext": "tidy on|import" }, { "do": "undo" },
+        { "noNodeMatching": "Hartmann|T65" }, { "noNodeMatching": "Northwind" }
+      ] }
+  ]
+}

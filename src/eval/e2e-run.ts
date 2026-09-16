@@ -74,6 +74,7 @@ let auditMark = (await audit()).length;
 let lastContext: any = null;
 let lastTidy: any = null;
 let lastAsk: any = null;
+let lastImport: any = null;
 for (const [i, r] of (sc.rounds ?? []).entries()) {
   console.log(`-- round ${i + 1}: ${String(r.user).slice(0, 70)}`);
   await round(r.user, r.assistant, r.session, r.harness ?? sc.harness, r.forkedFrom);
@@ -107,6 +108,8 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'sessionStart') await post('/api/harness/session-start', { session_id: a.session, cwd: join(TMP, 'proj'), source: a.source ?? 'resume', harness: a.harness ?? sc.harness ?? 'codex' });
         else if (a.do === 'statement') await post(`/api/nodes/${keys[a.key]}`, { content: a.content, chatId: cid() }); // the person edits the statement on the card
         else if (a.do === 'pref') await post('/api/prefs', { append: a.text }); // a standing preference (or "glossary: X instead of Y")
+        else if (a.do === 'importText') { const r = await post('/api/import/preview', { kind: 'text', text: a.text }); lastImport = r.body; check(`do importText (${r.status}; ${lastImport?.alterations?.length ?? 0} node(s) proposed)`, r.status === 200 && Array.isArray(lastImport?.alterations) && lastImport.alterations.length > 0, JSON.stringify(lastImport).slice(0, 160)); }
+        else if (a.do === 'applyImport') { const r = await post('/api/reorganize/apply', { alterations: lastImport.alterations, chatId: cid(), containerName: lastImport.label ?? 'import', memories: lastImport.memories, origin: 'import', jobId: lastImport.jobId }); check(`do applyImport (${r.status})`, r.status === 200, JSON.stringify(r.body).slice(0, 120)); s = await state(); }
         else if (a.do === 'ask') { const r = await post('/api/map-chat', { question: a.question }); lastAsk = r.body; s = await state(); }
         else if (a.do === 'applyAsk') { // apply the guide's light proposal the way the page does (the exact previewed lists)
           const steps = (lastAsk?.actions ?? (lastAsk?.action ? [lastAsk.action] : [])).filter((x: any) => x?.kind === 'light');
@@ -148,6 +151,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.distinctNodes) { const ids = (a.distinctNodes as string[]).map((r) => ((s.nodes ?? []).filter((n: any) => match(s, n, r)).map((n: any) => n.id))); const ok = ids.every((l) => l.length) && new Set(ids.map((l) => l[0])).size === ids.length && !(ids.length === 2 && ids[0].length === 1 && ids[1].length === 1 && ids[0][0] === ids[1][0]); check(label, ok, `matches: ${ids.map((l) => l.length).join('/')}`); }
       else if (a.typesOk) { const ok = ['claim', 'question', 'option', 'decision', 'constraint', 'evidence', 'task']; const bad = (s.nodes ?? []).filter((n: any) => n.type && !ok.includes(n.type)); check(label, bad.length === 0, bad.map((n: any) => `${n.type}: ${(n.title || n.content).slice(0, 30)}`).join(' | ')); }
       else if (a.askProposes) { const steps = (lastAsk?.actions ?? (lastAsk?.action ? [lastAsk.action] : [])); const st = steps.find((x: any) => x?.kind === a.askProposes); const names = st ? [...(st.dim ?? []), ...(st.lit ?? [])].map((x: any) => x.name).join(' | ') : ''; check(label, !!st && (!a.dimMatching || (st.dim ?? []).some((x: any) => rx(a.dimMatching).test(x.name))), `answer=${String(lastAsk?.answer ?? '').slice(0, 100)} steps=${steps.map((x: any) => x.kind).join(',')} names=${names}`); }
+      else if (a.darkMatching || a.litMatching) { const hits = (s.nodes ?? []).filter((n: any) => match(s, n, a.darkMatching ?? a.litMatching)); const litSet = new Set(chatOf(s).lit); check(label, hits.length > 0 && hits.every((n: any) => a.darkMatching ? !litSet.has(n.id) : litSet.has(n.id)), `hits=${hits.length} lit=${hits.filter((n: any) => litSet.has(n.id)).length}`); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }
