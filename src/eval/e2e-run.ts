@@ -94,8 +94,9 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'pin') await post(`/api/chats/${cid()}/depth`, { nodeId: keys[a.key], depth: a.depth ?? null });
         else if (a.do === 'title') await post(`/api/nodes/${keys[a.key]}`, { title: a.title, chatId: cid() }); // a title typed on the card
         else if (a.do === 'wait') await sleep(a.ms ?? 5000);
-        else if (a.do === 'context') { const r = await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(a.session ?? 'e2e-1')}&cwd=${encodeURIComponent(join(TMP, 'proj'))}`); lastContext = await r.json().catch(() => ({})); } // what the next turn would receive
+        else if (a.do === 'context') { const r = await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(a.session ?? 'e2e-1')}&cwd=${encodeURIComponent(join(TMP, 'proj'))}${a.prompt ? `&prompt=${encodeURIComponent(a.prompt)}` : ''}`); lastContext = await r.json().catch(() => ({})); } // what the next turn would receive (the question rides as `prompt`, as the hook sends it)
         else if (a.do === 'compact') await post('/api/harness/compacted', { session_id: a.session ?? 'e2e-1' });
+        else if (a.do === 'prompt') await post('/api/harness/prompt', { session_id: a.session ?? 'e2e-1', text: a.text, cwd: join(TMP, 'proj') }); // what the person is about to ask (the UserPromptSubmit stash)
         else if (a.do === 'tidy') { // propose + apply a tidy of a subtree (or the whole map with key null), as the ⚡ does
           const nodeId = a.key ? keys[a.key] : null;
           const pv = await post('/api/reorganize/preview', { nodeId, hint: a.hint });

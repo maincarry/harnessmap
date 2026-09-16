@@ -1,0 +1,61 @@
+{
+  "name": "a question that NAMES a dim topic is served that topic for that one turn only, marked as staying set aside; the next turn without the question does not carry it (M194 rulings 3+4)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Thesis: trust in institutions"
+    },
+    {
+      "key": "ch1",
+      "content": "Chapter 1: methods",
+      "parent": "proj"
+    },
+    {
+      "key": "lit",
+      "content": "Literature review",
+      "parent": "proj"
+    },
+    {
+      "key": "putnam",
+      "content": "Putnam (2000) Bowling Alone: social capital declined as television spread; trust in institutions fell with it",
+      "parent": "lit"
+    }
+  ],
+  "focus": "ch1",
+  "dim": [
+    "lit"
+  ],
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "user": "Methods: the trust index is the mean of four items on a five-point scale.",
+      "assistant": "Trust index: mean of four five-point items.",
+      "then": [
+        {
+          "do": "context",
+          "session": "e2e-1",
+          "prompt": "Remind me what Putnam argued about television and social capital?"
+        },
+        {
+          "contextHas": "television spread|trust in institutions fell"
+        },
+        {
+          "contextHas": "set aside afterwards|stays set aside"
+        },
+        {
+          "auditAny": "pullup_served_by_question"
+        },
+        {
+          "do": "context",
+          "session": "e2e-1",
+          "prompt": "Back to the methods: what did we say the trust index was?"
+        },
+        {
+          "contextLacks": "television spread|trust in institutions fell"
+        }
+      ]
+    }
+  ]
+}
