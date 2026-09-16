@@ -1,0 +1,103 @@
+{
+  "name": "two host sessions on one map: each has its own view, focus and light independent; the page follows a session on attach and resume, not on every prompt (M251)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Course design: two parallel tracks"
+    },
+    {
+      "key": "chA",
+      "content": "Track A: the statistics module",
+      "parent": "proj"
+    },
+    {
+      "key": "chB",
+      "content": "Track B: the writing module",
+      "parent": "proj"
+    }
+  ],
+  "focus": "chA",
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "session": "e2e-A",
+      "user": "For the statistics module, week one is descriptive statistics and week two is probability.",
+      "assistant": "Statistics module: week 1 descriptive statistics, week 2 probability.",
+      "then": [
+        {
+          "mainSessionIs": "e2e-A"
+        },
+        {
+          "viewFocusIs": "chA",
+          "session": "e2e-A"
+        },
+        {
+          "nodeMatching": "descriptive|probability",
+          "under": "chA"
+        }
+      ]
+    },
+    {
+      "session": "e2e-B",
+      "user": "Writing module: the first assignment is a 500-word argument, due in week three.",
+      "assistant": "Writing module: assignment 1 is a 500-word argument, due week 3.",
+      "then": [
+        {
+          "mainSessionIs": "e2e-B"
+        },
+        {
+          "do": "focus",
+          "key": "chB"
+        },
+        {
+          "viewFocusIs": "chB",
+          "session": "e2e-B"
+        },
+        {
+          "viewFocusIs": "chA",
+          "session": "e2e-A"
+        },
+        {
+          "do": "dim",
+          "key": "chA"
+        },
+        {
+          "viewDark": "chA",
+          "session": "e2e-B"
+        },
+        {
+          "viewLit": "chA",
+          "session": "e2e-A"
+        }
+      ]
+    },
+    {
+      "session": "e2e-A",
+      "user": "Week three of statistics: hypothesis testing, with a lab on t-tests.",
+      "assistant": "Statistics week 3: hypothesis testing; lab on t-tests.",
+      "then": [
+        {
+          "mainSessionIs": "e2e-B"
+        },
+        {
+          "nodeMatching": "hypothesis|t-test",
+          "under": "chA"
+        },
+        {
+          "viewFocusIs": "chA",
+          "session": "e2e-A"
+        },
+        {
+          "viewFocusIs": "chB",
+          "session": "e2e-B"
+        },
+        {
+          "viewDark": "chA",
+          "session": "e2e-B"
+        }
+      ]
+    }
+  ]
+}
