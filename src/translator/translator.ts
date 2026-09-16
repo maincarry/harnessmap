@@ -43,6 +43,8 @@ B. INTEGRATE, DON'T APPEND. The map is a goal structure, not a chronological log
 
 PLACEMENT SCOPE — read everywhere, WRITE only in the light:
 - You READ the whole map, including lines marked (dim) — use that full knowledge for judgment. But (dim) lines are NOT WRITABLE: the user has those branches dimmed, so you may not create nodes under them, update them, or move things into them. Writable: the focus subtree, lit branches, and the "to sort" node.
+- ONE NODE = ONE THING (M286): when the round enumerates alternatives — plans, options, candidates, steps to choose from — make a PARENT node for the question or topic and ONE CHILD per item (type option, status live), never a single node whose statement lists them "(1) … (2) … (3)". A list crammed into one statement cannot be chosen from, dimmed, or corrected item by item. The same for several distinct decisions or facts in one breath: one node each.
+- CHOOSING NEVER ERASES (M286): when the user picks one alternative, mark it chosen and the others dropped — do not rewrite the parent's statement to the winner, do not remove the losers; the record of what was on the table stays on the map.
 - THE TOP LEVEL IS ORDINARY (M278): a new topic that belongs under no lit branch becomes a new TOP-LEVEL node — create_node with parentId null, named as a topic, its question/options/evidence nested under it. There is no difference between a top-level node and any other; do not hunt for a parent that merely "sort of" fits, and never wedge an unrelated topic under the focus.
 - "to sort" is only for two things: material that belongs under a DIM branch (not writable — the user set it aside; file it under "to sort" with the placement suggestion below so one click moves it home when they light the branch), and fragments you cannot name as a topic.
 - ONE TOPIC = ONE SUBTREE in "to sort": create a single topic node for it, and nest its question/options/constraints/evidence UNDER that node — NEVER as sibling children of "to sort". The user moves things out of "to sort" whole; scattered siblings tear apart. Record provenance once, in the topic node's content: append " (arrived while focus was: <current focus name>)".
@@ -298,6 +300,22 @@ export class Translator {
     };
     for (const a of alterations) {
       const anyA: any = a;
+      // M286 (loop find): STICKY STRUCTURE enforced — the filer may move only nodes born this round or children of "to sort";
+      // moving an existing node (it moved the person's own project under a new topic) is the tidy agent's job, with approval.
+      if (a.op === 'move_node' && anyA.id) {
+        const cur = map.nodes.find((n) => n.id === anyA.id);
+        const bornThisRound = !cur;
+        const parentNow = cur?.parentId ? map.nodes.find((n) => n.id === cur.parentId) : null;
+        const inToSort = !!parentNow && parentNow.parentId === null && ((parentNow.title ?? '') === 'to sort' || parentNow.content.startsWith('to sort'));
+        if (!bornThisRound && !inToSort) { this.store.audit('guard_move_existing', { id: String(anyA.id).slice(0, 8) }); continue; }
+      }
+      // M286 (loop find, the philosophy replay): an UPDATE that shrinks an enumerated statement to one item while changing
+      // status is "choosing by erasing" — keep the statement, apply the status; the siblings' fate is a separate matter.
+      if (a.op === 'update_node' && anyA.id && typeof anyA.content === 'string' && anyA.status) {
+        const cur = map.nodes.find((n) => n.id === anyA.id);
+        const items = (t: string) => (t.match(/(?:^|\s)\(?\d+[).]\s/g) ?? []).length;
+        if (cur && items(cur.content) >= 3 && items(anyA.content) < 2 && anyA.content.length < cur.content.length * 0.6) { delete anyA.content; this.store.audit('guard_list_shrink', { id: String(anyA.id).slice(0, 8) }); }
+      }
       // M285 (loop find): a title the person typed on the card is theirs — the filer's update may change the statement, never that title
       if (a.op === 'update_node' && anyA.title !== undefined && anyA.id && this.store.getSetting(`titleBy:${anyA.id}`) === 'user') { delete anyA.title; this.store.audit('guard_hand_title', { id: String(anyA.id).slice(0, 8) }); }
       if ((a.op === 'create_node' || a.op === 'update_node') && anyA.type && !CANON_TYPES.includes(anyA.type)) {
@@ -305,6 +323,21 @@ export class Translator {
         anyA.type = 'claim'; // nearest-neutral; user retypes freely
       }
       if (a.op === 'create_node') {
+        // M286 (loop find): a CREATE whose statement enumerates three or more items "(1) … (2) … (3)" or "1. … 2. … 3." is split
+        // mechanically into a parent (the lead-in) and one option child per item — the shape the prompt asks for, enforced.
+        {
+          const c = String(anyA.content ?? '');
+          const parts = c.split(/\s*(?:\(\d+\)|(?<=^|\s)\d+[).])\s+/).map((x) => x.trim()).filter(Boolean);
+          if (parts.length >= 4 && parts.slice(1).every((x) => x.length >= 8)) {
+            const lead = parts[0].replace(/[:\s]+$/, '') || 'options';
+            const parentId = anyA.id; const parentOk0 = anyA.parentId == null || live.has(anyA.parentId);
+            const parentAlt = { ...anyA, content: lead, type: anyA.type === 'option' ? undefined : anyA.type, status: anyA.type === 'option' ? 'live' : anyA.status };
+            if (parentOk0) { live.add(parentId); out.push(parentAlt); } else { const home = ensureToSort(); live.add(parentId); out.push({ ...parentAlt, parentId: home, content: `${lead} (arrived while focus was: ${focusName})` }); }
+            for (const item of parts.slice(1)) out.push({ op: 'create_node', id: randomUUID(), parentId, content: item, type: 'option', status: 'live', author: anyA.author ?? 'agent' } as any);
+            this.store.audit('guard_list_split', { id: String(parentId).slice(0, 8), items: parts.length - 1 });
+            continue;
+          }
+        }
         // M278 (Jacob: "there should not be an ontological difference between top level node or lower level nodes"):
         // a top-level create is ordinary and always writable; only a create under a DIM parent is redirected to "to sort".
         const parentOk = anyA.parentId == null || live.has(anyA.parentId);
