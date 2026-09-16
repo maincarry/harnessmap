@@ -101,10 +101,12 @@ console.log('\n== round 3: a stray whose home is dimmed — filed to "to sort", 
 await observeAndSettle('live-1', 'Unrelated: can you book my Lisbon flight for the November conference, leaving the 11th?', 'I cannot book flights, but I noted it: Lisbon flight for the November conference, departing the 11th.');
 s = await state();
 const toSort = (s.nodes ?? []).find((n: any) => n.parentId === null && String(n.title ?? n.content).startsWith('to sort'));
+// M278 made the top level ordinary: the stray may land in "to sort" or as a top-level node — anywhere but the dark Travel branch
 const stray = (s.nodes ?? []).find((n: any) => toSort && n.parentId === toSort.id && /lisbon|flight/i.test(n.content + ' ' + (n.title ?? '')))
-  ?? (s.nodes ?? []).find((n: any) => toSort && under(s, n.id, toSort.id) && /lisbon|flight/i.test(n.content + ' ' + (n.title ?? '')));
+  ?? (s.nodes ?? []).find((n: any) => toSort && under(s, n.id, toSort.id) && /lisbon|flight/i.test(n.content + ' ' + (n.title ?? '')))
+  ?? (s.nodes ?? []).find((n: any) => n.id !== lisbon && n.id !== travel && !under(s, n.id, travel) && /lisbon|flight/i.test(n.content + ' ' + (n.title ?? '')));
 const ev3 = (await autoEvents()).slice(ev2c.length);
-check('the stray landed in "to sort" (Travel is dark, not writable)', !!stray && !!toSort && under(s, stray.id, toSort.id), stray ? `stray under ${(s.nodes ?? []).find((n: any) => n.id === stray.parentId)?.title ?? stray.parentId}` : 'no stray node found');
+check('the stray landed outside the dark Travel branch (in "to sort" or at the top level — M278)', !!stray && !under(s, stray.id, travel), stray ? `stray under ${(s.nodes ?? []).find((n: any) => n.id === stray.parentId)?.title ?? stray.parentId ?? 'top level'}` : 'no stray node found');
 check('the aim never made the stray (a "to sort" item) the focus', !!toSort && !under(s, chatOf(s).focusContainerId, toSort.id), `focus=${(s.nodes ?? []).find((n: any) => n.id === chatOf(s).focusContainerId)?.title ?? chatOf(s).focusContainerId}`);
 check('auto mode did not move it into the dark branch and audited the skip', !(stray && under(s, stray.id, travel)) && ev3.some((e: any) => e.kind === 'auto_place_skip' || (e.kind === 'auto_mode' && /kept|no home/.test(String(e.detail?.line)))), JSON.stringify(ev3.map((e: any) => [e.kind, e.detail?.line ?? e.detail?.why]).slice(0, 6)));
 

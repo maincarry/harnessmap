@@ -493,7 +493,9 @@ export function composeParts(store: Store, chatId: string, manipulations: string
         const fullText = fullBy.get(e.id);
         if (fullText) resolved.push(`${pads(e)}  in full (the raw material):\n${fullText.split('\n').map((x) => `${pads(e)}    ${x}`).join('\n')}`);
         else if (focusFullNote && e.id === focusId) resolved.push(`${pads(e)}  ${focusFullNote}`);
-        if (r === 0 && (memByNode.get(e.id) || (detailsBy.get(e.id) ?? []).length)) staysMinimal.add(b.id);
+        // M292 (loop find): a lit node served at one line hides its statement too — not only its memory; a statement
+        // longer than a title is detail the person lit and did not get, so the branch is marked ❗ (M162's promise).
+        if (r === 0 && (memByNode.get(e.id) || (detailsBy.get(e.id) ?? []).length || ((byIdC.get(e.id)?.content?.length ?? 0) > 80 && e.substance.length > 0))) staysMinimal.add(b.id);
       }
       // ❗ semantics under graceful degradation: mark a branch when depth was
       // rolled away or some node with real detail could only serve minimal.
@@ -618,6 +620,12 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       ...(qOmitted > 0 ? [`  … ${qOmitted} more open question(s) omitted for space.`] : []));
   }
   parts.push(...tail);
+  // M292 (loop find): the page marked ❗ when lit detail did not fit, but the agent was never told — now one line in the block
+  // names the branches whose statements are held back this turn, so it can ask for them by name.
+  if (trimmedLit.length) {
+    const nm = (id: string) => { const n = byIdC.get(id); return n ? `"${(n.title || n.content.slice(0, 40))}"` : id.slice(0, 8); };
+    parts.push('', `NOTE: ${trimmedLit.length} lit branch(es) hold more detail than fit this turn — served as titles only: ${trimmedLit.slice(0, 4).map(nm).join(', ')}${trimmedLit.length > 4 ? ` +${trimmedLit.length - 4}` : ''}. Ask for one by name and it is served in full.`);
+  }
   const text = parts.join('\n');
   const sections = [
     { label: 'the focus — in full (its frame, statements, and memory)', text: fixed.join('\n') },

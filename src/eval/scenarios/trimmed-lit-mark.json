@@ -1,0 +1,516 @@
+{
+  "name": "with more lit statements than the block can hold, the branch that did not fit is marked and served as titles only, never silently dropped (M162/M199)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Regional rail study: corridors, stations, funding"
+    },
+    {
+      "key": "cor",
+      "content": "Corridors",
+      "parent": "proj"
+    },
+    {
+      "key": "sta",
+      "content": "Stations",
+      "parent": "proj"
+    },
+    {
+      "key": "fun",
+      "content": "Funding",
+      "parent": "proj"
+    },
+    {
+      "key": "env",
+      "content": "Environment",
+      "parent": "proj"
+    },
+    {
+      "key": "ops",
+      "content": "Operations",
+      "parent": "proj"
+    },
+    {
+      "key": "eco",
+      "content": "Economics",
+      "parent": "proj"
+    },
+    {
+      "key": "n1",
+      "content": "Corridors item 1: option A of the corridors package, costed at 2 million in 2026 prices with a benefit-cost ratio of 1.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n2",
+      "content": "Corridors item 2: option B of the corridors package, costed at 3 million in 2026 prices with a benefit-cost ratio of 1.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n3",
+      "content": "Corridors item 3: option C of the corridors package, costed at 4 million in 2026 prices with a benefit-cost ratio of 1.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n4",
+      "content": "Corridors item 4: option D of the corridors package, costed at 5 million in 2026 prices with a benefit-cost ratio of 1.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n5",
+      "content": "Corridors item 5: option E of the corridors package, costed at 6 million in 2026 prices with a benefit-cost ratio of 1.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n6",
+      "content": "Corridors item 6: option F of the corridors package, costed at 7 million in 2026 prices with a benefit-cost ratio of 1.6. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n7",
+      "content": "Corridors item 7: option G of the corridors package, costed at 8 million in 2026 prices with a benefit-cost ratio of 1.7. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n8",
+      "content": "Corridors item 8: option H of the corridors package, costed at 9 million in 2026 prices with a benefit-cost ratio of 1.8. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n9",
+      "content": "Corridors item 9: option I of the corridors package, costed at 10 million in 2026 prices with a benefit-cost ratio of 1.9. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n10",
+      "content": "Corridors item 10: option J of the corridors package, costed at 11 million in 2026 prices with a benefit-cost ratio of 2.0. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n11",
+      "content": "Corridors item 11: option K of the corridors package, costed at 12 million in 2026 prices with a benefit-cost ratio of 2.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n12",
+      "content": "Corridors item 12: option L of the corridors package, costed at 13 million in 2026 prices with a benefit-cost ratio of 2.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n13",
+      "content": "Corridors item 13: option M of the corridors package, costed at 14 million in 2026 prices with a benefit-cost ratio of 2.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n14",
+      "content": "Corridors item 14: option N of the corridors package, costed at 15 million in 2026 prices with a benefit-cost ratio of 2.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n15",
+      "content": "Corridors item 15: option O of the corridors package, costed at 16 million in 2026 prices with a benefit-cost ratio of 2.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "cor"
+    },
+    {
+      "key": "n16",
+      "content": "Stations item 1: option A of the stations package, costed at 2 million in 2026 prices with a benefit-cost ratio of 1.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n17",
+      "content": "Stations item 2: option B of the stations package, costed at 3 million in 2026 prices with a benefit-cost ratio of 1.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n18",
+      "content": "Stations item 3: option C of the stations package, costed at 4 million in 2026 prices with a benefit-cost ratio of 1.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n19",
+      "content": "Stations item 4: option D of the stations package, costed at 5 million in 2026 prices with a benefit-cost ratio of 1.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n20",
+      "content": "Stations item 5: option E of the stations package, costed at 6 million in 2026 prices with a benefit-cost ratio of 1.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n21",
+      "content": "Stations item 6: option F of the stations package, costed at 7 million in 2026 prices with a benefit-cost ratio of 1.6. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n22",
+      "content": "Stations item 7: option G of the stations package, costed at 8 million in 2026 prices with a benefit-cost ratio of 1.7. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n23",
+      "content": "Stations item 8: option H of the stations package, costed at 9 million in 2026 prices with a benefit-cost ratio of 1.8. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n24",
+      "content": "Stations item 9: option I of the stations package, costed at 10 million in 2026 prices with a benefit-cost ratio of 1.9. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n25",
+      "content": "Stations item 10: option J of the stations package, costed at 11 million in 2026 prices with a benefit-cost ratio of 2.0. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n26",
+      "content": "Stations item 11: option K of the stations package, costed at 12 million in 2026 prices with a benefit-cost ratio of 2.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n27",
+      "content": "Stations item 12: option L of the stations package, costed at 13 million in 2026 prices with a benefit-cost ratio of 2.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n28",
+      "content": "Stations item 13: option M of the stations package, costed at 14 million in 2026 prices with a benefit-cost ratio of 2.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n29",
+      "content": "Stations item 14: option N of the stations package, costed at 15 million in 2026 prices with a benefit-cost ratio of 2.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n30",
+      "content": "Stations item 15: option O of the stations package, costed at 16 million in 2026 prices with a benefit-cost ratio of 2.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "sta"
+    },
+    {
+      "key": "n31",
+      "content": "Funding item 1: option A of the funding package, costed at 2 million in 2026 prices with a benefit-cost ratio of 1.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n32",
+      "content": "Funding item 2: option B of the funding package, costed at 3 million in 2026 prices with a benefit-cost ratio of 1.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n33",
+      "content": "Funding item 3: option C of the funding package, costed at 4 million in 2026 prices with a benefit-cost ratio of 1.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n34",
+      "content": "Funding item 4: option D of the funding package, costed at 5 million in 2026 prices with a benefit-cost ratio of 1.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n35",
+      "content": "Funding item 5: option E of the funding package, costed at 6 million in 2026 prices with a benefit-cost ratio of 1.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n36",
+      "content": "Funding item 6: option F of the funding package, costed at 7 million in 2026 prices with a benefit-cost ratio of 1.6. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n37",
+      "content": "Funding item 7: option G of the funding package, costed at 8 million in 2026 prices with a benefit-cost ratio of 1.7. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n38",
+      "content": "Funding item 8: option H of the funding package, costed at 9 million in 2026 prices with a benefit-cost ratio of 1.8. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n39",
+      "content": "Funding item 9: option I of the funding package, costed at 10 million in 2026 prices with a benefit-cost ratio of 1.9. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n40",
+      "content": "Funding item 10: option J of the funding package, costed at 11 million in 2026 prices with a benefit-cost ratio of 2.0. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n41",
+      "content": "Funding item 11: option K of the funding package, costed at 12 million in 2026 prices with a benefit-cost ratio of 2.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n42",
+      "content": "Funding item 12: option L of the funding package, costed at 13 million in 2026 prices with a benefit-cost ratio of 2.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n43",
+      "content": "Funding item 13: option M of the funding package, costed at 14 million in 2026 prices with a benefit-cost ratio of 2.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n44",
+      "content": "Funding item 14: option N of the funding package, costed at 15 million in 2026 prices with a benefit-cost ratio of 2.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n45",
+      "content": "Funding item 15: option O of the funding package, costed at 16 million in 2026 prices with a benefit-cost ratio of 2.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "fun"
+    },
+    {
+      "key": "n46",
+      "content": "Environment item 1: option A of the environment package, costed at 2 million in 2026 prices with a benefit-cost ratio of 1.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n47",
+      "content": "Environment item 2: option B of the environment package, costed at 3 million in 2026 prices with a benefit-cost ratio of 1.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n48",
+      "content": "Environment item 3: option C of the environment package, costed at 4 million in 2026 prices with a benefit-cost ratio of 1.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n49",
+      "content": "Environment item 4: option D of the environment package, costed at 5 million in 2026 prices with a benefit-cost ratio of 1.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n50",
+      "content": "Environment item 5: option E of the environment package, costed at 6 million in 2026 prices with a benefit-cost ratio of 1.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n51",
+      "content": "Environment item 6: option F of the environment package, costed at 7 million in 2026 prices with a benefit-cost ratio of 1.6. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n52",
+      "content": "Environment item 7: option G of the environment package, costed at 8 million in 2026 prices with a benefit-cost ratio of 1.7. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n53",
+      "content": "Environment item 8: option H of the environment package, costed at 9 million in 2026 prices with a benefit-cost ratio of 1.8. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n54",
+      "content": "Environment item 9: option I of the environment package, costed at 10 million in 2026 prices with a benefit-cost ratio of 1.9. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n55",
+      "content": "Environment item 10: option J of the environment package, costed at 11 million in 2026 prices with a benefit-cost ratio of 2.0. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n56",
+      "content": "Environment item 11: option K of the environment package, costed at 12 million in 2026 prices with a benefit-cost ratio of 2.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n57",
+      "content": "Environment item 12: option L of the environment package, costed at 13 million in 2026 prices with a benefit-cost ratio of 2.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n58",
+      "content": "Environment item 13: option M of the environment package, costed at 14 million in 2026 prices with a benefit-cost ratio of 2.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n59",
+      "content": "Environment item 14: option N of the environment package, costed at 15 million in 2026 prices with a benefit-cost ratio of 2.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n60",
+      "content": "Environment item 15: option O of the environment package, costed at 16 million in 2026 prices with a benefit-cost ratio of 2.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "env"
+    },
+    {
+      "key": "n61",
+      "content": "Operations item 1: option A of the operations package, costed at 2 million in 2026 prices with a benefit-cost ratio of 1.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n62",
+      "content": "Operations item 2: option B of the operations package, costed at 3 million in 2026 prices with a benefit-cost ratio of 1.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n63",
+      "content": "Operations item 3: option C of the operations package, costed at 4 million in 2026 prices with a benefit-cost ratio of 1.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n64",
+      "content": "Operations item 4: option D of the operations package, costed at 5 million in 2026 prices with a benefit-cost ratio of 1.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n65",
+      "content": "Operations item 5: option E of the operations package, costed at 6 million in 2026 prices with a benefit-cost ratio of 1.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n66",
+      "content": "Operations item 6: option F of the operations package, costed at 7 million in 2026 prices with a benefit-cost ratio of 1.6. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n67",
+      "content": "Operations item 7: option G of the operations package, costed at 8 million in 2026 prices with a benefit-cost ratio of 1.7. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n68",
+      "content": "Operations item 8: option H of the operations package, costed at 9 million in 2026 prices with a benefit-cost ratio of 1.8. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n69",
+      "content": "Operations item 9: option I of the operations package, costed at 10 million in 2026 prices with a benefit-cost ratio of 1.9. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n70",
+      "content": "Operations item 10: option J of the operations package, costed at 11 million in 2026 prices with a benefit-cost ratio of 2.0. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n71",
+      "content": "Operations item 11: option K of the operations package, costed at 12 million in 2026 prices with a benefit-cost ratio of 2.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n72",
+      "content": "Operations item 12: option L of the operations package, costed at 13 million in 2026 prices with a benefit-cost ratio of 2.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n73",
+      "content": "Operations item 13: option M of the operations package, costed at 14 million in 2026 prices with a benefit-cost ratio of 2.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n74",
+      "content": "Operations item 14: option N of the operations package, costed at 15 million in 2026 prices with a benefit-cost ratio of 2.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n75",
+      "content": "Operations item 15: option O of the operations package, costed at 16 million in 2026 prices with a benefit-cost ratio of 2.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "ops"
+    },
+    {
+      "key": "n76",
+      "content": "Economics item 1: option A of the economics package, costed at 2 million in 2026 prices with a benefit-cost ratio of 1.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n77",
+      "content": "Economics item 2: option B of the economics package, costed at 3 million in 2026 prices with a benefit-cost ratio of 1.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n78",
+      "content": "Economics item 3: option C of the economics package, costed at 4 million in 2026 prices with a benefit-cost ratio of 1.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n79",
+      "content": "Economics item 4: option D of the economics package, costed at 5 million in 2026 prices with a benefit-cost ratio of 1.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n80",
+      "content": "Economics item 5: option E of the economics package, costed at 6 million in 2026 prices with a benefit-cost ratio of 1.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n81",
+      "content": "Economics item 6: option F of the economics package, costed at 7 million in 2026 prices with a benefit-cost ratio of 1.6. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n82",
+      "content": "Economics item 7: option G of the economics package, costed at 8 million in 2026 prices with a benefit-cost ratio of 1.7. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n83",
+      "content": "Economics item 8: option H of the economics package, costed at 9 million in 2026 prices with a benefit-cost ratio of 1.8. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n84",
+      "content": "Economics item 9: option I of the economics package, costed at 10 million in 2026 prices with a benefit-cost ratio of 1.9. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n85",
+      "content": "Economics item 10: option J of the economics package, costed at 11 million in 2026 prices with a benefit-cost ratio of 2.0. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n86",
+      "content": "Economics item 11: option K of the economics package, costed at 12 million in 2026 prices with a benefit-cost ratio of 2.1. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n87",
+      "content": "Economics item 12: option L of the economics package, costed at 13 million in 2026 prices with a benefit-cost ratio of 2.2. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n88",
+      "content": "Economics item 13: option M of the economics package, costed at 14 million in 2026 prices with a benefit-cost ratio of 2.3. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n89",
+      "content": "Economics item 14: option N of the economics package, costed at 15 million in 2026 prices with a benefit-cost ratio of 2.4. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    },
+    {
+      "key": "n90",
+      "content": "Economics item 15: option O of the economics package, costed at 16 million in 2026 prices with a benefit-cost ratio of 2.5. The appraisal notes the travel-time saving, the shift from car, the construction risk on the embankment section, the phasing over three budget years, and the consultation responses from the parish councils along the route, which asked for level-crossing closures to be reconsidered and for a park-and-ride site near the junction.",
+      "parent": "eco"
+    }
+  ],
+  "focus": "cor",
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "user": "Corridor item 1 is the priority; write that down.",
+      "assistant": "Corridors item 1 marked as the priority.",
+      "then": [
+        {
+          "trimmedLit": true
+        },
+        {
+          "do": "context",
+          "session": "e2e-1"
+        },
+        {
+          "contextHas": "did not fit|❗|titles only|no room|holding detail"
+        },
+        {
+          "contextChars": true,
+          "max": 46000
+        }
+      ]
+    }
+  ],
+  "settleMs": 12000
+}
