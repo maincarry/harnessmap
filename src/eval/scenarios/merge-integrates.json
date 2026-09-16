@@ -1,0 +1,18 @@
+{
+  "name": "merging two nodes with distinct facts: the survivor's statement carries both, children move over, the source is gone, one undo restores everything (M90/M94)",
+  "seed": [
+    { "key": "proj", "content": "Bakery suppliers" },
+    { "key": "a", "content": "Flour supplier: Hartmann mill, organic T65 at 0.92 per kilo", "parent": "proj" },
+    { "key": "ak", "content": "Their T80 was too coarse for croissant dough", "parent": "a" },
+    { "key": "b", "content": "Flour deliveries: Hartmann delivers on Tuesdays, minimum 200 kg a month", "parent": "proj" }
+  ],
+  "focus": "proj", "auto": { "on": false },
+  "rounds": [
+    { "user": "Nothing new on suppliers today.", "assistant": "Suppliers unchanged.",
+      "then": [ { "do": "merge", "key": "b", "into": "a" },
+                { "nodeMatching": "(?=.*Hartmann)(?=.*Tuesday|.*200 kg)(?=.*0\\.92|.*T65).*", "under": "proj" },
+                { "nodeMatching": "T80", "under": "a" }, { "noNodeMatching": "^Flour deliveries: Hartmann delivers on Tuesdays" }, { "countUnder": "proj", "max": 1 },
+                { "undoNext": "merged" }, { "do": "undo" },
+                { "nodeMatching": "Flour deliveries: Hartmann delivers on Tuesdays", "under": "proj" }, { "nodeMatching": "T80", "under": "a" } ] }
+  ]
+}

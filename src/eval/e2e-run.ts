@@ -118,6 +118,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
           for (const st of steps) await post(`/api/chats/${cid()}/autolit`, { apply: { lit: (st.lit ?? []).map((x: any) => x.id), dim: (st.dim ?? []).map((x: any) => x.id) }, summary: 'from the guide' });
           check('do applyAsk (light steps)', steps.length > 0, JSON.stringify(lastAsk).slice(0, 160));
         }
+        else if (a.do === 'merge') { const r = await post(`/api/nodes/${keys[a.key]}/merge`, { intoId: keys[a.into] }); check(`do merge (${r.status})`, r.status === 200, JSON.stringify(r.body).slice(0, 120)); s = await state(); }
         else if (a.do === 'delete') { const r = await post(`/api/nodes/${keys[a.key]}/delete`, {}); check(`do delete (${r.status})`, r.status === 200, JSON.stringify(r.body).slice(0, 100)); s = await state(); }
         else if (a.do === 'placeTo') { const n = (s.nodes ?? []).find((x: any) => match(s, x, a.matching)); const r = n ? await post(`/api/nodes/${n.id}/place`, { parentId: a.key ? keys[a.key] : null }) : { status: 0, body: {} }; check(`do placeTo (${r.status})`, r.status === 200, n ? JSON.stringify(r.body).slice(0, 100) : 'no node matched'); s = await state(); }
         else if (a.do === 'influence') { const cur = await get('/api/influence'); if (!!cur.off !== !!a.off) await post('/api/influence/toggle', {}); }
@@ -158,6 +159,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.darkMatching || a.litMatching) { const hits = (s.nodes ?? []).filter((n: any) => match(s, n, a.darkMatching ?? a.litMatching)); const litSet = new Set(chatOf(s).lit); check(label, hits.length > 0 && hits.every((n: any) => a.darkMatching ? !litSet.has(n.id) : litSet.has(n.id)), `hits=${hits.length} lit=${hits.filter((n: any) => litSet.has(n.id)).length}`); }
       else if (a.trimmedLit !== undefined) check(label, ((s.trimmedLit ?? []).length > 0) === a.trimmedLit, `trimmedLit=${(s.trimmedLit ?? []).length}`);
       else if (a.suggestionFor) { const n = (s.nodes ?? []).find((x: any) => match(s, x, a.suggestionFor)); const sg = n ? (s.suggestions ?? []).find((g: any) => g.nodeId === n.id && (!a.kind || g.kind === a.kind)) : null; check(label, a.absent ? !sg : !!sg, n ? `suggestions for it: ${(s.suggestions ?? []).filter((g: any) => g.nodeId === n.id).map((g: any) => g.kind).join(',') || 'none'}` : 'no node matched'); }
+      else if (a.topLevelCount !== undefined) { const n = (s.nodes ?? []).filter((x: any) => x.parentId === null && !String(x.title ?? x.content).startsWith('to sort')).length; check(label, (a.max === undefined || n <= a.max) && (a.min === undefined || n >= a.min), `top-level=${n}`); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }

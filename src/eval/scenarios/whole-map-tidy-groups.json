@@ -1,0 +1,86 @@
+{
+  "name": "eight unrelated top-level topics: tidy this view (whole map) proposes domain containers; apply lowers the top-level count; undo restores it (M122/M278)",
+  "seed": [
+    {
+      "key": "t0",
+      "content": "Kitchen renovation: contractor quotes and timeline",
+      "top": true
+    },
+    {
+      "key": "t1",
+      "content": "Thesis chapter 2: results write-up",
+      "top": true
+    },
+    {
+      "key": "t2",
+      "content": "Marathon training: the 16-week plan",
+      "top": true
+    },
+    {
+      "key": "t3",
+      "content": "Thesis chapter 3: discussion draft",
+      "top": true
+    },
+    {
+      "key": "t4",
+      "content": "Tax return 2025: forms still missing",
+      "top": true
+    },
+    {
+      "key": "t5",
+      "content": "Bathroom retiling: choose the tiles",
+      "top": true
+    },
+    {
+      "key": "t6",
+      "content": "Race-day logistics for the marathon",
+      "top": true
+    },
+    {
+      "key": "t7",
+      "content": "Thesis defence: possible dates",
+      "top": true
+    }
+  ],
+  "focus": "t0",
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "user": "The contractor can start on the 3rd.",
+      "assistant": "Contractor start: the 3rd.",
+      "then": [
+        {
+          "topLevelCount": true,
+          "min": 9
+        },
+        {
+          "do": "tidy",
+          "key": null,
+          "hint": "group the top level into a few recognizable domains"
+        },
+        {
+          "tidyChanged": true
+        },
+        {
+          "topLevelCount": true,
+          "max": 7
+        },
+        {
+          "nodeMatching": "contractor"
+        },
+        {
+          "nodeMatching": "defence|defense"
+        },
+        {
+          "do": "undo"
+        },
+        {
+          "topLevelCount": true,
+          "min": 9
+        }
+      ]
+    }
+  ]
+}
