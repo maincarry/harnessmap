@@ -1743,6 +1743,8 @@ const server = Bun.serve({
         return json({ error: 'this node is on the focus path — it stays lit while the conversation is aimed through it. Move the focus first if you really want it dark.' }, 409);
       }
       let kept = 0;
+      // M296 (loop find): a light or dim that cascades over a branch (or a bulk light-all / dim-all) is one undo entry restoring the light exactly; a single-node toggle is its own one-click reverse
+      if (ids.length > 1 || (body as any).bulk) { const nB = store.getNode(nodeId); store.pushUndo(store.getChat(litMatch[1])!.projectId, `${body.on ? 'lit' : 'dimmed'} "${nodeName(nB)}"${ids.length > 1 ? ` and ${ids.length - 1} beneath` : ''}`, [], { litRows: { [litMatch[1]]: store.getLitRows(litMatch[1]) } }); }
       if (!(body as any).bulk) store.setUserDim(litMatch[1], ids.filter((id) => body.on || !path.has(id)), !body.on); // M277: a hand dim is remembered as "set aside"; a hand light lifts it
       for (const id of ids) {
         if (!body.on && path.has(id)) { kept++; continue; }
@@ -2097,8 +2099,9 @@ const server = Bun.serve({
       const path0 = focusPathOf(chatId);
       const dimmed = store.getLit(chatId).filter((id) => !inScope.has(id) && !path0.has(id));
       clearNudges();
+      const prevRows = store.getLitRows(chatId); // M296 (loop find): a bulk dim is one undo that restores the light exactly
       for (const id of dimmed) store.setLit(chatId, id, false);
-      if (dimmed.length) chats.noteMapChange(chatId, `dimmed everything outside "${nodeName(n)}" (${dimmed.length} node(s); the focus path stayed lit)`);
+      if (dimmed.length) { store.pushUndo(store.getChat(chatId)!.projectId, `dimmed everything outside "${nodeName(n)}" (${dimmed.length})`, [], { litRows: { [chatId]: prevRows } }); chats.noteMapChange(chatId, `dimmed everything outside "${nodeName(n)}" (${dimmed.length} node(s); the focus path stayed lit)`); }
       broadcast({ type: 'map', ...state() });
       return json({ ok: true, dimmed: dimmed.length });
     }

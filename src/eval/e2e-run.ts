@@ -133,6 +133,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'merge') { const r = await post(`/api/nodes/${keys[a.key]}/merge`, { intoId: keys[a.into] }); check(`do merge (${r.status})`, r.status === 200, JSON.stringify(r.body).slice(0, 120)); s = await state(); }
         else if (a.do === 'delete') { const r = await post(`/api/nodes/${keys[a.key]}/delete`, {}); check(`do delete (${r.status})`, r.status === 200, JSON.stringify(r.body).slice(0, 100)); s = await state(); }
         else if (a.do === 'placeTo') { const n = (s.nodes ?? []).find((x: any) => match(s, x, a.matching)); const r = n ? await post(`/api/nodes/${n.id}/place`, { parentId: a.key ? keys[a.key] : null }) : { status: 0, body: {} }; check(`do placeTo (${r.status})`, r.status === 200, n ? JSON.stringify(r.body).slice(0, 100) : 'no node matched'); s = await state(); }
+        else if (a.do === 'dimOutside') { const r = await post(`/api/chats/${cid()}/dim-outside`, { nodeId: keys[a.key] }); check(`do dimOutside (${r.status})`, r.status === 200, JSON.stringify(r.body).slice(0, 100)); s = await state(); }
         else if (a.do === 'influence') { const cur = await get('/api/influence'); if (!!cur.off !== !!a.off) await post('/api/influence/toggle', {}); }
         s = await state(); continue;
       }
