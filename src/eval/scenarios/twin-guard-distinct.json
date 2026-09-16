@@ -1,0 +1,60 @@
+{
+  "name": "a correction updates the node in place while a distinct new commitment in the same breath becomes its own node; a mere restatement makes no twin (M256)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Map mechanics"
+    },
+    {
+      "key": "merge",
+      "content": "Node merge: children move to the survivor; the source's distinct wording is preserved as a child of the survivor",
+      "parent": "proj"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "user": "When merging two nodes it is not enough that the child is inherited — the description and chat history must merge too. And separately: before any merge runs, the button must ask for confirmation.",
+      "assistant": "Two things recorded. The merge rule: the survivor's description absorbs the source's distinct information and the two chat histories combine. And a new rule: the merge button confirms before it acts.",
+      "then": [
+        {
+          "nodeMatching": "history|description",
+          "under": "proj"
+        },
+        {
+          "nodeMatching": "confirm",
+          "under": "proj"
+        },
+        {
+          "distinctNodes": [
+            "history|description",
+            "confirm"
+          ]
+        },
+        {
+          "countUnder": "proj",
+          "max": 2
+        },
+        {
+          "noNodeMatching": "preserved as a child of the survivor"
+        }
+      ]
+    },
+    {
+      "user": "To restate the merge rule in my own words: merging means the surviving node keeps the children and takes in what the other node said, in its description and its history.",
+      "assistant": "That is the rule as recorded: survivor keeps the children and absorbs the other's description and history.",
+      "then": [
+        {
+          "countUnder": "proj",
+          "max": 2
+        },
+        {
+          "newNodes": 0
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "greetings, thanks and questions about the assistant add no node; a real aside in the same session does (filer check 0)",
+  "seed": [ { "key": "proj", "content": "Kitchen renovation: budget, contractor, timeline" } ],
+  "focus": "proj", "auto": { "on": false },
+  "rounds": [
+    { "user": "hi there", "assistant": "Hello! Ready when you are.", "then": [ { "newNodes": 0 } ] },
+    { "user": "thanks, that was helpful earlier", "assistant": "Glad it helped.", "then": [ { "newNodes": 0 } ] },
+    { "user": "which model are you, and who made you?", "assistant": "I'm Claude, made by Anthropic.", "then": [ { "newNodes": 0 }, { "noNodeMatching": "Anthropic|which model" } ] },
+    { "user": "ok — the contractor quoted 14,000 for the full kitchen, six weeks, starting in March.", "assistant": "Contractor quote: 14,000, six weeks, March start.", "then": [ { "nodeMatching": "14,?000|contractor", "under": "proj" } ] }
+  ]
+}
