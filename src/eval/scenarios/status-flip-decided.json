@@ -1,0 +1,62 @@
+{
+  "name": "\"we decided X\" marks the chosen option (siblings may be dropped) without touching unrelated settled nodes (filer rule 2)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Website relaunch: stack, hosting, launch date"
+    },
+    {
+      "key": "stack",
+      "content": "Stack: which framework to build the new site on",
+      "parent": "proj"
+    },
+    {
+      "key": "optA",
+      "content": "option: Next.js — team knows it, heavier",
+      "parent": "stack"
+    },
+    {
+      "key": "optB",
+      "content": "option: Astro — lighter, less familiar",
+      "parent": "stack"
+    },
+    {
+      "key": "optC",
+      "content": "option: plain HTML with a static generator",
+      "parent": "stack"
+    },
+    {
+      "key": "host",
+      "content": "Hosting: decided on Cloudflare Pages last month, free tier",
+      "parent": "proj"
+    }
+  ],
+  "focus": "stack",
+  "auto": {
+    "on": false
+  },
+  "rounds": [
+    {
+      "user": "We decided: Astro. The lighter build matters more than familiarity, and two of us have used it now.",
+      "assistant": "Decision recorded: the new site is built on Astro; the lighter build outweighed familiarity.",
+      "then": [
+        {
+          "statusOf": "option: Astro|Astro — lighter",
+          "is": "chosen|decided|accepted"
+        },
+        {
+          "statusOf": "Cloudflare Pages",
+          "is": "live|decided"
+        },
+        {
+          "nodeMatching": "astro",
+          "under": "stack"
+        },
+        {
+          "countUnder": "stack",
+          "max": 4
+        }
+      ]
+    }
+  ]
+}

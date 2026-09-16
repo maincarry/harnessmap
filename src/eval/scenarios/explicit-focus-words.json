@@ -1,0 +1,16 @@
+{
+  "name": "\"let's focus on X\" moves the focus by the person's words even under a hand-set focus hold (M75/M282)",
+  "seed": [
+    { "key": "proj", "content": "Book manuscript: chapters, agent, timeline" },
+    { "key": "ch3", "content": "Chapter 3: the river journey", "parent": "proj" },
+    { "key": "agent", "content": "Literary agent: queries and responses", "parent": "proj" },
+    { "key": "timeline", "content": "Timeline: first full draft by March", "parent": "proj" }
+  ],
+  "focus": "ch3", "auto": { "on": true },
+  "rounds": [
+    { "user": "Small fix in chapter 3: the ferry crossing happens at dawn, not dusk.", "assistant": "Changed in chapter 3: the ferry crossing is at dawn.",
+      "then": [ { "do": "focus", "key": "ch3" }, { "focusIs": "ch3" } ] },
+    { "user": "Let's focus on the agent search now. Two queries went out last week; one asked for the full manuscript.", "assistant": "Focusing on the agent search: two queries sent last week, one full-manuscript request.",
+      "then": [ { "focusUnder": "agent" }, { "audit": "auto_mode", "matching": "you asked|focus" } ] }
+  ]
+}
