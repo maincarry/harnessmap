@@ -1,0 +1,49 @@
+{
+ "name": "rolling summary: after the verbatim window scrolls, the session's rolling summary exists and names the topic (M42/M146)",
+ "env": {
+  "HARNESSMAP_WINDOW": "4"
+ },
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Bakery: recipes and schedules"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The sourdough starter needs feeding twice a day at 26°C; it doubled in five hours yesterday.",
+   "assistant": "Noted: feed the sourdough starter twice daily at 26°C; it doubled in five hours."
+  },
+  {
+   "user": "For the loaves, 78% hydration, 2% salt, 20% starter — that is the house formula now.",
+   "assistant": "House sourdough formula: 78% hydration, 2% salt, 20% starter."
+  },
+  {
+   "user": "Cold retard 14 hours in the walk-in at 4°C, then bake at 6 am on the stone at 250°C.",
+   "assistant": "Schedule: 14-hour cold retard at 4°C, bake at 6 am at 250°C on the stone."
+  },
+  {
+   "user": "The rye needs its own starter; we keep it drier, 60% hydration, and feed it once a day.",
+   "assistant": "Rye starter: 60% hydration, fed once a day, kept separately.",
+   "then": [
+    {
+     "do": "wait",
+     "ms": 12000
+    },
+    {
+     "summaryHas": "(?i)sourdough|starter|bread|bakery|rye|hydration"
+    },
+    {
+     "do": "context"
+    },
+    {
+     "contextHas": "(?i)sourdough|starter|rye"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,45 @@
+{
+ "name": "title healing: a node whose statement runs thirty words gets a display title of six words or fewer within a round (M68)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Garden redesign"
+  },
+  {
+   "key": "long",
+   "parent": "proj",
+   "content": "The raised beds along the south fence should be rebuilt in cedar at forty centimetres high with a drip line under the mulch so the tomatoes and peppers get steady water through the hot weeks of July and August."
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Also plan a small herb spiral by the kitchen door for thyme, sage and rosemary.",
+   "assistant": "Herb spiral by the kitchen door: thyme, sage, rosemary.",
+   "then": [
+    {
+     "do": "wait",
+     "ms": 10000
+    },
+    {
+     "audit": "title_healed"
+    },
+    {
+     "titleOf": "long",
+     "is": "^\\s*(\\S+\\s+){0,5}\\S+\\s*$"
+    },
+    {
+     "titleOf": "long",
+     "is": "(?i)bed|cedar|drip|raised|fence"
+    },
+    {
+     "statusOf": "raised beds|cedar",
+     "is": ".*"
+    }
+   ]
+  }
+ ]
+}

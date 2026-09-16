@@ -1076,12 +1076,12 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         const cw = words(node.content);
         const overlap = tw.filter((w) => cw.has(w)).length / tw.length;
         if (overlap >= 0.5) continue; // the title still names the statement
-        const t = await suggestTitle(store, node.id);
-        if ('title' in t && t.title && t.title !== node.title) {
-          store.pushUndo(pid, `auto mode: renamed "${node.title}" → "${t.title}"`, [{ op: 'update_node', id: node.id, title: node.title }], null);
-          store.applyAlterations(pid, [{ op: 'update_node', id: node.id, title: t.title } as any], { kind: 'system' });
-          store.audit('auto_renamed', { id: node.id.slice(0, 8), title: t.title });
-          lines.push(`renamed "${node.title}" → "${t.title}"`);
+        const tt = await shortTitleFor(node.id); // M301: never a title the healer would call broken
+        if (tt && tt !== node.title) {
+          store.pushUndo(pid, `auto mode: renamed "${node.title}" → "${tt}"`, [{ op: 'update_node', id: node.id, title: node.title }], null);
+          store.applyAlterations(pid, [{ op: 'update_node', id: node.id, title: tt } as any], { kind: 'system' });
+          store.audit('auto_renamed', { id: node.id.slice(0, 8), title: tt });
+          lines.push(`renamed "${node.title}" → "${tt}"`);
           n++;
         }
       }
@@ -1178,15 +1178,26 @@ schedulePrecompute(); // boot: dots that predate a restart get their compute too
 // name would run long (no title + long content, or an over-long legacy
 // title) gets re-titled automatically, a few per sweep, off the hot path.
 let healBusy = false;
+const longName = (shown: string) => {
+  const words = shown.trim().split(/\s+/);
+  return words.length > 6 || shown.length > 48 || words.some((w) => w.length > 18);
+};
+// M301 (loop find, bug under M68): the healer accepted a suggested title that still broke the rule (a nine-word title for a
+// thirty-word statement), so the node stayed "broken" and was re-healed every round. One retry, then clip to six words.
+async function shortTitleFor(id: string): Promise<string | null> {
+  for (let i = 0; i < 2; i++) {
+    const r = await suggestTitle(store, id);
+    if (!('title' in r) || !r.title) return null;
+    if (!longName(r.title)) return r.title;
+    if (i === 1) { const clipped = r.title.trim().split(/\s+/).slice(0, 6).join(' ').replace(/[,;:\-–—]+$/, '').slice(0, 48); store.audit('title_clipped', { id: id.slice(0, 8), from: r.title.slice(0, 80), to: clipped }); return clipped; }
+  }
+  return null;
+}
 function brokenTitles(pid: string) {
   // A shown name (title || content) is broken when it's over 6 words (M68),
   // over 48 chars total, or contains any unreadable 19+ char token (garbage
   // strings and URLs are "long names" too — Jacob's live find: a 4-word name
   // hiding a 27-char keyboard mash passed the word rule).
-  const longName = (shown: string) => {
-    const words = shown.trim().split(/\s+/);
-    return words.length > 6 || shown.length > 48 || words.some((w) => w.length > 18);
-  };
   return store.getNodes(pid).filter((n) => {
     if (n.status === 'removed') return false;
     if (n.content.startsWith('to sort')) return false;
@@ -1202,10 +1213,10 @@ async function healTitles(cap = 5, pid = projectId): Promise<{ renamed: number; 
   try {
     const broken = brokenTitles(pid).slice(0, cap);
     for (const n of broken) {
-      const r = await suggestTitle(store, n.id);
-      if ('title' in r && r.title) {
-        store.applyAlterations(pid, [{ op: 'update_node', id: n.id, title: r.title } as any], { kind: 'system' });
-        store.audit('title_healed', { id: n.id.slice(0, 8), title: r.title });
+      const title = await shortTitleFor(n.id);
+      if (title) {
+        store.applyAlterations(pid, [{ op: 'update_node', id: n.id, title } as any], { kind: 'system' });
+        store.audit('title_healed', { id: n.id.slice(0, 8), title });
         renamed++;
       }
     }

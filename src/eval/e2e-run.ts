@@ -27,7 +27,7 @@ const chatOf = (s: any) => (s.chats ?? []).find((c: any) => c.id === s.mainChatI
 const under = (s: any, id: string, anc: string): boolean => { for (let n = (s.nodes ?? []).find((x: any) => x.id === id); n; n = (s.nodes ?? []).find((x: any) => x.id === n.parentId)) if (n.id === anc) return true; return false; };
 const nameOf = (s: any, id: string) => { const n = (s.nodes ?? []).find((x: any) => x.id === id); return n ? (n.title || n.content).slice(0, 50) : id; };
 const toSortOf = (s: any) => (s.nodes ?? []).find((n: any) => n.parentId === null && String(n.title ?? n.content).startsWith('to sort'));
-const rx = (p: string) => new RegExp(p, 'i');
+const rx = (p: string) => new RegExp(p.replace(/^\(\?i\)/, ''), 'i'); // always case-insensitive; a leading (?i) is tolerated
 const match = (s: any, n: any, p: string) => rx(p).test((n.title ?? '') + ' ' + n.content);
 
 rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'proj'), { recursive: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
@@ -87,6 +87,7 @@ let lastContext: any = null;
 let lastTidy: any = null;
 let lastAsk: any = null;
 let lastImport: any = null;
+let lastRec: any = null;
 for (const [i, r] of (sc.rounds ?? []).entries()) {
   console.log(`-- round ${i + 1}: ${String(r.user).slice(0, 70)}`);
   await round(r.user, r.assistant, r.session, r.harness ?? sc.harness, r.forkedFrom);
@@ -108,6 +109,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'wait') await sleep(a.ms ?? 5000);
         else if (a.do === 'context') { const r = await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(a.session ?? 'e2e-1')}&cwd=${encodeURIComponent(join(TMP, 'proj'))}${a.prompt ? `&prompt=${encodeURIComponent(a.prompt)}` : ''}`); lastContext = await r.json().catch(() => ({})); } // what the next turn would receive (the question rides as `prompt`, as the hook sends it)
         else if (a.do === 'compact') await post('/api/harness/compacted', { session_id: a.session ?? 'e2e-1' });
+        else if (a.do === 'recommend') { const r = await post(`/api/chats/${cid()}/recommend`, { kind: a.kind ?? 'zoom' }); lastRec = r.status === 200 ? r.body : null; check(`do recommend ${a.kind ?? 'zoom'} (${r.status})`, r.status === 200 && !!r.body?.containerId, JSON.stringify(r.body).slice(0, 120)); s = await state(); }
         else if (a.do === 'prompt') await post('/api/harness/prompt', { session_id: a.session ?? 'e2e-1', text: a.text, cwd: join(TMP, 'proj') }); // what the person is about to ask (the UserPromptSubmit stash)
         else if (a.do === 'tidy') { // propose + apply a tidy of a subtree (or the whole map with key null), as the ⚡ does
           const nodeId = a.key ? keys[a.key] : null;
@@ -142,7 +144,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       const f = chatOf(s).focusContainerId; const ts = toSortOf(s);
       if (a.focusUnder) check(label, f === keys[a.focusUnder] || under(s, f, keys[a.focusUnder]), `focus=${nameOf(s, f)}`);
       else if (a.focusIs) check(label, f === keys[a.focusIs], `focus=${nameOf(s, f)}`);
-      else if (a.nodeMatching) { const hits = (s.nodes ?? []).filter((n: any) => match(s, n, a.nodeMatching)); const ok = hits.some((n: any) => (!a.under || under(s, n.id, keys[a.under])) && (!a.notUnder || !under(s, n.id, keys[a.notUnder]))); check(label, ok, hits.length ? `found under: ${hits.map((n: any) => nameOf(s, n.parentId)).join(' | ')}` : 'no node matched'); }
+      else if (a.nodeMatching) { const hits = (s.nodes ?? []).filter((n: any) => match(s, n, a.nodeMatching)); const idOf = (x: string) => keys[x] ?? (s.nodes ?? []).find((m: any) => m.status !== 'removed' && match(s, m, x))?.id ?? '__none__'; const ok = hits.some((n: any) => (!a.under || under(s, n.id, idOf(a.under))) && (!a.notUnder || !under(s, n.id, idOf(a.notUnder)))); check(label, ok, hits.length ? `found under: ${hits.map((n: any) => nameOf(s, n.parentId)).join(' | ')}` : 'no node matched'); }
       else if (a.noNodeMatching) check(label, !(s.nodes ?? []).some((n: any) => match(s, n, a.noNodeMatching)));
       else if (a.inToSort) check(label, !!ts && (s.nodes ?? []).some((n: any) => match(s, n, a.inToSort) && under(s, n.id, ts.id)), 'not in to sort');
       else if (a.notInToSort) check(label, !ts || !(s.nodes ?? []).some((n: any) => match(s, n, a.notInToSort) && under(s, n.id, ts.id)));
@@ -178,6 +180,8 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.suggestionFor) { const n = (s.nodes ?? []).find((x: any) => match(s, x, a.suggestionFor)); const sg = n ? (s.suggestions ?? []).find((g: any) => g.nodeId === n.id && (!a.kind || g.kind === a.kind)) : null; check(label, a.absent ? !sg : !!sg, n ? `suggestions for it: ${(s.suggestions ?? []).filter((g: any) => g.nodeId === n.id).map((g: any) => g.kind).join(',') || 'none'}` : 'no node matched'); }
       else if (a.topLevelCount !== undefined) { const n = (s.nodes ?? []).filter((x: any) => x.parentId === null && !String(x.title ?? x.content).startsWith('to sort')).length; check(label, (a.max === undefined || n <= a.max) && (a.min === undefined || n >= a.min), `top-level=${n}`); }
       else if (a.markOf) { const n = (s.nodes ?? []).find((x: any) => match(s, x, a.markOf)); const m = n ? (s.recency ?? {})[n.id] ?? null : undefined; check(label, n !== undefined && m === a.is, n ? `mark=${m}` : 'no node matched'); }
+      else if (a.summaryHas) { const c = (s.chats ?? []).find((x: any) => x.id === cid()); check(label, !!c && rx(a.summaryHas).test(c.summary ?? ''), `summary=${(c?.summary ?? '(none)').slice(0, 120)}`); }
+      else if (a.recUnder) { const id = lastRec?.containerId; check(label, !!id && (id === keys[a.recUnder] || under(s, id, keys[a.recUnder])), lastRec ? `rec=${lastRec.name} (${(lastRec.reason ?? '').slice(0, 80)})` : 'no recommendation'); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }

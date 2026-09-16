@@ -1,0 +1,58 @@
+{
+ "name": "auto-zoom recommendation names a node inside the focus's branch and changes nothing by itself (M105)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Home renovation"
+  },
+  {
+   "key": "kitchen",
+   "parent": "proj",
+   "content": "Kitchen: layout, appliances and lighting"
+  },
+  {
+   "key": "island",
+   "parent": "kitchen",
+   "content": "Island with the sink facing the garden window"
+  },
+  {
+   "key": "lights",
+   "parent": "kitchen",
+   "content": "Lighting: pendants over the island, strips under the wall units"
+  },
+  {
+   "key": "bath",
+   "parent": "proj",
+   "content": "Bathroom: walk-in shower and heated floor"
+  }
+ ],
+ "focus": "kitchen",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "For the island I want the sink on the garden side and a 90 cm overhang for two stools.",
+   "assistant": "Island: sink on the garden side, 90 cm overhang seating two.",
+   "then": [
+    {
+     "do": "recommend",
+     "kind": "zoom"
+    },
+    {
+     "recUnder": "kitchen"
+    },
+    {
+     "focusIs": "kitchen"
+    },
+    {
+     "noAudit": "aim_applied"
+    },
+    {
+     "nodeMatching": "overhang|stools",
+     "under": "kitchen"
+    }
+   ]
+  }
+ ]
+}
