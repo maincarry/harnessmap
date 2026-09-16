@@ -1429,7 +1429,12 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
           store.setSetting(`tidy_first:${roundPid}`, '1');
           store.audit('auto_mapcheck', { after: tct, overdue });
           checkMap(store, roundPid, chat.focusContainerId ?? null)
-            .then(() => broadcast({ type: 'map', ...state() }))
+            .then((r) => {
+              // M287 (loop find): the periodic review computed its findings and DROPPED them — only the ⟳ tidy map button ever
+              // filed suggestions. Since M166 "the map reviews itself every 10 rounds" had filed nothing. Now it files them.
+              if (r && !('error' in r)) { for (const sg of r.suggestions) store.upsertSuggestion(roundPid, sg.nodeId, sg.note); store.audit('auto_review_filed', { n: r.suggestions.length, summary: String(r.summary ?? '').slice(0, 120) }); }
+              broadcast({ type: 'map', ...state() });
+            })
             .then(() => autoTidy(roundPid, params.chatId)) // M263: self-applies only the small, non-destructive review
             .catch(() => {});
         } else {

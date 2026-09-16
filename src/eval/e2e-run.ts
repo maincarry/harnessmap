@@ -33,7 +33,7 @@ const match = (s: any, n: any, p: string) => rx(p).test((n.title ?? '') + ' ' + 
 rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'proj'), { recursive: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
 try { writeFileSync(join(TMP, 'home', '.claude', '.credentials.json'), readFileSync(join(process.env.HOME ?? '', '.claude', '.credentials.json')), { mode: 0o600 }); } catch { console.warn('no subscription credentials to copy'); }
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
-  env: { ...process.env, ANTHROPIC_API_KEY: undefined as any, HARNESSMAP_INFERENCE: undefined as any, HARNESSMAP_DB: DB, HARNESSMAP_HOME: join(TMP, 'home', '.harnessmap'), PORT: String(PORT), HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home') },
+  env: { ...process.env, ANTHROPIC_API_KEY: undefined as any, HARNESSMAP_INFERENCE: undefined as any, HARNESSMAP_DB: DB, HARNESSMAP_HOME: join(TMP, 'home', '.harnessmap'), PORT: String(PORT), HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home'), ...(sc.env ?? {}) }, // a scenario may set server env (e.g. the review rhythm)
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
 });
 process.on('exit', () => server.kill());
@@ -94,6 +94,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.dark) check(label, !chatOf(s).lit.includes(keys[a.dark]));
       else if (a.audit) { const kinds = String(a.audit).split('|'); check(label, since.some((e: any) => kinds.includes(e.kind) && (!a.matching || rx(a.matching).test(JSON.stringify(e.detail)))), `kinds: ${[...new Set(since.map((e: any) => e.kind))].join(',').slice(0, 160)}`); }
       else if (a.noAudit) check(label, !since.some((e: any) => e.kind === a.noAudit));
+      else if (a.auditAny) { const all = await audit(); const kinds = String(a.auditAny).split('|'); check(label, all.some((e: any) => kinds.includes(e.kind) && (!a.matching || rx(a.matching).test(JSON.stringify(e.detail)))), `kinds: ${[...new Set(all.map((e: any) => e.kind))].join(',').slice(0, 160)}`); }
       else if (a.statusOf) { const n = (s.nodes ?? []).find((x: any) => match(s, x, a.statusOf)); check(label, !!n && rx(`^(${a.is})$`).test(n.status ?? ''), n ? `status=${n.status} (${(n.title || n.content).slice(0, 40)})` : 'no node'); }
       else if (a.countUnder) check(label, (s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length <= a.max, `count=${(s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length}`);
       else if (a.topLevelMatching) check(label, (s.nodes ?? []).some((n: any) => n.parentId === null && match(s, n, a.topLevelMatching)));

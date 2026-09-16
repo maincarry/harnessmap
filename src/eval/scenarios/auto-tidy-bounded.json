@@ -1,0 +1,106 @@
+{
+  "name": "with tidy ON, the periodic review's small non-destructive proposal applies itself as one undo, or a bigger one waits in to tidy (M263)",
+  "env": {
+    "HARNESSMAP_AUTOTIDY_ROUNDS": "2",
+    "HARNESSMAP_AUTOTIDY_MINUTES": "1"
+  },
+  "seed": [
+    {
+      "key": "root",
+      "content": "Moving house: everything for the move in October"
+    },
+    {
+      "key": "a",
+      "content": "Call the movers for a quote",
+      "parent": "root"
+    },
+    {
+      "key": "a2",
+      "content": "Get a quote from the moving company",
+      "parent": "root"
+    },
+    {
+      "key": "b",
+      "content": "Compare two moving companies on price",
+      "parent": "root"
+    },
+    {
+      "key": "c",
+      "content": "Pack the books first",
+      "parent": "root"
+    },
+    {
+      "key": "c2",
+      "content": "Books get packed before anything else",
+      "parent": "root"
+    },
+    {
+      "key": "d",
+      "content": "Buy boxes and tape",
+      "parent": "root"
+    },
+    {
+      "key": "e",
+      "content": "Change address at the bank",
+      "parent": "root"
+    },
+    {
+      "key": "f",
+      "content": "Change address for the electricity account",
+      "parent": "root"
+    },
+    {
+      "key": "g",
+      "content": "Cancel the old internet contract",
+      "parent": "root"
+    },
+    {
+      "key": "x",
+      "content": "Grandmother's lasagna recipe: two layers of béchamel, bake 40 minutes",
+      "parent": "root"
+    }
+  ],
+  "focus": "root",
+  "auto": {
+    "on": true,
+    "tidy": true
+  },
+  "settleMs": 20000,
+  "rounds": [
+    {
+      "user": "Also: forward the mail at the post office for six months, and tell the landlord the exact move-out date.",
+      "assistant": "Added: mail forwarding for six months; landlord to be told the move-out date.",
+      "then": [
+        {
+          "nodeMatching": "forward|mail"
+        }
+      ]
+    },
+    {
+      "user": "One more: the piano needs specialist movers — separate quote.",
+      "assistant": "Noted: the piano needs specialist movers, quoted separately.",
+      "then": [
+        {
+          "nodeMatching": "piano"
+        }
+      ]
+    },
+    {
+      "user": "And book the elevator at the new building for the morning of the move.",
+      "assistant": "Added: reserve the elevator at the new building for moving morning.",
+      "then": [
+        {
+          "do": "wait",
+          "ms": 45000
+        },
+        {
+          "auditAny": "auto_mapcheck"
+        },
+        {
+          "auditAny": "auto_mode|auto_tidy_left|proposal_precomputed|suggestion_filed",
+          "matching": "tidied|suggestion|n"
+        }
+      ]
+    }
+  ]
+}

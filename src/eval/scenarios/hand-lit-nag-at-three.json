@@ -1,0 +1,73 @@
+{
+  "name": "a hand-lit node the aim wants to dim stays lit through three pivots (M263); the kept count is audited",
+  "seed": [
+    {
+      "key": "life",
+      "content": "Life admin and side interests"
+    },
+    {
+      "key": "reading",
+      "content": "Holiday reading list: three novels for the beach in August",
+      "parent": "life"
+    },
+    {
+      "key": "tax",
+      "content": "Tax filing: gather forms, file by the 15th",
+      "parent": "life"
+    },
+    {
+      "key": "car",
+      "content": "Car: the brake noise, book a garage",
+      "parent": "life"
+    },
+    {
+      "key": "kitchen",
+      "content": "Kitchen: the leaking tap",
+      "parent": "life"
+    }
+  ],
+  "focus": "tax",
+  "dim": [
+    "reading",
+    "car",
+    "kitchen"
+  ],
+  "lit": [
+    "reading"
+  ],
+  "auto": {
+    "on": true
+  },
+  "rounds": [
+    {
+      "user": "Switching to the car: the brake noise is worse, and the garage can take it Thursday at 8.",
+      "assistant": "Car: brake noise worse; garage booked Thursday 8am.",
+      "then": [
+        {
+          "lit": "reading"
+        }
+      ]
+    },
+    {
+      "user": "Now the kitchen tap: the plumber quoted 180 for a new cartridge and says the whole mixer is better replaced.",
+      "assistant": "Kitchen tap: 180 for a cartridge; the plumber recommends replacing the mixer.",
+      "then": [
+        {
+          "lit": "reading"
+        }
+      ]
+    },
+    {
+      "user": "Back to taxes: I still need the pension statement and last year's charity receipts before I can file.",
+      "assistant": "Tax filing: pension statement and charity receipts still outstanding.",
+      "then": [
+        {
+          "lit": "reading"
+        },
+        {
+          "audit": "auto_kept_user_lit|auto_mode"
+        }
+      ]
+    }
+  ]
+}
