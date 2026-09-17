@@ -1,0 +1,63 @@
+{
+ "name": "the focus node's chat memory — what was discussed when it was the focus before — is served when the focus returns to it (M41)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Garden"
+  },
+  {
+   "key": "pond",
+   "parent": "proj",
+   "content": "The pond: liner, pump and planting"
+  },
+  {
+   "key": "beds",
+   "parent": "proj",
+   "content": "Raised beds along the south fence"
+  }
+ ],
+ "focus": "pond",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "For the pond we chose a 0.75 mm EPDM liner and a 3,000 litre-per-hour pump; the marginal shelf is 25 cm deep.",
+   "assistant": "Pond: 0.75 mm EPDM liner, 3,000 l/h pump, 25 cm marginal shelf.",
+   "then": [
+    {
+     "do": "wait",
+     "ms": 8000
+    },
+    {
+     "do": "focus",
+     "key": "beds"
+    }
+   ]
+  },
+  {
+   "user": "The beds will be cedar, 40 cm high, with a drip line.",
+   "assistant": "Beds: cedar, 40 cm, drip line.",
+   "then": [
+    {
+     "do": "wait",
+     "ms": 8000
+    },
+    {
+     "do": "focus",
+     "key": "pond"
+    },
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "contextHas": "EPDM|3,000|3000|marginal"
+    },
+    {
+     "contextHas": "FOCUS MEMORY|pond"
+    }
+   ]
+  }
+ ]
+}

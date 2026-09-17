@@ -18,7 +18,8 @@ const PORT = Number(process.env.E2E_PORT ?? 8792); const BASE = `http://127.0.0.
 const TMP = `/tmp/claude-1000/harnessmap-e2e-${basename(file, '.json')}${process.env.E2E_MODELS ? `-${process.env.E2E_MODELS}` : ''}`;
 const DB = join(TMP, 'e2e.sqlite'); // TMP is per ensemble: a batch may run the same scenario on two ensembles at once
 let pass = 0, fail = 0; const notes: string[] = [];
-const check = (name: string, cond: boolean, detail = '') => { if (cond) { pass++; console.log(`  PASS ${name}`); } else { fail++; console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`); notes.push(`${name}${detail ? ` — ${detail}` : ''}`); } };
+let softMode = false; let noted = 0; // a soft assertion ("soft": true) is a ruling the models miss by judgment: reported as NOTE, never a FAIL
+const check = (name: string, cond: boolean, detail = '') => { if (cond) { pass++; console.log(`  PASS ${name}`); } else if (softMode) { noted++; console.log(`  NOTE (soft) ${name}${detail ? ` — ${detail}` : ''}`); } else { fail++; console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`); notes.push(`${name}${detail ? ` — ${detail}` : ''}`); } };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const get = async (p: string) => (await fetch(BASE + p)).json() as Promise<any>;
 const post = async (p: string, body: unknown = {}) => { const r = await fetch(BASE + p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); return { status: r.status, body: await r.json().catch(() => ({})) as any }; };
@@ -61,6 +62,7 @@ for (const n of sc.seed ?? []) {
   const parent = n.parent ? keys[n.parent] : (n.top ? null : rootTop?.id ?? null);
   const r = await post('/api/nodes', { content: n.content, parentId: parent });
   keys[n.key] = r.body.id;
+  if (n.type || n.status) await post(`/api/nodes/${r.body.id}`, { ...(n.type ? { type: n.type } : {}), ...(n.status ? { status: n.status } : {}) }); // a seed may set the category and status the card would
 }
 s = await state(); const cid = () => chatOf(s).id;
 if (sc.focus) await post(`/api/chats/${cid()}/focus`, { nodeId: keys[sc.focus] });
@@ -98,6 +100,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
   let since: any[] = [];
   for (const a of r.then ?? []) {
     const label = JSON.stringify(a).slice(0, 90);
+    softMode = !!(a as any).soft;
     since = (await audit()).slice(auditMark);
     try {
       if (a.do) {
@@ -199,6 +202,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }
+    softMode = false;
   }
   auditMark = (await audit()).length;
 }

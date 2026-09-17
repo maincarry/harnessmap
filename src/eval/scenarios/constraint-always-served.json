@@ -1,0 +1,62 @@
+{
+ "name": "an active constraint rides every block in STANDING CONSTRAINTS, whatever the focus (composer's fixed section; M82)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Bakery opening"
+  },
+  {
+   "key": "menu",
+   "parent": "proj",
+   "content": "Opening menu: sourdough, rye, croissants"
+  },
+  {
+   "key": "lease",
+   "parent": "proj",
+   "content": "Lease on Mill Street: five years, break at year two"
+  },
+  {
+   "key": "budget",
+   "parent": "proj",
+   "content": "Never spend more than 55,000 before opening day",
+   "type": "constraint",
+   "status": "active"
+  }
+ ],
+ "focus": "menu",
+ "dim": [
+  "lease"
+ ],
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Add a cardamom bun to the opening menu.",
+   "assistant": "Cardamom bun added.",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "contextHas": "STANDING CONSTRAINTS"
+    },
+    {
+     "contextHas": "55,000|55000"
+    },
+    {
+     "do": "focus",
+     "key": "lease"
+    },
+    {
+     "do": "context",
+     "session": "e2e-2"
+    },
+    {
+     "contextHas": "55,000|55000"
+    }
+   ]
+  }
+ ]
+}
