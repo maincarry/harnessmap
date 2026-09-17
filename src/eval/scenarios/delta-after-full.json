@@ -47,6 +47,9 @@
      "audit": "inject_delta"
     },
     {
+     "contextHas": "grants nothing"
+    },
+    {
      "contextHas": "map changes since your last update"
     },
     {

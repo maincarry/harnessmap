@@ -1,0 +1,56 @@
+{
+ "name": "talk to map answers from the map itself (M154/M145b): asked what is still open, the guide names the open question on the map and proposes nothing destructive",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Boat restoration"
+  },
+  {
+   "key": "hull",
+   "parent": "proj",
+   "content": "Hull: strip the old antifouling before April"
+  },
+  {
+   "key": "paint",
+   "parent": "hull",
+   "content": "Which antifouling paint to use: hard or ablative?",
+   "type": "question",
+   "status": "open"
+  },
+  {
+   "key": "engine",
+   "parent": "proj",
+   "content": "Engine: injectors serviced on the 3rd",
+   "status": "done"
+  }
+ ],
+ "focus": "hull",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The yard can haul out on the 14th.",
+   "assistant": "Haul-out on the 14th.",
+   "then": [
+    {
+     "do": "ask",
+     "question": "what is still open on this map?"
+    },
+    {
+     "askSays": "antifouling|hard or ablative|paint"
+    },
+    {
+     "askSays": "^(?!.*\"kind\":\"(merge|delete|tidy)\").*$"
+    },
+    {
+     "nodeExists": "paint"
+    },
+    {
+     "statusOf": "antifouling paint",
+     "is": "open"
+    }
+   ]
+  }
+ ]
+}
