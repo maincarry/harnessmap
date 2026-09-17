@@ -1,0 +1,134 @@
+{
+ "name": "replay (real, ShareGPT KtVT6Ay): a user-need interview — fourteen one-letter answers, then the user cuts it ('Generate the idea now instead of asking questions'); the answers do not become one-letter nodes, the idea lands once, its features under it, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Product ideas"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Act as a user need identifier following the hypothesis that people don't know what they actually want. Your goal is to find out and to invent a nice product based on the answer the user gave.\n\nThe user also doesn't know what his problems are, you have to identify that too - therefore, provide 4 multiple choice answers everytime. Ask a maximum of 25 questions until you suggest a product.\n\nThe product can be from any domain. Give it a name when you invent it a the end.\nOnly ask one question and skip pre-/and post text.\nBase your next question on the previous answer.",
+   "assistant": "Great, let's get started! \n\nQuestion 1: What is something that you enjoy doing in your free time? \na) Reading a book \nb) Watching TV \nc) Going for a walk \nd) Playing video games",
+   "then": [
+    {
+     "nodeMatching": "user need|hypothesis|reading|question",
+     "soft": true
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    }
+   ]
+  },
+  {
+   "user": "a",
+   "assistant": "Thanks for your answer. Can you tell me more about what you enjoy about reading books? \na) The escape it provides from reality\nb) The opportunity to learn new things\nc) The emotional connection to characters\nd) The intellectual challenge of complex stories"
+  },
+  {
+   "user": "b",
+   "assistant": "Interesting! Can you tell me about some challenges you face while reading books to learn new things? \na) Finding the right books to learn from\nb) Retaining the information you learn\nc) Staying motivated to continue reading\nd) Difficulty understanding complex concepts"
+  },
+  {
+   "user": "B and C",
+   "assistant": "I see, thank you for letting me know! So it sounds like you want to learn new things while reading, but you struggle with retaining the information and staying motivated to continue reading. \n\nQuestion 2: Have you ever used any techniques or tools to help you retain the information you learn while reading books? \na) Yes, I take notes while reading \nb) Yes, I use a reading tracker app \nc) Yes, I discuss the book with others \nd) No, I have not used any techniques or tools"
+  },
+  {
+   "user": "d",
+   "assistant": "No worries, not everyone uses techniques or tools to retain information while reading. \n\nQuestion 3: What motivates you to continue reading a book, especially when the subject matter is challenging? \na) The desire to finish what I started\nb) The promise of new knowledge and understanding \nc) The enjoyment of the reading experience itself \nd) The pressure of a deadline or commitment to someone else"
+  },
+  {
+   "user": "b",
+   "assistant": "Thanks for letting me know! \n\nQuestion 4: How often do you read books to learn new things? \na) Every day \nb) A few times a week \nc) Once a week \nd) Less than once a week",
+   "then": [
+    {
+     "noNodeMatching": "^[abcd]( and [abcd])?$"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    }
+   ]
+  },
+  {
+   "user": "b",
+   "assistant": "Great to know! \n\nQuestion 5: Do you prefer reading physical books or e-books? \na) Physical books \nb) E-books \nc) I don't have a preference \nd) I don't read books"
+  },
+  {
+   "user": "a",
+   "assistant": "Thanks for letting me know! \n\nQuestion 6: Do you ever wish you could discuss what you are reading with other people who have similar interests? \na) Yes, all the time \nb) Sometimes \nc) Rarely \nd) Never"
+  },
+  {
+   "user": "a",
+   "assistant": "Thanks for your answer! \n\nQuestion 7: Have you ever struggled to find people to discuss books with? \na) Yes, all the time \nb) Sometimes \nc) Rarely \nd) Never"
+  },
+  {
+   "user": "a",
+   "assistant": "I see, thank you for letting me know! \n\nQuestion 8: Would you be interested in joining an online community of readers who share your interests and can provide motivation to continue reading and learning? \na) Yes, definitely \nb) Maybe, depending on the specifics \nc) No, I prefer to read alone \nd) No, I don't have time for that"
+  },
+  {
+   "user": "b",
+   "assistant": "Thank you for your response! \n\nQuestion 9: What specific features or benefits would you like to see in an online community for readers? \na) A forum to discuss books and ask questions \nb) A feature to track reading progress and goals \nc) The ability to connect with others who have similar reading interests \nd) Opportunities for virtual book clubs and group discussions"
+  },
+  {
+   "user": "c and b",
+   "assistant": "Great to know! \n\nQuestion 10: Would you be interested in a platform that connects readers with authors for live Q&A sessions? \na) Yes, definitely \nb) Maybe, depending on the author \nc) No, I'm not interested in that \nd) I'm not sure"
+  },
+  {
+   "user": "b",
+   "assistant": "Thanks for letting me know! \n\nQuestion 11: What would make you more likely to participate in a live Q&A session with an author? \na) The opportunity to ask the author questions directly \nb) The author's expertise in a subject matter that interests me \nc) The opportunity to learn something new \nd) The convenience and ease of joining the session"
+  },
+  {
+   "user": "b and d",
+   "assistant": "Thank you for your response!\n\nQuestion 12: How long do you typically spend reading a book in one sitting? \na) Less than 30 minutes \nb) 30 minutes to an hour \nc) 1-2 hours \nd) More than 2 hours"
+  },
+  {
+   "user": "Generate the idea now instead of asking questions",
+   "assistant": "Based on your responses, I suggest a new online platform called \"ReadConnect.\" \n\nReadConnect is an online community where book lovers with similar interests can connect and engage with each other. The platform has several features, including a forum to discuss books and ask questions, a feature to track reading progress and goals, and the ability to connect with others who have similar reading interests. \n\nReadConnect also allows readers to participate in virtual book clubs and group discussions, and they can even schedule a live Q&A session with their favorite authors. \n\nThe platform is designed to help readers stay motivated and engaged in their reading, and to provide a sense of community and connection with others who share their interests. With ReadConnect, you can discover new books and connect with fellow readers in a supportive and engaging environment.",
+   "then": [
+    {
+     "nodeMatching": "ReadConnect|platform|idea"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    },
+    {
+     "noNodeMatching": "instead of asking questions"
+    }
+   ]
+  },
+  {
+   "user": "What are some novel features that ReadConnect would have that other platforms wouldn't?",
+   "assistant": "Thank you for your question! Here are a few novel features that ReadConnect could have: \n\n1. Personalized book recommendations: The platform could use data about your reading history and preferences to generate personalized book recommendations. This feature would help you discover new books and authors that you may not have found otherwise. \n\n2. Virtual book clubs with authors: ReadConnect could organize virtual book clubs where readers can join live discussions with authors. This feature would allow readers to gain a deeper understanding of the author's perspective, and to ask questions in real time. \n\n3. Collaborative reading: The platform could allow users to read books together in a collaborative way, where they can leave comments and annotations that others can see. This feature would allow for more in-depth discussion of the book's themes and ideas, and would facilitate a more collaborative reading experience. \n\n4. Community-driven book ratings: ReadConnect could have a system of book ratings that is driven by the community. Rather than relying solely on the opinions of professional reviewers, users could rate books and leave comments, providing a more democratic and diverse perspective on the books they read."
+  },
+  {
+   "user": "What are some more features that ReadConnect would have that seem absurd to have in an app but would actually work really well? (Don't include features from existing platforms such as goodreads)",
+   "assistant": "Interesting question! Here are a few novel features that ReadConnect could have that might seem a bit absurd but could actually work well:\n\n1. Book discovery through sound: ReadConnect could use audio recognition technology to identify the ambient sounds in your environment and recommend books based on that information. For example, if you're sitting in a coffee shop, ReadConnect might suggest books that are popular among coffee shop-goers. \n\n2. In-app book clubs with built-in escape rooms: ReadConnect could incorporate escape rooms into its virtual book clubs, where members have to solve puzzles and clues related to the book in order to progress to the next stage. This feature would provide a unique and engaging way for readers to interact with each other and the book. \n\n3. Gamified reading challenges with real-life rewards: ReadConnect could create gamified reading challenges where readers earn points for completing books, and can redeem those points for real-life rewards like gift cards, books, or even trips. This feature would provide an added incentive for readers to continue reading and engaging with the platform. \n\n4. AI-generated book trailers: ReadConnect could use artificial intelligence to generate book trailers for new releases. The trailers would be created using a combination of the book's cover art, plot summary, and tone, and would provide a visually engaging an",
+   "then": [
+    {
+     "nodeMatching": "ReadConnect"
+    },
+    {
+     "distinctNodes": [
+      "ReadConnect"
+     ]
+    },
+    {
+     "nodeMatching": "feature",
+     "under": "ReadConnect",
+     "soft": true
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    },
+    {
+     "topLevelCount": "x",
+     "max": 6
+    }
+   ]
+  }
+ ]
+}
