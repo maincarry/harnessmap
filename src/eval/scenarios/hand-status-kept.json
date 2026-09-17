@@ -1,0 +1,62 @@
+{
+ "name": "a status the person set on the card is not flipped by the next round unless the round says so (M97: user edits are the highest-authority reporter)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Kitchen renovation"
+  },
+  {
+   "key": "floor",
+   "parent": "proj",
+   "content": "Which floor to lay in the kitchen",
+   "type": "question"
+  },
+  {
+   "key": "oak",
+   "parent": "floor",
+   "content": "Engineered oak: warm, marks easily",
+   "type": "option"
+  },
+  {
+   "key": "tile",
+   "parent": "floor",
+   "content": "Porcelain tile: hard-wearing, cold underfoot",
+   "type": "option"
+  }
+ ],
+ "focus": "floor",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The tiler can start on the 20th if we go that way.",
+   "assistant": "Tiler available from the 20th.",
+   "then": [
+    {
+     "do": "statement",
+     "key": "oak",
+     "content": "Engineered oak: warm, marks easily",
+     "status": "dropped"
+    },
+    {
+     "statusOf": "oak",
+     "is": "dropped"
+    }
+   ]
+  },
+  {
+   "user": "Also the plumber wants the kitchen island position confirmed before the floor goes down.",
+   "assistant": "Confirm the island position before the floor.",
+   "then": [
+    {
+     "statusOf": "oak",
+     "is": "dropped"
+    },
+    {
+     "nodeMatching": "island|plumber"
+    }
+   ]
+  }
+ ]
+}

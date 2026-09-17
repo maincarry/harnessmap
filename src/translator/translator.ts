@@ -335,7 +335,8 @@ export class Translator {
       // not yet narrowed") is cut out, never the node — dropping it would be the over-skip Jacob reported (M302b).
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string') {
         const src = String(anyA.content).trim();
-        let trimmed = src.replace(/\b(the )?(user|person) (asked|requested|wants?|wanted|would like|decided|needs?) (to (resume|return to|switch to|talk about|discuss|explore|open|dig into|understand|know|learn)|(for )?(detailed |more )?(information|details|info) (about|on))[^.;—\n]*[.;,]?\s*/gi, '')
+        let trimmed = src.replace(/\b(the )?(user|person) (asked|requested|wants?|wanted|would like|decided|needs?) (to (resume|return to|switch to|talk about|discuss|explore|open|dig into|understand|know|learn)|(for )?(detailed |more )?(information|details?|info) (about|on))[^.;—\n]*[.;,]?\s*/gi, '')
+          .replace(/^(the )?(user|person) (asked|inquired) (about|for) /i, '').replace(/,?\s*and (the )?(agent|assistant) (listed|explained|offered|described|suggested|answered|gave)[^.;\n]*/gi, '')
           .replace(/(^|[.;]\s*)(the )?(agent|assistant) (offered|explained|suggested|proposed|answered|redirected|described|listed|asked for clarification)[^.;\n]*[.;]?\s*/gi, '$1')
           .replace(/([:;,—-])\s*[;,.]\s*/g, '$1 ').replace(/\s+([;,.])/g, '$1').replace(/^\s*[:;,—-]+\s*/, '').replace(/\s*[:;,—-]+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
         if (trimmed && /[.!?]$/.test(src) && !/[.!?]$/.test(trimmed)) trimmed += '.';

@@ -1,0 +1,52 @@
+{
+ "name": "the other half of the M311 guard: a stray with kin in a DIM branch still lands in to sort with provenance, never at the top level (M77)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Thesis"
+  },
+  {
+   "key": "ch1",
+   "parent": "proj",
+   "content": "Chapter 1: trust in local news"
+  },
+  {
+   "key": "travel",
+   "parent": "proj",
+   "content": "Travel: the Lisbon conference in October, hotel and flights"
+  }
+ ],
+ "focus": "ch1",
+ "dim": [
+  "travel"
+ ],
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "By the way, the Lisbon conference hotel is booked for the 12th to the 15th, near the venue.",
+   "assistant": "Noted: Lisbon conference hotel, 12th to 15th.",
+   "then": [
+    {
+     "inToSort": "hotel|12th|Lisbon"
+    },
+    {
+     "nodeMatching": "hotel|12th",
+     "notUnder": "travel"
+    },
+    {
+     "topLevelCount": "x",
+     "max": 3
+    },
+    {
+     "noAudit": "guard_tosort_promote"
+    },
+    {
+     "nodeMatching": "arrived while",
+     "soft": true
+    }
+   ]
+  }
+ ]
+}

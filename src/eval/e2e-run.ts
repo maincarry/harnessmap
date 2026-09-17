@@ -128,7 +128,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'writefile') { const fp = join(TMP, a.path); mkdirSync(join(fp, '..'), { recursive: true }); writeFileSync(fp, expand(String(a.content))); }
         else if (a.do === 'sessionEnd') await post('/api/harness/session-end', { session_id: a.session, reason: a.reason ?? 'other', cwd: join(TMP, 'proj') });
         else if (a.do === 'sessionStart') await post('/api/harness/session-start', { session_id: a.session, cwd: join(TMP, 'proj'), source: a.source ?? 'resume', harness: a.harness ?? sc.harness ?? 'codex' });
-        else if (a.do === 'statement') await post(`/api/nodes/${keys[a.key]}`, { content: a.content, chatId: cid() }); // the person edits the statement on the card
+        else if (a.do === 'statement') await post(`/api/nodes/${keys[a.key]}`, { ...(a.content !== undefined ? { content: a.content } : {}), ...(a.status ? { status: a.status } : {}), ...(a.type ? { type: a.type } : {}), chatId: cid() }); // the person edits the card: statement, status, category
         else if (a.do === 'pref') await post('/api/prefs', { append: a.text }); // a standing preference (or "glossary: X instead of Y")
         else if (a.do === 'importText') { const r = await post('/api/import/preview', { kind: 'text', text: a.text }); lastImport = r.body; check(`do importText (${r.status}; ${lastImport?.alterations?.length ?? 0} node(s) proposed)`, r.status === 200 && Array.isArray(lastImport?.alterations) && lastImport.alterations.length > 0, JSON.stringify(lastImport).slice(0, 160)); }
         else if (a.do === 'importLarge') { // the chunked road (M187): a background job with a source summary that the verify gate judges against (M195c)

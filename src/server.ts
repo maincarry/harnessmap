@@ -1046,9 +1046,17 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
       for (const id of queue) {
         const n = store.getNode(id); if (!n || n.status === 'removed' || n.parentId !== toSort!.id) continue;
         store.setSetting(`auto_place_tried:${id}`, String(Date.now()));
-        const r = await suggestHomes(store, pid, id); if ('error' in r) { noHome++; continue; }
         const litNow = new Set(store.getLit(chatId));
-        const home = r.candidates.find((c) => litNow.has(c.nodeId) && !blocked.has(c.nodeId));
+        // M312 (loop find, guard under M275–M277 "a dim home stays a dot"): the filer's own placement note names the home
+        // ("belongs under X [id]"); when that home is dim the item waits for the person's light — it is not offered to the placer,
+        // which had moved "disable wifi" from beside its dim home into the bare root. The bare "untitled" root is never a home.
+        const noted = store.getOpenSuggestions(pid).find((sg) => sg.kind === 'relight' && sg.nodeId === id);
+        const notedHome = noted ? (String((noted as any).note ?? (noted as any).text ?? '').match(/\[([0-9a-f]{6,})\]/)?.[1] ?? null) : null;
+        const notedNode = notedHome ? store.getNodes(pid).find((x) => x.id.startsWith(notedHome) && x.status !== 'removed') : null;
+        if (notedNode && !litNow.has(notedNode.id)) { store.audit('auto_place_skip', { id: id.slice(0, 8), why: 'noted home is dim', home: notedNode.id.slice(0, 8) }); keptDim++; continue; }
+        const r = await suggestHomes(store, pid, id); if ('error' in r) { noHome++; continue; }
+        const isBareRoot = (nid: string) => { const x = store.getNode(nid); return !!x && x.parentId === null && (x.content.trim() === 'untitled' || x.content.startsWith('to sort')); };
+        const home = r.candidates.find((c) => litNow.has(c.nodeId) && !blocked.has(c.nodeId) && !isBareRoot(c.nodeId) && (!notedNode || c.nodeId === notedNode.id || descendantNodes(store, notedNode.id).includes(c.nodeId)));
         if (!home) { store.audit('auto_place_skip', { id: id.slice(0, 8), candidates: r.candidates.length }); if (r.candidates.length) keptDim++; else noHome++; continue; }
         const cleaned = n.content.replace(/\s*\(arrived while focus was:[^)]*\)\s*$/, '');
         const alts = [{ op: 'move_node', id, parentId: home.nodeId } as any, ...(cleaned !== n.content ? [{ op: 'update_node', id, content: cleaned } as any] : [])];

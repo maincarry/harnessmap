@@ -36,11 +36,30 @@
   },
   {
    "user": "I want to tak ore about how to disable that wifi",
-   "assistant": "That's folded away right now — the home network setup area. Want me to help anyway? Just say the word and we can dig into disabling the wifi or whatever you're trying to do with it."
+   "assistant": "That's folded away right now — the home network setup area. Want me to help anyway? Just say the word and we can dig into disabling the wifi or whatever you're trying to do with it.",
+   "then": [
+    {
+     "nodeMatching": "wifi",
+     "notUnder": "proj"
+    },
+    {
+     "noNodeMatching": "^User (wants|asked)"
+    }
+   ]
   },
   {
    "user": "yeah lets light it up shall we",
-   "assistant": "The home network setup area is folded — to light it up, hit the \"🗨 talk to map\" button in the map panel and ask the map agent to bring it back. It can unfold and relight those nodes for you directly.\n\nOnce it's lit, tell me what you're trying to do with the wifi and we'll figure it out."
+   "assistant": "The home network setup area is folded — to light it up, hit the \"🗨 talk to map\" button in the map panel and ask the map agent to bring it back. It can unfold and relight those nodes for you directly.\n\nOnce it's lit, tell me what you're trying to do with the wifi and we'll figure it out.",
+   "then": [
+    {
+     "nodeMatching": "wifi",
+     "notUnder": "proj"
+    },
+    {
+     "inToSort": "wifi",
+     "soft": true
+    }
+   ]
   },
   {
    "user": "also want to focus there",
@@ -126,7 +145,11 @@
      "under": "重庆|Chongqing"
     },
     {
-     "nodeMatching": "吊脚楼|diaojiaolou|hanging-leg|11层|11-stor|嘉陵江|Jialing|stilt"
+     "nodeMatching": "吊脚楼|diaojiaolou|hanging-leg|11层|11-stor|嘉陵江|Jialing|stilt",
+     "soft": true
+    },
+    {
+     "noNodeMatching": "^User (requested|asked)"
     }
    ]
   }
