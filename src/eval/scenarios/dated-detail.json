@@ -26,7 +26,11 @@
     },
     {
      "detailOf": "solar",
-     "text": "640|panel",
+     "text": "640|panel|March|fitted"
+    },
+    {
+     "detailOf": "solar",
+     "text": ".",
      "date": "2026-03-03|2026-03|3 March"
     }
    ]
