@@ -66,7 +66,8 @@
    "assistant": "Same deal — use the \"talk to map\" button to move the focus over. The map agent handles focus changes directly.\n\nOnce it's set, I'm ready to dig into the wifi setup with you.",
    "then": [
     {
-     "noNodeMatching": "talk to map|light it up|focus there|wants to focus"
+     "noNodeMatching": "talk to map|light it up|focus there|wants to focus",
+     "soft": true
     }
    ]
   },
@@ -116,7 +117,12 @@
    "assistant": "重庆的景点挺多的！几个不能错过的：\n\n**必去的**\n- **洪崖洞** — 吊脚楼建筑，夜景特别漂亮，《千与千寻》汤屋的原型之一\n- **解放碑** — 市中心标志，周围商圈热闹\n- **磁器口古镇** — 明清风格，能吃到正宗重庆小吃\n\n**自然/观景**\n- **南山一棵树观景台** — 俯瞰主城夜景，视野极好\n- **天生三桥** — 喀斯特地貌，《满城尽带黄金甲》拍摄地\n\n**有点特别的**\n- **重庆两路口皇冠大扶梯** — 连接上下半城，当地人日常通勤用的，很有城市感\n- **李子坝轻轨穿楼** — 轻轨直接穿过居民楼，全国独一份，值得去看\n\n你是要去玩，还是只是随便聊聊？",
    "then": [
     {
-     "topLevelMatching": "重庆|Chongqing"
+     "nodeMatching": "重庆|Chongqing",
+     "notUnder": "gov"
+    },
+    {
+     "nodeMatching": "重庆|Chongqing",
+     "notUnder": "rec"
     },
     {
      "nodeMatching": "洪崖洞|解放碑|Hongya",
