@@ -1214,6 +1214,10 @@ async function healTitles(cap = 5, pid = projectId): Promise<{ renamed: number; 
     const broken = brokenTitles(pid).slice(0, cap);
     for (const n of broken) {
       const title = await shortTitleFor(n.id);
+      // M306 (loop find, bug under M68): the healer judged the node before a round changed it and then wrote a title computed
+      // from the OLD statement over the filer's fresh one ("Trellis beans east fence" over "…west fence"). Re-read before writing.
+      const now = store.getNode(n.id);
+      if (!now || now.status === 'removed' || now.content !== n.content || (now.title ?? '') !== (n.title ?? '')) { store.audit('title_heal_stale', { id: n.id.slice(0, 8) }); continue; }
       if (title) {
         store.applyAlterations(pid, [{ op: 'update_node', id: n.id, title } as any], { kind: 'system' });
         store.audit('title_healed', { id: n.id.slice(0, 8), title });

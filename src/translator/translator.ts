@@ -139,6 +139,8 @@ export const SCHEMA = {
   additionalProperties: false,
 };
 
+const STOP = new Set(['this','that','with','from','into','have','been','were','they','them','their','than','then','will','would','should','could','about','after','before','along','also','only','some','such','very','more','most','goes','need','needs','still','over','under','when','where','which','while','what','your','there','these','those','does','done','just','like','make','made','much','many','each','both','same','other','every','next','last','first'])
+
 export class Translator {
   constructor(private store: Store) {}
 
@@ -329,6 +331,18 @@ export class Translator {
           .replace(/([:;,—-])\s*[;,.]\s*/g, '$1 ').replace(/\s+([;,.])/g, '$1').replace(/^\s*[:;,—-]+\s*/, '').replace(/\s*[:;,—-]+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
         if (trimmed && /[.!?]$/.test(src) && !/[.!?]$/.test(trimmed)) trimmed += '.';
         if (trimmed && trimmed !== src && trimmed.length >= 12) { this.store.audit('guard_narration_trim', { from: anyA.content.slice(0, 80), to: trimmed.slice(0, 80) }); anyA.content = trimmed; }
+      }
+      // M306 (loop find, bug under M68 "titles are self-healing"): a correction that changed the statement left a title that now
+      // contradicts it ("Trellis beans east fence" over "…along the west fence"). When the old title carries a content word the
+      // new statement dropped, the agent title is cleared (the display falls back to the statement; the healer retitles if long).
+      if (a.op === 'update_node' && anyA.id && typeof anyA.content === 'string' && anyA.title === undefined && this.store.getSetting(`titleBy:${anyA.id}`) !== 'user') {
+        const cur = map.nodes.find((n) => n.id === anyA.id);
+        if (cur?.title && cur.content.trim() !== anyA.content.trim()) {
+          const tok = (t: string) => new Set((t.toLowerCase().match(/[a-z][a-z'-]{3,}/g) ?? []).filter((w) => !STOP.has(w)));
+          const oldC = tok(cur.content), newC = tok(anyA.content);
+          const gone = [...tok(cur.title)].filter((w) => oldC.has(w) && !newC.has(w));
+          if (gone.length) { anyA.title = ''; this.store.audit('guard_stale_title', { id: String(anyA.id).slice(0, 8), gone }); }
+        }
       }
       // M285 (loop find): a title the person typed on the card is theirs — the filer's update may change the statement, never that title
       if (a.op === 'update_node' && anyA.title !== undefined && anyA.id && this.store.getSetting(`titleBy:${anyA.id}`) === 'user') { delete anyA.title; this.store.audit('guard_hand_title', { id: String(anyA.id).slice(0, 8) }); }

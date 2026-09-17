@@ -1,0 +1,50 @@
+{
+ "name": "two things in one breath are two nodes (M286): a correction updates the existing node AND the separate new fact becomes its own node",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Allotment"
+  },
+  {
+   "key": "beans",
+   "parent": "proj",
+   "content": "Beans go on the trellis along the east fence"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Correction: the beans go on the WEST fence, not the east. And separately, the water butt needs a new tap before May.",
+   "assistant": "Beans: west fence. Separate item: the water butt needs a new tap before May.",
+   "then": [
+    {
+     "nodeMatching": "west",
+     "under": "proj"
+    },
+    {
+     "noNodeMatching": "^(?!.*west).*beans[^.]*east fence"
+    },
+    {
+     "nodeMatching": "water butt|tap",
+     "under": "proj"
+    },
+    {
+     "nodeMatching": "water butt|tap",
+     "notUnder": "beans"
+    },
+    {
+     "noNodeMatching": "beans[^.]*(water butt|tap)"
+    },
+    {
+     "distinctNodes": [
+      "west",
+      "water butt|tap"
+     ]
+    }
+   ]
+  }
+ ]
+}

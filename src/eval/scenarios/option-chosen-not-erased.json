@@ -1,0 +1,79 @@
+{
+ "name": "choosing never erases (M286): three options enumerated become option children; picking one marks it chosen and the others dropped, every statement intact",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Kitchen renovation"
+  },
+  {
+   "key": "floor",
+   "parent": "proj",
+   "content": "Which floor to lay in the kitchen",
+   "type": "question"
+  }
+ ],
+ "focus": "floor",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Three floor options: (1) engineered oak, warm but marks easily; (2) porcelain tile, hard-wearing but cold underfoot; (3) polished concrete, cheapest but needs sealing every two years.",
+   "assistant": "Oak (warm, marks), porcelain tile (hard-wearing, cold), polished concrete (cheapest, sealing every two years).",
+   "then": [
+    {
+     "nodeMatching": "oak",
+     "under": "floor"
+    },
+    {
+     "nodeMatching": "porcelain|tile",
+     "under": "floor"
+    },
+    {
+     "nodeMatching": "concrete",
+     "under": "floor"
+    },
+    {
+     "distinctNodes": [
+      "oak",
+      "porcelain|tile",
+      "concrete"
+     ]
+    }
+   ]
+  },
+  {
+   "user": "Let's go with the porcelain tile.",
+   "assistant": "Porcelain tile it is.",
+   "then": [
+    {
+     "statusOf": "porcelain|tile",
+     "is": "chosen|decided|accepted|selected"
+    },
+    {
+     "statusOf": "engineered oak|oak",
+     "is": "dropped|rejected|declined|superseded"
+    },
+    {
+     "statusOf": "concrete",
+     "is": "dropped|rejected|declined|superseded"
+    },
+    {
+     "nodeMatching": "marks easily|marks",
+     "under": "floor"
+    },
+    {
+     "nodeMatching": "sealing",
+     "under": "floor"
+    },
+    {
+     "noAudit": "guard_list_shrink"
+    },
+    {
+     "countUnder": "floor",
+     "max": 4
+    }
+   ]
+  }
+ ]
+}
