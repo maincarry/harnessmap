@@ -293,6 +293,8 @@ function purgeInnerSessions(): { views: number; nodes: number; duplicates: numbe
     store.archiveChat(r.id);
     db.prepare('DELETE FROM harness_sessions WHERE session_id = ?').run(r.host_session_id);
     db.prepare('UPDATE chats SET host_session_id = NULL WHERE id = ?').run(r.id);
+    if (store.getSetting(`active_chat:${r.project_id}`) === r.id) store.setSetting(`active_chat:${r.project_id}`, ''); // M319
+    if (mainChatId === r.id) setActive(r.project_id);
   }
   let nodes = 0;
   for (const [pid, ids] of byProject) {
@@ -323,9 +325,12 @@ function activeChatOf(pid: string): string {
   // Order matters: saved-and-valid first, the in-memory pair only as a
   // validated fallback — the fast path must never leak another project's
   // chat (it did: setActive mutated projectId before consulting this).
+  const live = (id: string | null | undefined) => { const c = id ? store.getChat(id) : null; return !!c && c.projectId === pid && c.status !== 'archived'; }; // M319: never an archived view
   const saved = store.getSetting(`active_chat:${pid}`);
-  if (saved && store.getChat(saved)?.projectId === pid) return saved;
-  if (store.getChat(mainChatId)?.projectId === pid) return mainChatId;
+  if (saved && live(saved)) return saved;
+  if (live(mainChatId)) return mainChatId;
+  const any = store.getChats(pid).find((c) => c.status !== 'archived' && !c.hostSessionId) ?? store.getChats(pid).find((c) => c.status !== 'archived');
+  if (any) return any.id;
   return bootstrapProject(pid);
 }
 function setActive(pid: string, chatId?: string): void {
@@ -3470,7 +3475,12 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         if (body.session_id) { // the view this session attached (if any) is not the person's — archive it now, not at the next boot
           try {
             const db = (store as any).db;
-            for (const r of db.prepare("SELECT id FROM chats WHERE host_session_id = ? AND status != 'archived'").all(body.session_id) as any[]) { store.archiveChat(r.id); db.prepare('UPDATE chats SET host_session_id = NULL WHERE id = ?').run(r.id); }
+            for (const r of db.prepare("SELECT id, project_id FROM chats WHERE host_session_id = ? AND status != 'archived'").all(body.session_id) as any[]) {
+              store.archiveChat(r.id); db.prepare('UPDATE chats SET host_session_id = NULL WHERE id = ?').run(r.id);
+              // M319 (sweep find): the page's main chat must never be an archived view — the state then had no main chat at all
+              if (store.getSetting(`active_chat:${r.project_id}`) === r.id) store.setSetting(`active_chat:${r.project_id}`, '');
+              if (mainChatId === r.id) setActive(r.project_id);
+            }
             db.prepare('DELETE FROM harness_sessions WHERE session_id = ?').run(body.session_id);
             broadcast({ type: 'map', ...state() });
           } catch {}

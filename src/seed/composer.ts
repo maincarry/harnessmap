@@ -101,9 +101,35 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     fixed.push('WIDER FRAME:');
     for (const f of frame) fixed.push(`  • ${renderNodeBrief(store, f.id)}`);
   }
+  const litNow = new Set(store.getLit(chatId));
+  let redactedN = 0; // M291
+  // M291 (loop find): a dimmed node's statement leaked through its PARENT's memory text ("Pilot wave: thirty respondents
+  // in Lisbon…, run by Ana" inside the chapter's summary). M253 says a set-aside node is never served — so any served
+  // memory text drops the sentences that carry a dimmed node's statement or title. Mechanical, per node, audited.
+  const dimKeys: string[] = []; const dimRare: Set<string>[] = [];
+  for (const n of nodes) {
+    if (litNow.has(n.id)) continue;
+    const c = String(n.content ?? '').trim(); if (c.length >= 25) dimKeys.push(c.slice(0, 60).toLowerCase());
+    const t = String((n as any).title ?? '').trim(); if (t.length >= 12) dimKeys.push(t.toLowerCase());
+    const rare = new Set(rareTokens(store, project, `${t} ${c}`)); if (rare.size >= 2) dimRare.push(rare);
+  }
+  const wordsOf = (t: string) => new Set(t.toLowerCase().split(/[^a-z0-9\u00c0-\u024f]+/).filter((w) => w.length > 2));
+  const redact = (text: string | null | undefined): string => {
+    if (!text || (!dimKeys.length && !dimRare.length)) return text ?? '';
+    const parts = text.split(/(?<=[.!?])\s+|(?<=\n)/); // keep the tree's line breaks (a statement line ends with a newline)
+    const kept = parts.filter((p) => {
+      const l = p.toLowerCase();
+      if (l.includes('set aside by the user')) return true; // the dimmed node's own name line (M253) stays — it is the marker, not the material
+      if (dimKeys.some((k) => l.includes(k))) return false;
+      const ws = wordsOf(p);
+      return !dimRare.some((r) => { let n = 0; for (const w of r) if (ws.has(w)) { n++; if (n >= 2) return true; } return false; }); // a paraphrase carries the dimmed node's rare words
+    });
+    if (kept.length !== parts.length) redactedN += parts.length - kept.length;
+    return kept.map((k) => (k.endsWith('\n') ? k : k + ' ')).join('').replace(/ +\n/g, '\n').trim();
+  };
+
   fixed.push('', 'FOCUS (what the user is actively working on):');
   // M253: the light is the law inside the focus too — a dimmed descendant is a name marked set aside, nothing beneath it
-  const litNow = new Set(store.getLit(chatId));
   let focusText = renderSubtreeLit(store, focusId, litNow);
   // M304 (loop find, bug under M82): the focus subtree was served whole whatever its size — seventy children made a 42k-char
   // FOCUS section, over the whole block cap by itself. Over 60% of the budget, the focus node stays whole and its children
@@ -129,11 +155,15 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       focusText = lines.join('\n');
     }
   }
-  fixed.push(focusText.split('\n').map((l) => `  ${l}`).join('\n'));
+  // M321 (sweep find): the filer had copied a dimmed child's sentence into its lit parent's statement; served text is
+  // redacted the same way whatever organ it comes from (M291's rule applied to statements as well).
+  fixed.push(redact(focusText).split('\n').map((l) => `  ${l}`).join('\n'));
 
   // M38: how the focus fits its surroundings — cached relational description
   // (refreshed asynchronously after each round; may lag one beat).
-  const focusRel = store.getCachedRelation(focusId);
+  // M320 (sweep find): the relation text is written from the neighbourhood, dimmed children included — served, it leaked a
+  // dimmed child's budget code and rate ("the Fenwick report's indirect-cost details…"). The same redaction applies to it.
+  const focusRel = redact(store.getCachedRelation(focusId));
   if (focusRel) {
     fixed.push('', 'HOW THE FOCUS FITS (its place among parents and children):');
     fixed.push(focusRel.split('\n').map((l) => `  ${l}`).join('\n'));
@@ -141,7 +171,7 @@ export function composeParts(store: Store, chatId: string, manipulations: string
 
   // M41: the focus node's chat memory — what was discussed here before,
   // deeper than the rolling turn window.
-  const focusMem = getNodeMemory(store, focusId);
+  const focusMem = redact(getNodeMemory(store, focusId)); // M321: served memory, redacted like every served text
   if (focusMem) {
     fixed.push('', 'FOCUS MEMORY (what was discussed when this was the focus before):');
     fixed.push(focusMem.split('\n').map((l) => `  ${l}`).join('\n'));
@@ -234,12 +264,12 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       const pad = '  '.repeat(depth + 1);
       const short = n.title || (n.content.length > 70 ? n.content.slice(0, 69) + '…' : n.content);
       const label = n.title && n.title !== n.content ? `${n.title}: ` : '';
-      const substance = [`${pad}• ${label}${n.content}${n.type ? ` [${n.type}, ${n.status}]` : ''}`];
-      const rel = depth === 0 ? store.getCachedRelation(nid) : null;
+      const substance = [`${pad}• ${label}${redact(n.content)}${n.type ? ` [${n.type}, ${n.status}]` : ''}`]; // M321: a lit statement that carries a dimmed node's sentence is served without it
+      const rel = depth === 0 ? redact(store.getCachedRelation(nid)) : null; // M321: a lit branch's relation prose too
       if (rel) substance.push(`${pad}  (fits: ${rel.split('\n')[0].slice(0, 200)})`);
       const mem = memByNode.get(nid);
       const kids = (kidsOfC.get(nid) ?? []).filter((k) => k.status !== 'removed' && litSet.has(k.id));
-      out.push({ id: nid, depth, shape: `${pad}- ${short}`, substance, memory: mem ? `${pad}${short} — remembered: ${mem.slice(0, 400)}` : null, kids: kids.length });
+      out.push({ id: nid, depth, shape: `${pad}- ${short}`, substance, memory: mem ? `${pad}${short} — remembered: ${redact(mem).slice(0, 400)}` : null, kids: kids.length });
       for (const kid of kids) walk(kid.id, depth + 1);
     };
     walk(id, 0);
@@ -288,7 +318,6 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const subKept: string[] = [];
   const trimmedLit: string[] = [];
   if (focusHeld.length) trimmedLit.push(focusId); // M304: the focus itself did not fit whole
-  let redactedN = 0; // M291
   const pinsUnmet: string[] = []; // M282
   const served: Record<string, 0 | 1 | 2 | 3> = {}; // M282
   const memKept: string[] = [];
@@ -298,29 +327,6 @@ export function composeParts(store: Store, chatId: string, manipulations: string
     const minBy = getAllMinimals(store);
     const detailsBy = getAllCurrentDetails(store);
     const longBy = getAllLongs(store); // M214: the long resolution written by the memory agent
-    // M291 (loop find): a dimmed node's statement leaked through its PARENT's memory text ("Pilot wave: thirty respondents
-    // in Lisbon…, run by Ana" inside the chapter's summary). M253 says a set-aside node is never served — so any served
-    // memory text drops the sentences that carry a dimmed node's statement or title. Mechanical, per node, audited.
-    const dimKeys: string[] = []; const dimRare: Set<string>[] = [];
-    for (const n of nodes) {
-      if (litSet.has(n.id)) continue;
-      const c = String(n.content ?? '').trim(); if (c.length >= 25) dimKeys.push(c.slice(0, 60).toLowerCase());
-      const t = String((n as any).title ?? '').trim(); if (t.length >= 12) dimKeys.push(t.toLowerCase());
-      const rare = new Set(rareTokens(store, project, `${t} ${c}`)); if (rare.size >= 2) dimRare.push(rare);
-    }
-    const wordsOf = (t: string) => new Set(t.toLowerCase().split(/[^a-z0-9\u00c0-\u024f]+/).filter((w) => w.length > 2));
-    const redact = (text: string | null | undefined): string => {
-      if (!text || (!dimKeys.length && !dimRare.length)) return text ?? '';
-      const parts = text.split(/(?<=[.!?])\s+|\n+/);
-      const kept = parts.filter((p) => {
-        const l = p.toLowerCase();
-        if (dimKeys.some((k) => l.includes(k))) return false;
-        const ws = wordsOf(p);
-        return !dimRare.some((r) => { let n = 0; for (const w of r) if (ws.has(w)) { n++; if (n >= 2) return true; } return false; }); // a paraphrase carries the dimmed node's rare words
-      });
-      if (kept.length !== parts.length) redactedN += parts.length - kept.length;
-      return kept.join(' ');
-    };
     const historyBy = store.contentHistoryAll(project); // M203: timeline of changed nodes
     const marks = store.getMarks(project);
     // Warmth (M191, Mark: "focus proximity strongest, same tree first"):

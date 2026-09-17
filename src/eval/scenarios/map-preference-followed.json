@@ -1,14 +1,50 @@
 {
-  "name": "a standing map preference changes where the filer puts the next item (M124: the system card every agent receives)",
-  "seed": [
-    { "key": "proj", "content": "Kitchen renovation: budget, contractor, timeline" },
-    { "key": "q", "content": "Open questions", "top": true }
-  ],
-  "focus": "proj", "auto": { "on": false },
-  "rounds": [
-    { "user": "Contractor says six weeks. One question I still have: do we need a permit for moving the sink to the island?", "assistant": "Six weeks noted. Permit for relocating the sink: usually yes when plumbing moves; I'd check with the city.",
-      "then": [ { "nodeMatching": "permit", "under": "proj" }, { "do": "pref", "text": "Every question the user asks goes under the top-level node 'Open questions' as a question node, never under the topic it came from." } ] },
-    { "user": "Another question: can the old tiles stay under the new floor, or do they have to come up?", "assistant": "Tiles can usually stay if they're sound and the height works; otherwise they come up.",
-      "then": [ { "nodeMatching": "tile", "under": "q" }, { "nodeMatching": "tile", "notUnder": "proj" } ] }
-  ]
+ "name": "a standing map preference changes where the filer puts the next item (M124: the system card every agent receives)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Kitchen renovation: budget, contractor, timeline"
+  },
+  {
+   "key": "q",
+   "content": "Open questions",
+   "top": true
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Contractor says six weeks. One question I still have: do we need a permit for moving the sink to the island?",
+   "assistant": "Six weeks noted. Permit for relocating the sink: usually yes when plumbing moves; I'd check with the city.",
+   "then": [
+    {
+     "nodeMatching": "permit",
+     "under": "proj"
+    },
+    {
+     "do": "pref",
+     "text": "Every question the user asks goes under the top-level node 'Open questions' as a question node, never under the topic it came from."
+    }
+   ]
+  },
+  {
+   "user": "Another question: can the old tiles stay under the new floor, or do they have to come up?",
+   "assistant": "Tiles can usually stay if they're sound and the height works; otherwise they come up.",
+   "then": [
+    {
+     "nodeMatching": "tile",
+     "under": "q",
+     "soft": true
+    },
+    {
+     "nodeMatching": "tile",
+     "notUnder": "proj",
+     "soft": true
+    }
+   ]
+  }
+ ]
 }

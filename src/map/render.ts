@@ -95,7 +95,8 @@ export function renderSubtreeLit(store: Store, nodeId: string, lit: Set<string>,
   if (!n || n.status === 'removed' || seen.has(nodeId)) return '';
   seen.add(nodeId);
   const pad = '  '.repeat(depth);
-  if (depth > 0 && !lit.has(nodeId)) return `${pad}○ ${(n.title || n.content).slice(0, 60)} (set aside by the user — dimmed; not served)`;
+  // M320b: a dimmed child is a NAME only (M253) — a node with no title yet would otherwise show the first sixty characters of its statement
+  if (depth > 0 && !lit.has(nodeId)) return `${pad}○ ${n.title ? n.title.slice(0, 60) : n.content.split(/\s+/).slice(0, 4).join(' ') + '…'} (set aside by the user — dimmed; not served)`;
   const lines = [`${pad}${nodeLine(n)}`];
   for (const kid of store.childrenOf(nodeId)) {
     const sub = renderSubtreeLit(store, kid.id, lit, depth + 1, seen);

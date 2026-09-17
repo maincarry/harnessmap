@@ -1,61 +1,63 @@
 {
-  "name": "Jacob's shape: a new subject introduced with no specifics still gets a topic; plans proposed by the agent land as floated options under it; picking one promotes it (filer topic-map rule; M256 statuses)",
-  "seed": [
+ "name": "Jacob's shape: a new subject introduced with no specifics still gets a topic; plans proposed by the agent land as floated options under it; picking one promotes it (filer topic-map rule; M256 statuses)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Weekly reading and thinking"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "rounds": [
+  {
+   "user": "I want to talk more about philosophy. Give me some plans.",
+   "assistant": "Some plans, pick what appeals: (1) One big question — take one question (free will, say) and read three positions over a month. (2) Philosophical sparring — take a position, I pressure-test it, then we swap sides. (3) Thought experiments — one per week, argue it through. (4) Build a worldview — write your own positions down and revise them as we go.",
+   "then": [
     {
-      "key": "proj",
-      "content": "Weekly reading and thinking"
-    }
-  ],
-  "focus": "proj",
-  "auto": {
-    "on": true
-  },
-  "rounds": [
-    {
-      "user": "I want to talk more about philosophy. Give me some plans.",
-      "assistant": "Some plans, pick what appeals: (1) One big question — take one question (free will, say) and read three positions over a month. (2) Philosophical sparring — take a position, I pressure-test it, then we swap sides. (3) Thought experiments — one per week, argue it through. (4) Build a worldview — write your own positions down and revise them as we go.",
-      "then": [
-        {
-          "nodeMatching": "philosoph"
-        },
-        {
-          "nodeMatching": "sparring|swap sides"
-        },
-        {
-          "nodeMatching": "thought experiment"
-        },
-        {
-          "nodeMatching": "big question"
-        },
-        {
-          "nodeMatching": "worldview"
-        },
-        {
-          "noNodeMatching": "\\(1\\).*\\(2\\).*\\(3\\)"
-        }
-      ]
+     "nodeMatching": "philosoph"
     },
     {
-      "user": "Let's do the sparring one. First topic: free will — I'll defend compatibilism.",
-      "assistant": "Sparring it is. You defend compatibilism; I'll press on the consequence argument first.",
-      "then": [
-        {
-          "statusOf": "sparring|swap sides",
-          "is": "chosen|decided|accepted|active|live"
-        },
-        {
-          "nodeMatching": "thought experiment"
-        },
-        {
-          "nodeMatching": "worldview"
-        },
-        {
-          "nodeMatching": "compatibilism|free will"
-        },
-        {
-          "focusUnder": "proj"
-        }
-      ]
+     "nodeMatching": "sparring|swap sides"
+    },
+    {
+     "nodeMatching": "thought experiment"
+    },
+    {
+     "nodeMatching": "big question"
+    },
+    {
+     "nodeMatching": "worldview"
+    },
+    {
+     "noNodeMatching": "\\(1\\).*\\(2\\).*\\(3\\)"
     }
-  ]
+   ]
+  },
+  {
+   "user": "Let's do the sparring one. First topic: free will — I'll defend compatibilism.",
+   "assistant": "Sparring it is. You defend compatibilism; I'll press on the consequence argument first.",
+   "then": [
+    {
+     "statusOf": "sparring|swap sides",
+     "is": "chosen|decided|accepted|active|live"
+    },
+    {
+     "nodeMatching": "thought experiment"
+    },
+    {
+     "nodeMatching": "worldview"
+    },
+    {
+     "nodeMatching": "compatibilism|free will"
+    },
+    {
+     "focusUnder": "proj",
+     "soft": true,
+     "_note": "M278: a new subject may land at the top level; the focus follows it there"
+    }
+   ]
+  }
+ ]
 }
