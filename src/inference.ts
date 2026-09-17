@@ -197,7 +197,18 @@ export const callHealth: { lastOkAt: number | null; lastErrAt: number | null; la
 export function setMetricsSink(fn: typeof metricsSink): void { metricsSink = fn; }
 export function setTraceSink(fn: TraceFn | null): void { traceSink = fn; }
 
+// M322 (loop find): a round fans out into several CLI children at once (filer, memory per touched node, relations, aim, titles);
+// each is a node process of a few hundred MB, and on a 4 GB box the fan-out tripped the memory watchdog twice in one night.
+// At most HARNESSMAP_INFERENCE_CONCURRENCY calls run at once (default 4); the rest queue in order. Nothing else changes.
+const MAX_INFLIGHT = Math.max(1, Number(process.env.HARNESSMAP_INFERENCE_CONCURRENCY ?? 4) || 4);
+let inflight = 0; const waiters: (() => void)[] = [];
+const acquire = () => new Promise<void>((res) => { if (inflight < MAX_INFLIGHT) { inflight++; res(); } else waiters.push(() => { inflight++; res(); }); });
+const release = () => { inflight--; const w = waiters.shift(); if (w) w(); };
 export async function call(opts: CallOpts): Promise<any> {
+  await acquire();
+  try { return await callNow(opts); } finally { release(); }
+}
+async function callNow(opts: CallOpts): Promise<any> {
   // Slicing text at fixed offsets can split an emoji's surrogate pair; a
   // lone surrogate breaks the JSON framing to the CLI child, which exits 1
   // with no output (found live: enrich/find-and-file died only when a source
