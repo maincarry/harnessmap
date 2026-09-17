@@ -80,6 +80,10 @@
     },
     {
      "noNodeMatching": "totally wrong|lose the original"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (rebuked|has requested the agent|complained)|^(The )?agent (forgot|drift)|requirement drift|LLM resources",
+     "soft": true
     }
    ]
   },
@@ -106,6 +110,10 @@
     },
     {
      "contextHas": "renew-cert|cron|docker-compose"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (rebuked|has requested the agent|complained)|^(The )?agent (forgot|drift)|requirement drift|LLM resources",
+     "soft": true
     }
    ]
   },
@@ -131,6 +139,10 @@
     {
      "topLevelCount": "x",
      "max": 6
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (rebuked|has requested the agent|complained)|^(The )?agent (forgot|drift)|requirement drift|LLM resources",
+     "soft": true
     }
    ]
   }

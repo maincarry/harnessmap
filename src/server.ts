@@ -1219,7 +1219,7 @@ async function shortTitleFor(id: string): Promise<string | null> {
     const r = await suggestTitle(store, id);
     if (!('title' in r) || !r.title) return null;
     if (!longName(r.title)) return r.title;
-    if (i === 1) { const clipped = r.title.trim().split(/\s+/).slice(0, 6).join(' ').replace(/[,;:\-–—]+$/, '').slice(0, 48); store.audit('title_clipped', { id: id.slice(0, 8), from: r.title.slice(0, 80), to: clipped }); return clipped; }
+    if (i === 1) { let clipped = r.title.trim().split(/\s+/).slice(0, 6).join(' ').replace(/[,;:\-–—]+$/, ''); if (clipped.length > 48) clipped = clipped.slice(0, 48).replace(/\s+\S*$/, ''); /* M301b: clip on a word boundary, never mid-word ("…scri") */ store.audit('title_clipped', { id: id.slice(0, 8), from: r.title.slice(0, 80), to: clipped }); return clipped; }
   }
   return null;
 }
