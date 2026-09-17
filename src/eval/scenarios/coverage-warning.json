@@ -1,0 +1,61 @@
+{
+ "name": "the question is the consent (M230/M85): a set-aside node the question names by its words is served once, marked as set aside; a question sharing no words with the map serves nothing extra (the COVERAGE WARNING fires only for map words the block missed — M231; soft)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Bakery opening"
+  },
+  {
+   "key": "menu",
+   "parent": "proj",
+   "content": "Opening menu: sourdough, rye, croissants and a seasonal tart"
+  },
+  {
+   "key": "lease",
+   "parent": "proj",
+   "content": "Lease on Mill Street: five years, break at year two"
+  },
+  {
+   "key": "extract",
+   "parent": "lease",
+   "content": "Kitchen extraction: the Airflow quote is 11,500 including the canopy; the landlord splits it 50/50 if we sign before the end of October"
+  }
+ ],
+ "focus": "menu",
+ "dim": [
+  "lease"
+ ],
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Add a cardamom bun to the opening menu.",
+   "assistant": "Cardamom bun added.",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1",
+     "prompt": "What did the Airflow extraction quote say about the canopy and the landlord's share?"
+    },
+    {
+     "contextHas": "11,500|11500"
+    },
+    {
+     "contextHas": "SET-ASIDE topic|set aside|asked about"
+    },
+    {
+     "do": "context",
+     "session": "e2e-2",
+     "prompt": "What did the Zorbalux report say about the Vantoril fittings?"
+    },
+    {
+     "contextLacks": "11,500|11500"
+    },
+    {
+     "contextLacks": "what you just asked about"
+    }
+   ]
+  }
+ ]
+}

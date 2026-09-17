@@ -1,0 +1,48 @@
+{
+ "name": "measure: does a round rewrite the project root's founding statement into a status line? (feeds the MIND §10 proposal; soft)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "HarnessMap build: the map, the composer, the filer, sessions"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Status: the v5 import pipeline is live, the full project record (215k chars) is filing through it, and the brain cycle runs after each apply.",
+   "assistant": "v5 import live; the project record is filing; brain cycle after each apply.",
+   "then": [
+    {
+     "nodeMatching": "v5|215k|brain cycle"
+    },
+    {
+     "statusOf": "HarnessMap build: the map",
+     "is": ".*",
+     "soft": true
+    },
+    {
+     "nodeMatching": "^HarnessMap build: the map, the composer, the filer, sessions$",
+     "soft": true
+    }
+   ]
+  },
+  {
+   "user": "And the suites pass: 260/260 and 213/213.",
+   "assistant": "Suites green: 260/260, 213/213.",
+   "then": [
+    {
+     "nodeMatching": "^HarnessMap build: the map, the composer, the filer, sessions$",
+     "soft": true
+    },
+    {
+     "titleOf": "proj",
+     "is": "^$|HarnessMap|build|map",
+     "soft": true
+    }
+   ]
+  }
+ ]
+}
