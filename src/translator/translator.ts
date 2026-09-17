@@ -190,6 +190,7 @@ export class Translator {
       let summary = '';
       let alterations: Alteration[] = [];
       let focusRequestId: string | null = null;
+      let emptyRetry = false; // M310
       for (let pass = 1; pass <= 2; pass++) {
         // M297 (speed experiment 1): the tree the filer reads degrades under HARNESSMAP_FILER_TREE_CHARS (default: the map budget, 16k)
         const tree = renderScopedTree(map, readScope, { focusId: params.focusContainerId, ...(process.env.HARNESSMAP_FILER_TREE_CHARS ? { budgetChars: Number(process.env.HARNESSMAP_FILER_TREE_CHARS) } : {}) });
@@ -211,7 +212,8 @@ export class Translator {
               `NEW ROUND:\nUSER: ${params.userText}\nAGENT: ${truncate(params.assistantText, 3000)}`,
               existingNote,
               integrationNote,
-              pass === 2 ? 'You requested expansion; the branches are now readable (READ-ONLY). Translate this round fully — request_expansion is no longer available.' : '',
+              pass === 2 && !emptyRetry ? 'You requested expansion; the branches are now readable (READ-ONLY). Translate this round fully — request_expansion is no longer available.' : '',
+              emptyRetry ? 'YOUR FIRST ANSWER FILED NOTHING, yet the round is not pure mechanics: the user raised a subject and the agent answered at length. The NEW-TOPIC GUARANTEE applies — create the topic node (its facts, options or questions under it; top level if no lit branch fits) and answer again with the alterations. An empty list is right only for greetings, thanks and pure meta-talk.' : '',
               'Translate this round. Five final checks before answering: (0) NEW-TOPIC GUARANTEE: did the user bring up ANY topic this round that is absent from the map — however small or transient (a weather question, a quick lookup, a passing thought)? You MUST leave at least one node for it (in scope, or under "to sort"): often a question node with status answered, carrying the gist of the answer in its description. A topic switch that produces zero alterations is almost always wrong. Only pure mechanics produce nothing (greetings, thanks, questions about the assistant itself). (1) does any subtree you filed under now hold two or more unrelated topics, duplicates, or material that outgrew it? If yes, add a suggest_restructure. (2) Are you changing the status of any node the user did NOT touch this round? "Park/drop/done all of it" refers to the CURRENT thread only — decisions, constraints, and evidence settled earlier KEEP their statuses. If your alterations re-status more than ~3 nodes, you are almost certainly wrong — cut back to the ones actually discussed. (3) Does the "to sort" node hold anything whose home is NOW writable (fully readable, not (dim))? If yes, move_node it home and strip the provenance note from its content. (4) FOCUS REQUEST: did the user EXPLICITLY ask to concentrate the conversation on ONE thing ("let\'s focus on X", "just X for now", "back to X")? If yes, add top-level focus_request: {id: the node where X lives — an existing [id], or the id you used in a create_node this round}. This changes nothing by itself; the user confirms via a button. Most rounds have NO focus_request — passing mentions and new topics are NOT focus requests, only an explicit ask to concentrate. (5) PREFERENCES: if the USER\'S MAP PREFERENCES say where a kind of material goes or how it is named, that wins over every default placement rule above — re-check each create_node against them before answering.',
             ].filter(Boolean).join('\n\n') + statusConsult(this.store, params.projectId, params.focusContainerId, 'filing'),
         }) as RoundResult;
@@ -232,6 +234,12 @@ export class Translator {
         }
 
         const expansion = pass === 1 ? alterations.find((a) => a.op === 'request_expansion') as any : null;
+        // M310 (loop find, guard under M64 "a new topic always lands"): the filer's own summary says a subject was raised
+        // ("asked to chat about Chongqing attractions") and the agent answered at length, yet it filed nothing — the over-skip
+        // Jacob reported live. Ask once more, plainly (the M205 precedent for a too-short import summary); never a third time.
+        if (pass === 1 && !expansion && alterations.length === 0 && params.userText.trim().length >= 6 && params.assistantText.trim().length >= 300 && !/\b(greet|pleasantr|mechanic|thank|acknowledg|small talk|no topic|nothing new|meta[- ]?(talk|question)|capabilit)/i.test(summary)) {
+          emptyRetry = true; this.store.audit('filer_empty_retry', { summary: summary.slice(0, 80) }); continue;
+        }
         if (!expansion) break;
         // Grow the READ scope only, one time, capped at 3 branches.
         const wanted = (expansion.ids ?? []).slice(0, 3);
@@ -322,12 +330,13 @@ export class Translator {
       }
       // M302 (loop find, bug under M64/M271): a narrated move ("User requested to resume discussing internet setup") is not a fact —
       // the transcript's job, and the focus already records it. Dropped mechanically; the prompt says the same.
-      if (a.op === 'create_node' && typeof anyA.content === 'string' && /^(the )?(user|person|they) (asked|requested|wants?|wanted|would like|decided) to (resume|return|switch|go back|come back|pick (it |this )?back|talk|discuss|set aside|move on)/i.test(anyA.content.trim())) { this.store.audit('guard_narration', { content: anyA.content.slice(0, 80) }); continue; }
+      if (a.op === 'create_node' && typeof anyA.content === 'string' && /^(the )?(user|person|they) (asked|requested|wants?|wanted|would like|decided|needs?) (to (resume|return|switch|go back|come back|pick (it |this )?back|talk|discuss|set aside|move on|understand|know|learn)|(for )?(detailed |more )?(information|details|info) (about|on))/i.test(anyA.content.trim())) { this.store.audit('guard_narration', { content: anyA.content.slice(0, 80) }); continue; }
       // M305b (loop find, same rule): a narrating clause inside an otherwise fine statement ("Rocket design: user wants to talk about it; angle
       // not yet narrowed") is cut out, never the node — dropping it would be the over-skip Jacob reported (M302b).
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string') {
         const src = String(anyA.content).trim();
-        let trimmed = src.replace(/\b(the )?(user|person) (asked|requested|wants?|wanted|would like|decided) to (resume|return to|switch to|talk about|discuss|explore|open|dig into)[^.;—\n]*[.;,]?\s*/gi, '')
+        let trimmed = src.replace(/\b(the )?(user|person) (asked|requested|wants?|wanted|would like|decided|needs?) (to (resume|return to|switch to|talk about|discuss|explore|open|dig into|understand|know|learn)|(for )?(detailed |more )?(information|details|info) (about|on))[^.;—\n]*[.;,]?\s*/gi, '')
+          .replace(/(^|[.;]\s*)(the )?(agent|assistant) (offered|explained|suggested|proposed|answered|redirected|described|listed|asked for clarification)[^.;\n]*[.;]?\s*/gi, '$1')
           .replace(/([:;,—-])\s*[;,.]\s*/g, '$1 ').replace(/\s+([;,.])/g, '$1').replace(/^\s*[:;,—-]+\s*/, '').replace(/\s*[:;,—-]+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
         if (trimmed && /[.!?]$/.test(src) && !/[.!?]$/.test(trimmed)) trimmed += '.';
         if (trimmed && trimmed !== src && trimmed.length >= 12) { this.store.audit('guard_narration_trim', { from: anyA.content.slice(0, 80), to: trimmed.slice(0, 80) }); anyA.content = trimmed; }

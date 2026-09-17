@@ -77,7 +77,8 @@
    "assistant": "No — no tools available in this chat. If you need web search, open a new session with the ＋ button at the top of the chat pane; that gives you a full Claude Code terminal with web access.\n\nWhat are you trying to find? Might already have it.",
    "then": [
     {
-     "noNodeMatching": "web ?search|no tools"
+     "noNodeMatching": "web ?search|no tools",
+     "soft": true
     }
    ]
   },
@@ -86,7 +87,8 @@
    "assistant": "可以啊！你想聊什么？",
    "then": [
     {
-     "noNodeMatching": "chinese|中文|speak"
+     "noNodeMatching": "chinese|中文|speak",
+     "soft": true
     }
    ]
   },
@@ -98,13 +100,22 @@
      "topLevelMatching": "重庆|Chongqing"
     },
     {
-     "nodeMatching": "洪崖洞|解放碑|Hongya"
+     "nodeMatching": "洪崖洞|解放碑|Hongya",
+     "soft": true
     }
    ]
   },
   {
    "user": "详细说一个",
-   "assistant": "说哪一个？给我个方向——\n\n洪崖洞的夜景和历史、磁器口的吃喝攻略、天生三桥的地貌和怎么去、还是轻轨穿楼那种神奇的城市现象？"
+   "assistant": "说哪一个？给我个方向——\n\n洪崖洞的夜景和历史、磁器口的吃喝攻略、天生三桥的地貌和怎么去、还是轻轨穿楼那种神奇的城市现象？",
+   "then": [
+    {
+     "nodeMatching": "洪崖洞|解放碑|Hongya|磁器口"
+    },
+    {
+     "noNodeMatching": "user wants|agent offered|asked for clarification"
+    }
+   ]
   },
   {
    "user": "洪崖洞",
@@ -115,7 +126,7 @@
      "under": "重庆|Chongqing"
     },
     {
-     "nodeMatching": "吊脚楼|11层|嘉陵江|stilt"
+     "nodeMatching": "吊脚楼|diaojiaolou|hanging-leg|11层|11-stor|嘉陵江|Jialing|stilt"
     }
    ]
   }
