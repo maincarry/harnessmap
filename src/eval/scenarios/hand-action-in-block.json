@@ -1,0 +1,75 @@
+{
+ "name": "a hand action on the map reaches the agent in its next block as a user-actions line (the manipulations channel; M83 deltas), and a hand focus move re-anchors with a full block",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Cookbook draft"
+  },
+  {
+   "key": "soups",
+   "parent": "proj",
+   "content": "Soups chapter: six recipes"
+  },
+  {
+   "key": "breads",
+   "parent": "proj",
+   "content": "Breads chapter: sourdough and rye"
+  }
+ ],
+ "focus": "soups",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Add a leek and potato soup to the soups chapter.",
+   "assistant": "Leek and potato soup added.",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "audit": "inject_full"
+    },
+    {
+     "do": "dim",
+     "key": "breads"
+    },
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "contextHas": "user actions"
+    },
+    {
+     "contextHas": "Breads|breads"
+    }
+   ]
+  },
+  {
+   "user": "And a chilled cucumber soup.",
+   "assistant": "Chilled cucumber soup added.",
+   "then": [
+    {
+     "do": "focus",
+     "key": "breads"
+    },
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "contextHas": "Breads chapter"
+    },
+    {
+     "contextHas": "FOCUS \\(what the user is actively working on\\)|focus"
+    },
+    {
+     "auditAny": "inject_full|context_reanchor"
+    }
+   ]
+  }
+ ]
+}

@@ -106,7 +106,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       if (a.do) {
         if (a.do === 'undo') { const u = await post('/api/undo', {}); check(`do undo (${u.body.label ?? u.body.error})`, u.body.ok === true); }
         else if (a.do === 'focus') { const v = a.session ? (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session) : null; await post(`/api/chats/${v ? v.id : cid()}/focus`, { nodeId: keys[a.key] }); }
-        else if (a.do === 'light') await post(`/api/chats/${cid()}/lit`, { nodeId: keys[a.key], on: true });
+        else if (a.do === 'light') await post(`/api/chats/${cid()}/lit`, { nodeId: keys[a.key], on: a.on !== false });
         else if (a.do === 'dim') { const v = a.session ? (s.chats ?? []).find((c: any) => c.host?.sessionId === a.session) : null; await post(`/api/chats/${v ? v.id : cid()}/lit`, { nodeId: keys[a.key], on: false }); }
         else if (a.do === 'release') await post(`/api/chats/${cid()}/release`, { nodeId: keys[a.key] });
         else if (a.do === 'pin') await post(`/api/chats/${cid()}/depth`, { nodeId: keys[a.key], depth: a.depth ?? null });
@@ -117,6 +117,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'recommend') { const r = await post(`/api/chats/${cid()}/recommend`, { kind: a.kind ?? 'zoom' }); lastRec = r.status === 200 ? r.body : null; check(`do recommend ${a.kind ?? 'zoom'} (${r.status})`, r.status === 200 && !!r.body?.containerId, JSON.stringify(r.body).slice(0, 120)); s = await state(); }
         else if (a.do === 'zoom') { const r = await post(`/api/chats/${cid()}/zoomin`, { nodeId: keys[a.key], focus: !!a.focus }); check(`do zoom (${r.status})`, r.status === 200); s = await state(); }
         else if (a.do === 'rename') { const r = await post(`/api/chats/${cid()}/name`, { name: a.name }); check(`do rename (${r.status})`, r.status === 200); s = await state(); }
+        else if (a.do === 'refresh') { const r = await post('/api/context/refresh', {}); check(`do refresh (${r.status}; ${r.body?.sessions ?? '?'} session(s))`, r.status === 200); }
         else if (a.do === 'favorite') { const r = await post(`/api/nodes/${keys[a.key]}/favorite`, { on: a.on !== false }); check(`do favorite (${r.status})`, r.status === 200); s = await state(); }
         else if (a.do === 'prompt') await post('/api/harness/prompt', { session_id: a.session ?? 'e2e-1', text: a.text, cwd: join(TMP, 'proj') }); // what the person is about to ask (the UserPromptSubmit stash)
         else if (a.do === 'tidy') { // propose + apply a tidy of a subtree (or the whole map with key null), as the ⚡ does

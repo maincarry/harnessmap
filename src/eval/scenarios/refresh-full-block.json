@@ -1,0 +1,62 @@
+{
+ "name": "⟲ refresh re-anchors every session: the next block is full again and says it supersedes earlier blocks (M83: re-anchored by a re-aim, 15 map events, compaction, or ⟲ refresh)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Cookbook draft"
+  },
+  {
+   "key": "soups",
+   "parent": "proj",
+   "content": "Soups chapter: six recipes"
+  }
+ ],
+ "focus": "soups",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Add a leek and potato soup.",
+   "assistant": "Leek and potato soup added.",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "audit": "inject_full"
+    }
+   ]
+  },
+  {
+   "user": "And a chilled cucumber soup.",
+   "assistant": "Chilled cucumber soup added.",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "audit": "inject_delta"
+    },
+    {
+     "do": "refresh"
+    },
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "contextHas": "FULL map view supersedes|supersedes every earlier map block"
+    },
+    {
+     "contextHas": "cucumber"
+    },
+    {
+     "auditAny": "inject_full"
+    }
+   ]
+  }
+ ]
+}
