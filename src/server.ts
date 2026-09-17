@@ -3438,6 +3438,20 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       // authoritative source is the UserPromptSubmit stash.
       if (!userText && body.session_id) userText = pendingPrompts.get(body.session_id) ?? '';
       userText = stripHostScaffold(userText); // M259
+      // M309 (loop find, guard under M271 "the map never files itself"): the hook exits under HARNESSMAP_INNER, but a round whose
+      // user text IS the map's own agent prompt can still arrive (a copy without the env — Jacob's Mac filed fifty of them). Refused here.
+      if (/^\s*(SYSTEM INSTRUCTIONS:|You are the (filer|IMPORT agent|guide|map status agent)|LOCAL NEIGHBORHOOD \(all you can see)/i.test(userText.slice(0, 300)) || /\bSYSTEM INSTRUCTIONS:/.test(userText.slice(0, 120))) {
+        store.audit('observe_inner_rejected', { session: (body.session_id ?? '').slice(0, 8), head: userText.slice(0, 60) });
+        if (body.session_id) { // the view this session attached (if any) is not the person's — archive it now, not at the next boot
+          try {
+            const db = (store as any).db;
+            for (const r of db.prepare("SELECT id FROM chats WHERE host_session_id = ? AND status != 'archived'").all(body.session_id) as any[]) { store.archiveChat(r.id); db.prepare('UPDATE chats SET host_session_id = NULL WHERE id = ?').run(r.id); }
+            db.prepare('DELETE FROM harness_sessions WHERE session_id = ?').run(body.session_id);
+            broadcast({ type: 'map', ...state() });
+          } catch {}
+        }
+        return json({ ok: false, reason: "the map's own prompt — not filed" }, 200);
+      }
       if (body.session_id) pendingPrompts.delete(body.session_id);
       if (!userText && !assistantText) return json({ ok: false, reason: 'empty round' }, 200);
       // M270 (Jacob: "map is 37 rounds behind… its 50 rounds now"): a hook that fires again for the same exchange

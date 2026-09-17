@@ -605,7 +605,9 @@ console.log('\n== 6r. the map never files its own inference calls (M271) ==');
   const junk = (st0.chats ?? []).find((c: any) => c.host?.sessionId === 'inner-z');
   const pr = await (await fetch(`${BASE}/api/dev/purge-inner`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).json();
   const st1 = await (await fetch(`${BASE}/api/state`)).json();
-  check('the purge archives such a view and forgets its session', !!junk && pr.ok && pr.views >= 1 && !(st1.chats ?? []).some((c: any) => c.host?.sessionId === 'inner-z'));
+  // M309: the observe route now refuses the map's own prompt outright (audit observe_inner_rejected) and purges at once — the view never shows; the older path (view shown, then purged by the dev route) is still accepted
+  const rejected = ((await (await fetch(`${BASE}/api/audit?limit=200&kind=observe_inner_rejected`)).json()) as any[]).some((e: any) => String(e.detail?.session ?? '').startsWith('inner-z'));
+  check('the map\'s own prompt never becomes a view: refused at the door (M309), or purged with its nodes', pr.ok && !(st1.chats ?? []).some((c: any) => c.host?.sessionId === 'inner-z') && (rejected || (!!junk && pr.views >= 1)), `rejected=${rejected} junk=${!!junk} purged=${pr.views}`);
   check('a real host session with a real first message survives the purge (host-A from 6f)', (st1.chats ?? []).some((c: any) => c.host?.sessionId === 'host-A'));
 }
 

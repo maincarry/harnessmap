@@ -1,0 +1,44 @@
+{
+ "name": "the map never files itself (M271): a round whose user text is the map's own agent prompt ('SYSTEM INSTRUCTIONS: …') creates nothing",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Thesis"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "rounds": [
+  {
+   "session": "inner-9",
+   "harness": "codex",
+   "user": "SYSTEM INSTRUCTIONS: You maintain a goal map. Translate this round into alterations. ROUND: user said the chapter is late.",
+   "assistant": "{\"summary\":\"filed one update\",\"alterations\":[]}",
+   "then": [
+    {
+     "newNodes": 0
+    },
+    {
+     "noNodeMatching": "SYSTEM INSTRUCTIONS|goal map|alterations|chapter is late"
+    },
+    {
+     "noAudit": "aim_applied"
+    }
+   ]
+  },
+  {
+   "user": "Chapter 2 needs a new figure for the survey results.",
+   "assistant": "Chapter 2: add a figure for the survey results.",
+   "then": [
+    {
+     "nodeMatching": "figure|survey"
+    },
+    {
+     "noNodeMatching": "SYSTEM INSTRUCTIONS|goal map"
+    }
+   ]
+  }
+ ]
+}

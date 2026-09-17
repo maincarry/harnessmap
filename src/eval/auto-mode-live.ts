@@ -108,10 +108,10 @@ const stray = (s.nodes ?? []).find((n: any) => toSort && n.parentId === toSort.i
 const ev3 = (await autoEvents()).slice(ev2c.length);
 check('the stray landed outside the dark Travel branch (in "to sort" or at the top level — M278)', !!stray && !under(s, stray.id, travel), stray ? `stray under ${(s.nodes ?? []).find((n: any) => n.id === stray.parentId)?.title ?? stray.parentId ?? 'top level'}` : 'no stray node found');
 check('the aim never made the stray (a "to sort" item) the focus', !!toSort && !under(s, chatOf(s).focusContainerId, toSort.id), `focus=${(s.nodes ?? []).find((n: any) => n.id === chatOf(s).focusContainerId)?.title ?? chatOf(s).focusContainerId}`);
-check('auto mode did not move it into the dark branch and audited the skip', !(stray && under(s, stray.id, travel)) && ev3.some((e: any) => e.kind === 'auto_place_skip' || (e.kind === 'auto_mode' && /kept|no home/.test(String(e.detail?.line)))), JSON.stringify(ev3.map((e: any) => [e.kind, e.detail?.line ?? e.detail?.why]).slice(0, 6)));
+check('auto mode did not move it into the dark branch and audited the skip (or the stray is a top-level topic, M278)', !(stray && under(s, stray.id, travel)) && ((stray && stray.parentId === null) || ev3.some((e: any) => e.kind === 'auto_place_skip' || (e.kind === 'auto_mode' && /kept|no home/.test(String(e.detail?.line))))), JSON.stringify(ev3.map((e: any) => [e.kind, e.detail?.line ?? e.detail?.why]).slice(0, 6)));
 
 console.log('\n== round 4: the person lights Travel — the stray is filed there; the hand-lit node is never dimmed ==');
-s = await state();
+s = await state(); const s0 = s;
 const litR = await post(`/api/chats/${cid()}/lit`, { nodeId: travel, on: true });
 s = await state(); check('Travel is lit by hand (userLit)', (chatOf(s).userLit ?? []).includes(travel), `lit route ${litR.status} ${JSON.stringify(litR.body).slice(0, 80)}; view=${cid().slice(0, 8)}`);
 // the backlog retry timer: the stray was tried a moment ago — clear its stamp so this round retries it
@@ -121,7 +121,8 @@ s = await state();
 const strayNow = stray ? (s.nodes ?? []).find((n: any) => n.id === stray.id) : null;
 const ev4 = (await autoEvents()).slice(ev2c.length + ev3.length);
 const strayTop = stray ? (() => { let n = (s.nodes ?? []).find((x: any) => x.id === stray.id); while (n && n.parentId && (s.nodes ?? []).find((x: any) => x.id === n.parentId)?.parentId !== null && !under(s, n.parentId, travel)) n = (s.nodes ?? []).find((x: any) => x.id === n.parentId); return n; })() : null;
-check('the stray was filed under Travel (auto placement into a lit home)', !!strayNow && under(s, strayNow.id, travel), strayNow ? `now under ${(s.nodes ?? []).find((n: any) => n.id === strayNow.parentId)?.title ?? strayNow.parentId}; events ${JSON.stringify(ev4.map((e: any) => [e.kind, e.detail?.line ?? e.detail?.why]).slice(0, 6))}` : 'stray missing');
+const strayWasInToSort = !!(stray && toSort && under(s0, stray.id, toSort.id));
+check(strayWasInToSort ? 'the stray was filed under Travel (auto placement into a lit home)' : 'the stray became a top-level topic (M278) — placement does not apply; it stayed outside Travel', strayWasInToSort ? (!!strayNow && under(s, strayNow.id, travel)) : (!!strayNow && !under(s, strayNow.id, travel)), strayNow ? `now under ${(s.nodes ?? []).find((n: any) => n.id === strayNow.parentId)?.title ?? strayNow.parentId}; events ${JSON.stringify(ev4.map((e: any) => [e.kind, e.detail?.line ?? e.detail?.why]).slice(0, 6))}` : 'stray missing');
 check('Travel, lit by hand, is still lit after the round (auto mode never dims a hand-lit node)', chatOf(s).lit.includes(travel));
 // the filer's own TO-SORT INTEGRATION may file the stray first (a round is not undoable); when auto mode did it, it is an undo entry
 const placedByAuto = ev4.some((e: any) => e.kind === 'auto_mode' && /placed/.test(String(e.detail?.line)));

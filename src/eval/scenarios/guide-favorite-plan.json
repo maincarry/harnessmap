@@ -1,0 +1,45 @@
+{
+ "name": "talk to map: 'pin X' is a favorite plan step the guide proposes and never applies itself (M2xx favorites as plan steps; M154 the guide never edits the map)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Boat restoration"
+  },
+  {
+   "key": "hull",
+   "parent": "proj",
+   "content": "Hull: strip the old antifouling before April"
+  },
+  {
+   "key": "engine",
+   "parent": "proj",
+   "content": "Engine: injectors and the raw-water impeller"
+  }
+ ],
+ "focus": "hull",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The yard can haul out on the 14th.",
+   "assistant": "Haul-out on the 14th.",
+   "then": [
+    {
+     "do": "ask",
+     "question": "pin the engine node so I always find it"
+    },
+    {
+     "askProposes": "favorite"
+    },
+    {
+     "favoriteOf": "engine",
+     "is": false
+    },
+    {
+     "undoNext": "^added"
+    }
+   ]
+  }
+ ]
+}
