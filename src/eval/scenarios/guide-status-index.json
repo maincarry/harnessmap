@@ -1,0 +1,50 @@
+{
+ "name": "talk to map reads the status index (M154): asked what is done, the guide names the done item, not the open one",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Boat restoration"
+  },
+  {
+   "key": "hull",
+   "parent": "proj",
+   "content": "Hull: strip the old antifouling before April",
+   "status": "open"
+  },
+  {
+   "key": "engine",
+   "parent": "proj",
+   "content": "Engine: injectors serviced on the 3rd",
+   "status": "done"
+  },
+  {
+   "key": "sails",
+   "parent": "proj",
+   "content": "Sails: the genoa needs a new UV strip",
+   "status": "todo"
+  }
+ ],
+ "focus": "hull",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The yard can haul out on the 14th.",
+   "assistant": "Haul-out on the 14th.",
+   "then": [
+    {
+     "do": "ask",
+     "question": "what on this map is already done?"
+    },
+    {
+     "askSays": "injectors|Engine"
+    },
+    {
+     "askSays": "^(?!.*genoa).*$",
+     "soft": true
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,47 @@
+{
+ "name": "talk to map: 'find the node about X' is a search step the guide proposes; it names the node and changes nothing (M154; search is the plan's verb)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Boat restoration"
+  },
+  {
+   "key": "hull",
+   "parent": "proj",
+   "content": "Hull: strip the old antifouling before April"
+  },
+  {
+   "key": "engine",
+   "parent": "proj",
+   "content": "Engine: the injectors need servicing and the raw-water impeller is due"
+  }
+ ],
+ "focus": "hull",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The yard can haul out on the 14th.",
+   "assistant": "Haul-out on the 14th.",
+   "then": [
+    {
+     "do": "ask",
+     "question": "find the node about the impeller"
+    },
+    {
+     "askSays": "impeller|Engine"
+    },
+    {
+     "askSays": "^(?!.*\"kind\":\"(merge|delete|tidy)\").*$"
+    },
+    {
+     "focusIs": "hull"
+    },
+    {
+     "undoNext": "^added"
+    }
+   ]
+  }
+ ]
+}
