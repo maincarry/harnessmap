@@ -1,0 +1,51 @@
+{
+ "name": "the person talks to the map status agent directly (M195c): it answers from its understanding and edits nothing; the exchange becomes standing guidance",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Bakery opening"
+  },
+  {
+   "key": "menu",
+   "parent": "proj",
+   "content": "Opening menu: sourdough, rye, croissants and a seasonal tart"
+  },
+  {
+   "key": "lease",
+   "parent": "proj",
+   "content": "Lease on Mill Street: five years, break at year two, 2,400 a month"
+  }
+ ],
+ "focus": "menu",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Add a cardamom bun to the opening menu.",
+   "assistant": "Cardamom bun added.",
+   "then": [
+    {
+     "do": "brainChat",
+     "text": "Keep the lease and money matters grouped under one area; do not scatter costs across the menu nodes."
+    },
+    {
+     "askSays": "lease|cost|money|group|area|noted|guidance"
+    },
+    {
+     "nodeExists": "lease"
+    },
+    {
+     "nodeExists": "menu"
+    },
+    {
+     "undoNext": "^added"
+    },
+    {
+     "topLevelCount": "x",
+     "max": 3
+    }
+   ]
+  }
+ ]
+}

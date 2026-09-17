@@ -118,6 +118,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'zoom') { const r = await post(`/api/chats/${cid()}/zoomin`, { nodeId: keys[a.key], focus: !!a.focus }); check(`do zoom (${r.status})`, r.status === 200); s = await state(); }
         else if (a.do === 'rename') { const r = await post(`/api/chats/${cid()}/name`, { name: a.name }); check(`do rename (${r.status})`, r.status === 200); s = await state(); }
         else if (a.do === 'refresh') { const r = await post('/api/context/refresh', {}); check(`do refresh (${r.status}; ${r.body?.sessions ?? '?'} session(s))`, r.status === 200); }
+        else if (a.do === 'brainChat') { const r = await post('/api/map-status/chat', { text: a.text }); lastAsk = r.body; check(`do brainChat (${r.status})`, r.status === 200, JSON.stringify(r.body).slice(0, 120)); s = await state(); }
         else if (a.do === 'favorite') { const r = await post(`/api/nodes/${keys[a.key]}/favorite`, { on: a.on !== false }); check(`do favorite (${r.status})`, r.status === 200); s = await state(); }
         else if (a.do === 'prompt') await post('/api/harness/prompt', { session_id: a.session ?? 'e2e-1', text: a.text, cwd: join(TMP, 'proj') }); // what the person is about to ask (the UserPromptSubmit stash)
         else if (a.do === 'tidy') { // propose + apply a tidy of a subtree (or the whole map with key null), as the ⚡ does
