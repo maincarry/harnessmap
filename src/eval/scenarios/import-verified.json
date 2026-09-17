@@ -37,7 +37,7 @@
     },
     {
      "do": "wait",
-     "ms": 150000
+     "ms": 240000
     },
     {
      "importChecked": true
