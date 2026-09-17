@@ -1,0 +1,60 @@
+{
+ "name": "a second import of overlapping notes updates what the first built and adds only the new (M205: the import may update nodes it built, no twins)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Bakery opening plan"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Opening the plan.",
+   "assistant": "The plan stands.",
+   "then": [
+    {
+     "do": "importText",
+     "text": "Supplier notes, week one\n\nFlour: Hartmann mill, organic T65, 0.92 per kilo at 200 kg a month; deliveries Tuesday.\n\nButter: Val d'Or 84% fat, 6.10 per kilo.\n\nCoffee: Northwind roasters, house blend at 18 per kilo."
+    },
+    {
+     "do": "applyImport"
+    },
+    {
+     "nodeMatching": "Hartmann|T65"
+    },
+    {
+     "nodeMatching": "Val d'Or|butter"
+    },
+    {
+     "nodeMatching": "Northwind|coffee"
+    },
+    {
+     "do": "importText",
+     "text": "Supplier notes, week two\n\nFlour: Hartmann confirmed 0.92 per kilo; deliveries move to Wednesday.\n\nButter: Val d'Or 84% fat, 6.10 per kilo — unchanged.\n\nCoffee: Northwind will lend a grinder if we take 15 kilos a month.\n\nNew: eggs from Copse Farm, 2.40 a dozen, delivered with the flour."
+    },
+    {
+     "do": "applyImport"
+    },
+    {
+     "nodeMatching": "Copse|eggs"
+    },
+    {
+     "distinctNodes": [
+      "Hartmann",
+      "Val d'Or",
+      "Northwind"
+     ]
+    },
+    {
+     "nodeMatching": "Wednesday"
+    },
+    {
+     "nodeMatching": "grinder"
+    }
+   ]
+  }
+ ]
+}

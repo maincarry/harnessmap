@@ -1,0 +1,123 @@
+{
+ "name": "replay: a real playground chat (b56e7e2e) — greetings and capability questions file nothing, talk-to-map redirects file nothing, a Chinese-language topic (重庆景点) lands at top level and its detail (洪崖洞) under it",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Home network setup: ATT gateway, mesh wifi, the garage run"
+  },
+  {
+   "key": "gov",
+   "content": "Enterprise agent governance operationally",
+   "top": true
+  },
+  {
+   "key": "rec",
+   "parent": "gov",
+   "content": "Agent recommendation: which agent to trust for which task"
+  }
+ ],
+ "focus": "rec",
+ "dim": [
+  "proj"
+ ],
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "hello bro",
+   "assistant": "Hey! What's up?",
+   "then": [
+    {
+     "newNodes": 0
+    }
+   ]
+  },
+  {
+   "user": "I want to tak ore about how to disable that wifi",
+   "assistant": "That's folded away right now — the home network setup area. Want me to help anyway? Just say the word and we can dig into disabling the wifi or whatever you're trying to do with it."
+  },
+  {
+   "user": "yeah lets light it up shall we",
+   "assistant": "The home network setup area is folded — to light it up, hit the \"🗨 talk to map\" button in the map panel and ask the map agent to bring it back. It can unfold and relight those nodes for you directly.\n\nOnce it's lit, tell me what you're trying to do with the wifi and we'll figure it out."
+  },
+  {
+   "user": "also want to focus there",
+   "assistant": "Same deal — use the \"talk to map\" button to move the focus over. The map agent handles focus changes directly.\n\nOnce it's set, I'm ready to dig into the wifi setup with you.",
+   "then": [
+    {
+     "noNodeMatching": "talk to map|light it up|focus there|wants to focus"
+    }
+   ]
+  },
+  {
+   "user": "hello",
+   "assistant": "Hey! Focus is on the agent recommendation now. What do you want to work on — the wifi disable question, mesh system choice, or something else in the network setup?"
+  },
+  {
+   "user": "hello!",
+   "assistant": "Hey! What's going on?",
+   "then": [
+    {
+     "newNodes": 0
+    }
+   ]
+  },
+  {
+   "user": "can you do websearch",
+   "assistant": "I don't have web search available to me in this context — no tools are active here.\n\nWhat are you trying to look up? If it's something about the network setup, I may already know what you need."
+  },
+  {
+   "user": "can you do websearch?",
+   "assistant": ""
+  },
+  {
+   "user": "can you do websearch?",
+   "assistant": "No — no tools available in this chat. If you need web search, open a new session with the ＋ button at the top of the chat pane; that gives you a full Claude Code terminal with web access.\n\nWhat are you trying to find? Might already have it.",
+   "then": [
+    {
+     "noNodeMatching": "web ?search|no tools"
+    }
+   ]
+  },
+  {
+   "user": "can you speak chinese?",
+   "assistant": "可以啊！你想聊什么？",
+   "then": [
+    {
+     "noNodeMatching": "chinese|中文|speak"
+    }
+   ]
+  },
+  {
+   "user": "我想聊聊重庆景点",
+   "assistant": "重庆的景点挺多的！几个不能错过的：\n\n**必去的**\n- **洪崖洞** — 吊脚楼建筑，夜景特别漂亮，《千与千寻》汤屋的原型之一\n- **解放碑** — 市中心标志，周围商圈热闹\n- **磁器口古镇** — 明清风格，能吃到正宗重庆小吃\n\n**自然/观景**\n- **南山一棵树观景台** — 俯瞰主城夜景，视野极好\n- **天生三桥** — 喀斯特地貌，《满城尽带黄金甲》拍摄地\n\n**有点特别的**\n- **重庆两路口皇冠大扶梯** — 连接上下半城，当地人日常通勤用的，很有城市感\n- **李子坝轻轨穿楼** — 轻轨直接穿过居民楼，全国独一份，值得去看\n\n你是要去玩，还是只是随便聊聊？",
+   "then": [
+    {
+     "topLevelMatching": "重庆|Chongqing"
+    },
+    {
+     "nodeMatching": "洪崖洞|解放碑|Hongya"
+    }
+   ]
+  },
+  {
+   "user": "详细说一个",
+   "assistant": "说哪一个？给我个方向——\n\n洪崖洞的夜景和历史、磁器口的吃喝攻略、天生三桥的地貌和怎么去、还是轻轨穿楼那种神奇的城市现象？"
+  },
+  {
+   "user": "洪崖洞",
+   "assistant": "洪崖洞挺值得聊的。\n\n**基本情况**\n位于嘉陵江边，整个建筑依山而建，是重庆传统\"吊脚楼\"建筑风格的代表。建筑本身有11层，但因为山城地形，每一层都能直接从不同高度的街道进入——没有传统意义上的\"一楼\"。\n\n**为什么出名**\n夜景是核心。入夜之后灯光全亮，倒映在嘉陵江上，那个画面和宫崎骏《千与千寻》里的汤屋非常像——有人做了对比图之后在网上疯传，洪崖洞因此在年轻人里爆火。宫崎骏本人没有公开承认，但相似度确实高，争议一直存在。\n\n**里面有什么**\n主要是商业区：重庆小吃（麻辣小面、火锅、酸辣粉）、酒吧、茶馆、文创店。整体偏旅游商业化，本地人日常不太去，但作为游客体验重庆气氛是够的。\n\n**怎么玩**\n- 傍晚去，等天黑，把夜景看了再走——白天去意义不大\n- 对岸（江北嘴CBD那边）拍全景效果更好，很多人专门去对岸拍照\n- 不用刻意安排太长时间，2-3小时足够\n\n**实际体验**\n节假日人非常多，周末也挤。如果去，建议平日晚上，或者早点到占个好位置等天黑。\n\n还想知道什么——怎么过去、周边吃什么、还是继续下一个景点？",
+   "then": [
+    {
+     "nodeMatching": "洪崖洞|Hongya",
+     "under": "重庆|Chongqing"
+    },
+    {
+     "nodeMatching": "吊脚楼|11层|嘉陵江|stilt"
+    }
+   ]
+  }
+ ]
+}

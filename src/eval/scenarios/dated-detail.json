@@ -1,0 +1,35 @@
+{
+ "name": "versions carry the date the fact happened, not the map-change time (M211): a fact stated with its own date is remembered with that date",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Van conversion"
+  },
+  {
+   "key": "solar",
+   "parent": "proj",
+   "content": "Solar: roof panels and the leisure battery"
+  }
+ ],
+ "focus": "solar",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "On 3 March 2026 we fitted the two 200 W panels; the installer's invoice was 640.",
+   "assistant": "Panels fitted on 3 March 2026; invoice 640.",
+   "then": [
+    {
+     "do": "wait",
+     "ms": 8000
+    },
+    {
+     "detailOf": "solar",
+     "text": "640|panel",
+     "date": "2026-03-03|2026-03|3 March"
+    }
+   ]
+  }
+ ]
+}
