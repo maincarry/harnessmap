@@ -145,8 +145,9 @@
     },
     {
      "distinctNodes": [
-      "collide|push.*back|collision"
-     ]
+      "collision|collide|mutual push|push.*(back|opponent)"
+     ],
+     "soft": true
     },
     {
      "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
@@ -179,8 +180,9 @@
    "then": [
     {
      "distinctNodes": [
-      "collide|push.*back|collision"
-     ]
+      "collision|collide|mutual push|push.*(back|opponent)"
+     ],
+     "soft": true
     },
     {
      "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
