@@ -90,6 +90,10 @@ function writeStructured(store: Store, nodeId: string, u: { memory?: string; min
   const provJson = JSON.stringify(prov ?? {});
   for (const f of (u.details ?? []).slice(0, 3)) {
     const text = String(f.text ?? '').trim();
+    // M318 (loop find, bug under M211/update-don't-duplicate): two memory passes in one round wrote the same specific twice
+    // ("Panels invoice £640, paid 3 March 2026" ×2 on one node). An identical current detail on the node is not written again.
+    const dupe = text ? db.prepare("SELECT id FROM memory_details WHERE node_id = ? AND status = 'current' AND lower(trim(text)) = lower(trim(?))").get(nodeId, text.slice(0, 400)) : null;
+    if (dupe) { store.audit('memory_detail_dupe', { node: nodeId.slice(0, 8) }); continue; }
     if (text) db.prepare('INSERT INTO memory_details (node_id, text, fact_date, prov) VALUES (?, ?, ?, ?)').run(nodeId, text.slice(0, 400), f.date ?? null, provJson);
   }
   const projectId = store.getNode(nodeId)?.projectId ?? null;

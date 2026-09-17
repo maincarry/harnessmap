@@ -1,0 +1,28 @@
+{
+ "name": "a new map opens with an 'untitled' root focused and the tutorial beside it, both ordinary top-level nodes (M278/M268)",
+ "seed": [],
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Hello — first message on a fresh map. We are planning a bakery.",
+   "assistant": "A bakery plan; noted.",
+   "then": [
+    {
+     "topLevelMatching": "^untitled|Hello|bakery|Bakery"
+    },
+    {
+     "topLevelMatching": "getting started"
+    },
+    {
+     "nodeMatching": "bakery"
+    },
+    {
+     "topLevelCount": "x",
+     "max": 4
+    }
+   ]
+  }
+ ]
+}

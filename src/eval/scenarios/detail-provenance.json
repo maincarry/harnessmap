@@ -1,0 +1,44 @@
+{
+ "name": "a remembered detail is written once per node (M211/M318) and, when the round came from a transcript, carries its provenance (M191; soft here — the runner posts no transcript)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Van conversion"
+  },
+  {
+   "key": "solar",
+   "parent": "proj",
+   "content": "Solar: roof panels and the leisure battery"
+  }
+ ],
+ "focus": "solar",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "session": "e2e-prov",
+   "user": "The installer's invoice for the panels was 640, paid on 3 March 2026.",
+   "assistant": "Panels invoice 640, paid 3 March 2026.",
+   "then": [
+    {
+     "do": "wait",
+     "ms": 8000
+    },
+    {
+     "detailOf": "solar",
+     "text": "640"
+    },
+    {
+     "noDetailDupes": "solar"
+    },
+    {
+     "detailOf": "solar",
+     "text": "640",
+     "prov": "e2e-prov|session|round|chat",
+     "soft": true
+    }
+   ]
+  }
+ ]
+}
