@@ -353,6 +353,16 @@ export class Translator {
           if (gone.length) { anyA.title = ''; this.store.audit('guard_stale_title', { id: String(anyA.id).slice(0, 8), gone }); }
         }
       }
+      // M311 (loop find, guard under M278/M77): a NEW node the filer parked in "to sort" without the provenance note and without
+      // a dim branch it could belong to is a misfiled topic ("Chongqing attractions" went to to sort while the only dim branch was
+      // the home network) — the top level is ordinary; it goes there.
+      if (a.op === 'create_node' && toSortId && anyA.parentId === toSortId && typeof anyA.content === 'string' && !/\(arrived while/i.test(anyA.content) && !alterations.some((o: any) => o.op === 'suggest_relight' && o.nodeId === anyA.id)) {
+        const words = (t: string) => new Set((t.toLowerCase().match(/[a-z][a-z'-]{4,}|[\u4e00-\u9fff]{2,}/g) ?? []).filter((w) => !STOP.has(w)));
+        const mine = words(anyA.content);
+        const dimNodes = map.nodes.filter((n) => n.status !== 'removed' && !live.has(n.id) && n.parentId !== null && n.id !== toSortId);
+        const kin = dimNodes.some((n) => { const w = words(`${n.title ?? ''} ${n.content}`); let hits = 0; for (const x of mine) if (w.has(x)) hits++; return hits >= 2; });
+        if (!kin && mine.size >= 2) { anyA.parentId = null; this.store.audit('guard_tosort_promote', { id: String(anyA.id).slice(0, 8), content: anyA.content.slice(0, 60) }); }
+      }
       // M285 (loop find): a title the person typed on the card is theirs — the filer's update may change the statement, never that title
       if (a.op === 'update_node' && anyA.title !== undefined && anyA.id && this.store.getSetting(`titleBy:${anyA.id}`) === 'user') { delete anyA.title; this.store.audit('guard_hand_title', { id: String(anyA.id).slice(0, 8) }); }
       if ((a.op === 'create_node' || a.op === 'update_node') && anyA.type && !CANON_TYPES.includes(anyA.type)) {
