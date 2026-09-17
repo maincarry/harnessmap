@@ -1,0 +1,77 @@
+{
+ "name": "auto mode never runs under influence-off (M263 guards: nothing runs over a pending import or under influence-off); it resumes when influence returns",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Thesis"
+  },
+  {
+   "key": "ch1",
+   "parent": "proj",
+   "content": "Chapter 1: trust in local news"
+  },
+  {
+   "key": "ch2",
+   "parent": "proj",
+   "content": "Chapter 2: results"
+  }
+ ],
+ "focus": "ch1",
+ "auto": {
+  "on": true
+ },
+ "rounds": [
+  {
+   "user": "Let's switch to chapter 2: the response rate came in at 62%.",
+   "assistant": "Chapter 2: response rate 62%.",
+   "then": [
+    {
+     "focusUnder": "ch2"
+    },
+    {
+     "do": "focus",
+     "key": "ch1"
+    },
+    {
+     "do": "release",
+     "key": "ch1"
+    },
+    {
+     "do": "influence",
+     "off": true
+    }
+   ]
+  },
+  {
+   "user": "Let's switch to chapter 2 again: the effect held in the rural subsample.",
+   "assistant": "Chapter 2: the effect held in the rural subsample.",
+   "then": [
+    {
+     "focusIs": "ch1"
+    },
+    {
+     "noAudit": "aim_applied"
+    },
+    {
+     "noAudit": "auto_mode"
+    },
+    {
+     "do": "influence",
+     "off": false
+    }
+   ]
+  },
+  {
+   "user": "Let's switch to chapter 2 once more: the urban subsample showed no effect.",
+   "assistant": "Chapter 2: no effect in the urban subsample.",
+   "then": [
+    {
+     "focusUnder": "ch2"
+    },
+    {
+     "auditAny": "auto_mode|aim_applied"
+    }
+   ]
+  }
+ ]
+}

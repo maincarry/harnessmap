@@ -116,6 +116,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'compact') await post('/api/harness/compacted', { session_id: a.session ?? 'e2e-1' });
         else if (a.do === 'recommend') { const r = await post(`/api/chats/${cid()}/recommend`, { kind: a.kind ?? 'zoom' }); lastRec = r.status === 200 ? r.body : null; check(`do recommend ${a.kind ?? 'zoom'} (${r.status})`, r.status === 200 && !!r.body?.containerId, JSON.stringify(r.body).slice(0, 120)); s = await state(); }
         else if (a.do === 'zoom') { const r = await post(`/api/chats/${cid()}/zoomin`, { nodeId: keys[a.key], focus: !!a.focus }); check(`do zoom (${r.status})`, r.status === 200); s = await state(); }
+        else if (a.do === 'rename') { const r = await post(`/api/chats/${cid()}/name`, { name: a.name }); check(`do rename (${r.status})`, r.status === 200); s = await state(); }
         else if (a.do === 'favorite') { const r = await post(`/api/nodes/${keys[a.key]}/favorite`, { on: a.on !== false }); check(`do favorite (${r.status})`, r.status === 200); s = await state(); }
         else if (a.do === 'prompt') await post('/api/harness/prompt', { session_id: a.session ?? 'e2e-1', text: a.text, cwd: join(TMP, 'proj') }); // what the person is about to ask (the UserPromptSubmit stash)
         else if (a.do === 'tidy') { // propose + apply a tidy of a subtree (or the whole map with key null), as the ⚡ does
@@ -200,6 +201,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.searchTop) { const r = await get(`/api/search?q=${encodeURIComponent(a.q ?? '')}`); const arr = (Array.isArray(r) ? r : r?.results ?? r?.nodes ?? r?.hits ?? []) as any[]; check(label, arr[0]?.id === keys[a.searchTop], `first=${arr[0]?.name ?? arr[0]?.id ?? '(none)'} of ${arr.length}`); }
       else if (a.importChecked !== undefined) { const r = await get('/api/map-status'); const c = r?.importCheck; check(label, (!!c) === a.importChecked && (!a.similar || c?.similar === true), c ? `similar=${c.similar} discrepancies=${(c.discrepancies ?? []).length} pass=${c.pass}` : 'no import check'); }
       else if (a.nodeExists) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.nodeExists]); const exists = !!n && n.status !== 'removed'; check(label, exists === (a.is !== false), n ? `status=${n.status}` : 'gone'); }
+      else if (a.chatName) { const c = (s.chats ?? []).find((x: any) => x.id === cid()); check(label, !!c && rx(a.chatName).test(String(c.name ?? c.title ?? '')), `name=${c?.name ?? c?.title}`); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }

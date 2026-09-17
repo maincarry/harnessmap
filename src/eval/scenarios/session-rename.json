@@ -1,0 +1,37 @@
+{
+ "name": "a session renamed on the map keeps its name across rounds (M268: session names; a name given on the map wins)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Bakery opening"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The sourdough needs a 14-hour cold retard.",
+   "assistant": "Sourdough: 14-hour cold retard.",
+   "then": [
+    {
+     "do": "rename",
+     "name": "Bread timings"
+    },
+    {
+     "chatName": "^Bread timings$"
+    }
+   ]
+  },
+  {
+   "user": "Croissants: laminate the night before.",
+   "assistant": "Croissants: laminate the evening before.",
+   "then": [
+    {
+     "chatName": "^Bread timings$"
+    }
+   ]
+  }
+ ]
+}
