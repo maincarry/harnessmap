@@ -80,7 +80,7 @@ async function round(user: string, assistant: string, session = 'e2e-1', roundHa
   const ob = await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness, forked_from: roundFork ?? null });
   const dup = ob.body?.ok === false && /duplicate|not filed|empty/.test(String(ob.body?.reason ?? '')); // M270/M309: nothing will be filed — do not wait for it
   for (let i = 0; i < 40 && !dup; i++) { await sleep(3000); if ((await filerCount()) > before) break; }
-  if (sc.auto?.on) { for (let i = 0; i < 30; i++) { await sleep(3000); if ((await audit()).filter((r: any) => /^auto_/.test(r.kind)).length > autoBefore) break; } }
+  if (sc.auto?.on) { for (let i = 0; i < 10; i++) { await sleep(3000); if ((await audit()).filter((r: any) => /^auto_/.test(r.kind)).length > autoBefore) break; } } // up to 30 s: with the aim off a quiet round leaves no auto_ audit
   await sleep(sc.settleMs ?? 6000);
   s = await state();
   nodesAddedThisRound = (s.nodes ?? []).length - nodesBefore;

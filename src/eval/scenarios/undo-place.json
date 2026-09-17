@@ -1,0 +1,68 @@
+{
+ "name": "an item in to sort whose home gets lit is filed there on the next round — by auto placement (one undo) or by the filer's own to-sort integration (a round, not undoable) (M263b/M273)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Thesis"
+  },
+  {
+   "key": "ch1",
+   "parent": "proj",
+   "content": "Chapter 1: trust in local news"
+  },
+  {
+   "key": "travel",
+   "parent": "proj",
+   "content": "Travel: the Lisbon conference in October, hotel and flights"
+  }
+ ],
+ "focus": "ch1",
+ "dim": [
+  "travel"
+ ],
+ "auto": {
+  "on": true,
+  "focus": false,
+  "light": false,
+  "rename": false,
+  "place": true
+ },
+ "rounds": [
+  {
+   "user": "By the way, the Lisbon conference hotel is booked for the 12th to the 15th.",
+   "assistant": "Noted: Lisbon hotel, 12th to 15th.",
+   "then": [
+    {
+     "inToSort": "hotel|12th"
+    },
+    {
+     "do": "light",
+     "key": "travel"
+    },
+    {
+     "do": "wait",
+     "ms": 2000
+    }
+   ]
+  },
+  {
+   "user": "Back to chapter 1: the survey instrument is finalised.",
+   "assistant": "Chapter 1: survey instrument finalised.",
+   "then": [
+    {
+     "nodeMatching": "hotel|12th",
+     "under": "travel"
+    },
+    {
+     "undoNext": "placed",
+     "soft": true
+    },
+    {
+     "auditAny": "auto_mode",
+     "matching": "placed",
+     "soft": true
+    }
+   ]
+  }
+ ]
+}

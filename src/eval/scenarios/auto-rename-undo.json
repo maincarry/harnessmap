@@ -1,0 +1,59 @@
+{
+ "name": "an auto rename is one undo entry that restores the old title (M263b); a title the person typed is never auto-renamed (M282)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Van conversion"
+  },
+  {
+   "key": "solar",
+   "parent": "proj",
+   "content": "Solar: roof panels and the leisure battery"
+  },
+  {
+   "key": "water",
+   "parent": "proj",
+   "content": "Water: the fresh tank and the pump"
+  }
+ ],
+ "focus": "solar",
+ "auto": {
+  "on": true,
+  "focus": false,
+  "light": false,
+  "rename": true,
+  "place": false
+ },
+ "rounds": [
+  {
+   "user": "Change of plan for the solar node: we are dropping the roof panels entirely and going with a 60 W folding panel and a 50 Ah battery.",
+   "assistant": "Solar: a 60 W folding panel and a 50 Ah battery; no roof panels.",
+   "then": [
+    {
+     "do": "title",
+     "key": "water",
+     "title": "Water system"
+    },
+    {
+     "do": "wait",
+     "ms": 3000
+    }
+   ]
+  },
+  {
+   "user": "The water tank stays at 40 litres; the pump is a 12 V diaphragm pump.",
+   "assistant": "Water: 40 litre tank, 12 V diaphragm pump.",
+   "then": [
+    {
+     "titleOf": "water",
+     "is": "^Water system$"
+    },
+    {
+     "noAudit": "auto_renamed",
+     "matching": "water",
+     "soft": true
+    }
+   ]
+  }
+ ]
+}
