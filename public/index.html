@@ -1638,7 +1638,7 @@ function openImport() {
           await new Promise((res) => setTimeout(res, 4000));
           const j = await (await fetch(`/api/import/job/${start.jobId}`)).json();
           if (j.status === 'error') throw new Error(j.error ?? 'import failed');
-          if (j.status === 'done') { r = j; break; }
+          if (j.status === 'done') { r = { ...j, jobId: start.jobId }; break; } // M307: the apply needs the job id — without it the source summary was never captured and the verify gate (M195c) never ran
           if (!document.body.contains(ov)) return; // modal closed — job continues server-side
           if (window.__importProg) busy.textContent = `filing the source… chunk ${window.__importProg.done + 1} of ${window.__importProg.total}${window.__importProg.phase === 'finish' ? ' — finishing pass' : ''}`;
         }
