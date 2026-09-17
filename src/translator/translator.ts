@@ -346,6 +346,23 @@ export class Translator {
         if (trimmed && /[.!?]$/.test(src) && !/[.!?]$/.test(trimmed)) trimmed += '.';
         if (trimmed && trimmed !== src && trimmed.length >= 12) { this.store.audit('guard_narration_trim', { from: anyA.content.slice(0, 80), to: trimmed.slice(0, 80) }); anyA.content = trimmed; }
       }
+      // M315 (loop find, guard under "integrate, don't append; update-don't-duplicate" and M286 "choosing never erases"): the filer
+      // replaced a chapter's founding statement ("Chapter 2: results") with the round's one fact ("Response rate came in at 62%"),
+      // and the chapter was gone — the next "switch to chapter 2" had to make a new one. A rewrite that keeps NO content word of
+      // the old statement is not a correction (corrections keep most words); it becomes a child of that node, the statement stays.
+      if (a.op === 'update_node' && anyA.id && typeof anyA.content === 'string' && this.store.getSetting(`titleBy:${anyA.id}`) !== 'user') {
+        const cur = map.nodes.find((n) => n.id === anyA.id);
+        const tok = (t: string) => new Set((t.toLowerCase().match(/[a-z][a-z'-]{3,}|[\u4e00-\u9fff]{2}/g) ?? []).filter((w) => !STOP.has(w)));
+        if (cur && !cur.content.startsWith('to sort') && cur.parentId !== null) {
+          const oldW = tok(cur.content), newW = tok(anyA.content);
+          const shared = [...newW].filter((w) => oldW.has(w)).length;
+          if (oldW.size >= 2 && newW.size >= 2 && shared === 0) { // "Chapter 2: results" has two content words
+            const child: any = { op: 'create_node', id: randomUUID(), parentId: cur.id, content: anyA.content, status: anyA.status ?? 'live', author: anyA.author ?? 'agent', ...(anyA.type ? { type: anyA.type } : {}), ...(anyA.title ? { title: anyA.title } : {}) };
+            this.store.audit('guard_rewrite_to_child', { id: String(anyA.id).slice(0, 8), from: cur.content.slice(0, 60), to: anyA.content.slice(0, 60) });
+            out.push(child); continue;
+          }
+        }
+      }
       // M306 (loop find, bug under M68 "titles are self-healing"): a correction that changed the statement left a title that now
       // contradicts it ("Trellis beans east fence" over "…along the west fence"). When the old title carries a content word the
       // new statement dropped, the agent title is cleared (the display falls back to the statement; the healer retitles if long).

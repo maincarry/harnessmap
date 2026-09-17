@@ -914,7 +914,14 @@ function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit:
   // M285 (loop find, the home-internet replay): a passing question ("will it rain?") became the focus because its node
   // was born this round and now lands at the top level instead of "to sort". A node born THIS round is never the aim's
   // focus unless the person's words asked — a real pivot lands on something that existed, or is asked for.
-  if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && opts.bornNow?.has(r.focus)) { store.audit('guard_focus_newborn', { id: r.focus.slice(0, 8) }); r = { ...r, focus: undefined, focusName: undefined }; }
+  if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && opts.bornNow?.has(r.focus)) {
+    // M316 (loop find, after M315): the newborn's HOME existed before this round — a pivot into "chapter 2" that landed as a fact
+    // under it is still a pivot into chapter 2. The aim settles on the parent (never a root, never "to sort", never born now).
+    const nb = store.getNode(r.focus); const home = nb?.parentId ? store.getNode(nb.parentId) : null;
+    const homeOk = !!home && home.status !== 'removed' && home.parentId !== null && !home.content.startsWith('to sort') && !opts.bornNow?.has(home.id);
+    store.audit('guard_focus_newborn', { id: r.focus.slice(0, 8), ...(homeOk ? { to: home!.id.slice(0, 8) } : {}) });
+    r = homeOk ? { ...r, focus: home!.id, focusName: nodeName(home!) } : { ...r, focus: undefined, focusName: undefined };
+  }
   const chat = store.getChat(chatId)!;
   const pid = chat.projectId;
   const prevFocus = chat.focusContainerId;

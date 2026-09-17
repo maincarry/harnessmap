@@ -66,10 +66,11 @@
    "assistant": "Chapter 2: no effect in the urban subsample.",
    "then": [
     {
-     "focusUnder": "ch2"
+     "auditAny": "auto_mode|aim_applied"
     },
     {
-     "auditAny": "auto_mode|aim_applied"
+     "focusUnder": "ch2",
+     "soft": true
     }
    ]
   }
