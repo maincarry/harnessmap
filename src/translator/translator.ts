@@ -336,9 +336,13 @@ export class Translator {
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string') {
         const src = String(anyA.content).trim();
         let trimmed = src.replace(/\b(the )?(user|person) (asked|requested|wants?|wanted|would like|decided|needs?) (to (resume|return to|switch to|talk about|discuss|explore|open|dig into|understand|know|learn)|(for )?(detailed |more )?(information|details?|info) (about|on))[^.;—\n]*[.;,]?\s*/gi, '')
-          .replace(/^(the )?(user|person) (asked|inquired) (about|for) /i, '').replace(/,?\s*and (the )?(agent|assistant) (listed|explained|offered|described|suggested|answered|gave)[^.;\n]*/gi, '')
-          .replace(/(^|[.;]\s*)(the )?(agent|assistant) (offered|explained|suggested|proposed|answered|redirected|described|listed|asked for clarification)[^.;\n]*[.;]?\s*/gi, '$1')
+          .replace(/^(the )?(user|person) (asked|inquired)( in \p{L}+)? (about|for) /iu, '')
+          .replace(/^(the )?(user|person) (is )?(selected|chose|picked|explor(ed|ing)|confirmed|noticed|flagged|clarified|restated|switched to) /i, '') // leading narration: keep what follows
+          .replace(/(^|[.;]\s*)(The user|User|The person|The agent|Agent|The assistant|Assistant) (is |then |also )?(selected|chose|picked|explor(ed|ing)|confirmed|noticed|flagged|clarified|restated|switched to|offered|explained|suggested|proposed|answered|redirected|described|listed|recommended|provided|gave|acknowledged|noted) (that )?/g, '$1') // the narrating subject and verb go, the object stays (a fact inside "User confirmed the tiler for the 20th" is kept)
+          .replace(/(^|[.;]\s*)(The user|User|The person|The agent|Agent|The assistant|Assistant) (greeted|said hello|thanked)[^.;\n]*[.;]?\s*/g, '$1').replace(/(^|[.;]\s*)(the )?(user|person) (asked|inquired)( in \p{L}+)? (about|for)[^.;\n]*[.;]?\s*/giu, '$1').replace(/,?\s*and (the )?(agent|assistant) (listed|explained|offered|described|suggested|answered|gave|recommended)[^.;\n]*/gi, '')
+          .replace(/(^|[.;]\s*)(the )?(agent|assistant) (asked for clarification|redirected (the user|them) to)[^.;\n]*[.;]?\s*/gi, '$1')
           .replace(/([:;,—-])\s*[;,.]\s*/g, '$1 ').replace(/\s+([;,.])/g, '$1').replace(/^\s*[:;,—-]+\s*/, '').replace(/\s*[:;,—-]+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+        trimmed = trimmed.replace(/(^|[.!?]\s+)([a-z])/g, (m, a, b) => a + b.toUpperCase());
         if (trimmed && /[.!?]$/.test(src) && !/[.!?]$/.test(trimmed)) trimmed += '.';
         if (trimmed && trimmed !== src && trimmed.length >= 12) { this.store.audit('guard_narration_trim', { from: anyA.content.slice(0, 80), to: trimmed.slice(0, 80) }); anyA.content = trimmed; }
       }
@@ -357,7 +361,7 @@ export class Translator {
       // M311 (loop find, guard under M278/M77): a NEW node the filer parked in "to sort" without the provenance note and without
       // a dim branch it could belong to is a misfiled topic ("Chongqing attractions" went to to sort while the only dim branch was
       // the home network) — the top level is ordinary; it goes there.
-      if (a.op === 'create_node' && toSortId && anyA.parentId === toSortId && typeof anyA.content === 'string' && !/\(arrived while/i.test(anyA.content) && !alterations.some((o: any) => o.op === 'suggest_relight' && o.nodeId === anyA.id)) {
+      if (a.op === 'create_node' && toSortId && anyA.parentId === toSortId && typeof anyA.content === 'string' && !/\(arrived while/i.test(anyA.content) && !alterations.some((o: any) => o.op === 'suggest_relight' && o.nodeId === anyA.id && /\[[0-9a-f]{6,}\]/i.test(String(o.note ?? '')))) { // only a placement note that names a branch [id] holds it in to sort
         const words = (t: string) => new Set((t.toLowerCase().match(/[a-z][a-z'-]{4,}|[\u4e00-\u9fff]{2,}/g) ?? []).filter((w) => !STOP.has(w)));
         const mine = words(anyA.content);
         const dimNodes = map.nodes.filter((n) => n.status !== 'removed' && !live.has(n.id) && n.parentId !== null && n.id !== toSortId);
@@ -402,6 +406,7 @@ export class Translator {
         console.log('[translator] scope guard: redirected create into "to sort"');
         continue;
       }
+      if ((a as any).op === 'suggest_relight' && !/\[[0-9a-f]{6,}\]/i.test(String(anyA.note ?? ''))) { this.store.audit('guard_relight_vague', { note: String(anyA.note ?? '').slice(0, 80) }); continue; } // M311b: a placement names its branch [id]; "consider whether it belongs elsewhere" is noise
       if ((a as any).op === 'suggest_relight') {
         // Safety net: the material must exist as a node. If the suggestion
         // points at anything that isn't a node created this round in scope
