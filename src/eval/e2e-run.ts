@@ -199,7 +199,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.favoriteOf) { const favs = (s.favorites ?? []) as string[]; check(label, favs.includes(keys[a.favoriteOf]) === (a.is !== false), `favorites=${favs.length}`); }
       else if (a.searchTop) { const r = await get(`/api/search?q=${encodeURIComponent(a.q ?? '')}`); const arr = (Array.isArray(r) ? r : r?.results ?? r?.nodes ?? r?.hits ?? []) as any[]; check(label, arr[0]?.id === keys[a.searchTop], `first=${arr[0]?.name ?? arr[0]?.id ?? '(none)'} of ${arr.length}`); }
       else if (a.importChecked !== undefined) { const r = await get('/api/map-status'); const c = r?.importCheck; check(label, (!!c) === a.importChecked && (!a.similar || c?.similar === true), c ? `similar=${c.similar} discrepancies=${(c.discrepancies ?? []).length} pass=${c.pass}` : 'no import check'); }
-      else if (a.nodeExists) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.nodeExists]); check(label, !!n && n.status !== 'removed', n ? `status=${n.status}` : 'gone'); }
+      else if (a.nodeExists) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.nodeExists]); const exists = !!n && n.status !== 'removed'; check(label, exists === (a.is !== false), n ? `status=${n.status}` : 'gone'); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }

@@ -1,0 +1,74 @@
+{
+ "name": "a two-node merge is one undo: undo restores both nodes, their children and statements (M263)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Boat restoration"
+  },
+  {
+   "key": "a",
+   "parent": "proj",
+   "content": "Antifouling: strip the old coat before April"
+  },
+  {
+   "key": "akid",
+   "parent": "a",
+   "content": "Use a scraper, not a heat gun, on the gelcoat"
+  },
+  {
+   "key": "b",
+   "parent": "proj",
+   "content": "Hull paint: re-prime and two coats of hard antifouling"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The yard can haul out on the 14th.",
+   "assistant": "Haul-out on the 14th.",
+   "then": [
+    {
+     "do": "merge",
+     "key": "a",
+     "into": "b"
+    },
+    {
+     "nodeExists": "a",
+     "is": false
+    },
+    {
+     "nodeExists": "b"
+    },
+    {
+     "nodeMatching": "scraper",
+     "under": "b"
+    },
+    {
+     "undoNext": "merge"
+    },
+    {
+     "do": "undo"
+    },
+    {
+     "nodeExists": "a"
+    },
+    {
+     "nodeExists": "b"
+    },
+    {
+     "parentOf": "akid",
+     "is": "a"
+    },
+    {
+     "nodeMatching": "Antifouling: strip the old coat before April$"
+    },
+    {
+     "nodeMatching": "Hull paint: re-prime and two coats of hard antifouling$"
+    }
+   ]
+  }
+ ]
+}

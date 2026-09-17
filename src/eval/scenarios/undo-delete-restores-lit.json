@@ -1,0 +1,78 @@
+{
+ "name": "undo of a delete brings the node back with its children and its light exactly as before (M136/M263b)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Boat restoration"
+  },
+  {
+   "key": "engine",
+   "parent": "proj",
+   "content": "Engine: injectors and the raw-water impeller"
+  },
+  {
+   "key": "imp",
+   "parent": "engine",
+   "content": "Impeller: part 09-1027B, replace every two seasons"
+  },
+  {
+   "key": "sails",
+   "parent": "proj",
+   "content": "Sails: the genoa needs a new UV strip"
+  }
+ ],
+ "focus": "proj",
+ "dim": [
+  "sails"
+ ],
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The yard can haul out on the 14th.",
+   "assistant": "Haul-out on the 14th.",
+   "then": [
+    {
+     "lit": "engine"
+    },
+    {
+     "lit": "imp"
+    },
+    {
+     "do": "delete",
+     "key": "engine"
+    },
+    {
+     "nodeExists": "engine",
+     "is": false
+    },
+    {
+     "undoNext": "delet|removed"
+    },
+    {
+     "do": "undo"
+    },
+    {
+     "nodeExists": "engine"
+    },
+    {
+     "nodeExists": "imp"
+    },
+    {
+     "parentOf": "imp",
+     "is": "engine"
+    },
+    {
+     "lit": "engine"
+    },
+    {
+     "lit": "imp"
+    },
+    {
+     "dark": "sails"
+    }
+   ]
+  }
+ ]
+}
