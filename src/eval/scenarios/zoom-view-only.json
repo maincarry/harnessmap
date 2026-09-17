@@ -1,0 +1,97 @@
+{
+ "name": "zoom is view-only (M105): zooming into a branch changes no focus, no light, no dim, and is not an undo entry; the zoomed view's dim all outside is its own action",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Boat restoration"
+  },
+  {
+   "key": "hull",
+   "parent": "proj",
+   "content": "Hull: strip the old antifouling and re-prime before April"
+  },
+  {
+   "key": "engine",
+   "parent": "proj",
+   "content": "Engine: injectors and the raw-water impeller"
+  },
+  {
+   "key": "sails",
+   "parent": "proj",
+   "content": "Sails: the genoa needs a new UV strip"
+  },
+  {
+   "key": "deck",
+   "parent": "proj",
+   "content": "Deck: re-caulk the teak seams"
+  }
+ ],
+ "focus": "hull",
+ "dim": [
+  "sails"
+ ],
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The yard can haul out on the 14th.",
+   "assistant": "Haul-out on the 14th.",
+   "then": [
+    {
+     "undoNext": "^added"
+    },
+    {
+     "do": "zoom",
+     "key": "engine"
+    },
+    {
+     "focusIs": "hull"
+    },
+    {
+     "lit": "engine"
+    },
+    {
+     "lit": "hull"
+    },
+    {
+     "lit": "deck"
+    },
+    {
+     "dark": "sails"
+    },
+    {
+     "undoNext": "^added"
+    },
+    {
+     "noAudit": "aim_applied"
+    },
+    {
+     "do": "dimOutside",
+     "key": "engine"
+    },
+    {
+     "dark": "deck"
+    },
+    {
+     "lit": "proj"
+    },
+    {
+     "lit": "hull"
+    },
+    {
+     "lit": "engine"
+    },
+    {
+     "undoNext": "dimmed|outside"
+    },
+    {
+     "do": "undo"
+    },
+    {
+     "lit": "deck"
+    }
+   ]
+  }
+ ]
+}

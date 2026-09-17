@@ -6,7 +6,8 @@ const files = process.argv.slice(2).filter((a) => !a.startsWith('--')); const ke
 const ensembles = (process.argv.find((a) => a.startsWith('--models='))?.slice(9) ?? process.env.E2E_MODELS ?? 'mid').split(','); // --models=low,mid,high runs each scenario once per ensemble
 const freeMb = () => { try { const m = readFileSync('/proc/meminfo', 'utf8').match(/MemAvailable:\s+(\d+)/); return m ? Math.round(Number(m[1]) / 1024) : 0; } catch { return 0; } };
 const maxParallel = () => (freeMb() > 2200 ? 2 : freeMb() > 1400 ? 1 : 0);
-let port = 8801; const results: { file: string; code: number; line: string }[] = [];
+// two batches at once need different port bases (--port-base=8821 or E2E_PORT_BASE)
+let port = Number(process.argv.find((a) => a.startsWith('--port-base='))?.slice(12) ?? process.env.E2E_PORT_BASE ?? 8801); const results: { file: string; code: number; line: string }[] = [];
 const running = new Set<Promise<void>>();
 async function runOne(file: string, models = 'mid') {
   const p = port++;

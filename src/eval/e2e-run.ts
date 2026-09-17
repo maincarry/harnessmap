@@ -112,6 +112,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'context') { const r = await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(a.session ?? 'e2e-1')}&cwd=${encodeURIComponent(join(TMP, 'proj'))}${a.prompt ? `&prompt=${encodeURIComponent(a.prompt)}` : ''}`); lastContext = await r.json().catch(() => ({})); try { writeFileSync(join(TMP, 'last-context.txt'), String(lastContext?.context ?? '')); } catch {} } // what the next turn would receive (the question rides as `prompt`, as the hook sends it)
         else if (a.do === 'compact') await post('/api/harness/compacted', { session_id: a.session ?? 'e2e-1' });
         else if (a.do === 'recommend') { const r = await post(`/api/chats/${cid()}/recommend`, { kind: a.kind ?? 'zoom' }); lastRec = r.status === 200 ? r.body : null; check(`do recommend ${a.kind ?? 'zoom'} (${r.status})`, r.status === 200 && !!r.body?.containerId, JSON.stringify(r.body).slice(0, 120)); s = await state(); }
+        else if (a.do === 'zoom') { const r = await post(`/api/chats/${cid()}/zoomin`, { nodeId: keys[a.key], focus: !!a.focus }); check(`do zoom (${r.status})`, r.status === 200); s = await state(); }
         else if (a.do === 'favorite') { const r = await post(`/api/nodes/${keys[a.key]}/favorite`, { on: a.on !== false }); check(`do favorite (${r.status})`, r.status === 200); s = await state(); }
         else if (a.do === 'prompt') await post('/api/harness/prompt', { session_id: a.session ?? 'e2e-1', text: a.text, cwd: join(TMP, 'proj') }); // what the person is about to ask (the UserPromptSubmit stash)
         else if (a.do === 'tidy') { // propose + apply a tidy of a subtree (or the whole map with key null), as the ⚡ does
@@ -163,6 +164,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.statusOf) { const n = (s.nodes ?? []).find((x: any) => match(s, x, a.statusOf)); check(label, !!n && rx(`^(${a.is})$`).test(n.status ?? ''), n ? `status=${n.status} (${(n.title || n.content).slice(0, 40)})` : 'no node'); }
       else if (a.countUnder) check(label, (s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length <= a.max, `count=${(s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length}`);
       else if (a.topLevelMatching) check(label, (s.nodes ?? []).some((n: any) => n.parentId === null && match(s, n, a.topLevelMatching)));
+      else if ('undoNext' in a && a.undoNext === null) check(label, !s.undoNext, `undoNext=${s.undoNext}`); // nothing to undo
       else if (a.undoNext) check(label, rx(a.undoNext).test(s.undoNext ?? ''), `undoNext=${s.undoNext}`);
       else if (a.servedAt !== undefined) { const d = s.served ? s.served[keys[a.servedAt]] : undefined; check(label, d === a.is, `served=${d} pinsUnmet=${(s.pinsUnmet ?? []).includes(keys[a.servedAt])}`); }
       else if (a.servedAtMost !== undefined) { const d = s.served ? s.served[keys[a.servedAtMost]] : undefined; check(label, d !== undefined && d <= a.is, `served=${d}`); }
