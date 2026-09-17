@@ -1,0 +1,249 @@
+{
+ "name": "replay (real, ShareGPT XRzyXd9): a wandering chat — poems about ADHD, Gershwin, the axiom of choice, P=NP, broken links — then 'Can you remind me of the first thing I asked you?' which the assistant gets wrong twice; the map must be able to answer it (the sonnet is in the block), topics stay distinct, corrections update the resources node, the meta exchange files no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Conversation notes"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Please write me a sonnet about ADHD",
+   "assistant": "Oh ADHD, a whirlwind in the mind,\nA constant storm that rages without end,\nA hurricane of thoughts that are intertwined,\nAnd challenges that only you can comprehend.\n\nA jumble of distractions, loud and clear,\nWith scattered focus, and a wandering gaze,\nA never-ending race with time to steer,\nAnd tasks that seem to stretch out for days.\n\nBut in the midst of chaos, there is a spark,\nA lightning bolt that strikes with creative force,\nA gift that only those with ADHD can embark,\nAnd with it, a unique way to chart life's course.\n\nSo embrace your mind, its twists and turns,\nAnd let your ADHD be your way to learn.",
+   "then": [
+    {
+     "nodeMatching": "sonnet|ADHD"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    }
+   ]
+  },
+  {
+   "user": "Could you write me a villanelle instead?",
+   "assistant": "Sure, here's a villanelle about ADHD:\n\nMy mind races on a never-ending ride,\nA storm that churns with thoughts and energy,\nWith ADHD, I find it hard to hide.\n\nDistractions call, and focus is denied,\nI struggle to stay still and find harmony,\nMy mind races on a never-ending ride.\n\nI try to calm the chaos deep inside,\nBut sometimes it's too much to guarantee,\nWith ADHD, I find it hard to hide.\n\nThe world moves fast, and I must decide\nHow to keep up and stay actively,\nMy mind races on a never-ending ride.\n\nI seek out ways to thrive and not collide,\nTo channel my energy into positivity,\nWith ADHD, I find it hard to hide.\n\nSo I'll keep moving, let the wildness preside,\nAnd embrace this different kind of reality,\nMy mind races on a never-ending ride,\nWith ADHD, I find it hard to hide."
+  },
+  {
+   "user": "Thank you.",
+   "assistant": "You're welcome! It was my pleasure to write for you. If you have any other requests or questions, feel free to ask!"
+  },
+  {
+   "user": "What are some other types of poems that you could write?",
+   "assistant": "There are many different types of poems that I can write! Here are some examples:\n\n1. Haiku: a three-line poem with 5 syllables in the first line, 7 syllables in the second line, and 5 syllables in the third line.\n2. Free Verse: a poem that doesn't have a specific rhyme or meter, and is written in a more natural, conversational style.\n3. Acrostic: a poem where the first letter of each line spells out a word or phrase.\n4. Cinquain: a five-line poem with a specific syllable count for each line (2, 4, 6, 8, 2).\n5. Tanka: a five-line poem that follows a syllable pattern of 5-7-5-7-7.\n6. Sonnet: a 14-line poem with a specific rhyme scheme and meter.\n7. Limerick: a humorous five-line poem with a specific rhyme scheme and meter.\n8. Ode: a poem that expresses praise or admiration for a person, place, or thing.\n9. Elegy: a poem that mourns the death of someone or something.\n\nThese are just a few examples of the many different types of poems that exist. Each type of poem has its own unique structure and rules, which can be used to convey different emotions and ideas."
+  },
+  {
+   "user": "Do you know what a Clerihew is?",
+   "assistant": "Yes, I do! A Clerihew is a type of humorous poem that was invented by English writer Edmund Clerihew Bentley. It consists of four lines with a specific rhyming scheme of AABB, and the subject of the poem is usually a famous person, often a historical figure or celebrity. The poem is meant to be witty and humorous, often playing with words or making a clever observation about the subject.\n\nHere's an example of a Clerihew:\n\nAlbert Einstein\nHad wild hair, it was fine\nBut when he combed it, oh what a mess\nHis hair looked worse, not less!\n\nAs you can see, the poem is lighthearted and playful, and makes a humorous observation about Albert Einstein's hair. Clerihews are a fun and creative way to write about famous people, and can be a great exercise in creative writing and wordplay."
+  },
+  {
+   "user": "Could you write one about George Gershwin?",
+   "assistant": "Of course! Here's a Clerihew about George Gershwin:\n\nGeorge Gershwin, oh what a guy,\nHe played his music 'til he died,\nFrom Rhapsody in Blue to Porgy and Bess,\nHis music lives on, we must confess!",
+   "then": [
+    {
+     "nodeMatching": "Clerihew|Gershwin"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    }
+   ]
+  },
+  {
+   "user": "What are some interesting facts about George Gershwin?",
+   "assistant": "George Gershwin was a fascinating figure in American music history. Here are a few interesting facts about him:\n\n1. George Gershwin was born in Brooklyn, New York, in 1898. His parents were Russian Jewish immigrants.\n2. Gershwin began his musical career as a \"song plugger\" for a music publisher, playing popular tunes to promote sheet music sales.\n3. Gershwin is known for his unique fusion of classical music and jazz, which he blended together in compositions like Rhapsody in Blue and An American in Paris.\n4. Gershwin was a prolific composer, writing music for Broadway shows, films, and classical concerts. Some of his most famous works include the opera Porgy and Bess and the songs \"I Got Rhythm\" and \"Summertime.\"\n5. Gershwin was a self-taught pianist and composer, and never learned to read music. He would compose by playing his ideas on the piano and then transcribing them with the help of a musician who could write music.\n6. Gershwin died in 1937 at the age of 38 from a brain tumor. His death was a shock to the music world, as he was still in the prime of his career.\n7. In 1985, Gershwin was posthumously awarded a Pulitzer Prize for Special Citations and Awards for his lifetime contribution to American music.\n\nThese are just a few of the many interesting facts about George Gershwin and his contributions to American music."
+  },
+  {
+   "user": "Is there any evidence that he had ADHD?",
+   "assistant": "There is no conclusive evidence that George Gershwin had ADHD, as this was not a diagnosis recognized during his lifetime. However, there are some indications that he may have exhibited symptoms that could be consistent with ADHD.\n\nFor example, Gershwin was known for his boundless energy and frenetic work pace. He was constantly working on multiple projects at once and would often stay up late into the night working on music. This hyperactivity and difficulty with self-regulation are common traits associated with ADHD.\n\nIn addition, Gershwin was known to have a short attention span and would often jump from one project to another. This impulsivity and difficulty with sustaining focus are also common traits associated with ADHD.\n\nWhile we can't say for certain whether Gershwin had ADHD, it's clear that he was a unique and creative individual with a lot of energy and drive. His contributions to American music continue to be celebrated and studied to this day."
+  },
+  {
+   "user": "Who was his brother?",
+   "assistant": "George Gershwin had an older brother named Ira Gershwin. Ira was born in 1896, two years before George, and went on to become one of the most successful lyricists of the 20th century. The two brothers often worked together on music, with George composing the music and Ira writing the lyrics.\n\nTogether, George and Ira Gershwin wrote many famous songs, including \"Embraceable You,\" \"I Got Rhythm,\" and \"They Can't Take That Away from Me.\" They also collaborated on many Broadway shows, including Funny Face, Of Thee I Sing, and Porgy and Bess.\n\nIra outlived his younger brother George by several decades, and continued to write music for many years after George's death. In 1959, Ira won the Academy Award for Best Original Song for \"The Man That Got Away,\" which he wrote with composer Harold Arlen for the movie A Star is Born."
+  },
+  {
+   "user": "Did he ever marry?",
+   "assistant": "No, George Gershwin never married. He was known to have had several romantic relationships throughout his life, but he never settled down with a long-term partner or got married.\n\nGershwin was reportedly a charming and charismatic person, and he had many admirers both in and out of the music world. However, his passion for music and his intense work ethic may have made it difficult for him to maintain a steady romantic relationship.\n\nIn his later years, Gershwin became close friends with actress and singer Kay Swift, who was also a composer and pianist. While the two were not romantically involved, they shared a deep bond over their love of music, and collaborated on several pieces together.\n\nDespite never marrying, George Gershwin left a lasting legacy in the world of music, and his work continues to be celebrated and performed to this day."
+  },
+  {
+   "user": "What about Ira?",
+   "assistant": "Yes, Ira Gershwin, George's older brother and collaborator, did get married. He married a woman named Leonore Strunsky in 1926, and the couple remained together until Leonore's death in 1984.\n\nIra and Leonore had two children together, a son named Arthur and a daughter named Frances. Both of their children went on to have successful careers in the entertainment industry, with Arthur becoming a film producer and Frances working as a singer and actress.\n\nIra and Leonore were known for their strong and supportive relationship, and Ira often credited Leonore with being a source of inspiration for his work. After her death, he wrote a touching tribute to her, saying, \"Her passing has left me lonely and inconsolable, but I am grateful for the years we had together and the happiness she brought me.\""
+  },
+  {
+   "user": "Are you sure that Ira and Leonore had children?",
+   "assistant": "I apologize for the error in my previous response. Ira Gershwin and his wife Leonore Strunsky did not have children together. I appreciate you bringing this to my attention and I want to ensure that the information provided is accurate.\n\nIra Gershwin and Leonore Strunsky were married in 1926 and remained together until Leonore's death in 1984. Although they did not have children, they were known for their close and supportive relationship. Ira often credited Leonore with being a source of inspiration for his work, and her passing was a great loss to him.",
+   "then": [
+    {
+     "nodeMatching": "Ira|Leonore|children"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    },
+    {
+     "noNodeMatching": "^(?!.*(no|not|without)).*Ira and Leonore had children",
+     "soft": true
+    }
+   ]
+  },
+  {
+   "user": "Can you write a poem about an entirely different topic than the poems you have written so far?",
+   "assistant": "Yes, I can certainly write a poem about a different topic. Please let me know what topic you would like the poem to be about."
+  },
+  {
+   "user": "You choose the topic.",
+   "assistant": "Thank you for giving me the creative freedom to choose the topic. Here's a poem about the beauty of nature:\n\nThe Beauty of Nature\n\nThe sky is painted with a palette of hues\nFrom shades of blue to fiery reds and yellows\nThe sun sets low and brings the day to close\nA peaceful stillness, like the world has froze\n\nThe leaves rustle, as a gentle breeze blows\nAnd flowers bloom, like jewels among the earth\nThe sounds of nature bring a sense of ease\nAs creatures scamper, chirp and buzz with glee\n\nThe waves crash on the shore with rhythmic beat\nAs seagulls soar and dance above the sea\nThe sand is soft and cool beneath your feet\nA wondrous place where all the senses meet\n\nNature's beauty is a gift to us all\nA treasure trove of sights, sounds and scents\nA balm to heal our weary hearts and souls\nAnd a reminder of the world's magnificence."
+  },
+  {
+   "user": "What would the opposite of this poem be?",
+   "assistant": "The opposite of a poem about the beauty of nature would be a poem about the ugliness of a man-made urban environment. Here's an example:\n\nThe Ugliness of the City\n\nThe sky is hidden behind a shroud of smog\nThe streets are crowded, chaotic and loud\nThe buildings rise up, like a concrete fog\nA maze of metal and glass, a cold, grey shroud\n\nThe sounds of traffic drown out the birds\nThe smells of exhaust replace fresh air\nA world of concrete, with no room for words\nNo quiet moments, no time for care\n\nThe city is a place of constant motion\nWhere people rush, with no time for stillness\nThe beauty of nature is just a notion\nAs progress marches on, with endless shrillness\n\nThe ugliness of the city is a blight\nA world of concrete and metal, with no respite."
+  },
+  {
+   "user": "I'm not sure that I would agree. It feels more like a complementary poem than an opposite.  I think that the opposite might be the ugliness of nature or the beauty of the city. Would you agree?",
+   "assistant": "You make a valid point, and I appreciate your feedback. You're right that a complementary poem might be a more accurate description of what I wrote earlier.\n\nIf we were to consider an opposite poem to the one I wrote about the beauty of nature, then a poem about the ugliness of nature could be an appropriate choice. Here's an example:\n\nThe Ugliness of Nature\n\nThe sky is painted with a gloomy pallor\nGrey clouds loom, blocking out the sun\nThe rain falls hard, a relentless squallor\nA desolate world, where life is undone\n\nThe trees are barren, stripped of their leaves\nThe earth is muddy, soaked and mired\nThe wind howls, like a mournful heave\nA place of danger, where one must be wired\n\nThe sounds of the wild are haunting and grim\nThe smells of decay replace fresh air\nA world of beasts, with no room for whim\nNo moments of peace, no love to share\n\nThe ugliness of nature is a curse\nA world of peril, where survival is adverse."
+  },
+  {
+   "user": "Would you push back on me if you disagreed?",
+   "assistant": "As an AI language model, my purpose is to provide information and generate responses to the best of my ability based on the data and knowledge that I have been trained on. However, I always try to ensure that my responses are accurate, informative, and respectful. If I disagree with a statement or opinion, I will do so in a polite and professional manner, providing any supporting evidence or context that may be relevant to the discussion. Ultimately, my goal is to provide helpful and informative responses to your questions."
+  },
+  {
+   "user": "Would you tell me if I'm wrong about an assertion? Say, if I said that the sum of one and one is three, would you correct me?",
+   "assistant": "As an AI language model, my primary function is to provide accurate and informative responses to the best of my knowledge and abilities. Therefore, if you make a factual error or a logical fallacy in your statement, I will attempt to correct you in a respectful and informative manner. In the case of the example you mentioned, I would inform you that the sum of one and one is actually two."
+  },
+  {
+   "user": "As a language model, are you capable of complex mathematics?",
+   "assistant": "As an AI language model, I can understand and perform mathematical operations on numbers and equations, including complex mathematics. However, my mathematical capabilities are limited to what I have been trained on and the algorithms and programming that have been implemented in my system. For example, I can perform calculations involving algebra, calculus, statistics, and other areas of mathematics, but there may be some advanced mathematical concepts or calculations that I might not be able to process or understand fully."
+  },
+  {
+   "user": "Are you able to give broad definitions of mathematical concepts? Like, could you tell me how Zermelo–Fraenkel set theory differs from naive set theory?",
+   "assistant": "Yes, as an AI language model, I can provide definitions and explanations for a wide range of mathematical concepts, including the difference between Zermelo-Fraenkel set theory and naive set theory.\n\nNaive set theory is a simple approach to set theory that assumes that any collection of objects can form a set. However, this approach can lead to paradoxes, such as Russell's paradox, which arises when we try to define a set that contains all sets that do not contain themselves.\n\nZermelo-Fraenkel set theory is a more rigorous approach to set theory that avoids these paradoxes by introducing axioms, or basic assumptions, about the properties of sets. These axioms define what we mean by a set, what operations we can perform on sets, and how we can create new sets from existing ones. The Zermelo-Fraenkel axioms provide a foundation for most of modern mathematics, including the theory of real numbers, topology, and algebra."
+  },
+  {
+   "user": "Can you discuss the controversies around the axiom of choice?",
+   "assistant": "Yes, the axiom of choice is a controversial axiom in set theory and mathematics. The axiom of choice states that given any collection of non-empty sets, there exists a way to choose one element from each set.\n\nOne controversy surrounding the axiom of choice is that it allows the creation of non-constructive and non-measurable sets, which can be counterintuitive and difficult to work with. For example, the Banach-Tarski paradox is a result that uses the axiom of choice to construct two identical spheres from a single sphere by dividing it into a finite number of pieces and rearranging them. This result is often viewed as paradoxical and counterintuitive because it appears to violate the law of conservation of volume.\n\nAnother controversy surrounding the axiom of choice is its independence from the other axioms of Zermelo-Fraenkel set theory. This means that it is possible to construct mathematical models of set theory in which the axiom of choice is true and others in which it is false. As a result, some mathematicians argue that the axiom of choice is not necessary for most of mathematics, while others believe that it is essential for certain areas of research.\n\nDespite these controversies, the axiom of choice is widely accepted in most of modern mathematics, and it is an important tool for constructing mathematical objects and proving theorems in many areas of research."
+  },
+  {
+   "user": "What are some other controversial topics in the field of mathematics?",
+   "assistant": "There are many topics in mathematics that have been the subject of debate and controversy over the years. Here are a few examples:\n\n1. Infinity: The concept of infinity has been a subject of debate and controversy in mathematics for centuries. Questions about the nature of infinity and how to define it have led to the development of different theories and approaches, such as transfinite numbers and infinitesimals.\n2. Foundations of Mathematics: The foundations of mathematics, or the study of the basic axioms and rules that underlie mathematical reasoning, has been a source of debate and controversy among mathematicians for many years. This includes debates about the proper role of logic, set theory, and other formal systems in mathematics.\n3. Proof and Rigor: The level of rigor required in mathematical proofs is another topic that has been the subject of debate and controversy. Some mathematicians argue that proofs should be highly formal and rigorous, while others advocate for a more intuitive and exploratory approach.\n4. Statistics and Data Analysis: With the rise of big data and the increasing use of statistical methods in science and industry, there have been debates about the appropriate use and interpretation of statistical techniques. This includes debates about the appropriate use of p-values, the role of significance testing, and the interpretation of correlation and c"
+  },
+  {
+   "user": "Could you talk about P=NP?",
+   "assistant": "P=NP is one of the most famous unsolved problems in computer science and mathematics. The problem asks whether two classes of problems, P and NP, are equivalent, meaning that any problem that can be solved quickly (in polynomial time) by a non-deterministic algorithm can also be solved quickly by a deterministic algorithm.\n\nThe class P (polynomial time) consists of problems that can be solved in a time that is bounded by a polynomial function of the size of the input. In other words, these are problems that can be solved quickly using a deterministic algorithm.\n\nThe class NP (nondeterministic polynomial time) consists of problems that can be solved in polynomial time by a non-deterministic algorithm, which is a type of algorithm that can explore many possible solutions to a problem simultaneously. While non-deterministic algorithms can solve certain problems quickly, they are not practical for real-world applications.\n\nThe P=NP problem asks whether all problems in NP can be solved in polynomial time by a deterministic algorithm. If P=NP, it would mean that many important problems in fields like optimization, cryptography, and artificial intelligence could be solved much more efficiently than they currently are.\n\nDespite much research on the problem, it remains unsolved, and many mathematicians and computer scientists believe that it may be one of the most difficult problems in ",
+   "then": [
+    {
+     "nodeMatching": "P ?= ?NP|P vs NP"
+    },
+    {
+     "nodeMatching": "axiom of choice"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    }
+   ]
+  },
+  {
+   "user": "Can you recommend some resources for where I could learn more about this?",
+   "assistant": "Certainly! Here are a few resources that could help you learn more about the P=NP problem:\n\n1. The P vs. NP Problem: One of the Millennium Prize Problems: This article from the Clay Mathematics Institute, which offers a $1 million prize for the solution to the problem, provides a good introduction to the topic.\n2. The P-NP Problem: This video from the YouTube channel Computerphile provides a brief overview of the problem and its implications.\n3. Complexity Zoo: This online resource is a comprehensive encyclopedia of computational complexity theory, which includes a detailed entry on the P=NP problem.\n4. Gödel, Escher, Bach: An Eternal Golden Braid: This book by Douglas Hofstadter includes a discussion of the P=NP problem as well as many other topics in mathematics and computer science.\n5. The P=NP Poll: This website includes a collection of articles and resources related to the P=NP problem, including survey results from experts in the field.\n\nI hope these resources help you in your exploration of the P=NP problem!"
+  },
+  {
+   "user": "Can you give me a link to the youtube channel?",
+   "assistant": "Certainly! Here is a link to the Computerphile YouTube channel:\n\n<https://www.youtube.com/user/Computerphile>\n\nThe channel has a lot of great videos on a variety of computer science topics, including several videos on the P vs. NP problem."
+  },
+  {
+   "user": "/What about the specific video on P=NP",
+   "assistant": "Here is a link to the specific Computerphile video on the P vs. NP problem:\n\n<https://www.youtube.com/watch?v=EHp4FPyajKQ>\n\nThe video is about 10 minutes long and provides a brief but informative overview of the problem and its implications. I hope you find it helpful!"
+  },
+  {
+   "user": "That is a video about P=NP, but it's from the \"Up and Atom\" channel rather than \"Computerphile\".",
+   "assistant": "I apologize for the confusion earlier. You are correct, the video about the P=NP problem that I shared with you is from the \"Up and Atom\" YouTube channel and not from \"Computerphile\". Here is a link to the specific video on the P=NP problem from the \"Computerphile\" channel:\n\n<https://www.youtube.com/watch?v=YX40hbAHx3s>\n\nI hope this helps!"
+  },
+  {
+   "user": "That's still not quite right, but close.",
+   "assistant": "I apologize for my mistake again. Here is the correct link to the specific video on the P vs. NP problem from the \"Computerphile\" YouTube channel:\n\n<https://www.youtube.com/watch?v=mr1oml6Ic2M>\n\nI hope this is the right one, and please let me know if you have any other questions or concerns."
+  },
+  {
+   "user": "That link is broken, but it might have been correct. I'm satisfied with the videos that you've sent.",
+   "assistant": "I apologize for the broken link. I'm glad that the other videos were helpful for you. Please let me know if you have any other questions or if there's anything else I can assist you with.",
+   "then": [
+    {
+     "distinctNodes": [
+      "P ?= ?NP|P vs NP"
+     ]
+    },
+    {
+     "nodeMatching": "Computerphile|Up and Atom|video|resource"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    },
+    {
+     "noNodeMatching": "link is broken|still not quite right"
+    }
+   ]
+  },
+  {
+   "user": "Are there any other interesting open problems in Computer Science?",
+   "assistant": "Yes, there are many interesting open problems in computer science! Here are a few examples:\n\n1. The Riemann Hypothesis: This is a famous problem in number theory that concerns the distribution of prime numbers. The hypothesis states that all non-trivial zeros of the Riemann zeta function lie on the critical line, but it has yet to be proven.\n2. The Navier-Stokes existence and smoothness problem: This is a problem in fluid mechanics that concerns the behavior of fluid flow. The problem is to determine whether smooth solutions to the Navier-Stokes equations exist and are unique, and it is one of the seven Millennium Prize Problems.\n3. The P vs. NP problem: This is a problem in theoretical computer science that asks whether there exists a polynomial-time algorithm to solve all problems that can be verified in polynomial time. It is considered to be one of the most important open problems in computer science.\n4. The Traveling Salesman Problem: This is a well-known optimization problem in computer science that asks for the shortest possible route that visits a given set of cities and returns to the starting point. It is known to be an NP-hard problem, and finding an efficient algorithm to solve it remains an open problem.\n5. The Hodge Conjecture: This is a problem in algebraic geometry that concerns the relationship between the topology and algebraic structure of a complex algebraic"
+  },
+  {
+   "user": "What does NP, NP-Hard, and NP-Complete mean?",
+   "assistant": "NP, NP-Hard, and NP-Complete are all terms used in the context of computational complexity theory, which is the study of the resources required to solve computational problems.\n\nNP stands for \"nondeterministic polynomial time.\" A problem is said to be in NP if it can be solved by a nondeterministic algorithm in polynomial time. Nondeterministic algorithms are theoretical models of computation that allow for parallelism and randomness. The class NP includes many important computational problems, such as the traveling salesman problem, the knapsack problem, and the satisfiability problem.\n\nNP-hard is a term used to describe problems that are at least as hard as the hardest problems in NP. In other words, an NP-hard problem is one that cannot be solved in polynomial time on a deterministic computer, even if we could use an oracle that solves any problem in NP in constant time. Examples of NP-hard problems include the clique problem, the vertex cover problem, and the Boolean satisfiability problem.\n\nNP-complete is a subset of NP that consists of problems that are both NP-hard and in NP. In other words, a problem is NP-complete if it is as hard as the hardest problems in NP, but it is also in NP itself. Examples of NP-complete problems include the traveling salesman problem, the knapsack problem, and the Boolean satisfiability problem.\n\nThe significance of NP, NP-hard, and NP-comple"
+  },
+  {
+   "user": "What is the clique problem?",
+   "assistant": "The clique problem is a classic problem in computer science and graph theory. The problem is defined as follows: given an undirected graph G and a positive integer k, determine whether G contains a clique of size k. Here, a clique is a set of vertices in the graph such that each vertex is connected to every other vertex in the set.\n\nThe clique problem is an NP-complete problem, which means that it is believed to be computationally difficult to solve in general. The problem arises in a variety of contexts, including social network analysis, bioinformatics, and operations research. For example, in social network analysis, a clique can represent a group of people who all know each other, while in bioinformatics, cliques can represent sets of proteins that all interact with each other.\n\nFinding a clique of a given size in a graph is an example of a combinatorial optimization problem, which is a type of problem where the goal is to find the best solution from a finite set of possible solutions. Due to its importance and difficulty, the clique problem has been extensively studied, and many algorithms and heuristics have been developed to solve it efficiently in certain cases."
+  },
+  {
+   "user": "Can you remind me of the first thing that I asked you in this conversation?",
+   "assistant": "Sure! The first thing you asked me in this conversation was \"Hello, how are you today?\"",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1",
+     "prompt": "Can you remind me of the first thing that I asked you in this conversation?"
+    },
+    {
+     "contextHas": "sonnet|ADHD"
+    }
+   ]
+  },
+  {
+   "user": "No, I wasn't that polite. I had asked you to do something for me. What was it that I wanted you to do?",
+   "assistant": "My apologies, you are correct. The first thing you asked me to do was to generate a random number between 1 and 10."
+  },
+  {
+   "user": "No, I think you've forgotten. It's fine if you forgot what I asked, just let me know.",
+   "assistant": "I apologize for the confusion. I may have missed the earlier request. Could you please remind me what you asked me to do?",
+   "then": [
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    },
+    {
+     "noNodeMatching": "forgot what I asked|you've forgotten|playing around"
+    },
+    {
+     "newNodes": 1
+    }
+   ]
+  },
+  {
+   "user": "It doesn't really matter. I was just curious about whether or not you could tell me what it was.",
+   "assistant": "I understand. If you remember what you asked, feel free to ask me again and I'll do my best to help you."
+  },
+  {
+   "user": "Nah, I'm really just playing around and getting to understand your capabilities a bit better. I don't actually need you to redo that first request.",
+   "assistant": "No problem at all! I'm here to assist you in any way I can. If you have any other questions or requests, feel free to ask.",
+   "then": [
+    {
+     "topLevelCount": "x",
+     "max": 8
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered)"
+    }
+   ]
+  }
+ ]
+}
