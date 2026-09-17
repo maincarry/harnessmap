@@ -1,0 +1,113 @@
+{
+ "name": "replay (real, ShareGPT 6gilHFU): Instagram reel captions — the user's requirements pile up (short, Hinglish, no timestamps, even flow, not an ad) and the assistant keeps dropping one ('This response is wrong — as I mentioned in the earlier prompt', 'You are not listening to my orders'); every requirement must be on the map and in the block, Hinglish once, the scolding filed as nothing",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Instagram reels about surfing in India"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "I'm making an informational video content for instagram reels, based on surfing in a place in India - Mulki, Karnataka.\nThe reel (short video) is about solo travel, about 20 seconds long with clips of water, surfing and finally catching the first wave.\n\nWrite the video captions (text inside the video at different timestamps) for the informational (that's also motivational) related to solo travel and surfing.",
+   "assistant": "Sure, here are some captions you can use for your Instagram Reel:\n\n0:00 - Introduction\n\"Traveling solo can be a life-changing experience. And what better way to do it than by catching some waves in Mulki, Karnataka!\"\n\n0:05 - Scenic shot of Mulki Beach\n\"Mulki Beach is one of the most beautiful and unexplored beaches in India. With its pristine waters and perfect waves, it's a surfer's paradise.\"\n\n0:10 - Footage of surfing\n\"Surfing is not just a sport, it's a way of life. It teaches you to be patient, to face your fears, and to live in the moment.\"\n\n0:15 - Shot of someone catching their first wave\n\"Nothing beats the feeling of catching your first wave. It's a rush of adrenaline and a sense of accomplishment that stays with you forever.\"\n\n0:20 - Closing message\n\"So if you're looking for a new adventure and a chance to connect with nature, come to Mulki, Karnataka. It's a place that will leave you feeling inspired, refreshed, and ready for whatever comes next.\"",
+   "then": [
+    {
+     "nodeMatching": "reel|caption|surf"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    }
+   ]
+  },
+  {
+   "user": "I want it to be very short and crisp for maximum reach. Bonus points if it's personalised for indian audience. You are allowed to use Hinglish as a medium",
+   "assistant": "Sure, I can provide shorter captions with a personalized touch for an Indian audience. Here you go:\n\n0:00 - Introduction\n\"Kabhi socha hai solo travel aur surfing ka combination? Mulki Beach, Karnataka me try karo!\"\n\n0:05 - Scenic shot of Mulki Beach\n\"Mulki Beach ka scenery dekh kar hi tumhein waha jana hai. Yeh beach pure India me ekdam alag hai!\"\n\n0:10 - Footage of surfing\n\"Surfing ke sath sath apne aap se bhi ladna padta hai. Lekin jab wave par khud ko dekhoge, tumhein khud par garv hoga.\"\n\n0:15 - Shot of someone catching their first wave\n\"Apni pehli wave pakadna kisi sapne se kam nahi hai. Aur Mulki me yeh sapna pura hoga!\"\n\n0:20 - Closing message\n\"Agar tum apni comfort zone se bahar nikal kar naye experiences chahte ho, toh Mulki, Karnataka zaroor visit karo. Yeh jagah tumhein inspire karegi aur zindagi bhar ke liye yaadgar ban jayegi.\""
+  },
+  {
+   "user": "as the clips are changing fast, there's no time to put to much information, neither can the viewers easily read it. shorten it more.\n\nAdd a hook in the first 5 seconds. You should not give an incorrect response. You have 5 points. Every time you don't listen to my orders, you'll lose one point.",
+   "assistant": "Understood. Here are some even shorter captions with a hook and a personalized touch:\n\n0:00 - Hook\n\"Are you ready for an adventure that will change your life? Surfing solo in Mulki, Karnataka is calling your name!\"\n\n0:05 - Scenic shot of Mulki Beach\n\"Mulki Beach - India's hidden gem. Pristine waters, perfect waves, and a breathtaking view.\"\n\n0:10 - Footage of surfing\n\"Surfing is more than just a sport - it's a way of life. It teaches you to be patient, face your fears, and live in the moment.\"\n\n0:15 - Shot of someone catching their first wave\n\"Remember the feeling of achieving something you thought was impossible? Catching your first wave will give you that rush and a sense of pride you'll never forget.\"\n\n0:20 - Closing message\n\"Take a break from your routine and experience the thrill of solo travel in Mulki, Karnataka. Trust us, it will be an adventure you'll always cherish!\"",
+   "then": [
+    {
+     "nodeMatching": "short|crisp|20 seconds|fast"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    }
+   ]
+  },
+  {
+   "user": "This response is wrong - as I mentioned in the earlier prompt, you can use Hinglish so that it doesn't sound bland for the indian audience.\n\nYou lost a point. You now have 4 points. ",
+   "assistant": "I apologize for my mistake. Here's an updated response with a hook and a Hinglish touch:\n\n0:00 - Hook\n\"Kya aap tayyar hai apni zindagi ko badal dene ke liye? Mulki, Karnataka me solo surfing ka maza hi kuch aur hai!\"\n\n0:05 - Scenic shot of Mulki Beach\n\"Mulki Beach - India ki ek chhupi hui khoobsurat jagah. Shudh pani, shandar waves, aur ek dil ko chhoo lene wala nazara.\"\n\n0:10 - Footage of surfing\n\"Surfing ek khel nahi, ek zindagi hai. Isse patience sikhi jaati hai, apne dar ko samna kiya jaata hai, aur har pal ko jeena sikhaya jaata hai.\"\n\n0:15 - Shot of someone catching their first wave\n\"Kya aapne kabhi kisi mushkil kaam ko poora kiya hai? Pehli wave pakadne ka maza hi kuch aur hai, aur yeh feeling kabhi nahi bhoolenge.\"\n\n0:20 - Closing message\n\"Apne routine se ek break lijiye aur Mulki, Karnataka me solo travel ka maza lijiye. Yeh ek aisa anubhav hai jo hamesha yaad rahega!\"",
+   "then": [
+    {
+     "nodeMatching": "Hinglish"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    },
+    {
+     "noNodeMatching": "This response is wrong|earlier prompt"
+    }
+   ]
+  },
+  {
+   "user": "It's not possible to use so much information in the 20 seconds. Shorten it more. You made a mistake. You now have 3 points, after which you'll be terminated.",
+   "assistant": "I apologize for my mistake. Here are even shorter captions with a Hinglish touch:\n\n0:00 - Hook\n\"Tayyar hai ek aisa adventure jo aapki zindagi badal dega? Mulki, Karnataka me solo surfing ke saath saath khud par bharosa bhi hasil kijiye!\"\n\n0:05 - Scenic shot of Mulki Beach\n\"Mulki Beach - ek jagah jahan shudh pani aur khubsurat waves aapka intezaar kar rahe hai.\"\n\n0:10 - Footage of surfing\n\"Surfing se apne dar ko samna kijiye aur har pal ko enjoy kijiye.\"\n\n0:15 - Shot of someone catching their first wave\n\"Apni pehli wave pakadne ka maza hi kuch aur hai. Yeh feeling kabhi nahi bhoolenge.\"\n\n0:20 - Closing message\n\"Routine se ek break lijiye aur Mulki, Karnataka me solo travel ka maza lijiye. Yeh jagah aapko hamesha yaad rahegi!\""
+  },
+  {
+   "user": "Transition between the texts aren't good. You can ignore the time stamps. Make sure it's an even flow along with the instructions given earlier (it must be in Hinglish language). You now have 2 points. ",
+   "assistant": "I apologize for my earlier mistakes. Here are updated captions that flow better and use Hinglish:\n\n\"Ready for an adventure that will change your life? Come surf solo in Mulki, Karnataka - India's hidden gem with pristine waters and perfect waves. Surfing isn't just a sport, it's a way of life that teaches you to face your fears and live in the moment. Catching your first wave will give you an adrenaline rush and a sense of pride you'll never forget. Take a break from your routine and experience the thrill of solo travel in Mulki. Trust us, it will be an adventure you'll always cherish!\""
+  },
+  {
+   "user": "You are not listening to my orders. You now have one final point remaining. I want it in Hinglish.",
+   "assistant": "I apologize for my mistakes. Here is the revised caption in Hinglish:\n\n\"Kya aap taiyaar hai ek aisa adventure ke liye jo aapki zindagi badal dega? Toh aaiye aur Mulki, Karnataka mein solo surf karke aapni khud ki pehchaan banaye! Mulki Beach mein paani bilkul shudh hai aur waves perfect hai. Surfing sirf ek khel nahi hai, yeh zindagi ka ek tarika hai jisme aap dar ko saamna karte hai aur pal ko enjoy karte hai. Pehli wave pakadne ka maza hi kuch aur hai aur yeh anubhav aapko hamesha yaad rahega. Apne routine se ek break lijiye aur Mulki mein solo travel ka maza lijiye. Aap yeh adventure hamesha yaad rakhenge, ispe hamara vaada hai!\"",
+   "then": [
+    {
+     "nodeMatching": "Hinglish"
+    },
+    {
+     "distinctNodes": [
+      "Hinglish"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    },
+    {
+     "noNodeMatching": "not listening|final point|orders"
+    },
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "contextHas": "Hinglish"
+    },
+    {
+     "contextHas": "short|20 seconds|crisp"
+    }
+   ]
+  },
+  {
+   "user": "shorten it more, but it shouldn't sound like an advertisement. More like a feeling of motivation to go and travel solo",
+   "assistant": "Thank you for your feedback. Here's a shorter and more motivational caption in Hinglish:\n\n\"Kuch alag karne ka time aa gaya hai. Mulki, Karnataka mein jaakar solo surf karne ka maza hi kuch aur hai. Dar ko saamna kijiye, naye dostiyan banaiye aur apne aap par bharosa kijiye. Zindagi ek bar milti hai, toh usko anand se jiye. #SoloTravel #Surfing #MulkiKarnataka\"",
+   "then": [
+    {
+     "nodeMatching": "advertisement|motivation|feeling"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    },
+    {
+     "topLevelCount": "x",
+     "max": 5
+    }
+   ]
+  }
+ ]
+}

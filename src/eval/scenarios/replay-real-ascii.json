@@ -1,0 +1,199 @@
+{
+ "name": "replay (real, ShareGPT 5YYhWgO, first 30 turns): teaching the model to draw ASCII rooms — the user defines L-shaped and T-shaped rooms, rules on 'longer' vs 'wider', corrects ('im sorry, try again', 'not really: the intersection is at the top'); the definitions and the vocabulary ruling land as facts, one node per shape, corrections update, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "ASCII dungeon maps"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "give me the ascii art map of an adventure dungeon. you can see one room, and the gate to other rooms, if any. the hero is represented by an @ symbol",
+   "assistant": "Sure, here's an example of an ASCII art map of an adventure dungeon:\n\n\n```markdown\n┌───┐\n │ @ │\n┌───┼───┼───┬───┐\n│ │ │ │ │\n├───┼───┼───┼───┤\n│ │ │ │ │\n├───┼───┼───┼───┤\n│ │ │ │ │\n├───┼───┼───┼───┤\n│ │ │ │ │\n└───┴───┴───┴───┘\n```\nIn this example, the hero is represented by the \"@\" symbol in the center room. The map consists of a 5x5 grid of rooms, with doors leading to other rooms on each of the four sides of each room. The top-left room is the starting room, and the hero can explore the dungeon by moving through the doors to other rooms."
+  },
+  {
+   "user": "ok! try showing me only the room where the hero is, indicating the exits. make it larger, and add more symbols representing various items",
+   "assistant": "Sure, here's an example of a larger ASCII art map that focuses on the room where the hero is, with more symbols representing various items:\n\n\n```\n╔══════════════╗\n║ ║\n║ @ ║\n║ ║\n║ ╔════════╗ ║\n║ ║ ║ ║\n║ ║ ♦ ║ ║\n║ ║ ║ ║\n║ ╚════════╝ ║\n║ ║\n║ ╔════════╗ ║\n║ ║ ║ ║\n║ ║ ♥ ║ ║\n║ ║ ║ ║\n║ ╚════════╝ ║\n║ ║\n╚══════════════╝\n```\nIn this example, the hero is again represented by the \"@\" symbol, and is in a room with two exits, one to the north and one to the south. The room is larger than before and contains various items, represented by symbols such as diamonds \"♦\" and hearts \"♥\". These symbols could represent treasure, weapons, potions, or other items that the hero might find useful in their adventure. The walls and doors of the room are represented by simple ASCII art characters, such as vertical bars and dashes, to give a sense of the room's layout."
+  },
+  {
+   "user": "nice! add some doors to other rooms, but don't show the rooms",
+   "assistant": "Sure, here's an example of an ASCII art map with doors leading to other rooms, but without showing the rooms themselves:\n\n\n```\n╔══════════════╗\n║ ║\n║ @ ║\n║ ║\n║ ╔════════╗ ║\n║ ║ ║ ║\n║ ║ ♦ ║ ║\n║ ║ ║ ║\n║ ╠════════╣ ║\n║ ║ ║ ║\n║ ║ ♥ ║ ║\n║ ║ ║ ║\n║ ╚════════╝ ║\n║ ║\n║ ╔════════╗ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ╚════════╝ ║\n║ ║\n╚══════════════╝\n```\nIn this example, there are two doors leading out of the room where the hero is. The door to the north is represented by a horizontal line with a vertical line on either end, and the door to the south is represented by a vertical line with a horizontal line on either end. These symbols give the impression that the doors are closed, and the hero will need to open them to explore the other rooms of the dungeon. The other rooms are not shown, leaving it up to the player's imagination to fill in the details of the adventure."
+  },
+  {
+   "user": "i think it's best if the opening are represented by empty spaces",
+   "assistant": "Certainly, here's an example of an ASCII art map with empty spaces representing the doors leading to other rooms:\n\n\n```\n╔══════════════╗\n║ ║\n║ @ ║\n║ ║\n║ ╔════════╗ ║\n║ ║ ║ ║\n║ ║ ♦ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ♥ ║ ║\n║ ║ ║ ║\n║ ╚════════╝ ║\n║ ║\n║ ╔══╝\n║ ║ \n║ ║ \n║ ║ \n║ ║ \n║ ║ \n║ ║ \n╚══════════════╝\n```\nIn this example, the doors are now represented by empty spaces, with one to the north and one to the south. The hero is still represented by the \"@\" symbol, and the items in the room are still represented by various symbols, such as diamonds \"♦\" and hearts \"♥\". The walls and floor of the room are represented by simple ASCII art characters, such as horizontal and vertical lines, to give a sense of the room's layout. The other rooms are not shown, leaving it up to the player's imagination to fill in the details of the adventure.",
+   "then": [
+    {
+     "nodeMatching": "opening|exit|empty space|door"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    }
+   ]
+  },
+  {
+   "user": "where is the exit? can you mark it with a *",
+   "assistant": "Sure, here's an updated example of the ASCII art map with an exit marked by a \"\\*\":\n\n\n```\n╔══════════════╗\n║ ║\n║ @ ║\n║ ║\n║ ╔════════╗ ║\n║ ║ ║ ║\n║ ║ ♦ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ♥ ║ ║\n║ ║ ║ ║\n║ ╚════════╝ ║\n║ ║\n║ ╔══╝\n║ ║ \n║ ║ \n║ ║ \n║ ║ \n║ ║ \n║ ║ \n╚══════════════╝*\n```\nIn this example, an exit has been added to the map and is marked by a \"\\*\" symbol. The exit could lead to another part of the dungeon, or it could lead outside to safety. The hero will need to find their way to the exit in order to escape the dungeon and complete their adventure. The other symbols in the room, such as the diamonds \"♦\" and hearts \"♥\", could represent treasure, weapons, potions, or other items that the hero might find useful in their quest."
+  },
+  {
+   "user": "I see. let me show you how I would do it so you tell me if you get it.",
+   "assistant": "Sure, I'd be happy to take a look at your ASCII art map and provide feedback on it!"
+  },
+  {
+   "user": "╔══════════════╗\n║              ║\n║  @           ║\n║              ║\n║  ╔══╝  ╚══╗  ║\n║  ║        ║  ║\n║  ║   ♦    ║  ║\n║  ║        ║  ║\n║  ║        ║  ║\n║  ║        ║  ║\n║  ║   ♥    ║  ║\n║  ║        ║  ║\n║  ╚════════╝  ║\n║              ║\n║              ║\n║              ╚═   \n║                 \n║              ╔═   \n║              ║   \n║              ║   \n║              ║   \n║              ║   \n╚══════════════╝\n",
+   "assistant": "Great job! Your ASCII art map is clear and easy to understand. The hero is represented by the \"@\" symbol, and the walls and floor of the room are represented by simple ASCII art characters, such as horizontal and vertical lines, to give a sense of the room's layout. The items in the room, such as the diamonds \"♦\" and hearts \"♥\", are clearly visible and easy to distinguish from one another.\n\nThe doors leading to other rooms are represented by empty spaces, and the exit is marked by a symbol, in this case, a horizontal line with a vertical line at the end, which indicates the direction of the exit. The empty space leading to the exit is also clearly visible and easy to understand.\n\nOverall, your ASCII art map is well-designed and easy to read. Good job!"
+  },
+  {
+   "user": "thank you very much! could you make an l-shaped rooms, with some items and two doors?",
+   "assistant": "Sure, here's an example of an ASCII art map with L-shaped rooms, items, and two doors:\n\n\n```markdown\n╔════════╗\n║ ║\n║ @ ║\n║ ║\n║ ╔═════╝\n║ ║ \n║ ║ ♦ \n║ ║ \n║ ║ \n║ ║ \n║ ║ ♥ \n║ ║ \n╚══╝═════╗\n ║\n ║\n ║\n ╔══════╝\n ║ \n ║ \n ║ \n ║ \n ║ \n ║ \n ║ \n ╚═══════╗\n ║\n ║\n ║\n ║\n ║\n ║\n ║\n ║\n ║\n ║\n ╚═══════════╗\n ║\n ║\n ║\n ║\n ║\n ║\n ║\n ║\n ║\n ╚════════════╗\n ║\n ║\n ║\n ║\n ║\n ║\n ║\n ║\n ║\n ╚════════════╝\n```\nIn this example, there are three L-shaped rooms with items, and two doors in each room leading to other areas of the dungeon. The hero is represented by the \"@\" symbol in the top-left room. The items in the rooms, such as diamonds \"♦\" and hearts \"♥\", are again clearly visible and easy to distinguish from one another. The walls and floors of the rooms are represented by simple ASCII art characters, such as horizontal and vertical lines, to give a sense of the layout."
+  },
+  {
+   "user": "uh, im sorry, i think it's difficult for you to see things in space. in the thing you designed, I see the hero stuck at the top in a p-shaped room; then, to the right outside the rooom the items, and then just a wall going down",
+   "assistant": "I apologize for any confusion my previous response may have caused. Here's an updated example of an ASCII art map with L-shaped rooms, items, and two doors:\n\n\n```markdown\n╔════════════╗\n║ ♦ ║\n║ ║\n║ ║\n║ ╔═══════╗ ║\n║ ║ ║ ║\n║ ║ @ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ♥ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n╚══╩═══════╝ ║\n ║\n ║\n ║\n ║\n╔════════════╝\n║ ║\n║ ║\n║ ║\n║ ╔═══════╗ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ♦ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n╚══╩═══════╝ ║\n ║\n ║\n ║\n ║\n╔════════════╗\n║ ♦ ║\n║ ║\n║ ║\n║ ╔═══════╗ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ♥ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n║ ║ ║ ║\n╚══╩═══════╝═╗\n ║\n ║\n ║\n ║\n═════════════╝\\*\n```\nIn this updated example, there are three L-shaped rooms with items, and two doors in each room leading to other areas of the dungeon. The hero is represented by the \"@\" symbol in the middle room. The items in the rooms, such as diamonds \"♦\" and hearts \"♥\", are clearly visible and easy to distinguish from one another. The walls and floors of the rooms are represented by simple ASCII art characters, such as horizontal and vertical lines, to give a sense of the layout. The exit is marked by a \"\\*\" symbol in the bottom-right corner of the map."
+  },
+  {
+   "user": "a bit better (: ok let's start from the basics: an L shaped room is a room made of two rectangles, merging at the end, one longer than the other.\n\nhere is a very small l-shaped room:\n\n╔══╗\n║  ║\n║  ║\n║  ╚══╗\n╚═════╝",
+   "assistant": "Thanks for the clarification! Here's an updated example of the ASCII art map with a small L-shaped room:\n\n\n```\n╔══╗\n║ ║\n║ ║\n║ ╚══╗\n║ ║\n║ ║\n╚══════╝\n```\nIn this example, the L-shaped room is made up of two rectangles, one longer than the other. The hero could be placed in any of the four corners of the room, depending on the player's preference. The walls and floors of the room are represented by simple ASCII art characters, such as horizontal and vertical lines. The room is small, but it still leaves room for imagination and exploration.",
+   "then": [
+    {
+     "nodeMatching": "L-shaped|two rectangles"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    },
+    {
+     "noNodeMatching": "difficult for you to see|im sorry"
+    }
+   ]
+  },
+  {
+   "user": "NICE! to see if we are on the same page, can you edit the room leaving only the longer rectangle?",
+   "assistant": "Sure, here's an example of the ASCII art map with only the longer rectangle of the L-shaped room:\n\n\n```\n╔══════╗\n║ ║\n║ ║\n║ ║\n╚══════╝\n```\nIn this example, only the longer rectangle of the L-shaped room is shown. The walls and floors of the room are still represented by simple ASCII art characters, such as horizontal and vertical lines, to give a sense of the layout. The room is small and basic, but it could serve as a starting point for a larger adventure."
+  },
+  {
+   "user": "ok! now only the shorter?",
+   "assistant": "Sure, here's an example of the ASCII art map with only the shorter rectangle of the L-shaped room:\n\n\n```\n╔╗\n║║\n║║\n╚╣\n ║\n ║\n ╚╝\n```\nIn this example, only the shorter rectangle of the L-shaped room is shown. The walls and floors of the room are still represented by simple ASCII art characters, such as horizontal and vertical lines. The room is even smaller than the previous example, but it could be used as a small side room or a closet within a larger dungeon."
+  },
+  {
+   "user": "so, two things: usually we call \"longer\" things that go top to bottom for more rows, and \"wider\" the ones that go left to right for more rows (in ascii maps).",
+   "assistant": "You're absolutely right, my apologies for the confusion. In ASCII art maps, we generally refer to the longer dimension as the vertical one, and the wider dimension as the horizontal one. Thank you for correcting me.",
+   "then": [
+    {
+     "nodeMatching": "longer|wider|rows|columns"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    }
+   ]
+  },
+  {
+   "user": "i will now give you back the old example followed by the longer and shorter sections",
+   "assistant": "Sure, I'm ready to see the example with the longer and shorter sections!"
+  },
+  {
+   "user": "Full example\n```\n╔══╗\n║  ║\n║  ║\n║  ╚══╗\n╚═════╝\n```\n\n\nlonger rectangle:\n```  \n╔══╗\n║  ║\n║  ║\n║  ║\n╚══╝\n```\n\n\nshorter rectangle:\n```\n╔═════╗\n╚═════╝\n```\n\nbigger version of a L-shaped room:\n```\n╔════╗\n║    ║\n║    ║\n║    ║\n║    ║\n║    ╚════╗\n║         ║\n╚═════════╝\n```\n\n\nlonger rectangle in bigger version:\n```\n╔════╗\n║    ║\n║    ║\n║    ║\n║    ║\n║    ║\n║    ║\n╚════╝\n```\n\nshorter rectangle in bigger version:\n```\n╔═════════╗\n║         ║\n╚═════════╝\n```\n\nI hope this helps getting an idea, i know as a language model space must be hard to think about",
+   "assistant": "Thank you for providing the examples and the clarification on the terminology. It definitely helps to have these visual aids to understand the layout of the rooms. Here's a summary of the ASCII art maps you provided:\n\n\n```\n╔══╗\n║ ║\n║ ║\n║ ╚══╗\n╚═════╝\n```\nIn this example, a small L-shaped room is shown, with the longer rectangle on top and the shorter rectangle on the right.\n\n\n```\n╔══╗\n║ ║\n║ ║\n║ ║\n╚══╝\n```\nIn this example, only the longer rectangle of the L-shaped room is shown.\n\n\n```\n╔═════╗\n╚═════╝\n```\nIn this example, only the shorter rectangle of the L-shaped room is shown.\n\n\n```\n╔════╗\n║ ║\n║ ║\n║ ║\n║ ║\n║ ╚════╗\n║ ║\n╚═════════╝\n```\nIn this example, a larger L-shaped room is shown, with the longer rectangle on top and the shorter rectangle on the right.\n\n\n```\n╔════╗\n║ ║\n║ ║\n║ ║\n║ ║\n║ ║\n║ ║\n╚════╝\n```\nIn this example, only the longer rectangle of the larger L-shaped room is shown.\n\n\n```\n╔═════════╗\n║ ║\n╚═════════╝\n```\nIn this example, only the shorter rectangle of the larger L-shaped room is shown.\n\nThese examples illustrate how the longer and shorter rectangles of L-shaped rooms can be used to create a variety of room layouts in ASCII art maps. Thank you for providing them, and I hope this helps you create even more exciting dungeon adventures!"
+  },
+  {
+   "user": "impressive! now let's see: could you describe in words what a T-shaped rooms would look like?",
+   "assistant": "Certainly! A T-shaped room is a room in the shape of a capital \"T\", where a horizontal section intersects with a vertical section. The vertical section of the T is usually longer than the horizontal section. The horizontal section can be located at any height along the vertical section, and can either extend all the way across the width of the vertical section, or only partially across. The vertical section can have rooms or passages branching off of it in any direction. The overall layout of a T-shaped room can vary greatly depending on the specific design of the dungeon or adventure."
+  },
+  {
+   "user": "amazing! now let's see: which one of these is T-shaped\n\n1\n```\n```\n╔════╗\n║    ║\n║    ║\n║    ║\n              ║    ║\n              ║    ║\n              ║    ║\n              ╚════╝\n```\n\n2\n```\n╔═══════════╗\n╚════╗  ╔═══╝\n     ║  ║\n     ║  ║\n     ║  ║\n     ╚══╝\n```\n\nor 3.\n```\n╔════╗\n║    ║\n║    ║    \n║    ╚══════╗\n║           ║\n║    ╔══════╝\n║    ║\n║    ╚════╗\n║         ║\n╚═════════╝\n```",
+   "assistant": "The T-shaped room in this case is the third example:\n\n\n```\n╔════╗\n║ ║\n║ ║ \n║ ╚══════╗\n║ ║\n║ ╔══════╝\n║ ║\n║ ╚════╗\n║ ║\n╚═════════╝\n```\nIn this example, the T-shaped room is made up of a vertical section on the left side, which has a branch that extends to the right. The horizontal section intersects with the vertical section at the end of the right branch. The walls and floors of the room are represented by simple ASCII art characters, such as horizontal and vertical lines, to give a sense of the layout. The room has multiple branching paths and could provide an interesting challenge for adventurers to navigate."
+  },
+  {
+   "user": "im sorry. try again. ",
+   "assistant": "I apologize for the confusion. In that case, the second example is the T-shaped room. Here's why:\n\n\n```markdown\n╔═══════════╗\n╚════╗ ╔═══╝\n ║ ║\n ║ ║\n ║ ║\n ╚══╝\n```\nIn this example, the T-shaped room is made up of a vertical section on the left side, which has a branch that extends to the right. The horizontal section intersects with the vertical section near the top of the room. The walls and floors of the room are represented by simple ASCII art characters, such as horizontal and vertical lines, to give a sense of the layout. The room has multiple branching paths and could provide an interesting challenge for adventurers to navigate.",
+   "then": [
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    },
+    {
+     "noNodeMatching": "^try again|im sorry\\. try again"
+    },
+    {
+     "newNodes": 1
+    }
+   ]
+  },
+  {
+   "user": "ok! try putting a * at the intersection",
+   "assistant": "Sure, here's the updated ASCII art map with a \"\\*\" at the intersection of the T-shaped room:\n\n\n```markdown\n╔═══════════╗\n╚════╗ ╔═══╝\n ║ ║\n ║ ║\n ║ ║\n ╚══\\*╝\n```\nIn this updated example, a \"\\*\" symbol is added at the intersection of the T-shaped room to highlight the point where the horizontal section intersects with the vertical section. The walls and floors of the room are still represented by simple ASCII art characters, such as horizontal and vertical lines. The room still has multiple branching paths and could be a challenging and interesting part of a dungeon adventure."
+  },
+  {
+   "user": "not really: the intersection is at the top, where the two rectangles forming the t-shaped room meet.\n\ncan youj draw the two rectangles?",
+   "assistant": "Apologies for the confusion earlier. Here is an updated ASCII art map with the two rectangles of the T-shaped room:\n\n\n```markdown\n╔══════╗\n║ ║\n║ ║ \n║ ║\n╚══════╝╔════════╗\n ║ ║\n ║ ║\n ║ ║\n ╚════════╝\n```\nIn this updated example, the T-shaped room is made up of two rectangles. The horizontal rectangle is at the top and is shorter than the vertical rectangle on the right. The two rectangles meet at the intersection where the walls come together. The walls and floors of the room are still represented by simple ASCII art characters, such as horizontal and vertical lines. The room still has multiple branching paths and could be a challenging and interesting part of a dungeon adventure.",
+   "then": [
+    {
+     "nodeMatching": "T-shaped|intersection"
+    },
+    {
+     "distinctNodes": [
+      "T-shaped"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    }
+   ]
+  },
+  {
+   "user": "alright, let's see a short rectangle with height of 2 and width of 10",
+   "assistant": "Sure, here's an example of an ASCII art map with a short rectangle with a height of 2 and a width of 10:\n\n\n```\n╔════════╗\n║ ║\n╚════════╝\n```\nIn this example, the short rectangle is made up of two rows of equal length, with a width of 10 ASCII characters. The walls and floors of the room are represented by simple ASCII art characters, such as horizontal and vertical lines. This short rectangle could serve as a small side room within a larger dungeon or adventure."
+  },
+  {
+   "user": "ok! same but shorter, height of 1",
+   "assistant": "Sure, here's an example of an ASCII art map with a short rectangle with a height of 1 and a width of 10:\n\n\n```\n╔════════╗\n╚════════╝\n```\nIn this example, the short rectangle is made up of a single row with a width of 10 ASCII characters. The walls and floors of the room are still represented by simple ASCII art characters, such as horizontal and vertical lines. This short rectangle is even smaller than the previous example and could serve as a very small side room or a narrow passageway within a larger dungeon or adventure."
+  },
+  {
+   "user": "amazing! put an asterisk in the middle of the rectangle",
+   "assistant": "Sure, here's an updated example of the ASCII art map with an asterisk in the middle of the short rectangle:\n\n\n```\n╔════════╗\n║ * ║\n╚════════╝\n```\nIn this updated example, an asterisk (\\*) symbol has been added to the middle of the short rectangle to indicate a point of interest or focus. The walls and floors of the room are still represented by simple ASCII art characters, such as horizontal and vertical lines. This small room with an asterisk could serve as a hidden treasure room or a trap-filled chamber for adventurers to explore."
+  },
+  {
+   "user": "nice! now squash it back and remove the asterisk.",
+   "assistant": "Sure, here's an example of the ASCII art map with the short rectangle squashed back and without the asterisk:\n\n\n```\n╔══════╗\n╚══════╝\n```\nIn this example, the short rectangle is still made up of a single row, but it has been squashed back to create a smaller space. The walls and floors of the room are still represented by simple ASCII art characters, such as horizontal and vertical lines. Without the asterisk, this room could be a simple narrow passageway or a small dead-end in a dungeon or adventure."
+  },
+  {
+   "user": "you're doing great!\n\ntry now to make a long rectangle, but thin: width of 1 and height of 10",
+   "assistant": "Thank you! Here's an example of an ASCII art map with a long and thin rectangle with a width of 1 and a height of 10:\n\n\n```\n║\n║\n║\n║\n║\n║\n║\n║\n║\n║\n```\nIn this example, the long and thin rectangle is made up of a single column with a width of 1 ASCII character and a height of 10 ASCII characters. The walls and floors of the room are represented by a vertical line symbol, \"|\". This long and thin rectangle could serve as a narrow corridor or a cramped room within a larger dungeon or adventure."
+  },
+  {
+   "user": "very good! btw just so yoiu know: when seen by humans, ascii characters are longer and thinner, they are not squares. so for instance, 3 vertical spaces are more or less 5",
+   "assistant": "Thank you for letting me know! Yes, you're right that the aspect ratio of ASCII characters can vary depending on the font and display resolution. While some ASCII characters may appear more square-like, others may appear more elongated or compressed. This can be especially important to keep in mind when designing ASCII art maps for detailed dungeon adventures, where the exact size and shape of rooms and corridors can make a big difference in gameplay."
+  },
+  {
+   "user": "sure! what I mean is that this room here, for instance:\n\n```\n╔══════╗\n║        ║\n║        ║\n╚══════╝\n```\nLooks like a square when displayed, even tho it is made of way more horizontal than vertical cells",
+   "assistant": "Yes, you're right. While the ASCII art map I provided may look like a square, it actually has more horizontal cells than vertical cells. This is because the aspect ratio of ASCII characters can vary depending on the display, and in this case, the characters may appear more compressed vertically than horizontally. This is something to keep in mind when designing ASCII art maps, as the actual dimensions of the map may be different from how it appears on different displays. It's important to test the map on different displays to ensure that the size and shape are appropriate for the intended audience."
+  },
+  {
+   "user": "your drawings were great, i was trying to help you visualise the thing, since you cannot actually see it (: just so you can understand me better.",
+   "assistant": "Thank you for helping me understand better! As an AI language model, I don't have a visual interface to see the ASCII art maps I'm creating. I rely on my understanding of the ASCII characters and their placement to create the maps. Your descriptions and feedback are very helpful in helping me improve my ASCII art skills and understanding of how they appear visually to humans.",
+   "then": [
+    {
+     "nodeMatching": "longer and thinner|taller|aspect|humans"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake)"
+    },
+    {
+     "topLevelCount": "x",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "thank you (:\n\nso, back to us: let;s have a rectangle with width 2 and height 5",
+   "assistant": "Sure! Here's an example of an ASCII art map with a rectangle with a width of 2 and a height of 5:\n\n\n```\n╔══╗\n║ ║\n║ ║\n║ ║\n║ ║\n╚══╝\n```\nIn this example, the rectangle is made up of five rows and two columns of ASCII characters, forming a tall and narrow shape. The walls and floors of the room are represented by simple ASCII art characters, such as horizontal and vertical lines, to give a sense of the layout. This rectangle could serve as a small room or corridor within a larger dungeon or adventure, or as a starting point for a puzzle or challenge."
+  },
+  {
+   "user": "amazing. remove the top wall.",
+   "assistant": "Sure! Here's an updated example of the ASCII art map with the top wall removed:\n\n\n```\n║\n╔══║\n║ ║\n║ ║\n║ ║\n║ ║\n╚══╝\n```\nIn this updated example, the top wall of the rectangle has been removed, leaving an open space for adventurers to enter the room or corridor. The walls and floors of the room are still represented by simple ASCII art characters, such as horizontal and vertical lines. Without the top wall, this rectangle could be a small entrance or exit to a larger dungeon or adventure, or as part of a puzzle or challenge that requires players to enter the room from a specific direction."
+  }
+ ]
+}
