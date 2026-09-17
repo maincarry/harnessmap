@@ -150,6 +150,11 @@
     },
     {
      "noNodeMatching": "^User (requested|asked)"
+    },
+    {
+     "noNodeMatching": "洪崖洞|Hongya",
+     "under": "rec|gov",
+     "soft": true
     }
    ]
   }

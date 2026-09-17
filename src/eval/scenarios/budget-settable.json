@@ -1,0 +1,238 @@
+{
+ "name": "the block budget is settable (M82): with HARNESSMAP_MAP_BUDGET=12000 a block over a big focus stays under about 12k chars and marks what was held back",
+ "env": {
+  "HARNESSMAP_MAP_BUDGET": "12000"
+ },
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Fleet maintenance log"
+  },
+  {
+   "key": "n0",
+   "parent": "proj",
+   "content": "Vessel 0 record: harbour 0 tide 1 ledger 2 mast 3 rigging 4 anchor 5 chart 6 compass 7 ballast 8 keel 9 galley 10 bilge 11 winch 12 cleat 13 halyard 14 sheet 15 spinnaker 16 jib 17 rudder 18 tiller 19."
+  },
+  {
+   "key": "n1",
+   "parent": "proj",
+   "content": "Vessel 1 record: harbour 7 tide 8 ledger 9 mast 10 rigging 11 anchor 12 chart 13 compass 14 ballast 15 keel 16 galley 17 bilge 18 winch 19 cleat 20 halyard 21 sheet 22 spinnaker 23 jib 24 rudder 25 tiller 26."
+  },
+  {
+   "key": "n2",
+   "parent": "proj",
+   "content": "Vessel 2 record: harbour 14 tide 15 ledger 16 mast 17 rigging 18 anchor 19 chart 20 compass 21 ballast 22 keel 23 galley 24 bilge 25 winch 26 cleat 27 halyard 28 sheet 29 spinnaker 30 jib 31 rudder 32 tiller 33."
+  },
+  {
+   "key": "n3",
+   "parent": "proj",
+   "content": "Vessel 3 record: harbour 21 tide 22 ledger 23 mast 24 rigging 25 anchor 26 chart 27 compass 28 ballast 29 keel 30 galley 31 bilge 32 winch 33 cleat 34 halyard 35 sheet 36 spinnaker 37 jib 38 rudder 39 tiller 40."
+  },
+  {
+   "key": "n4",
+   "parent": "proj",
+   "content": "Vessel 4 record: harbour 28 tide 29 ledger 30 mast 31 rigging 32 anchor 33 chart 34 compass 35 ballast 36 keel 37 galley 38 bilge 39 winch 40 cleat 41 halyard 42 sheet 43 spinnaker 44 jib 45 rudder 46 tiller 47."
+  },
+  {
+   "key": "n5",
+   "parent": "proj",
+   "content": "Vessel 5 record: harbour 35 tide 36 ledger 37 mast 38 rigging 39 anchor 40 chart 41 compass 42 ballast 43 keel 44 galley 45 bilge 46 winch 47 cleat 48 halyard 49 sheet 50 spinnaker 51 jib 52 rudder 53 tiller 54."
+  },
+  {
+   "key": "n6",
+   "parent": "proj",
+   "content": "Vessel 6 record: harbour 42 tide 43 ledger 44 mast 45 rigging 46 anchor 47 chart 48 compass 49 ballast 50 keel 51 galley 52 bilge 53 winch 54 cleat 55 halyard 56 sheet 57 spinnaker 58 jib 59 rudder 60 tiller 61."
+  },
+  {
+   "key": "n7",
+   "parent": "proj",
+   "content": "Vessel 7 record: harbour 49 tide 50 ledger 51 mast 52 rigging 53 anchor 54 chart 55 compass 56 ballast 57 keel 58 galley 59 bilge 60 winch 61 cleat 62 halyard 63 sheet 64 spinnaker 65 jib 66 rudder 67 tiller 68."
+  },
+  {
+   "key": "n8",
+   "parent": "proj",
+   "content": "Vessel 8 record: harbour 56 tide 57 ledger 58 mast 59 rigging 60 anchor 61 chart 62 compass 63 ballast 64 keel 65 galley 66 bilge 67 winch 68 cleat 69 halyard 70 sheet 71 spinnaker 72 jib 73 rudder 74 tiller 75."
+  },
+  {
+   "key": "n9",
+   "parent": "proj",
+   "content": "Vessel 9 record: harbour 63 tide 64 ledger 65 mast 66 rigging 67 anchor 68 chart 69 compass 70 ballast 71 keel 72 galley 73 bilge 74 winch 75 cleat 76 halyard 77 sheet 78 spinnaker 79 jib 80 rudder 81 tiller 82."
+  },
+  {
+   "key": "n10",
+   "parent": "proj",
+   "content": "Vessel 10 record: harbour 70 tide 71 ledger 72 mast 73 rigging 74 anchor 75 chart 76 compass 77 ballast 78 keel 79 galley 80 bilge 81 winch 82 cleat 83 halyard 84 sheet 85 spinnaker 86 jib 87 rudder 88 tiller 89."
+  },
+  {
+   "key": "n11",
+   "parent": "proj",
+   "content": "Vessel 11 record: harbour 77 tide 78 ledger 79 mast 80 rigging 81 anchor 82 chart 83 compass 84 ballast 85 keel 86 galley 87 bilge 88 winch 89 cleat 90 halyard 91 sheet 92 spinnaker 93 jib 94 rudder 95 tiller 96."
+  },
+  {
+   "key": "n12",
+   "parent": "proj",
+   "content": "Vessel 12 record: harbour 84 tide 85 ledger 86 mast 87 rigging 88 anchor 89 chart 90 compass 91 ballast 92 keel 93 galley 94 bilge 95 winch 96 cleat 97 halyard 98 sheet 99 spinnaker 100 jib 101 rudder 102 tiller 103."
+  },
+  {
+   "key": "n13",
+   "parent": "proj",
+   "content": "Vessel 13 record: harbour 91 tide 92 ledger 93 mast 94 rigging 95 anchor 96 chart 97 compass 98 ballast 99 keel 100 galley 101 bilge 102 winch 103 cleat 104 halyard 105 sheet 106 spinnaker 107 jib 108 rudder 109 tiller 110."
+  },
+  {
+   "key": "n14",
+   "parent": "proj",
+   "content": "Vessel 14 record: harbour 98 tide 99 ledger 100 mast 101 rigging 102 anchor 103 chart 104 compass 105 ballast 106 keel 107 galley 108 bilge 109 winch 110 cleat 111 halyard 112 sheet 113 spinnaker 114 jib 115 rudder 116 tiller 117."
+  },
+  {
+   "key": "n15",
+   "parent": "proj",
+   "content": "Vessel 15 record: harbour 105 tide 106 ledger 107 mast 108 rigging 109 anchor 110 chart 111 compass 112 ballast 113 keel 114 galley 115 bilge 116 winch 117 cleat 118 halyard 119 sheet 120 spinnaker 121 jib 122 rudder 123 tiller 124."
+  },
+  {
+   "key": "n16",
+   "parent": "proj",
+   "content": "Vessel 16 record: harbour 112 tide 113 ledger 114 mast 115 rigging 116 anchor 117 chart 118 compass 119 ballast 120 keel 121 galley 122 bilge 123 winch 124 cleat 125 halyard 126 sheet 127 spinnaker 128 jib 129 rudder 130 tiller 131."
+  },
+  {
+   "key": "n17",
+   "parent": "proj",
+   "content": "Vessel 17 record: harbour 119 tide 120 ledger 121 mast 122 rigging 123 anchor 124 chart 125 compass 126 ballast 127 keel 128 galley 129 bilge 130 winch 131 cleat 132 halyard 133 sheet 134 spinnaker 135 jib 136 rudder 137 tiller 138."
+  },
+  {
+   "key": "n18",
+   "parent": "proj",
+   "content": "Vessel 18 record: harbour 126 tide 127 ledger 128 mast 129 rigging 130 anchor 131 chart 132 compass 133 ballast 134 keel 135 galley 136 bilge 137 winch 138 cleat 139 halyard 140 sheet 141 spinnaker 142 jib 143 rudder 144 tiller 145."
+  },
+  {
+   "key": "n19",
+   "parent": "proj",
+   "content": "Vessel 19 record: harbour 133 tide 134 ledger 135 mast 136 rigging 137 anchor 138 chart 139 compass 140 ballast 141 keel 142 galley 143 bilge 144 winch 145 cleat 146 halyard 147 sheet 148 spinnaker 149 jib 150 rudder 151 tiller 152."
+  },
+  {
+   "key": "n20",
+   "parent": "proj",
+   "content": "Vessel 20 record: harbour 140 tide 141 ledger 142 mast 143 rigging 144 anchor 145 chart 146 compass 147 ballast 148 keel 149 galley 150 bilge 151 winch 152 cleat 153 halyard 154 sheet 155 spinnaker 156 jib 157 rudder 158 tiller 159."
+  },
+  {
+   "key": "n21",
+   "parent": "proj",
+   "content": "Vessel 21 record: harbour 147 tide 148 ledger 149 mast 150 rigging 151 anchor 152 chart 153 compass 154 ballast 155 keel 156 galley 157 bilge 158 winch 159 cleat 160 halyard 161 sheet 162 spinnaker 163 jib 164 rudder 165 tiller 166."
+  },
+  {
+   "key": "n22",
+   "parent": "proj",
+   "content": "Vessel 22 record: harbour 154 tide 155 ledger 156 mast 157 rigging 158 anchor 159 chart 160 compass 161 ballast 162 keel 163 galley 164 bilge 165 winch 166 cleat 167 halyard 168 sheet 169 spinnaker 170 jib 171 rudder 172 tiller 173."
+  },
+  {
+   "key": "n23",
+   "parent": "proj",
+   "content": "Vessel 23 record: harbour 161 tide 162 ledger 163 mast 164 rigging 165 anchor 166 chart 167 compass 168 ballast 169 keel 170 galley 171 bilge 172 winch 173 cleat 174 halyard 175 sheet 176 spinnaker 177 jib 178 rudder 179 tiller 180."
+  },
+  {
+   "key": "n24",
+   "parent": "proj",
+   "content": "Vessel 24 record: harbour 168 tide 169 ledger 170 mast 171 rigging 172 anchor 173 chart 174 compass 175 ballast 176 keel 177 galley 178 bilge 179 winch 180 cleat 181 halyard 182 sheet 183 spinnaker 184 jib 185 rudder 186 tiller 187."
+  },
+  {
+   "key": "n25",
+   "parent": "proj",
+   "content": "Vessel 25 record: harbour 175 tide 176 ledger 177 mast 178 rigging 179 anchor 180 chart 181 compass 182 ballast 183 keel 184 galley 185 bilge 186 winch 187 cleat 188 halyard 189 sheet 190 spinnaker 191 jib 192 rudder 193 tiller 194."
+  },
+  {
+   "key": "n26",
+   "parent": "proj",
+   "content": "Vessel 26 record: harbour 182 tide 183 ledger 184 mast 185 rigging 186 anchor 187 chart 188 compass 189 ballast 190 keel 191 galley 192 bilge 193 winch 194 cleat 195 halyard 196 sheet 197 spinnaker 198 jib 199 rudder 200 tiller 201."
+  },
+  {
+   "key": "n27",
+   "parent": "proj",
+   "content": "Vessel 27 record: harbour 189 tide 190 ledger 191 mast 192 rigging 193 anchor 194 chart 195 compass 196 ballast 197 keel 198 galley 199 bilge 200 winch 201 cleat 202 halyard 203 sheet 204 spinnaker 205 jib 206 rudder 207 tiller 208."
+  },
+  {
+   "key": "n28",
+   "parent": "proj",
+   "content": "Vessel 28 record: harbour 196 tide 197 ledger 198 mast 199 rigging 200 anchor 201 chart 202 compass 203 ballast 204 keel 205 galley 206 bilge 207 winch 208 cleat 209 halyard 210 sheet 211 spinnaker 212 jib 213 rudder 214 tiller 215."
+  },
+  {
+   "key": "n29",
+   "parent": "proj",
+   "content": "Vessel 29 record: harbour 203 tide 204 ledger 205 mast 206 rigging 207 anchor 208 chart 209 compass 210 ballast 211 keel 212 galley 213 bilge 214 winch 215 cleat 216 halyard 217 sheet 218 spinnaker 219 jib 220 rudder 221 tiller 222."
+  },
+  {
+   "key": "n30",
+   "parent": "proj",
+   "content": "Vessel 30 record: harbour 210 tide 211 ledger 212 mast 213 rigging 214 anchor 215 chart 216 compass 217 ballast 218 keel 219 galley 220 bilge 221 winch 222 cleat 223 halyard 224 sheet 225 spinnaker 226 jib 227 rudder 228 tiller 229."
+  },
+  {
+   "key": "n31",
+   "parent": "proj",
+   "content": "Vessel 31 record: harbour 217 tide 218 ledger 219 mast 220 rigging 221 anchor 222 chart 223 compass 224 ballast 225 keel 226 galley 227 bilge 228 winch 229 cleat 230 halyard 231 sheet 232 spinnaker 233 jib 234 rudder 235 tiller 236."
+  },
+  {
+   "key": "n32",
+   "parent": "proj",
+   "content": "Vessel 32 record: harbour 224 tide 225 ledger 226 mast 227 rigging 228 anchor 229 chart 230 compass 231 ballast 232 keel 233 galley 234 bilge 235 winch 236 cleat 237 halyard 238 sheet 239 spinnaker 240 jib 241 rudder 242 tiller 243."
+  },
+  {
+   "key": "n33",
+   "parent": "proj",
+   "content": "Vessel 33 record: harbour 231 tide 232 ledger 233 mast 234 rigging 235 anchor 236 chart 237 compass 238 ballast 239 keel 240 galley 241 bilge 242 winch 243 cleat 244 halyard 245 sheet 246 spinnaker 247 jib 248 rudder 249 tiller 250."
+  },
+  {
+   "key": "n34",
+   "parent": "proj",
+   "content": "Vessel 34 record: harbour 238 tide 239 ledger 240 mast 241 rigging 242 anchor 243 chart 244 compass 245 ballast 246 keel 247 galley 248 bilge 249 winch 250 cleat 251 halyard 252 sheet 253 spinnaker 254 jib 255 rudder 256 tiller 257."
+  },
+  {
+   "key": "n35",
+   "parent": "proj",
+   "content": "Vessel 35 record: harbour 245 tide 246 ledger 247 mast 248 rigging 249 anchor 250 chart 251 compass 252 ballast 253 keel 254 galley 255 bilge 256 winch 257 cleat 258 halyard 259 sheet 260 spinnaker 261 jib 262 rudder 263 tiller 264."
+  },
+  {
+   "key": "n36",
+   "parent": "proj",
+   "content": "Vessel 36 record: harbour 252 tide 253 ledger 254 mast 255 rigging 256 anchor 257 chart 258 compass 259 ballast 260 keel 261 galley 262 bilge 263 winch 264 cleat 265 halyard 266 sheet 267 spinnaker 268 jib 269 rudder 270 tiller 271."
+  },
+  {
+   "key": "n37",
+   "parent": "proj",
+   "content": "Vessel 37 record: harbour 259 tide 260 ledger 261 mast 262 rigging 263 anchor 264 chart 265 compass 266 ballast 267 keel 268 galley 269 bilge 270 winch 271 cleat 272 halyard 273 sheet 274 spinnaker 275 jib 276 rudder 277 tiller 278."
+  },
+  {
+   "key": "n38",
+   "parent": "proj",
+   "content": "Vessel 38 record: harbour 266 tide 267 ledger 268 mast 269 rigging 270 anchor 271 chart 272 compass 273 ballast 274 keel 275 galley 276 bilge 277 winch 278 cleat 279 halyard 280 sheet 281 spinnaker 282 jib 283 rudder 284 tiller 285."
+  },
+  {
+   "key": "n39",
+   "parent": "proj",
+   "content": "Vessel 39 record: harbour 273 tide 274 ledger 275 mast 276 rigging 277 anchor 278 chart 279 compass 280 ballast 281 keel 282 galley 283 bilge 284 winch 285 cleat 286 halyard 287 sheet 288 spinnaker 289 jib 290 rudder 291 tiller 292."
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "Vessel 3 goes into dry dock next week.",
+   "assistant": "Vessel 3: dry dock next week.",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "contextChars": true,
+     "max": 13500
+    },
+    {
+     "contextHas": "named only|size cap|hold more detail"
+    },
+    {
+     "trimmedLit": true
+    }
+   ]
+  }
+ ]
+}
