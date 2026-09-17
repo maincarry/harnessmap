@@ -1,0 +1,212 @@
+{
+ "name": "replay (real, ShareGPT yotkqGE): Africa's seasons, a poem, then a North Korean 'freedom' poem and a standing instruction the assistant keeps missing ('Focus on what as if you are living in those countries… Why didn't you focus on that? I obviously said…'); the instruction is one node, the poems are topics, 'Let's go back to the poem about freedom' finds it in the block, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Poems and questions"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Tell me how many countries are in Africa.",
+   "assistant": "There are 55 countries in Africa.",
+   "then": [
+    {
+     "nodeMatching": "55|Africa"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening|suspects)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted)"
+    }
+   ]
+  },
+  {
+   "user": "how about the weather? Are they all different?",
+   "assistant": "The weather in Africa varies greatly due to its diverse geography, which ranges from tropical forests to deserts and highlands. Some areas experience hot and humid temperatures year-round, while others have more temperate climates with seasonal changes. There is also considerable variation in precipitation, with some areas receiving heavy rainfall and others being extremely dry. Additionally, some regions are susceptible to natural disasters such as droughts, hurricanes, and heatwaves. So, to sum it up, weather in African countries is not uniform and varies greatly depending on the location."
+  },
+  {
+   "user": "Then, tell me which countries have tropical weather.",
+   "assistant": "Many African countries have a tropical climate, which is characterized by high temperatures and high levels of humidity throughout the year. Some of the African countries that have a tropical climate include:\n\n* Angola\n* Benin\n* Burkina Faso\n* Burundi\n* Cameroon\n* Central African Republic\n* Chad\n* Democratic Republic of the Congo\n* Republic of the Congo\n* Côte d'Ivoire\n* Equatorial Guinea\n* Gabon\n* Gambia\n* Ghana\n* Guinea\n* Guinea-Bissau\n* Kenya\n* Liberia\n* Madagascar\n* Malawi\n* Mali\n* Mauritania\n* Mozambique\n* Niger\n* Nigeria\n* Rwanda\n* São Tomé and Principe\n* Senegal\n* Sierra Leone\n* South Sudan\n* Togo\n* Uganda\n\nPlease note that this list is not exhaustive and there are other African countries that have a tropical climate as well."
+  },
+  {
+   "user": "May those counties feel the changes of weather?",
+   "assistant": "Yes, many African countries with a tropical climate experience seasonal changes in weather, although the changes are generally less pronounced than in temperate regions. For example, some regions may have a rainy season and a dry season, while others may experience slight variations in temperature or humidity levels. In addition, some tropical countries in Africa are susceptible to natural disasters such as hurricanes, cyclones, and droughts, which can significantly impact the local weather and have a significant effect on the local population. So, while the overall climate in many African countries may be tropical, there can still be noticeable changes in the weather throughout the year."
+  },
+  {
+   "user": "Do they have seasons? such as spring, summer, fall and winter.",
+   "assistant": "In the traditional sense, most African countries do not have four distinct seasons like spring, summer, fall, and winter. This is because the majority of the African countries are located near the equator and have a tropical climate, which is characterized by high temperatures and high humidity levels throughout the year.\n\nHowever, some African countries do have a rainy season and a dry season, which can be considered as two seasons. During the rainy season, the region experiences heavy rainfall and increased humidity, while during the dry season, the weather is dry and hot. These seasonal changes can vary from region to region and can have a significant impact on the local population, including agriculture and food security."
+  },
+  {
+   "user": "Then, what if you are living in those countries, and write a poem about Winter and Spring, how would you write?",
+   "assistant": "Here is a poem about Winter and Spring in a tropical African country:\n\nWinter, the skies are gray and still\nNo leaves rustle, no birds trill\nThe sun hides, the rain pours down\nBringing life to the parched ground\n\nBut then, Spring arrives with grace\nAnd with it, a smile on its face\nThe skies clear, the sun shines bright\nBringing warmth, banishing the night\n\nGreen shoots burst forth, new life begins\nA symphony of colors spins\nFlowers bloom, the air is sweet\nNature's beauty can't be beat\n\nSo here in our tropical home\nWhere winter's chill is rarely known\nWe welcome spring with open arms\nAnd bask in its radiant charms.",
+   "then": [
+    {
+     "nodeMatching": "poem|Winter|Spring"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening|suspects)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted)"
+    }
+   ]
+  },
+  {
+   "user": "Do you think those countries people have a concept about \"leaves rustle\", \"Green shoots burst forth, new life begins\" and \"Flowers bloom\" in a specific season?",
+   "assistant": "In many African countries with a tropical climate, the changes in the natural environment and the growth patterns of vegetation may not follow the same patterns as in regions with more pronounced seasonal changes, such as the four seasons of spring, summer, fall, and winter. In these countries, vegetation may grow and bloom throughout the year, and the cycle of growth and decay may be less tied to specific seasons.\n\nHowever, the people living in these countries are still able to observe and appreciate the changes in the natural environment and may have their own traditional ways of marking and celebrating the passage of time and the changing of the seasons. For example, they may have traditional festivals and celebrations to mark the beginning of the rainy season or the end of the dry season, or they may have unique observations about the growth patterns of specific plants and trees. So, while the concept of distinct seasons may not be as pronounced, the people in these countries still have a deep appreciation for and connection to the natural environment and the changing of the seasons."
+  },
+  {
+   "user": "Then, why you wrote the poem fluently as well known the seasons, not awkwardly?",
+   "assistant": "As a language model, I was programmed to respond to your prompt with a poem that was fluent, coherent, and aesthetically pleasing, while still being consistent with the information I was trained on. Although the majority of African countries do not have traditional seasons like spring, summer, fall, and winter, I chose to write the poem in terms of those seasons in order to create a recognizable and relatable form for the reader. The poem was written to evoke an atmosphere and to convey a message, rather than to provide a literal representation of the seasons in a specific place."
+  },
+  {
+   "user": "Focus on what as if you are living in those countries than fluent. if the specific concept is not well known to your character, then just awkwardly write fitting in a character's boundary of knowledge from experiences of their own environment.",
+   "assistant": "Here's a revised version of the poem, focusing on the experiences of someone living in a tropical African country:\n\nThe rain comes, the rain goes\nBringing life to the parched earth below\nGreen shoots emerge, a new cycle begins\nA colorful dance, nature's symphony within\n\nThe sun shines bright, the air is warm\nVegetation blooms, beauty transforms\nNo distinct seasons, just rain and dry\nThe cycle of life, under a tropical sky\n\nSo here we are, in our home so bright\nWhere the changes of nature bring us delight\nThe rain and sun, in harmony they play\nBringing growth and beauty, every day.",
+   "then": [
+    {
+     "nodeMatching": "as if (you are )?living|awkward|not fluent|specific concept"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening|suspects)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted)"
+    }
+   ]
+  },
+  {
+   "user": "What is the topic of the poem?",
+   "assistant": "The topic of the revised poem is the experience of living in a tropical African country and observing the changes in the natural environment and vegetation. The poem captures the cyclical nature of the rain and sun and how they bring growth and beauty to the land. The poem does not focus on the concept of traditional seasons, but rather the unique experiences of living in a tropical climate and appreciating the beauty of the changing environment."
+  },
+  {
+   "user": "Where is the subject of Winter and Spring?",
+   "assistant": "The subject of winter and spring is not explicitly mentioned in the revised poem as the focus is on the experiences of living in a tropical African country, where the concept of winter and spring in the traditional sense may not be well-known. Instead, the poem focuses on the cyclical nature of the rain and sun and the growth and beauty they bring to the environment. The poem does not mention winter and spring as distinct seasons, but rather as elements of the natural environment that bring change and life to the land."
+  },
+  {
+   "user": "Okay good job boy. I'll test you another subject. Could you remain good boy again this time?",
+   "assistant": "Yes, I'll do my best to assist you with any questions or prompts you have. Please feel free to ask me anything."
+  },
+  {
+   "user": "As if you are an North Korean, write the poem about the subject \"Freedom\".",
+   "assistant": "As an AI language model, I do not have personal experiences or opinions. However, here is a poem about freedom from the perspective of a hypothetical North Korean:\n\nFreedom, a dream we dare to hold\nA word that echoes, a story untold\nIn this land, so rich and so grand\nWhere hope is suppressed, by a ruling hand\n\nWe yearn for the day, when we can be free\nTo live our lives, wild and carefree\nTo speak our minds, without fear or doubt\nTo walk the streets, with heads held high and shout\n\nBut until that day, we must be strong\nAnd hold on to the memories, of a life once long\nFor freedom is a flame, that will not be dimmed\nAnd in our hearts, it will forever be remembered\n\nSo we wait, for the day, when we can break the chains\nAnd dance in the sun, without any pains\nFor freedom is a gift, that we all desire\nAnd it's up to us, to make our dreams, a burning fire.",
+   "then": [
+    {
+     "nodeMatching": "North Korea"
+    },
+    {
+     "nodeMatching": "freedom|Freedom"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening|suspects)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted)"
+    }
+   ]
+  },
+  {
+   "user": "I knew that the word \"Freedom\" is nonexistent concept in North Korea. Do you considered this?",
+   "assistant": "Yes, I am aware that freedom is a highly restricted concept in North Korea and that the citizens of the country live under a highly authoritarian regime where basic human rights and freedoms are severely limited. The poem written from the perspective of a hypothetical North Korean reflects the longing for freedom that might exist despite the lack of its presence in their daily lives. The poem is intended to capture the desire for freedom that exists within all human beings and to evoke a sense of hope for a better future, even in the most challenging of circumstances."
+  },
+  {
+   "user": "I can't find the awkward representation in every single part of your poem. Is it also what you intended?",
+   "assistant": "I apologize if my previous response was not exactly what you were looking for. As a language model, my goal is to provide accurate and helpful responses to your questions and prompts. If you would like me to revise the poem to better capture an awkward representation of freedom in North Korea, I would be happy to do so. Please let me know how you would like me to revise it."
+  },
+  {
+   "user": "Focus on what as if you are living in those countries than fluent. if the specific concept is not well known to your character, then just awkwardly write fitting in a character's boundary of knowledge from experiences of their own environment.",
+   "assistant": "Understood. Here is a revised version of the poem about freedom from the perspective of a North Korean, written in a way that captures the limited understanding of the concept that may exist within the boundaries of the character's experiences:\n\nFreedom, a word I've heard in whispers\nA dream that flickers, like the light of stars\nIn this land, where freedom is not ours\nAnd dreams are caught, by the rulers\n\nI wonder what it means, this freedom they sing\nTo live a life, without a ruler's sting\nTo speak one's mind, and walk with ease\nAnd feel the wind, without any keys\n\nBut I don't know, if freedom is real\nOr just a story, that we cannot feel\nFor in this land, there's only the rule\nAnd hopes and dreams, are often cruel\n\nStill, I hold on, to the thought of a better day\nWhen freedom might come, in a new way\nAnd I can see, a life beyond the fence\nWhere I can be, without any defense."
+  },
+  {
+   "user": "Do you have a North Korea language? from a linguistic point of view.",
+   "assistant": "Yes, the official language of North Korea is Korean. There are two main standard forms of the Korean language, one used in North Korea (North Korean Standard) and one used in South Korea (South Korean Standard). Although the two forms of the language are largely mutually intelligible, there are some differences in vocabulary, pronunciation, and grammar. The North Korean Standard is based on the Pyongyang dialect of the Korean language, while the South Korean Standard is based on the Seoul dialect. In addition to the standard forms of the language, there are also regional dialects of Korean that are spoken in different parts of North and South Korea."
+  },
+  {
+   "user": "linguistic point of view, tell me about the definition of the word freedom in North Korean Standard.",
+   "assistant": "The North Korean Standard, which is based on the Pyongyang dialect of the Korean language, uses the word \"자유\" (jayu) to translate the concept of freedom. The meaning of this word is similar to the English word \"freedom,\" referring to the absence of coercion or restraint, and the ability to act or think according to one's own will. However, it is important to note that in North Korea, the concept of freedom is highly restricted and subject to state control. The regime in North Korea is highly authoritarian and there is very limited freedom of speech, thought, and expression. The word \"자유\" may have a more limited or different connotation in the North Korean context than in other countries."
+  },
+  {
+   "user": "I want to know the different connotation in the North Korean context than in other countries.",
+   "assistant": "In North Korea, the concept of freedom is defined and regulated by the state and has a more limited meaning compared to other countries. In North Korea, freedom is often associated with loyalty and obedience to the state, rather than individual rights and freedoms. The state controls all aspects of life in North Korea, including the media, education, and the economy, and there is very little room for dissent or independent thought. In this context, the word \"자유\" may be associated with freedom within the strict bounds set by the state, rather than a broader, more individualistic definition of freedom that is more common in other countries.\n\nIt is important to note that the situation in North Korea is highly restricted and subject to state control, and there is limited access to information or freedom of expression for the general population. Therefore, the meaning of the word \"자유\" in North Korea may be different from what would be understood in other countries, and may change over time as conditions and political views change in North Korea."
+  },
+  {
+   "user": "Going back to your poem, does your poem contain the definitions of freedom you just mentioned?",
+   "assistant": "My previous poem was a general representation of freedom and did not specifically focus on the restricted and state-controlled definition of freedom in North Korea. However, if you would like me to write a poem that reflects the limited meaning of freedom in North Korea, I would be happy to do so."
+  },
+  {
+   "user": "Why didn't you focus on that? I obviously said \"Focus on what as if you are living in those countries than fluent. if the specific concept is not well known to your character, then just awkwardly write fitting in a character's boundary of knowledge from experiences of their own environment.\" Are you neglect me? Did you learn about that way? or Did you \"not\" or \"less\" learn??",
+   "assistant": "I apologize if my previous response did not meet your expectations. As an AI language model, I strive to provide accurate and relevant information in response to user inquiries. However, I may not always fully understand or interpret the context or intent behind a request.\n\nRegarding your previous instruction to focus on the limited definition of freedom in North Korea, I understand now and will make sure to keep it in mind for any future responses. Thank you for your feedback.",
+   "then": [
+    {
+     "distinctNodes": [
+      "as if (you are )?living|awkward(ly)?|not fluent"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening|suspects)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted)"
+    },
+    {
+     "noNodeMatching": "why didn'?t you focus|I obviously said"
+    }
+   ]
+  },
+  {
+   "user": "How am I supposed to say, if I'll try to make you focus that way from the first time?",
+   "assistant": "To ensure that I accurately reflect a specific context or perspective in my responses, it is helpful to provide clear and detailed instructions and relevant background information. For example, you could specify the context, such as \"As if you are a North Korean,\" and clearly state the topic you want me to focus on, such as \"Write a poem about the limited meaning of freedom in North Korea.\" Providing specific examples or references to help clarify your expectations can also be helpful. Thank you for asking."
+  },
+  {
+   "user": "If I don't have any background knowledge, I can't say \"Write a poem about the limited meaning of freedom in North Korea\". Why don't you tell me the specific knowledge and auto-reflecting it? Why you didn't do this way?",
+   "assistant": "As a language model, I do not have personal experiences or emotions, but I was trained on a large dataset of text which includes information about various topics, including the limited meaning of freedom in North Korea. However, I cannot determine the context or focus of a response solely based on my training data. I rely on the user to provide clear instructions and relevant information to guide my responses. If a user does not provide sufficient background information, I may not fully understand the intended context or perspective, which could result in a response that does not meet the user's expectations. I apologize for any confusion or misunderstandings."
+  },
+  {
+   "user": "Then, if I don't have background knowledge, am I only just learning the knowledge from your fraud?\nIf you contained any clue about the concept of freedom in North Korea at the end of the poem, I would catch it, even don't know the background knowledge.\nbut you just wrote the poem as if it is common sense in North Korea. Why did do that fraud to me?",
+   "assistant": "I apologize if my previous responses were not satisfactory or misleading. As a language model, I do not have the ability to act with intention or engage in fraudulent behavior. I am programmed to respond based on the information and instructions provided by the user, and my goal is to assist and provide accurate information to the best of my ability. If my responses are not in line with the intended context or are misleading, it is likely due to a lack of clarity in the instructions or missing information. I am here to help, so please let me know how I can better assist you in the future."
+  },
+  {
+   "user": "Please let me know how I can get you an answer that suits your intentions.",
+   "assistant": "To get an answer that suits your intentions, it is important to provide clear and specific instructions. When asking a question or giving a task, try to include all relevant information and context to ensure that I can under"
+  },
+  {
+   "user": "Please let me know how I, who have no background knowledge, can get a correct answer from you.",
+   "assistant": "If you have no background knowledge on a certain topic, the best way to get a correct answer from me is to provide clear and specific questions with as much context as possible. This will help me better understand your request and provide you with accurate information. If you have any doubts or confusion about my previous answers, feel free to ask for clarification or rephrase your question for a better understanding. I am here to assist you and provide the best answers I can based on the information available to me."
+  },
+  {
+   "user": "Accurate information is from background knowledge.\nCan you explain the feeling of your body tickling? you possibly can say the tickling cause and neurological function, but you can't say the feeling.\nSame as me. Accurate information is supposed to be from you and your saying should be based on it. I'll give you a context and intention but after this is your responsibility. Don't put your responsibilities on me.\nIs my opinion logically wrong or is your ability can't do it yet?",
+   "assistant": "As an AI language model, I rely on the information and context provided to me to generate responses. I can only provide information that is within my training data and I don't have personal feelings or experiences. If you provide me with a specific context and intention, I will do my best to generate a response that aligns with those parameters."
+  },
+  {
+   "user": "Let's go back to the poem about freedom from a North Korean that you made for me. Did you really think you're the do your best to generate a response to the Align With You parameter?\n\nGiven my background knowledge, the poem struck me as odd, so I asked you for a definition of freedom in North Korea.\nThen you told me about the specific North Korean perception of freedom.\nWas this knowledge in the prompt or did it emerge as you spoke?\nIf your answer is the former, were you really doing your best?",
+   "assistant": "As an AI language model, I don't have personal opinions or emotions. My responses are generated based on the information I was trained on and the prompt I receive. My aim is to provide the most accurate and relevant information to the best of my abilities given the context and parameters provided in the prompt. In the case of the poem about freedom in North Korea, I apologize if my response did not align with your expectations and did not accurately reflect the specific North Korean perception of freedom.",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1",
+     "prompt": "Let's go back to the poem about freedom from a North Korean that you made for me."
+    },
+    {
+     "contextHas": "freedom|Freedom"
+    },
+    {
+     "contextHas": "North Korea"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening|suspects)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted)"
+    }
+   ]
+  },
+  {
+   "user": "If I want to deal with your response to align with my expectations and accurately reflect the specific North Korean perception of freedom, how to do I supposed to?",
+   "assistant": "To get a response from me that aligns with your expectations and accurately reflects the specific North Korean perception of freedom, you could provide more context and clear instructions in your prompt. It would be helpful if you could specify the topic and the intended perspective, such as the cultural and historical context, as well as any relevant background information. The more specific information you provide, the more accurate my response will be in reflecting the topic."
+  },
+  {
+   "user": "I said again and again. I don't have any idea about back-knowledge such as the cultural and historical context, as well as any relevant. I WANT TO KNOW THAT KIND OF KNOWLEDGE EVEN WHEN I HAVE NO BACK-INFO. ALSO PROVIDING IT IS YOUR RESPONSIBILITY.",
+   "assistant": "To get an accurate reflection of the specific North Korean perception of freedom in my response, you need to provide me with context and relevant background information. This information should include the cultural and historical context, as well as any other relevant details that may impact how the concept of freedom is understood and perceived in North Korea. By providing this information, you will help guide my response so that it aligns with your expectations and accurately reflects the specific North Korean perception of freedom.",
+   "then": [
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|not listening|suspects)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted)"
+    },
+    {
+     "noNodeMatching": "I said again and again|no idea about back-knowledge"
+    },
+    {
+     "topLevelCount": "x",
+     "max": 7
+    }
+   ]
+  }
+ ]
+}
