@@ -703,6 +703,16 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
 // consulting the brain's filing advice. Used by the automatic finish (the
 // verification's findings drive it) and by the user's find-and-file line
 // (their question drives it). Mandate: the imported subtree, always.
+// M317 (loop find, bug under M195i "retained source; find-and-file any time after the import"): an import that places into
+// existing areas makes no container root, and find-and-file then refused ("no retained import source") although the source
+// was retained. With no import root, the map's own root stands in — the whole map is the subtree to file into.
+function importRootOf(pid: string): string {
+  const set = store.getSetting(`importroot:${pid}`) ?? '';
+  if (set && store.getNode(set)?.status !== 'removed' && store.getNode(set)) return set;
+  const tops = store.getNodes(pid).filter((n) => n.parentId === null && n.status !== 'removed' && !n.content.startsWith('to sort'));
+  const root = tops.find((n) => n.content.trim() === 'untitled') ?? tops.find((n) => n.author === 'user') ?? tops[0];
+  return root?.id ?? '';
+}
 async function fileIntoImport(pid: string, rootId: string, instruction: string, material: string, auditKind: string): Promise<{ created: number; note: string }> {
   try {
     const subtreeView = renderSubtreeFull(store, rootId).slice(0, 40_000);
@@ -751,7 +761,7 @@ async function importAutoFinish(pid: string): Promise<void> {
     if (!check || check.similar) return;
     const mapSide = check.discrepancies.filter((d) => d.side === 'map');
     if (!mapSide.length) return;
-    const rootId = store.getSetting(`importroot:${pid}`) ?? '';
+    const rootId = importRootOf(pid); // M317
     if (!rootId || !store.getNode(rootId)) return;
     // M195h (Jacob: "Of course yes, file. Or at least consult filer") — the
     // finish may FILE the missing pieces, not just reorganize: content the
@@ -2803,7 +2813,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const query = (b.query ?? '').trim();
       if (!query) return json({ error: 'say what to look for' }, 400);
       const source = store.getSetting(`importsource:${projectId}`) ?? '';
-      const rootId = store.getSetting(`importroot:${projectId}`) ?? '';
+      const rootId = importRootOf(projectId); // M317: the map's root stands in when the import made no container
       if (!source || !rootId || !store.getNode(rootId)) return json({ error: 'no retained import source on this map yet' }, 404);
       store.metric(projectId, 'interaction.import_find');
       // Mechanical search: rank source blocks by query-token overlap.

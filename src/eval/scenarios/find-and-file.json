@@ -1,0 +1,50 @@
+{
+ "name": "find-and-file (M195i): after a large import the retained source can be searched and filed from by hand — a detail the import left out is filed on request",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Bakery opening plan"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Opening the plan.",
+   "assistant": "The plan stands.",
+   "then": [
+    {
+     "do": "importLarge",
+     "text": "Notes from the bakery planning week — supplier visits, the lease, staffing, and the opening menu\n\nFLOUR. We visited Hartmann mill on Monday. Their organic T65 is 0.92 per kilo if we commit to 200 kg a month, deliveries on Tuesdays before 7 am. The T80 sample was too coarse for the croissant dough and made the crumb grey; we will not use it for laminated doughs but it could work in the country loaf at 20% of the flour. Their rye is stone-ground and the miller, Anna, said the September crop is drier than usual so we should expect to add 2% more water to the rye starter. Backup mill: Kessler, 1.05 per kilo, no minimum, deliveries any weekday but only after 10 am, which is too late for the morning bake.\n\nBUTTER. Val d'Or 84% fat at 6.10 per kilo in 5 kg blocks. Lescure is nicer to work with, plasticity is better at 12°C, but at 8.40 the difference did not show in the bake; the test croissants were indistinguishable in the blind tasting on Wednesday (six tasters, four picked Val d'Or as \"better\", which is noise). Decision: Val d'Or for the opening. Revisit only if the lamination gives trouble in the summer heat.\n\nCOFFEE. Northwind roasters, house blend at 18 per kilo; they lend a two-group grinder if we take 15 kilos a month, and they will train the counter staff for free in the first week. The alternative was Fable & Co at 16 per kilo with no grinder and no training. Decision: Northwind for the opening, revisit in six months when the volume is known. Open question: whether to offer a single-origin filter as well; Northwind suggested their Ethiopian at 24 per kilo, which would need its own grinder.\n\nSTARTER. The big open question: make the sourdough mother from scratch or buy it from the old bakery on Mill Street, which is closing in November and has kept its starter since 1987. Marco (their baker) offered a 500 g portion for nothing if we credit them on the menu board. A from-scratch starter takes two to three weeks to become reliable and we would be starting it in the cold months. Leaning towards taking Marco's starter and keeping a from-scratch one on the side as a backup.\n\nLEASE. The unit on Mill Street: five-year lease, break clause at year two, rent 2,400 a month, three months' deposit. The landlord wants a personal guarantee, which we want to avoid; our lawyer suggests offering a larger deposit (six months) instead. The kitchen extraction needs replacing (quote from Airflow: 11,500 including the canopy) and the landlord has agreed to split it 50/50 if we sign before the end of October. Gas supply is adequate for two deck ovens; a third oven would need an upgrade (quote pending). Water: the mains pressure is low in the mornings, which matters for the dishwasher — a booster pump is 900 fitted.\n\nOVENS. Two options: a used Miwe deck oven from a closing bakery in Bristol (three decks, 9,000, needs transport and a service, about 1,200 more) or a new Tagliavini (three decks, 21,000, two-year warranty, delivery in eight weeks). The used Miwe is the plan if the service report is clean; the Tagliavini lead time would push the opening into December.\n\nSTAFFING. Two bakers from 4 am (Priya has agreed, 30 an hour; second baker still to find — the two candidates are Tom, who trained at Mill Street, and Léa, who did a year at a viennoiserie in Lyon), one counter person from 7 am (Sam, 14.50 an hour), and one of us on the counter at weekends. Payroll estimate for month one: 9,800 including on-costs. We need a written rota by the first week of November.\n\nOPENING MENU. Sourdough (white and a 30% rye), the country loaf, baguettes on Fridays and Saturdays only, croissants and pains au chocolat, a seasonal tart (pear in November, then citrus), cardamom buns, and a savoury turn — cheese and onion swirl. Coffee: espresso drinks and a batch filter. No sandwiches at opening; revisit in January once the bake volume is understood. Prices are drafted in the spreadsheet; the sourdough at 4.80 was the number the survey on Saturday accepted (62 answers, 71% said \"fair\").\n\nTIMELINE. Sign the lease by the end of October. Extraction installed the second week of November. Ovens in by the 20th of November. Test bakes the last week of November, with a friends-and-family day on the 28th. Public opening on the 5th of December, a Friday, so that the first weekend carries the launch.\n\nRISKS. The used oven's service report (if bad, the Tagliavini pushes opening to mid-December). The second baker (if neither Tom nor Léa, we open with one baker and a reduced viennoiserie range). The personal guarantee (if the landlord will not accept the six-month deposit, we walk and look at the unit on Station Road, which is smaller and 300 a month cheaper). Cash: with the deposit, the extraction share and the oven we are at 41,000 before stock, against 55,000 available; the margin is thin but real."
+    },
+    {
+     "do": "applyImport"
+    },
+    {
+     "nodeMatching": "Hartmann|T65"
+    },
+    {
+     "do": "wait",
+     "ms": 20000
+    },
+    {
+     "do": "findFile",
+     "query": "the booster pump for the low morning water pressure and its price"
+    },
+    {
+     "nodeMatching": "booster|900 fitted|water pressure"
+    },
+    {
+     "do": "findFile",
+     "query": "Léa's year at a viennoiserie in Lyon"
+    },
+    {
+     "nodeMatching": "Léa|Lyon|viennoiserie"
+    }
+   ]
+  }
+ ]
+}
