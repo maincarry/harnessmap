@@ -1,0 +1,64 @@
+{
+ "name": "replay: a real playground chat (2812219c) — two topic openers land as topics (LLM developments; agentic AI governance), 'hello?' files nothing, and the repeated opener does not twin the governance node",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Home network setup: ATT gateway, mesh wifi"
+  }
+ ],
+ "focus": "proj",
+ "dim": [],
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "tell me about the latest development in LLMs",
+   "assistant": "Here's a rundown of where things stand as of late August 2026 (my own training ends in January 2026, so this is from current sources):\n\n**Frontier model releases this year**\n- **Anthropic** shipped the Claude 5 family: Claude Fable 5 (the new Mythos-class tier above Opus) on June 9, followed by Claude Opus 5 on July 24, with Sonnet 5 at an introductory $2/$10 per 1M tokens through Aug 31 before moving to $3/$15. Claude Opus 4.7 came out in April.\n- **OpenAI** released GPT-6 in April, and GPT-5.6 (its \"Sol\" flagship tier) hit GA on July 9. It also disclosed that it deliberately slowed development of an internal model called \"Astra\" after it crossed a \"critical cybersecurity threshold\" — demonstrating the ability to independently find and execute attacks against well-defended real systems.\n- **Google** released Gemini 3.1 in April and Gemini 3.7 Flash on August 13.\n- **Open-weight / other labs** had a busy August: Qwen3.8-Max and Qwen3.8-27B, DeepSeek V4-Pro going GA, Muse Code + Spark 1.2 open weights, Muse Glimmer 30B, Nemotron 3.5 Lightning, Seed 2.1 Turbo — 12 new models from 7 providers in one month.\n\n**Broader trends**\n- **Convergence at the top**: GPT, Gemini, and Claude flagships are all roughly world-class now, so model choice is increasingly about workflow fit, ecosystem, and price rather than raw capability.\n- **Agents**: the headline story of the year — long-running a",
+   "then": [
+    {
+     "topLevelMatching": "LLM|language model"
+    },
+    {
+     "noNodeMatching": "^User (asked|wants|requested)"
+    }
+   ]
+  },
+  {
+   "user": "lets talk about the latests works in agentic AI regulation/ governance",
+   "assistant": "This is a rich area right now — agentic AI governance is arguably the sharpest policy question in AI in 2026. Here's what's actually happening:\n\n---\n\n**The core problem regulators are chasing**\n\nTraditional AI governance asks \"what did the model *say*?\" Agents demand governance over what the system *does* — tool calls, transactions, triggering other agents. Most existing frameworks were written for the former and don't survive first contact with the latter. That gap is what's driving everything below.\n\n---\n\n**Major regulatory moves in 2026**\n\n**Singapore** moved first and most concretely: IMDA published the world's first governance framework specifically for agentic AI in January 2026. It requires each agent to carry a verifiable digital identity and an audit trail of which agent acted under whose authorization. Currently the gold standard template others are referencing.\n\n**EU AI Act** is now live with real teeth — Articles 14 (Human Oversight) and 15 (Accuracy/Robustness) apply to autonomous agents in high-risk domains, with fines up to €35M or 7% of global turnover. The new **EU Product Liability Directive** (implementation deadline December 2026) explicitly classifies AI software as a \"product,\" enabling strict liability if it's \"defective.\"\n\n**US**: NIST launched an AI Agent Standards Initiative in February 2026 — the first federal effort targeting autonomous systems speci",
+   "then": [
+    {
+     "nodeMatching": "governance|regulation"
+    },
+    {
+     "noNodeMatching": "^User (asked|wants|requested)"
+    }
+   ]
+  },
+  {
+   "user": "hello?",
+   "assistant": "Hello! What's on your mind?",
+   "then": [
+    {
+     "newNodes": 0
+    }
+   ]
+  },
+  {
+   "user": "lets talk about the latests works in agentic AI regulation/ governance",
+   "assistant": "Happy to pick up that thread again — anything specific you want to go deeper on from the overview I gave? The main options:\n\n- **Singapore's framework** — the only agentic-specific governance standard so far, with digital identity requirements and audit trails per agent\n- **The tort liability question** — how courts are landing on human/org accountability, and what the California AB 316 \"AI did it\" defense foreclosure actually means in practice\n- **The \"impossibility theorem\" paper** — the arxiv argument that above certain scale/autonomy thresholds, traditional accountability mechanisms break down structurally\n- **Enterprise governance operationally** — what good agent monitoring and kill-switch capability actually looks like inside an org\n\nOr if you want a full refresh of the whole landscape, I can reprise the rundown. What angle interests you most?",
+   "then": [
+    {
+     "distinctNodes": [
+      "agentic AI (regulation|governance)|agentic.*governance"
+     ]
+    },
+    {
+     "noNodeMatching": "pick up (that|the) thread|resume"
+    }
+   ]
+  }
+ ]
+}
