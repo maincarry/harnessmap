@@ -206,6 +206,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.nodeExists) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.nodeExists]); const exists = !!n && n.status !== 'removed'; check(label, exists === (a.is !== false), n ? `status=${n.status}` : 'gone'); }
       else if (a.chatName) { const c = (s.chats ?? []).find((x: any) => x.id === cid()); check(label, !!c && rx(a.chatName).test(String(c.name ?? c.title ?? '')), `name=${c?.name ?? c?.title}`); }
       else if (a.noDetailDupes) { const m = await get(`/api/nodes/${keys[a.noDetailDupes]}/memory`); const cur = ((m?.details ?? []) as any[]).filter((d: any) => (d.status ?? 'current') === 'current').map((d: any) => String(d.text ?? '').trim().toLowerCase()); const dupes = cur.length - new Set(cur).size; check(label, dupes === 0, `details=${cur.length} duplicates=${dupes}`); }
+      else if (a.viewHost) { const c = (s.chats ?? []).find((x: any) => x.host?.sessionId === a.viewHost); check(label, !!c && (!a.harness || c.host?.harness === a.harness) && (!a.label || rx(a.label).test(String(c.host?.label ?? ''))), c ? `host=${JSON.stringify(c.host).slice(0, 120)}` : 'no view for that session'); }
       else if (a.titleOf) { const n = (s.nodes ?? []).find((x: any) => x.id === keys[a.titleOf]); check(label, !!n && rx(a.is).test(n.title ?? ''), n ? `title=${n.title}` : 'no node'); }
       else check(label, false, 'unknown assertion');
     } catch (err) { check(label, false, String(err).slice(0, 120)); }

@@ -1,0 +1,71 @@
+{
+ "name": "the periodic review files what it finds as suggestions (M287; M166: the map reviews itself every N rounds) even with auto tidy off — nothing is applied by itself",
+ "env": {
+  "HARNESSMAP_AUTOTIDY_ROUNDS": "2",
+  "HARNESSMAP_AUTOTIDY_MINUTES": "1"
+ },
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Moving house"
+  },
+  {
+   "key": "a",
+   "parent": "proj",
+   "content": "Forward the mail at the post office for six months"
+  },
+  {
+   "key": "b",
+   "parent": "proj",
+   "content": "Mail forwarding: six months from the move date"
+  },
+  {
+   "key": "c",
+   "parent": "proj",
+   "content": "The piano needs specialist movers"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true,
+  "tidy": false,
+  "focus": false,
+  "light": false,
+  "rename": false,
+  "place": false
+ },
+ "rounds": [
+  {
+   "user": "Also: change the address with the bank and the GP.",
+   "assistant": "Address changes: bank, GP.",
+   "then": [
+    {
+     "nodeMatching": "bank|GP"
+    }
+   ]
+  },
+  {
+   "user": "And book the elevator at the new building for the morning of the move.",
+   "assistant": "Elevator booked for the morning of the move.",
+   "then": [
+    {
+     "do": "wait",
+     "ms": 45000
+    },
+    {
+     "auditAny": "auto_mapcheck|auto_review_filed|auto_tidy_left"
+    },
+    {
+     "nodeExists": "a"
+    },
+    {
+     "nodeExists": "b"
+    },
+    {
+     "undoNext": "^added",
+     "soft": true
+    }
+   ]
+  }
+ ]
+}

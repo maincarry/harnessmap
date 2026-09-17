@@ -1,0 +1,48 @@
+{
+ "name": "a Codex round attaches a view that records its host harness (M251/M133: sessions record their host; the tab shows Codex)",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Bakery opening"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "session": "e2e-cx",
+   "harness": "codex",
+   "user": "The sourdough needs a 14-hour cold retard.",
+   "assistant": "Sourdough: 14-hour cold retard.",
+   "then": [
+    {
+     "viewHost": "e2e-cx",
+     "harness": "codex",
+     "label": "Codex"
+    },
+    {
+     "nodeMatching": "retard|sourdough"
+    }
+   ]
+  },
+  {
+   "session": "e2e-cc",
+   "harness": "claude",
+   "user": "Croissants: laminate the night before.",
+   "assistant": "Croissants: laminate the evening before.",
+   "then": [
+    {
+     "viewHost": "e2e-cc",
+     "harness": "claude",
+     "label": "Claude Code"
+    },
+    {
+     "viewHost": "e2e-cx",
+     "harness": "codex"
+    }
+   ]
+  }
+ ]
+}
