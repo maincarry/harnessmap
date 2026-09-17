@@ -10,11 +10,26 @@ import type { Store } from '../store/db.js';
 
 export const MATCH_STOP = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'from', 'should', 'would', 'about', 'what', 'when', 'how', 'our', 'are', 'was', 'were', 'have', 'has', 'does', 'user', 'users', 'map', 'node', 'nodes', 'topic', 'topics', 'agent', 'into', 'than', 'then', 'them', 'they', 'there', 'their', 'your', 'will', 'can', 'may', 'not', 'but', 'its', 'also', 'like', 'just', 'some', 'more', 'each', 'every', 'which', 'where', 'here', 'been', 'being', 'only', 'very', 'much', 'many', 'such', 'over', 'under', 'again', 'still', 'even', 'ever']);
 
+// M313 (loop find, Chongqing replay): the tokeniser kept [a-z0-9] only, so a round in Chinese (or with accented words) never
+// matched an existing node — the filer was handed no "existing nodes on this round's subjects" and twinned 洪崖洞 at the top level.
+// Letters of any script now count; a run of Han characters yields its bigrams (no spaces to split on).
+export function textTokens(text: string, minLatin = 1): string[] {
+  const out: string[] = [];
+  for (const raw of text.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+    if (!raw) continue;
+    const parts = raw.match(/\p{Script=Han}+|[^\p{Script=Han}]+/gu) ?? [];
+    for (const part of parts) {
+      if (/\p{Script=Han}/u.test(part)) { if (part.length === 1) out.push(part); else for (let i = 0; i + 1 < part.length; i++) out.push(part.slice(i, i + 2)); }
+      else if (part.length >= minLatin) out.push(part);
+    }
+  }
+  return out;
+}
 export function matchTokens(text: string): string[] {
-  return [...new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 3 && !MATCH_STOP.has(w)))];
+  return [...new Set(textTokens(text, 4).filter((w) => !MATCH_STOP.has(w)))];
 }
 
-const wordSet = (s: string): Set<string> => new Set(s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean));
+const wordSet = (s: string): Set<string> => new Set(textTokens(s));
 
 export interface NodeMatch { id: string; score: number; hits: number }
 
