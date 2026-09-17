@@ -1,0 +1,56 @@
+{
+ "name": "search finds a node by its words, favorites first (M164b/M203): a plain word query returns the node that holds it; an empty query lists favorites",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Boat restoration"
+  },
+  {
+   "key": "hull",
+   "parent": "proj",
+   "content": "Hull: strip the old antifouling and re-prime before April"
+  },
+  {
+   "key": "engine",
+   "parent": "proj",
+   "content": "Engine: the injectors need servicing and the raw-water impeller is due"
+  },
+  {
+   "key": "sails",
+   "parent": "proj",
+   "content": "Sails: the genoa needs a new UV strip"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The yard can haul out on the 14th.",
+   "assistant": "Haul-out on the 14th.",
+   "then": [
+    {
+     "searchTop": "engine",
+     "q": "impeller"
+    },
+    {
+     "searchTop": "sails",
+     "q": "genoa UV strip"
+    },
+    {
+     "do": "favorite",
+     "key": "hull"
+    },
+    {
+     "searchTop": "hull",
+     "q": ""
+    },
+    {
+     "searchTop": "engine",
+     "q": "injectors"
+    }
+   ]
+  }
+ ]
+}

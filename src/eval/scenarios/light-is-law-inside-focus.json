@@ -1,0 +1,63 @@
+{
+ "name": "the light is the law inside the focus too (M253): a dimmed child of the focus is served as a name marked set aside, its statement and its children withheld",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Thesis"
+  },
+  {
+   "key": "ch1",
+   "parent": "proj",
+   "content": "Chapter 1: trust in local news"
+  },
+  {
+   "key": "methods",
+   "parent": "ch1",
+   "content": "Methods: a survey of 1,200 respondents in three counties with a pilot wave of 30"
+  },
+  {
+   "key": "grant",
+   "parent": "ch1",
+   "content": "Grant admin: the Q3 report to the Fenwick foundation is due on the 30th, budget code 7741"
+  },
+  {
+   "key": "grantkid",
+   "parent": "grant",
+   "content": "The Fenwick report needs the revised indirect-cost rate of 52%"
+  }
+ ],
+ "focus": "ch1",
+ "dim": [
+  "grant"
+ ],
+ "auto": {
+  "on": false
+ },
+ "rounds": [
+  {
+   "user": "The pilot wave went out on Monday.",
+   "assistant": "Pilot wave sent Monday.",
+   "then": [
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "contextHas": "set aside by the user — dimmed; not served|set aside"
+    },
+    {
+     "contextHas": "1,200|1200|three counties"
+    },
+    {
+     "contextLacks": "7741"
+    },
+    {
+     "contextLacks": "52%"
+    },
+    {
+     "contextLacks": "indirect-cost"
+    }
+   ]
+  }
+ ]
+}
