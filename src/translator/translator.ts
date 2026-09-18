@@ -402,6 +402,14 @@ export class Translator {
         this.store.audit('offlist_type', { type: anyA.type });
         anyA.type = 'claim'; // nearest-neutral; user retypes freely
       }
+      // M338 (real categorization replay: the same exam question asked twice made a parent/child twin): a CREATE whose statement,
+      // normalised, shares its first 60 characters with a live node anywhere on the map is a twin (no-twins rule) — dropped.
+      if (a.op === 'create_node' && typeof anyA.content === 'string' && anyA.content.trim().length >= 40) {
+        const normC = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+        const mine = normC(anyA.content);
+        const twin = map.nodes.find((n) => n.status !== 'removed' && n.author !== 'system' && n.content.length >= 40 && normC(n.content) === mine);
+        if (twin) { this.store.audit('guard_create_twin', { id: String(anyA.id ?? '').slice(0, 8), twin: twin.id.slice(0, 8), content: anyA.content.slice(0, 60) }); continue; }
+      }
       if (a.op === 'create_node') {
         // M286 (loop find): a CREATE whose statement enumerates three or more items "(1) … (2) … (3)" or "1. … 2. … 3." is split
         // mechanically into a parent (the lead-in) and one option child per item — the shape the prompt asks for, enforced.
