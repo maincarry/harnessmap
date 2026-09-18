@@ -8,7 +8,7 @@
 // floor per class.
 //   bun run src/eval/filing-suite.ts --segment src/eval/filing-segment.json --checks src/eval/filing-checks.json [--runs 3] [--floor-ruling .7 --floor-currency .8]
 import { join } from 'path';
-import { mkdirSync, rmSync, readFileSync, writeFileSync } from 'fs';
+import { mkdirSync, rmSync, readFileSync, writeFileSync, symlinkSync } from 'fs';
 const flag = (n: string) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? process.argv[i + 1] : null; };
 const SEG = flag('segment') ?? 'src/eval/filing-segment.json';
 const CHECKS = flag('checks') ?? 'src/eval/filing-checks.json';
