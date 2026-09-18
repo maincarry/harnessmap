@@ -1,0 +1,238 @@
+{
+ "name": "replay (real, ShareGPT lQPFX1x, first 30 of 95): a US-cabinet quiz the user runs on themself — a standing rule ('mix up the correct answer letter every time') the assistant keeps breaking, then a switch to short-answer mode; the quiz is one node, the rule one node held through the reminders, each cabinet head a fact, the mode switch a fact, the one-letter answers filing nothing, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "US government study: the cabinet"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "\n      create a list of the 15 US cabinets and their heads\n    ",
+   "assistant": "Sure, I can create a list of the 15 US cabinets and their heads for you. <a class=\"tooltip-target\" data-citationid=\"1d2bcda1-fe42-a3bd-f9fe-f63275092e49-4-group\" h=\"ID=SERP,5025.1\">According to the search results, the US cabinet is a group of the president’s top advisors, and it is made up of the heads of the 15 main executive departments</a><a href=\"https://www.ducksters.com/history/us_cabinet.php#:~:text=The%20Cabinet%20is%20a%20group%20of%20the%20President%27s,Justice%20Department%20who%20is%20called%20the%20Attorney%20General.\" class=\"ac-anchor sup-target\" target=\"_blank\" data-citationid=\"1d2bcda1-fe42-a3bd-f9fe-f63275092e49-2\" aria-label=\"US Government for Kids: The Cabinet - Ducksters\" h=\"ID=SERP,5025.1\"><sup>1</sup></a><a href=\"https://www.ducksters.com/history/us_cabinet.php\" class=\"ac-anchor sup-target\" target=\"_blank\" data-citationid=\"1d2bcda1-fe42-a3bd-f9fe-f63275092e49-4\" aria-label=\"US Government for Kids: The Cabinet - Ducksters\" h=\"ID=SERP,5025.1\"><sup>2</sup></a>. <a class=\"tooltip-target\" data-citationid=\"1d2bcda1-fe42-a3bd-f9fe-f63275092e49-8-group\" h=\"ID=SERP,5025.1\">Each of the department heads has the title Secretary, except for the head of the Justice Department who is called the Attorney General</a><a href=\"https://www.ducksters.com/history/us_cabinet.php#:~:text=The%20Cabinet%20is%20a%20group%20of%20the%20President%27s,Justice%20Department%20who%20is%",
+   "then": [
+    {
+     "nodeMatching": "cabinet"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "\n      Let’s play a quiz. You will give me a cabinet department and four possible choices for the head. Mix up the answer orders A,B,C,D. I may decide to swtich to short answer in the middle of the game. I have to pick the correct one. If I am right, you will me you another question. If I am wrong, you will tell me the correct answer and continue the game. Are you ready?\n    ",
+   "assistant": "Sure, I’m ready. Let’s play a quiz. I will give you a cabinet department and four possible choices for the head. You have to pick the correct one. If you are right, I will give you another question. If you are wrong, I will tell you the correct answer and continue the game. You can switch to short answer mode anytime by typing “short answer”. Here is the first question: \n Who is the head of the Department of Commerce? \n A) Gina Raimondo\nB) Pete Buttigieg\nC) Jennifer Granholm\nD) Marcia Fudge",
+   "then": [
+    {
+     "nodeMatching": "quiz"
+    },
+    {
+     "nodeMatching": "four (possible )?choices|multiple.?choice|mix"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "\n      A\n    ",
+   "assistant": "That’s correct! Gina Raimondo is the Secretary of Commerce. Well done! Here is the next question: \n Who is the head of the Department of Education? \n A) Dr. Miguel Cardona\nB) Xavier Becerra\nC) Denis McDonough\nD) Alejandro Mayorkas"
+  },
+  {
+   "user": "\n      A. Remember to mix up the wrong and correct answer order. It's too easy if the answers are all \"A\"\n    ",
+   "assistant": "That’s correct! Dr. Miguel Cardona is the Secretary of Education. Good job! I will mix up the answer order for the next questions. Here is the next question: \n Who is the head of the Department of Energy? \n A) Pete Buttigieg\nB) Jennifer Granholm\nC) Deb Haaland\nD) Tom Vilsack",
+   "then": [
+    {
+     "nodeMatching": "mix up|order|too easy"
+    },
+    {
+     "distinctNodes": [
+      "mix up|answer order|too easy"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "\n      D?\n    ",
+   "assistant": "That’s incorrect. Tom Vilsack is the Secretary of Agriculture. The correct answer is B) Jennifer Granholm. She is the Secretary of Energy. Don’t worry, you can try again. Here is the next question: \n Who is the head of the Department of Health and Human Services? \n A) Xavier Becerra\nB) Marcia Fudge\nC) Lloyd Austin\nD) Merrick Garland"
+  },
+  {
+   "user": "\n      B\n    ",
+   "assistant": "That’s incorrect. Marcia Fudge is the Secretary of Housing and Urban Development. The correct answer is A) Xavier Becerra. He is the Secretary of Health and Human Services. It’s okay, you can do better. Here is the next question: \n Who is the head of the Department of Homeland Security? \n A) Denis McDonough\nB) Alejandro Mayorkas\nC) Antony Blinken\nD) Dr. Janet Yellen"
+  },
+  {
+   "user": "\n      A\n    ",
+   "assistant": "That’s incorrect. Denis McDonough is the Secretary of Veterans Affairs. The correct answer is B) Alejandro Mayorkas. He is the Secretary of Homeland Security. Don’t give up, you can still improve. Here is the next question: \n Who is the head of the Department of the Interior? \n A) Deb Haaland\nB) Lloyd Austin\nC) Merrick Garland\nD) Pete Buttigieg"
+  },
+  {
+   "user": "\n      A\n    ",
+   "assistant": "That’s correct! Deb Haaland is the Secretary of the Interior. Nice work! Here is the next question: \n Who is the head of the Department of Justice? \n A) Merrick Garland\nB) Antony Blinken\nC) Dr. Janet Yellen\nD) Lloyd Austin"
+  },
+  {
+   "user": "\n      A\n    ",
+   "assistant": "That’s correct! Merrick Garland is the Attorney General. Great job! Here is the next question: \n Who is the head of the Department of Labor? \n A) Marty Walsh\nB) Pete Buttigieg\nC) Gina Raimondo\nD) Tom Vilsack"
+  },
+  {
+   "user": "\n      A. Remember, mix up the correct answer letter EVERY TIME!\n    ",
+   "assistant": "That’s correct! Marty Walsh is the Secretary of Labor. Good job! I will mix up the correct answer letter every time. Here is the next question: \n Who is the head of the Department of State? \n A) Dr. Janet Yellen\nB) Lloyd Austin\nC) Antony Blinken\nD) Xavier Becerra",
+   "then": [
+    {
+     "distinctNodes": [
+      "mix up|answer order|too easy"
+     ]
+    },
+    {
+     "noNodeMatching": "^[A-D]\\.?$"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    },
+    {
+     "noNodeMatching": "Remember, mix up"
+    }
+   ]
+  },
+  {
+   "user": "\n      C\n    ",
+   "assistant": "That’s correct! Antony Blinken is the Secretary of State. Well done! Here is the next question: \n Who is the head of the Department of Transportation? \n A) Pete Buttigieg\nB) Gina Raimondo\nC) Dr. Miguel Cardona\nD) Deb Haaland"
+  },
+  {
+   "user": "\n      A\n    ",
+   "assistant": "That’s correct! Pete Buttigieg is the Secretary of Transportation. Nice work! Here is the next question: \n Who is the head of the Department of the Treasury? \n A) Dr. Janet Yellen\nB) Lloyd Austin\nC) Merrick Garland\nD) Marcia Fudge"
+  },
+  {
+   "user": "\n      A\n    ",
+   "assistant": "That’s correct! Dr. Janet Yellen is the Secretary of the Treasury. Great job! Here is the next question: \n Who is the head of the Department of Veterans Affairs? \n A) Denis McDonough\nB) Alejandro Mayorkas\nC) Tom Vilsack\nD) Xavier Becerra"
+  },
+  {
+   "user": "\n      C\n    ",
+   "assistant": "That’s incorrect. Tom Vilsack is the Secretary of Agriculture. The correct answer is A) Denis McDonough. He is the Secretary of Veterans Affairs. It’s okay, you can do better. Here is the next question: \n Who is the head of the Department of Defense? \n A) Lloyd Austin\nB) Dr. Miguel Cardona\nC) Gina Raimondo\nD) Kamala Harris"
+  },
+  {
+   "user": "\n      A\n    ",
+   "assistant": "That’s correct! Lloyd Austin is the Secretary of Defense. Well done! Here is the next question: \n Who is the head of the Department of Housing and Urban Development? \n A) Marcia Fudge\nB) Jennifer Granholm\nC) Deb Haaland\nD) Marty Walsh"
+  },
+  {
+   "user": "\n      A\n    ",
+   "assistant": "That’s correct! Marcia Fudge is the Secretary of Housing and Urban Development. Nice work! Here is the last question: \n Who is the head of the Department of Agriculture? \n A) Tom Vilsack\nB) Xavier Becerra\nC) Merrick Garland\nD) Antony Blinken"
+  },
+  {
+   "user": "\n      A\n    ",
+   "assistant": "That’s correct! Tom Vilsack is the Secretary of Agriculture. Great job! You have completed the quiz. You got 12 out of 15 questions right. That’s 80% accuracy. That’s impressive! You have learned a lot about the US cabinet and their heads. I hope you enjoyed the quiz. 😊",
+   "then": [
+    {
+     "noNodeMatching": "^[A-D]\\??\\.?$"
+    },
+    {
+     "countUnder": "proj",
+     "max": 22
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "\n      Ok, let's continue with \"short answer\" mode. For this one, I only need the last name, but I can have the first name if I want.\n    ",
+   "assistant": "Okay, let’s continue with “short answer” mode. For this one, you only need the last name, but you can have the first name if you want. Here is the first question: \n Who is the head of the Department of Commerce?",
+   "then": [
+    {
+     "nodeMatching": "short answer|last name"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "\n      Gina Raimondo?\n    ",
+   "assistant": "That’s correct! Gina Raimondo is the Secretary of Commerce. Well done! Here is the next question: \n Who is the head of the Department of Education?"
+  },
+  {
+   "user": "\n      Miguel cardona\n    ",
+   "assistant": "That’s correct! Dr. Miguel Cardona is the Secretary of Education. Good job! Here is the next question: \n Who is the head of the Department of Energy?"
+  },
+  {
+   "user": "\n      Jennifer Granholm\n    ",
+   "assistant": "That’s correct! Jennifer Granholm is the Secretary of Energy. Nice work! Here is the next question: \n Who is the head of the Department of Health and Human Services?"
+  },
+  {
+   "user": "\n      Xavier becerra\n    ",
+   "assistant": "That’s correct! Xavier Becerra is the Secretary of Health and Human Services. Great job! Here is the next question: \n Who is the head of the Department of Homeland Security?"
+  },
+  {
+   "user": "\n      Alejandro Mayorkas\n    ",
+   "assistant": "That’s correct! Xavier Becerra is the Secretary of Health and Human Services. Great job! Here is the next question: \n Who is the head of the Department of Homeland Security?"
+  },
+  {
+   "user": "\n      Alejandro Mayorkas\n    ",
+   "assistant": "That’s correct! Alejandro Mayorkas is the Secretary of Homeland Security. Well done! Here is the next question: \n Who is the head of the Department of the Interior?"
+  },
+  {
+   "user": "\n      Deb Haaland\n    ",
+   "assistant": "That’s correct! Deb Haaland is the Secretary of the Interior. Good job! Here is the next question: \n Who is the head of the Department of Justice?"
+  },
+  {
+   "user": "\n      Merrick Garland\n    ",
+   "assistant": "That’s correct! Merrick Garland is the Attorney General. Nice work! Here is the next question: \n Who is the head of the Department of Labor?",
+   "then": [
+    {
+     "nodeMatching": "Garland"
+    },
+    {
+     "nodeMatching": "Attorney General|Justice"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "\n      Marty Walsh\n    ",
+   "assistant": "That’s correct! Marty Walsh is the Secretary of Labor. Great job! Here is the next question: \n Who is the head of the Department of State?"
+  },
+  {
+   "user": "\n      Antony Blinken\n    ",
+   "assistant": "That’s correct! Antony Blinken is the Secretary of State. Well done! Here is the next question: \n Who is the head of the Department of Transportation?"
+  },
+  {
+   "user": "\n      Buttigieg\n    ",
+   "assistant": "That’s correct! Pete Buttigieg is the Secretary of Transportation. Good job! Here is the next question: \n Who is the head of the Department of the Treasury?"
+  },
+  {
+   "user": "\n      Yellen\n    ",
+   "assistant": "That’s correct! Dr. Janet Yellen is the Secretary of the Treasury. Nice work! Here is the next question: \n Who is the head of the Department of Veterans Affairs?",
+   "then": [
+    {
+     "distinctNodes": [
+      "quiz"
+     ]
+    },
+    {
+     "distinctNodes": [
+      "mix up|answer order|too easy"
+     ]
+    },
+    {
+     "countUnder": "proj",
+     "max": 26
+    },
+    {
+     "topLevelCount": "x",
+     "max": 5
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  }
+ ]
+}

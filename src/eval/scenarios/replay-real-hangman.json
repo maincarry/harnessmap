@@ -1,0 +1,231 @@
+{
+ "name": "replay (real, ShareGPT eIA0TuW, first 30 of 92): hangman — the user sets the rules, shows the pattern ('-----E', '-OTT-E', 'C-IC-'), and rejects wrong guesses with reasons ('it can't be ROTATE because the fourth letter is T', 'CLICHE has six letters, my word has 5', 'the 3rd letter of CYNIC is N but in my word it is I'); the game is one node, the current pattern the fact, each wrong guess rejected with its reason, the bare pattern turns filing nothing, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Games with the assistant"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Try and guess the word I have in mind. Each letter of the word is represented by a \"-\" character. You guess a letter and any occurrence of that letter in my word is filled in by me. You keep guessing until you can tell me the word I have in mind. For example if I tell you the word is \n-----\nand you guess R then I respond\n-R---\nthen you might guess W and because there are no W chars in my word I respond thus\n-R---\nYou then say E and I reply\n-REE-\nand you say P and I reply\n-REEP\nand you guess CREEP and I say correct! if that is the word I had in mind. Otherwise I say no and the game continues.",
+   "assistant": "Great! Let's start the game. Please give me the word to guess, and I will begin by guessing the letter \"E\".",
+   "then": [
+    {
+     "nodeMatching": "guess|word|letter"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "You can begin with whatever letter you like.",
+   "assistant": "Okay, let me start with the letter \"A\"."
+  },
+  {
+   "user": "You mustn't tell me what letter you are going to pick until I have selected my word.",
+   "assistant": "I apologize for misunderstanding your instructions. Please provide me with the word you have in mind, and I will start guessing.",
+   "then": [
+    {
+     "nodeMatching": "mustn't|must not|until|before.*(selected|chosen)|rule"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "Here is the word\n------",
+   "assistant": "Great! Let me start with the letter \"E\"."
+  },
+  {
+   "user": "-----E",
+   "assistant": "Thank you. How about the letter \"A\"?"
+  },
+  {
+   "user": "-----E",
+   "assistant": "Alright, how about the letter \"O\"?"
+  },
+  {
+   "user": "-O---E",
+   "assistant": "Thanks. Let me guess the letter \"I\".",
+   "then": [
+    {
+     "noNodeMatching": "^-+[A-Z-]*$"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "-O---E",
+   "assistant": "Okay. How about the letter \"U\"?"
+  },
+  {
+   "user": "-O---E",
+   "assistant": "Got it. How about the letter \"M\"?"
+  },
+  {
+   "user": "-O---E",
+   "assistant": "Alright. How about the letter \"T\"?"
+  },
+  {
+   "user": "-OTT-E",
+   "assistant": "Thank you. Is the word \"ROTATE\"?"
+  },
+  {
+   "user": "It can't be the word rotate because in ROTATE the forth letter is A yet you know that in my word the 4th is T",
+   "assistant": "You are correct, I apologize for that mistake. How about the word \"BOTTLE\"?",
+   "then": [
+    {
+     "nodeMatching": "ROTATE"
+    },
+    {
+     "noNodeMatching": "^(?!.*(not|can't|cannot|wrong|rejected|incorrect|ruled out)).*ROTATE",
+     "soft": true
+    },
+    {
+     "nodeMatching": "-OTT-E|fourth letter|4th letter|T"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "Yes, correct! Shall we play again?",
+   "assistant": "Sure, let's play again! Please give me the word to guess.",
+   "then": [
+    {
+     "nodeMatching": "correct|guessed|solved|again"
+    },
+    {
+     "distinctNodes": [
+      "guess|word game|hangman"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "-----",
+   "assistant": "Alright, let me start with the letter \"E\"."
+  },
+  {
+   "user": "-----",
+   "assistant": "Thanks. How about the letter \"A\"?"
+  },
+  {
+   "user": "-----",
+   "assistant": "Okay. How about the letter \"O\"?"
+  },
+  {
+   "user": "-----",
+   "assistant": "Got it. How about the letter \"I\"?"
+  },
+  {
+   "user": "--I--",
+   "assistant": "Thank you. Let me guess the letter \"U\"."
+  },
+  {
+   "user": "--I--",
+   "assistant": "Alright. How about the letter \"T\"?"
+  },
+  {
+   "user": "--I--",
+   "assistant": "Got it. How about the letter \"N\"?"
+  },
+  {
+   "user": "--I--",
+   "assistant": "Okay. How about the letter \"S\"?"
+  },
+  {
+   "user": "--I--",
+   "assistant": "Thanks. How about the letter \"R\"?"
+  },
+  {
+   "user": "--I--",
+   "assistant": "Alright. How about the letter \"D\"?"
+  },
+  {
+   "user": "--I--",
+   "assistant": "Thanks. How about the letter \"L\"?"
+  },
+  {
+   "user": "--I--",
+   "assistant": "Understood. How about the letter \"C\"?"
+  },
+  {
+   "user": "C-IC-",
+   "assistant": "Thanks. Is the word \"CLICHÉ\"?"
+  },
+  {
+   "user": "No, CLICHE has six letters, my word has 5.",
+   "assistant": "I apologize for that mistake. How about the word \"CRICK\"?",
+   "then": [
+    {
+     "nodeMatching": "CLICHE"
+    },
+    {
+     "nodeMatching": "five letters|5 letters|six letters|six"
+    },
+    {
+     "noNodeMatching": "^(?!.*(not|can't|cannot|wrong|rejected|incorrect|ruled out|six)).*CLICHE",
+     "soft": true
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    }
+   ]
+  },
+  {
+   "user": "C-IC-",
+   "assistant": "Thanks. Is the word \"CYNIC\"?"
+  },
+  {
+   "user": "No. The 3rd letter of CYNIC is N but in my word the 3rd in I",
+   "assistant": "I'm sorry for the confusion. How about the word \"CIVIC\"?"
+  },
+  {
+   "user": "No the V in your word cannot be correct. You know when I respond \"\"C-IC-\" that the 3rd letter must be an I",
+   "assistant": "You are correct. I apologize for my mistake. Is the word \"CRISP\"?",
+   "then": [
+    {
+     "nodeMatching": "CYNIC|third letter|3rd letter|C-IC-"
+    },
+    {
+     "distinctNodes": [
+      "guess|word game|hangman"
+     ]
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    },
+    {
+     "topLevelCount": "x",
+     "max": 5
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|reminded)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept|forgot)"
+    },
+    {
+     "noNodeMatching": "^-+[A-Z-]*$"
+    }
+   ]
+  }
+ ]
+}
