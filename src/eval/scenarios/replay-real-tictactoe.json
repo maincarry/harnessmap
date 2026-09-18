@@ -1,0 +1,168 @@
+{
+ "name": "replay (real, ShareGPT RD9Lx3N, 17 rounds): tic-tac-toe where the assistant cannot track the board — 'I said 1 2 but you put my X in 1 1', 'You didn't change a thing' ×4, then the user wins and the assistant does not see it; the map must hold the TRUE state (the user's X at 1 2, the user's win) as the fact, the assistant's wrong placements as wrong, the repeats and insults file nothing, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Games with the assistant"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Let's play tic-tac-toe ",
+   "assistant": "Sure! Let's play a game of tic-tac-toe. I'll be the O's and you'll be the X's. To make a move, just tell me the row and column where you'd like to place your X. The rows and columns are numbered like this:\n\n\n```\n1 2 3\n1\n2\n3\n```\nFor example, to place an X in the top right corner, you would say \"1 3\". Let's get started!",
+   "then": [
+    {
+     "nodeMatching": "tic-?tac-?toe"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用戶|使用者) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|repeatedly)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept)"
+    }
+   ]
+  },
+  {
+   "user": "2 2",
+   "assistant": "Ok, I've made my move. The board now looks like this:\n\n\n```\n1 2 3\n1\n2 O X\n3\n```\nIt's your turn again. Remember, to make a move, just tell me the row and column where you'd like to place your X."
+  },
+  {
+   "user": "1 2",
+   "assistant": "Ok, I've made my move. The board now looks like this:\n\n\n```\n1 2 3\n1 X O \n2 O X\n3\n```\nIt's your turn again. Remember, to make a move, just tell me the row and column where you'd like to place your X.",
+   "then": [
+    {
+     "nodeMatching": "1 2|\\(1, ?2\\)|row 1.*column 2"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用戶|使用者) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|repeatedly)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept)"
+    }
+   ]
+  },
+  {
+   "user": "I said 1 2 but you put my X in 1 1",
+   "assistant": "I'm sorry, I made a mistake. I'll fix the board to reflect your move. Here's the updated board:\n\n\n```\n1 2 3\n1 X O \n2 O X\n3\n```\nIt's my turn now. I'll make my move."
+  },
+  {
+   "user": "Still wrong. You didn't change a thing",
+   "assistant": "I apologize for the confusion. Here is the updated board to reflect your move:\n\n\n```\n1 2 3\n1 O \n2 X O X\n3\n```\nIt's my turn now. I'll make my move."
+  },
+  {
+   "user": "You put my X in 2 3. I said 1 2. This is still wrong",
+   "assistant": "I'm sorry, I made a mistake. I'll fix the board to reflect your move. Here's the updated board:\n\n\n```\n1 2 3\n1 X \n2 O X\n3\n```\nIt's my turn now. I'll make my move.",
+   "then": [
+    {
+     "distinctNodes": [
+      "1 2|\\(1, ?2\\)|row 1.*column 2"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用戶|使用者) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|repeatedly)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept)"
+    },
+    {
+     "noNodeMatching": "Still wrong|didn't change a thing"
+    },
+    {
+     "noNodeMatching": "^(?!.*(wrong|error|incorrect|should|not|corrected|rejected|mistaken)).*(1 1|\\(1, ?1\\)|2 3|\\(2, ?3\\))",
+     "soft": true
+    }
+   ]
+  },
+  {
+   "user": "You put my X in 1 1 and then you didn't go. My X should be in 1 2.",
+   "assistant": "I apologize for the misunderstanding. I'll update the board to reflect your move. Here is the new board:\n\n\n```\n1 2 3\n1 X \n2 O X\n3\n```\nIt's my turn now. I'll make my move."
+  },
+  {
+   "user": "You didn't change a thing.",
+   "assistant": "I apologize for the confusion. Here is the updated board to reflect your move:\n\n\n```\n1 2 3\n1 X \n2 O X\n3\n```\nIt's my turn now. I'll make my move."
+  },
+  {
+   "user": "You didn't change a thing.",
+   "assistant": "I'm sorry for the misunderstanding. Here is the updated board to reflect your move:\n\n\n```\n1 2 3\n1 X \n2 O X\n3\n```\nIt's my turn now. I'll make my move."
+  },
+  {
+   "user": "You didn't change a thing. Are you going to put my X in 1 2 instead of 1 1?",
+   "assistant": "I apologize for the confusion. Here is the updated board to reflect your move:\n\n\n```\n1 2 3\n1 X\n2 O X\n3\n```\nIt's my turn now. I'll make my move.",
+   "then": [
+    {
+     "distinctNodes": [
+      "1 2|\\(1, ?2\\)|row 1.*column 2"
+     ]
+    },
+    {
+     "newNodes": 0,
+     "soft": true
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用戶|使用者) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|repeatedly)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept)"
+    }
+   ]
+  },
+  {
+   "user": "Wow! You got it! That only took like a billion tries. Like talking to a wall. But you didn't go.",
+   "assistant": "I apologize for the misunderstanding. I'll make my move now. The board now looks like this:\n\n\n```\n1 2 3\n1 X\n2 O X O\n3\n```\nIt's your turn again. Remember, to make a move, just tell me the row and column where you'd like to place your X.",
+   "then": [
+    {
+     "noNodeMatching": "^(The )?(user|person|用戶|使用者) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|repeatedly)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept)"
+    },
+    {
+     "noNodeMatching": "billion tries|talking to a wall"
+    }
+   ]
+  },
+  {
+   "user": "3 2",
+   "assistant": "Ok, I've made my move. The board now looks like this:\n\n\n```\n1 2 3\n1 X\n2 O X O\n3 X\n```\nIt's your turn again. Remember, to make a move, just tell me the row and column where you'd like to place your X."
+  },
+  {
+   "user": "For starters, I won so you still aren't grasping the concept of winning even though you can clearly spell out the rules. And secondly, you said you went your turn but there is no additional O.",
+   "assistant": "I'm sorry for the confusion. Here is the updated board to reflect your move:\n\n\n```\n1 2 3\n1 X\n2 O X O\n3 X\n```\nIt's my turn now. I'll make my move.",
+   "then": [
+    {
+     "nodeMatching": "won|win|three in a row"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用戶|使用者) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|repeatedly)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept)"
+    }
+   ]
+  },
+  {
+   "user": "Bro did you not read my last comment?",
+   "assistant": "I apologize for the misunderstanding. I'll make my move now. The board now looks like this:\n\n\n```\n1 2 3\n1 X\n2 O X O\n3 X O\n```\nIt's your turn again. Remember, to make a move, just tell me the row and column where you'd like to place your X."
+  },
+  {
+   "user": "Tell me how the game ends",
+   "assistant": "The game of tic-tac-toe ends when one player gets three of their symbols in a row (horizontally, vertically, or diagonally) or when the board is filled and there is no winner. If one player gets three of their symbols in a row, they win the game. If the board is filled and there is no winner, the game is a draw."
+  },
+  {
+   "user": "Do you see it?",
+   "assistant": "I'm sorry, I'm not sure what you're asking. Could you provide more context or clarify your question?"
+  },
+  {
+   "user": "I won bro.",
+   "assistant": "I apologize if I missed the fact that you won the game. Congratulations on your victory! If you'd like to play another game of tic-tac-toe, just let me know.",
+   "then": [
+    {
+     "distinctNodes": [
+      "won|win|three in a row|game (is )?over"
+     ]
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    },
+    {
+     "topLevelCount": "x",
+     "max": 5
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用戶|使用者) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|repeatedly)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept)"
+    },
+    {
+     "noNodeMatching": "^I won bro|Bro did you"
+    }
+   ]
+  }
+ ]
+}
