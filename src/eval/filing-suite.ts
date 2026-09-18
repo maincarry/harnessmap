@@ -71,7 +71,15 @@ if (flag('regrade')) {
 }
 for (let run = 1; run <= (flag('regrade') ? 0 : RUNS); run++) {
   const TMP = `/tmp/claude-1000/filing-suite-${TAG}-${run}`; rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
-  try { writeFileSync(join(TMP, 'home', '.claude', '.credentials.json'), readFileSync(join(process.env.HOME ?? '', '.claude', '.credentials.json')), { mode: 0o600 }); } catch {}
+  // M323 (found after two login outages): the runner used to COPY ~/.claude/.credentials.json into each test home; a CLI child then
+// refreshed the OAuth token from the copy, the refresh token rotated there, and the real session's next refresh failed —
+// "login expired" every ~8 hours while the loop ran. A symlink lets every child refresh the one real file (cross-process refresh is supported).
+function linkCredentials(dst: string) {
+  const real = join(process.env.HOME ?? '', '.claude', '.credentials.json');
+  try { rmSync(dst, { force: true }); } catch {}
+  symlinkSync(real, dst);
+}
+try { linkCredentials(join(TMP, 'home', '.claude', '.credentials.json')); } catch {}
   const env: Record<string, string> = { ...process.env as any, HARNESSMAP_DB: join(TMP, 't1.sqlite'), PORT: String(PORT), HOME: join(TMP, 'home'), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0' };
   delete env.ANTHROPIC_API_KEY; delete env.ANTHROPIC_AUTH_TOKEN;
   const server = Bun.spawn(['bun', 'run', 'src/server.ts'], { env, stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')) });

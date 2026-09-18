@@ -4,7 +4,7 @@
 // a stray whose home is dimmed (kept, said so), then the home lit by hand (the stray is filed; the hand-lit node
 // is never dimmed). Mechanics assert exactly; the model's choices leniently.
 // Run: env -u ANTHROPIC_API_KEY -u HARNESSMAP_INFERENCE bun run src/eval/auto-mode-live.ts
-import { rmSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { rmSync, mkdirSync, readFileSync, writeFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PORT = 8795; const BASE = `http://127.0.0.1:${PORT}`;
@@ -32,7 +32,15 @@ const nodeByTitle = (s: any, t: string) => (s.nodes ?? []).find((n: any) => (n.t
 const under = (s: any, id: string, ancestor: string): boolean => { for (let n = (s.nodes ?? []).find((x: any) => x.id === id); n; n = (s.nodes ?? []).find((x: any) => x.id === n.parentId)) if (n.id === ancestor) return true; return false; };
 
 rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'proj'), { recursive: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
-try { writeFileSync(join(TMP, 'home', '.claude', '.credentials.json'), readFileSync(join(process.env.HOME ?? '', '.claude', '.credentials.json')), { mode: 0o600 }); } catch { console.warn('no subscription credentials to copy — the filer will fail'); }
+// M323 (found after two login outages): the runner used to COPY ~/.claude/.credentials.json into each test home; a CLI child then
+// refreshed the OAuth token from the copy, the refresh token rotated there, and the real session's next refresh failed —
+// "login expired" every ~8 hours while the loop ran. A symlink lets every child refresh the one real file (cross-process refresh is supported).
+function linkCredentials(dst: string) {
+  const real = join(process.env.HOME ?? '', '.claude', '.credentials.json');
+  try { rmSync(dst, { force: true }); } catch {}
+  symlinkSync(real, dst);
+}
+try { linkCredentials(join(TMP, 'home', '.claude', '.credentials.json')); } catch { console.warn('no subscription credentials to copy — the filer will fail'); }
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
   env: { ...process.env, ANTHROPIC_API_KEY: undefined as any, HARNESSMAP_INFERENCE: undefined as any, HARNESSMAP_DB: DB, HARNESSMAP_HOME: join(TMP, 'home', '.harnessmap'), PORT: String(PORT), HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home') },
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),

@@ -9,7 +9,7 @@
 //   · {inToSort: regex} · {notInToSort: regex} · {lit: key} · {dark: key} · {audit: kind, matching?: regex}
 //   · {noAudit: kind} · {statusOf: regex, is: status} · {countUnder: key, max: n} · {topLevelMatching: regex}
 //   · {undoNext: regex} · {do: 'undo'|'focus'|'light'|'dim'|'release'|'pin', key?, depth?}
-import { rmSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
+import { rmSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync, symlinkSync } from 'node:fs';
 import { join, basename } from 'node:path';
 
 const file = process.argv[2]; if (!file) { console.error('usage: e2e-run.ts <scenario.json>'); process.exit(2); }
@@ -36,7 +36,15 @@ rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'proj'), { re
 const expand = (v: string) => String(v).replaceAll('$TMP', TMP);
 for (const [rel, content] of Object.entries(sc.files ?? {})) { const fp = join(TMP, rel); mkdirSync(join(fp, '..'), { recursive: true }); writeFileSync(fp, expand(String(content))); }
 if (sc.env) for (const k of Object.keys(sc.env)) sc.env[k] = expand(sc.env[k]);
-try { writeFileSync(join(TMP, 'home', '.claude', '.credentials.json'), readFileSync(join(process.env.HOME ?? '', '.claude', '.credentials.json')), { mode: 0o600 }); } catch { console.warn('no subscription credentials to copy'); }
+// M323 (found after two login outages): the runner used to COPY ~/.claude/.credentials.json into each test home; a CLI child then
+// refreshed the OAuth token from the copy, the refresh token rotated there, and the real session's next refresh failed —
+// "login expired" every ~8 hours while the loop ran. A symlink lets every child refresh the one real file (cross-process refresh is supported).
+function linkCredentials(dst: string) {
+  const real = join(process.env.HOME ?? '', '.claude', '.credentials.json');
+  try { rmSync(dst, { force: true }); } catch {}
+  symlinkSync(real, dst);
+}
+try { linkCredentials(join(TMP, 'home', '.claude', '.credentials.json')); } catch { console.warn('no subscription credentials to copy'); }
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
   env: { ...process.env, ANTHROPIC_API_KEY: undefined as any, HARNESSMAP_INFERENCE: undefined as any, HARNESSMAP_DB: DB, HARNESSMAP_HOME: join(TMP, 'home', '.harnessmap'), PORT: String(PORT), HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_INFERENCE_CONCURRENCY: '1', /* one child at a time on this 4 GB box: two in flight still tripped the memory watchdog on a long replay */ HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home'), ...(sc.env ?? {}) }, // a scenario may set server env (e.g. the review rhythm)
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
