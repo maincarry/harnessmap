@@ -37,7 +37,7 @@ export function neighborhoodHash(store: Store, n: MapNode): string {
 }
 
 // M325: a first-person lead the title model sometimes copies from the assistant's reply — never part of a name.
-export const TITLE_NARRATION_LEAD = /^(sure[,!]?\s*|okay[,!]?\s*|certainly[,!]?\s*)?(i(['’]ll| will| can| could| would)( certainly| gladly| happily)?( help( you)?( to)?)?|let me|here(['’]s| is| are)|i(['’]d| would) be (happy|glad) to|i am going to|i['’]m going to)\s+(create|build|make|write|set up|design|draft|explain|outline|provide|give you|show you|walk you through|help you (create|build|make|write|set up|design|draft))?\s*(a|an|the|your|some)?\s*/i;
+export const TITLE_NARRATION_LEAD = /^((sure|okay|ok|certainly|understood|got it|noted|of course|absolutely|great|alright)[.,!:]?\s*)?(i(['’]ll| will| can| could| would)( certainly| gladly| happily)?( help( you)?( to)?)?|let me|here(['’]s| is| are)|i(['’]d| would) be (happy|glad) to|i am going to|i['’]m going to)\s+(create|build|make|write|set up|design|draft|explain|outline|provide|give you|show you|walk you through|help you (create|build|make|write|set up|design|draft))?\s*(a|an|the|your|some)?\s*/i;
 // Suggested minimal title for one node (M40): shown in the detail panel with
 // an adopt button — the user chooses.
 export async function suggestTitle(store: Store, nodeId: string): Promise<{ title: string } | { error: string }> {
@@ -57,8 +57,11 @@ export async function suggestTitle(store: Store, nodeId: string): Promise<{ titl
     // A title names the thing: the first-person lead goes, what it was going to make stays.
     const lead = title.match(TITLE_NARRATION_LEAD);
     if (lead) {
-      const rest = title.slice(lead[0].length).trim();
-      store.audit('title_narration', { from: title.slice(0, 80), to: rest.slice(0, 80) });
+      // M329: a negated lead ("Understood. I will not use closing pleasantries") cannot be stripped without inverting the rule —
+      // then there is no title from this answer; the node shows its statement, which reads right.
+      const negated = /\b(not|no longer|never|won['’]t|stop|avoid|refrain)\b/i.test(title.slice(0, lead[0].length + 12));
+      const rest = negated ? '' : title.slice(lead[0].length).trim();
+      store.audit('title_narration', { from: title.slice(0, 80), to: rest.slice(0, 80), negated });
       title = rest.split(/\s+/).length >= 2 ? rest[0].toUpperCase() + rest.slice(1) : '';
     }
     return title ? { title } : { error: 'no title produced' };
