@@ -17,7 +17,7 @@ MOVES=[
  [{'do':'tidy','key':seed}],
 ]
 MOVES2=[
- [{'do':'bind','key':'m1'},{'do':'bind','key':'m2','nth':1},{'do':'merge','key':'m2','into':'m1'},{'do':'undo'}],
+ [{'do':'bind','key':'m1'},{'do':'bind','key':'m2','nth':1},{'do':'merge','key':'m1','into':'m2'},{'do':'undo'}],
  [{'do':'bind','key':'m3'},{'do':'focus','key':'m3'},{'do':'wait','ms':500},{'do':'focus','key':seed}],
  [{'do':'light','key':seed,'on':False},{'do':'wait','ms':500},{'do':'light','key':seed,'on':True}],
  [{'do':'brainChat','text':'give me a three-step plan for what is open here'}],

@@ -55,6 +55,9 @@ export async function suggestTitle(store: Store, nodeId: string): Promise<{ titl
     // M325 (loop find, bug under M68/M301): the title model sometimes answers with the assistant's own opening line
     // ("I'll help you create a basic React template for…"), and the six-word clip then shows "I'll help you create a basic".
     // A title names the thing: the first-person lead goes, what it was going to make stays.
+    // M335 (perturbed pandas replay): "I'm ready to help! I understand" came back as a title — first-person assistant speech that
+    // is not a lead to strip. Any first-person marker within the first five words and no strippable lead → no title from this answer.
+    if (!TITLE_NARRATION_LEAD.test(title) && /^(?:\S+\s+){0,4}(i['\u2019]m|i['\u2019]ll|i['\u2019]d|i['\u2019]ve|i will|i can|i understand|i see|i am|let me|here['\u2019]s)\b/i.test(title)) { store.audit('title_narration', { from: title.slice(0, 80), to: '', firstPerson: true }); return { error: 'first-person title' }; }
     const lead = title.match(TITLE_NARRATION_LEAD);
     if (lead) {
       // M329: a negated lead ("Understood. I will not use closing pleasantries") cannot be stripped without inverting the rule —
