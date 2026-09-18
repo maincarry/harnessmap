@@ -402,7 +402,14 @@ export class Translator {
           // splitting the parent then made a second set of bare fragments ("pre-reading,", "Act 1 (Max in costume),"). No split
           // when this round already creates children under that node.
           const kidsInRound = alterations.filter((o: any) => o !== a && o.op === 'create_node' && o.parentId === anyA.id).length;
-          if (parts.length >= 4 && parts.slice(1).every((x) => x.length >= 8) && kidsInRound === 0) {
+          // M328 (real foreign-aid replay): an enumeration INSIDE a sentence — "(1) a policy issue in development economics, (2) an
+          // impact on households, (3) newsworthy insights. Topics map as: …" — is not a list; splitting it made "policy issue in
+          // development economics," and a last "item" carrying the rest of the paragraph. Items that end on a comma/semicolon, or a
+          // last item followed by more than a sentence of prose, mean the enumeration is inline: no split, the statement stays whole.
+          const items = parts.slice(1);
+          const inline = items.length > 0 && (items.slice(0, -1).some((x) => /[,;]$/.test(x)) || /[,;]$/.test(items[items.length - 1]) || /[.!?]\s+\S[^]{120,}$/.test(items[items.length - 1]));
+          if (parts.length >= 4 && items.every((x) => x.length >= 8) && kidsInRound === 0 && inline) this.store.audit('guard_list_split_skip', { id: String(anyA.id).slice(0, 8), why: 'inline enumeration' });
+          if (parts.length >= 4 && items.every((x) => x.length >= 8) && kidsInRound === 0 && !inline) {
             const lead = parts[0].replace(/[:\s]+$/, '') || 'options';
             const parentId = anyA.id; const parentOk0 = anyA.parentId == null || live.has(anyA.parentId);
             const parentAlt = { ...anyA, content: lead, type: anyA.type === 'option' ? undefined : anyA.type, status: anyA.type === 'option' ? 'live' : anyA.status };
