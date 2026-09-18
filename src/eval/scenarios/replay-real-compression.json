@@ -41,7 +41,8 @@
      "nodeMatching": "noise|compress|alternat"
     },
     {
-     "nodeMatching": "reversib|reversable|revers"
+     "nodeMatching": "reversib|reversable|revers",
+     "soft": true
     },
     {
      "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin)"
