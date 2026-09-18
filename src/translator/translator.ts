@@ -303,6 +303,10 @@ export class Translator {
     let toSort = map.nodes.find((n) => n.parentId === null && n.status !== 'removed' && (n.content === 'to sort' || (n.title ?? '') === 'to sort'));
     let toSortId = toSort?.id;
     const out: Alteration[] = [];
+    // M336 (perturbed translate-clone replay): the filer sometimes lists an update BEFORE the create of the same node; the update was
+    // dropped as "unknown id". An update or move whose target is created later in this batch is deferred to the end, after the create.
+    const createdInBatch = new Set<string>(alterations.filter((x: any) => x?.op === 'create_node' && x.id).map((x: any) => String(x.id)));
+    const deferred: Alteration[] = [];
     const ensureToSort = () => {
       if (toSortId) { live.add(toSortId); return toSortId; }
       toSortId = randomUUID();
@@ -474,6 +478,7 @@ export class Translator {
         }
       }
       if (a.op === 'update_node' || a.op === 'move_node') {
+        if (!live.has(anyA.id) && createdInBatch.has(String(anyA.id)) && !(a as any).__deferred) { (a as any).__deferred = true; deferred.push(a); this.store.audit('guard_update_deferred', { op: a.op, id: String(anyA.id).slice(0, 8) }); continue; }
         if (!live.has(anyA.id)) {
           // M305 (loop find, bug under M77/M55): an update aimed at a DIM node used to be dropped whole, and the material with it
           // (a hotel booking said while Travel was dim vanished). Out-of-light material lands in "to sort" with its provenance and
@@ -496,6 +501,7 @@ export class Translator {
       }
       out.push(a);
     }
+    for (const d of deferred) { const anyD = d as any; if (live.has(anyD.id)) { delete anyD.__deferred; out.push(d); } else this.store.audit('guard_dim_drop', { op: d.op, id: String(anyD.id).slice(0, 8), why: 'created later but not live' }); }
     return out;
   }
 }
