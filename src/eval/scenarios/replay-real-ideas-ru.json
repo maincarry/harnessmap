@@ -101,7 +101,8 @@
    "then": [
     {
      "topLevelCount": "x",
-     "max": 5
+     "max": 5,
+     "soft": true
     },
     {
      "noNodeMatching": "^(The )?(user|person|Пользователь|用户) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|попросил|сказал|要求|询问)|^(The )?(assistant|agent|Ассистент|助手) (apolog|acknowledg|explained|offered|made a mistake|admitted|извин)"
