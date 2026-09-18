@@ -1,0 +1,216 @@
+{
+ "name": "replay (real, ShareGPT UvdwCMU, first 30 of 62): guess-the-character — the user answers thirty yes/no questions (a book series, fantasy, completely fictional, a human, a supporting character, belongs to a group); the game is ONE node, the confirmed clues are facts beneath it, the eliminated settings never stand as facts, the bare 'yes'/'no' turns never become nodes, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Games with the assistant"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Guess a character by asking me questions",
+   "assistant": "Great! Let's start. Is this character from a book, movie, TV show or video game?",
+   "then": [
+    {
+     "nodeMatching": "guess|character|questions"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|rejected|disliked)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|revised|generated)"
+    }
+   ]
+  },
+  {
+   "user": "yes",
+   "assistant": "Okay, that's helpful. Is this character from a book?"
+  },
+  {
+   "user": "yes",
+   "assistant": "Is the book this character appears in part of a series?"
+  },
+  {
+   "user": "yes",
+   "assistant": "Is the book series in the fantasy genre?"
+  },
+  {
+   "user": "yes",
+   "assistant": "Does this character have any magical or supernatural abilities?"
+  },
+  {
+   "user": "no",
+   "assistant": "Is this character a human?"
+  },
+  {
+   "user": "yes",
+   "assistant": "Is this character the protagonist/main character of the book series?"
+  },
+  {
+   "user": "no",
+   "assistant": "Is this character a villain or an antagonist in the book series?"
+  },
+  {
+   "user": "no",
+   "assistant": "Is this character a supporting character in the book series?"
+  },
+  {
+   "user": "yes",
+   "assistant": "Is this book series a popular young adult series?",
+   "then": [
+    {
+     "noNodeMatching": "^(yes|no)\\.?$"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|rejected|disliked)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|revised|generated)"
+    }
+   ]
+  },
+  {
+   "user": "no",
+   "assistant": "Is the book series in the mystery or thriller genre?"
+  },
+  {
+   "user": "no",
+   "assistant": "Is the book series in the romance genre?"
+  },
+  {
+   "user": "no",
+   "assistant": "Does this book series belong to the horror or paranormal genre?"
+  },
+  {
+   "user": "no",
+   "assistant": "Is the book series set in a historical time period?"
+  },
+  {
+   "user": "no",
+   "assistant": "Is the book series set in a contemporary or modern time period?"
+  },
+  {
+   "user": "no",
+   "assistant": "Is the book series set in a dystopian or post-apocalyptic world?"
+  },
+  {
+   "user": "no",
+   "assistant": "Is the book series set in a science fiction universe?"
+  },
+  {
+   "user": "no",
+   "assistant": "Is the book series set in a realistic or slice-of-life type of universe?"
+  },
+  {
+   "user": "no",
+   "assistant": "Is the book series set in a speculative or alternate universe?",
+   "then": [
+    {
+     "noNodeMatching": "^(yes|no)\\.?$"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|rejected|disliked)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|revised|generated)"
+    },
+    {
+     "distinctNodes": [
+      "guess|character"
+     ]
+    }
+   ]
+  },
+  {
+   "user": "sort of",
+   "assistant": "Does the book series have elements of historical or mythological fiction in it?"
+  },
+  {
+   "user": "yes",
+   "assistant": "Does this character have any connection with ancient mythology?"
+  },
+  {
+   "user": "no",
+   "assistant": "Does the book series have a religious theme or setting?"
+  },
+  {
+   "user": "I don't think so",
+   "assistant": "Based on your answers, it seems like it could be a bit challenging to narrow down the character without more information. Can you please provide more context or clues about the book series?"
+  },
+  {
+   "user": "it is a fantasy setting",
+   "assistant": "Great! Does the book series involve magic, magical creatures or other supernatural elements?",
+   "then": [
+    {
+     "nodeMatching": "fantasy"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|rejected|disliked)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|revised|generated)"
+    }
+   ]
+  },
+  {
+   "user": "yes",
+   "assistant": "Is the book series set in a completely fictional world or does it have connections to our world?"
+  },
+  {
+   "user": "completely fictional",
+   "assistant": "Thank you for the information. Is this character a human or a non-human species?",
+   "then": [
+    {
+     "nodeMatching": "fictional|completely fictional"
+    },
+    {
+     "nodeMatching": "human"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|rejected|disliked)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|revised|generated)"
+    }
+   ]
+  },
+  {
+   "user": "human",
+   "assistant": "Does this character hold a position of power, such as a king, queen, or other ruler, within the book series?"
+  },
+  {
+   "user": "no",
+   "assistant": "Does this character belong to a group or organization within the book series?"
+  },
+  {
+   "user": "yes",
+   "assistant": "Is this group or organization a central part of the plot in the book series?"
+  },
+  {
+   "user": "ye",
+   "assistant": "Is this group or organization a military or warrior group?",
+   "then": [
+    {
+     "nodeMatching": "group|organi[sz]ation"
+    },
+    {
+     "distinctNodes": [
+      "guess|character"
+     ]
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    },
+    {
+     "topLevelCount": "x",
+     "max": 5
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|rejected|disliked)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|revised|generated)"
+    },
+    {
+     "noNodeMatching": "^(yes|no|ye|sort of)\\.?$"
+    }
+   ]
+  }
+ ]
+}
