@@ -1513,14 +1513,18 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
 // unlike the delete endpoint). Validate cheaply on every state build: a dead
 // focus falls back to the first live top-level node.
 function ensureValidFocus() {
-  const chat = store.getChat(mainChatId);
-  if (!chat) return;
-  const f = store.getNode(chat.focusContainerId);
-  if (f && f.status !== 'removed') return;
-  const fallback = store.getNodes(projectId).find((n) => n.parentId === null && n.status !== 'removed' && !((n.title ?? n.content) ?? '').startsWith('to sort')) ?? store.getNodes(projectId).find((n) => n.parentId === null && n.status !== 'removed'); // M278: never "to sort" while another top-level node exists
-  if (fallback) {
-    applyFocus(mainChatId, fallback.id);
-    chats.noteMapChange(mainChatId, `the focused node was deleted — focus moved to: "${fallback.title || fallback.content}"`);
+  // M334 (perturbed replay, 2026-09-18): an UNDO of "added <topic>" removed the focused node of the host session's view — the main
+  // chat was rescued here, the other views were not (only the tidy-apply path rescued every chat, M123). Every chat of the project:
+  // a dead focus falls back to the removed node's live parent, else the first live top-level node.
+  const pid = store.getChat(mainChatId)?.projectId ?? projectId;
+  const tops = () => store.getNodes(pid).filter((n) => n.parentId === null && n.status !== 'removed');
+  for (const chat of store.getChats(pid)) {
+    if (chat.status === 'archived') continue;
+    const f = store.getNode(chat.focusContainerId);
+    if (f && f.status !== 'removed') continue;
+    const parentOk = f?.parentId && store.getNode(f.parentId)?.status !== 'removed' ? f.parentId : undefined;
+    const fallback = parentOk ?? (tops().find((n) => !((n.title ?? n.content) ?? '').startsWith('to sort')) ?? tops()[0])?.id;
+    if (fallback) { applyFocus(chat.id, fallback); const fb = store.getNode(fallback); chats.noteMapChange(chat.id, `the focused node was deleted — focus moved to: "${fb ? (fb.title || fb.content) : fallback}"`); store.audit('focus_rescued', { chat: chat.id.slice(0, 8), from: (chat.focusContainerId ?? '').slice(0, 8), to: fallback.slice(0, 8) }); }
   }
 }
 
