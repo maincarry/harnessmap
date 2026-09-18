@@ -92,7 +92,8 @@
    "assistant": "没问题，下面是一个不使用 \"加入會員時長\" 的代码：\n\n\n```python\nimport pandas as pd\n\ndates = [\"2023-01-17\", \"2023-02-02\"]\n\n# Read csv files into a list of dataframes\ndfs = [pd.read_csv(f\"{date}.csv\") for date in dates]\n\n# Concatenate the dataframes vertically\ndf = pd.concat(dfs)\n\n# Get a list of unique names\nnames = df[\"姓名\"].unique()\n\n# Create a dictionary to store the appearance of each name in each date\nappearances = {}\nfor name in names:\n appearances[name] = df[df[\"姓名\"] == name][\"姓名\"].value_counts().to_dict()\n\n# Get a list of new members and lost members\nnew_members = [name for name in names if appearances[name].get(name, 0) == 1]\nlost_members = [name for name in names if appearances[name].get(name, 0) == 2 and\n appearances[name][name] == 1]\n\nprint(\"New members:\", new_members)\nprint(\"Lost members:\", lost_members)\n```",
    "then": [
     {
-     "nodeMatching": "加入會員時長|membership duration|不需要|not needed|remove"
+     "nodeMatching": "加入會員時長|membership duration|不需要|not needed|remove",
+     "soft": true
     },
     {
      "noNodeMatching": "^(The )?(user|person|用戶|使用者) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|repeatedly)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|kept)"
