@@ -1,0 +1,245 @@
+{
+ "name": "replay (real, ShareGPT TnwWAuH, first 30 of 93): JIRA issue descriptions — a format refined through eight corrections ('the way you did it the time before was perfect', 'Nope, still not separators', 'NO! You don't understand, do this in two steps') then 'Keep that exact answer template for the rest of this conversation'; the format rule is one node in the block for every later ticket, each ticket a node, a misread ticket corrected in place, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "JIRA tickets for the auth project"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Write a short JIRA issue description about this, mentioning it should be a flow diagram with information about the endpoints concerned:\nDocument how we implemented authentication with Identity Server with a diagram.",
+   "assistant": "Title: Document Authentication with Identity Server\n\nDescription:\nWe need to document the implementation of authentication with Identity Server, including a flow diagram that shows the different endpoints involved in the process. This will help team members understand how the system works and make it easier for new developers to onboard.",
+   "then": [
+    {
+     "nodeMatching": "JIRA|flow diagram|authentication"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|shouted)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood)"
+    }
+   ]
+  },
+  {
+   "user": "Do it in a more guided manner.",
+   "assistant": "Title: Create Authentication Flow Diagram for Identity Server Implementation\n\nDescription:\nWe currently have implemented authentication with Identity Server in our system, but the process is not well-documented. To improve understanding and make it easier for new developers to onboard, we should create a flow diagram that outlines the different endpoints involved in the authentication process.\n\nSteps to reproduce:\n\n1. Review the current implementation of authentication with Identity Server\n2. Identify all the endpoints involved in the process\n3. Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n4. Add the diagram to our documentation\n5. Review and verify the accuracy of the diagram\n\nAcceptance Criteria:\n\n* A clear and easy to understand flow diagram is created\n* The diagram illustrates all the endpoints involved in the authentication process\n* The diagram is added to our documentation and easily accessible for team members\n* The accuracy of the diagram is verified by at least one team member.\n\nThis JIRA task aims to improve the understandability of how the authentication process works and make it easy for new team members to understand and maintain it."
+  },
+  {
+   "user": "I like the steps to reproduce and acceptance criteria. The rest is too verbose. Stick with the first two for my next requests please.",
+   "assistant": "Steps to reproduce:\n\n1. Review the current implementation of authentication with Identity Server\n2. Identify all the endpoints involved in the process\n\nAcceptance Criteria:\n\n* A clear and easy to understand flow diagram is created\n* The diagram illustrates all the endpoints involved in the authentication process"
+  },
+  {
+   "user": "No, the way you did it the time before was perfect for these two sections.",
+   "assistant": "Title: Create Authentication Flow Diagram for Identity Server Implementation\n\nDescription:\nWe currently have implemented authentication with Identity Server in our system, but the process is not well-documented. To improve understanding and make it easier for new developers to onboard, we should create a flow diagram that outlines the different endpoints involved in the authentication process.\n\nSteps to reproduce:\n\n1. Review the current implementation of authentication with Identity Server\n2. Identify all the endpoints involved in the process\n3. Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n4. Add the diagram to our documentation\n5. Review and verify the accuracy of the diagram\n\nAcceptance Criteria:\n\n* A clear and easy to understand flow diagram is created\n* The diagram illustrates all the endpoints involved in the authentication process\n* The diagram is added to our documentation and easily accessible for team members\n* The accuracy of the diagram is verified by at least one team member."
+  },
+  {
+   "user": "Remove the description section.",
+   "assistant": "Title: Create Authentication Flow Diagram for Identity Server Implementation\n\nSteps to reproduce:\n\n1. Review the current implementation of authentication with Identity Server\n2. Identify all the endpoints involved in the process\n3. Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n4. Add the diagram to our documentation\n5. Review and verify the accuracy of the diagram\n\nAcceptance Criteria:\n\n* A clear and easy to understand flow diagram is created\n* The diagram illustrates all the endpoints involved in the authentication process\n* The diagram is added to our documentation and easily accessible for team members\n* The accuracy of the diagram is verified by at least one team member."
+  },
+  {
+   "user": "Criteria point 3 'and easily accessible for team members' should be removed. The whole last point must be removed too.",
+   "assistant": "Title: Create Authentication Flow Diagram for Identity Server Implementation\n\nSteps to reproduce:\n\n1. Review the current implementation of authentication with Identity Server\n2. Identify all the endpoints involved in the process\n3. Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n4. Add the diagram to our documentation\n\nAcceptance Criteria:\n\n* A clear and easy to understand flow diagram is created\n* The diagram illustrates all the endpoints involved in the authentication process"
+  },
+  {
+   "user": "You did too much. 'The diagram is added to our documentation and easily accessible for team members' should have been replaced with 'The diagram is added to our documentation' instead of being removed.",
+   "assistant": "Title: Create Authentication Flow Diagram for Identity Server Implementation\n\nSteps to reproduce:\n\n1. Review the current implementation of authentication with Identity Server\n2. Identify all the endpoints involved in the process\n3. Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n4. Add the diagram to our documentation\n\nAcceptance Criteria:\n\n* A clear and easy to understand flow diagram is created\n* The diagram illustrates all the endpoints involved in the authentication process\n* The diagram is added to our documentation",
+   "then": [
+    {
+     "nodeMatching": "acceptance criteria|steps to reproduce"
+    },
+    {
+     "distinctNodes": [
+      "acceptance criteria"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|shouted)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood)"
+    },
+    {
+     "noNodeMatching": "You did too much"
+    }
+   ]
+  },
+  {
+   "user": "The bullet points will be action items on JIRA.",
+   "assistant": "Understood, the bullet points in the \"Steps to reproduce\" and \"Acceptance Criteria\" sections can be used as action items on JIRA. These action items will help guide the development team through the process of creating the flow diagram for the Identity Server authentication implementation and ensure that the final product meets the desired specifications."
+  },
+  {
+   "user": "Bullet points should be action items. 'Steps to reproduce:' and 'Acceptance Criteria:' should be in bold too. Can you prepare the text with the markdown ready? \nFor example '**Steps to reproduce:**'",
+   "assistant": "Sure, here is the updated JIRA issue description:\n\n\n```\nTitle: Create Authentication Flow Diagram for Identity Server Implementation\n\n\\*\\*Steps to reproduce:\\*\\*\n- Review the current implementation of authentication with Identity Server\n- Identify all the endpoints involved in the process\n- Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- Add the diagram to our documentation \n\n\\*\\*Acceptance Criteria:\\*\\*\n- \\*\\*Create\\*\\* a clear and easy to understand flow diagram \n- \\*\\*Identify\\*\\* all the endpoints involved in the authentication process\n- \\*\\*Add\\*\\* the diagram to our documentation\n```\nEach bullet point represents a action item. The last point is an action item but it is not necessary to repeat it, as it is already in the Steps to reproduce section. And, I've added the **bold** markdown to make the sections more clear."
+  },
+  {
+   "user": "Isn't there a markdown shortcut from Action Item?",
+   "assistant": "In JIRA, action items can be represented using the `- [ ]` syntax, which creates a checkbox that can be checked or unchecked.\n\nFor example,\n\n\n```\n**Steps to reproduce:**\n- [ ] Review the current implementation of authentication with Identity Server\n- [ ] Identify all the endpoints involved in the process\n- [ ] Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- [ ] Add the diagram to our documentation \n\n**Acceptance Criteria:**\n- [ ] Create a clear and easy to understand flow diagram \n- [ ] Identify all the endpoints involved in the authentication process\n- [ ] Add the diagram to our documentation\n```\nThis will create checkboxes that can be checked or unchecked to indicate the completion status of each action item."
+  },
+  {
+   "user": "It didn't seem to work for [ ] turning into action items.",
+   "assistant": "I apologize for the confusion. The `- [ ]` syntax for creating checkboxes is a feature of GitHub Flavored Markdown (GFM), which is used in many places including GitHub, and some other platforms but not in JIRA. JIRA uses a different markup language called Jira's own markup language, which doesn't support markdown shortcuts for checkboxes.\n\nIn JIRA, instead of using markdown shortcuts, the action items can be represented by bullet points and the team members can use the checkbox feature in the JIRA's interface to indicate the completion status of each action item.\n\n\n```\n\\*\\*Steps to reproduce:\\*\\*\n- Review the current implementation of authentication with Identity Server\n- Identify all the endpoints involved in the process\n- Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- Add the diagram to our documentation \n\n\\*\\*Acceptance Criteria:\\*\\*\n- Create a clear and easy to understand flow diagram \n- Identify all the endpoints involved in the authentication process\n- Add the diagram to our documentation\n```\nIn JIRA's interface, you can check a box next to each action item, to indicate that it has been completed.\n\nI apologize for any confusion caused. Please let me know if you need further help."
+  },
+  {
+   "user": "Steps to reproduce should be Steps to complete.",
+   "assistant": "Sure, here's the updated JIRA issue description:\n\n\n```\nTitle: Create Authentication Flow Diagram for Identity Server Implementation\n\n\\*\\*Steps to complete:\\*\\*\n- Review the current implementation of authentication with Identity Server\n- Identify all the endpoints involved in the process\n- Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- Add the diagram to our documentation \n\n\\*\\*Acceptance Criteria:\\*\\*\n- Create a clear and easy to understand flow diagram \n- Identify all the endpoints involved in the authentication process\n- Add the diagram to our documentation\n```\nThe \"Steps to complete\" section outlines the action items that need to be completed in order to fulfill the requirements of the task. It is clear now that it is the task that need to be done, not only the steps to reproduce the issue."
+  },
+  {
+   "user": "Nah, make it Suggested Steps",
+   "assistant": "Sure, here's the updated JIRA issue description:\n\n\n```\nTitle: Create Authentication Flow Diagram for Identity Server Implementation\n\n\\*\\*Suggested Steps:\\*\\*\n- Review the current implementation of authentication with Identity Server\n- Identify all the endpoints involved in the process\n- Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- Add the diagram to our documentation \n\n\\*\\*Acceptance Criteria:\\*\\*\n- Create a clear and easy to understand flow diagram \n- Identify all the endpoints involved in the authentication process\n- Add the diagram to our documentation\n```\nThe \"Suggested Steps\" section outlines the steps that the team may take in order to complete the task. The team is free to adjust the steps as needed in order to complete the task.\nPlease let me know if you need any further help.",
+   "then": [
+    {
+     "nodeMatching": "Suggested Steps"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|shouted)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood)"
+    }
+   ]
+  },
+  {
+   "user": "Can you give me Suggested Steps: and Acceptance Criteria: paste-ready for a checklist. (they should be two sections of the checklist)",
+   "assistant": "Sure, here is the paste-ready format for the \"Suggested Steps\" and \"Acceptance Criteria\" sections as checklists:\n\n\n```\n- [ ] Review the current implementation of authentication with Identity Server\n- [ ] Identify all the endpoints involved in the process\n- [ ] Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- [ ] Add the diagram to our documentation\n```\n\n```\n- [ ] Create a clear and easy to understand flow diagram \n- [ ] Identify all the endpoints involved in the authentication process\n- [ ] Add the diagram to our documentation\n```\nYou can copy and paste these sections into your JIRA task or any other checklist tool that supports markdown. Team members can then check off each item as they complete them.\n\nPlease let me know if you need any further help."
+  },
+  {
+   "user": "Give it to me in one block please. Suggested Steps and Acceptance Criteria should be the separators within the checklist.",
+   "assistant": "Sure, here is the paste-ready format for the \"Suggested Steps\" and \"Acceptance Criteria\" sections combined into one checklist:\n\n\n```\n**Suggested Steps:**\n- [ ] Review the current implementation of authentication with Identity Server\n- [ ] Identify all the endpoints involved in the process\n- [ ] Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- [ ] Add the diagram to our documentation \n\n**Acceptance Criteria:**\n- [ ] Create a clear and easy to understand flow diagram \n- [ ] Identify all the endpoints involved in the authentication process\n- [ ] Add the diagram to our documentation\n```\nThis format keeps the suggested steps and acceptance criteria separate but in the same checklist, allowing team members to easily see what needs to be done and what the end goal is.\nPlease let me know if you need any further help."
+  },
+  {
+   "user": "Suggested Steps and Acceptance Criteria do not display as separators.",
+   "assistant": "I apologize for the confusion. To make \"Suggested Steps\" and \"Acceptance Criteria\" appear as separators within the checklist, you can use the headline formatting of markdown, using the \"#\" character.\n\n\n```\n# Suggested Steps:\n- [ ] Review the current implementation of authentication with Identity Server\n- [ ] Identify all the endpoints involved in the process\n- [ ] Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- [ ] Add the diagram to our documentation \n\n# Acceptance Criteria:\n- [ ] Create a clear and easy to understand flow diagram \n- [ ] Identify all the endpoints involved in the authentication process\n- [ ] Add the diagram to our documentation\n```\nThis format uses the \"#\" character to create a headline and makes \"Suggested Steps\" and \"Acceptance Criteria\" stand out as separators within the checklist.\nPlease let me know if there is anything else I can help you with."
+  },
+  {
+   "user": "Nope, still not separators.",
+   "assistant": "I apologize for the confusion, I understand now that you want to separate Suggested Steps and Acceptance Criteria as sections and as well as make them visually stand out.\nHere is an example of how you can format the two sections to make them stand out as separators:\n\n\n```\n#### Suggested Steps:\n- [ ] Review the current implementation of authentication with Identity Server\n- [ ] Identify all the endpoints involved in the process\n- [ ] Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- [ ] Add the diagram to our documentation \n\n---\n\n#### Acceptance Criteria:\n- [ ] Create a clear and easy to understand flow diagram \n- [ ] Identify all the endpoints involved in the authentication process\n- [ ] Add the diagram to our documentation\n```\nThis format uses four \"#\" characters to create a headline (h4) and a horizontal line \"---\" to separate them visually.\nPlease let me know if this format works for you or if there's anything else I can help you with."
+  },
+  {
+   "user": "No, that wont work in a checklist. I want it copy-paste ready. [ ] works perfectly making them checkboxes. But Suggested Steps: and Acceptance Criteria: need to be separator, which means they should be preceded with --- .",
+   "assistant": "I apologize for any confusion. You can use horizontal lines (---) to separate \"Suggested Steps\" and \"Acceptance Criteria\" within the checklist. This will make them visually stand out as separators, while still keeping the checkboxes for the action items.\n\n\n```\n---\nSuggested Steps:\n- [ ] Review the current implementation of authentication with Identity Server\n- [ ] Identify all the endpoints involved in the process\n- [ ] Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- [ ] Add the diagram to our documentation \n\n---\nAcceptance Criteria:\n- [ ] Create a clear and easy to understand flow diagram \n- [ ] Identify all the endpoints involved in the authentication process\n- [ ] Add the diagram to our documentation\n```\nThis format uses three dashes \"---\" to create a horizontal line and makes \"Suggested Steps\" and \"Acceptance Criteria\" stand out as separators within the checklist.\nPlease let me know if this format works for you or if there's anything else I can help you with.",
+   "then": [
+    {
+     "nodeMatching": "\\[ \\]|checklist|copy-?paste"
+    },
+    {
+     "distinctNodes": [
+      "checklist|copy-?paste ready"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|shouted)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood)"
+    },
+    {
+     "noNodeMatching": "Nope, still not|wont work"
+    }
+   ]
+  },
+  {
+   "user": "--- should be on the same line as the titles.",
+   "assistant": "I apologize for the confusion. Here is the updated format where \"---\" is on the same line as the titles:\n\n\n```\nSuggested Steps: ---\n- [ ] Review the current implementation of authentication with Identity Server\n- [ ] Identify all the endpoints involved in the process\n- [ ] Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- [ ] Add the diagram to our documentation \n\nAcceptance Criteria: ---\n- [ ] Create a clear and easy to understand flow diagram \n- [ ] Identify all the endpoints involved in the authentication process\n- [ ] Add the diagram to our documentation\n```\nThis format uses \"---\" on the same line as the titles, to create a horizontal line and makes \"Suggested Steps\" and \"Acceptance Criteria\" stand out as separators within the checklist.\nPlease let me know if this format works for you or if there's anything else I can help you with."
+  },
+  {
+   "user": "On the same line but AT THE START please.",
+   "assistant": "I apologize for any confusion. Here is the updated format where \"---\" is at the start of the line, on the same line as the titles:\n\n\n```\n--- Suggested Steps:\n- [ ] Review the current implementation of authentication with Identity Server\n- [ ] Identify all the endpoints involved in the process\n- [ ] Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- [ ] Add the diagram to our documentation \n\n--- Acceptance Criteria:\n- [ ] Create a clear and easy to understand flow diagram \n- [ ] Identify all the endpoints involved in the authentication process\n- [ ] Add the diagram to our documentation\n```\nThis format uses \"---\" at the start of the line, on the same line as the titles, to create a horizontal line and makes \"Suggested Steps\" and \"Acceptance Criteria\" stand out as separators within the checklist.\nPlease let me know if this format works for you or if there's anything else I can help you with."
+  },
+  {
+   "user": "That's perfect. Thank you.",
+   "assistant": "You're welcome! I'm glad that I could help you. Let me know if there's anything else I can do for you. Have a great day!",
+   "then": [
+    {
+     "nodeMatching": "---|separator|same line|at the start"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|shouted)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood)"
+    }
+   ]
+  },
+  {
+   "user": "Do the same for this and give me a good issue title on the side:\nList the distinctions between regular users and internal users in a document.",
+   "assistant": "Title: Create Document to Distinguish Regular Users from Internal Users\n\n--- Suggested Steps:\n\n* Research the distinctions between regular users and internal users\n* Create a document outlining the distinctions between regular users and internal users\n* Review the document with relevant team members\n* Update and finalize the document\n\n--- Acceptance Criteria:\n\n* A clear and easy to understand document is created\n* The document includes all the distinctions between regular users and internal users\n* The document is reviewed and approved by relevant team members\n* The document is made easily accessible for all team members\n\nThe above checklist provides the suggested steps and acceptance criteria for creating a document that outlines the distinctions between regular users and internal users. This document will help the team understand the differences and have a clear distinction between them."
+  },
+  {
+   "user": "Good job with the title but I want the check list to be copy paste ready like the other one. And don't add that last paragraph.",
+   "assistant": "I apologize for misunderstanding. Here is the checklist in a copy-paste ready format:\n\n\n```\n- [ ] Research the distinctions between regular users and internal users \n- [ ] Create a document outlining the distinctions between regular users and internal users\n- [ ] Review the document with relevant team members \n- [ ] Update and finalize the document\n```\n\n```\n- [ ] A clear and easy to understand document is created\n- [ ] The document includes all the distinctions between regular users and internal users\n- [ ] The document is reviewed and approved by relevant team members\n- [ ] The document is made easily accessible for all team members\n```\nYou can copy and paste these sections into your JIRA task or any other checklist tool that supports markdown. Team members can then check off each item as they complete them.\nPlease let me know if you need any further help."
+  },
+  {
+   "user": "NO! You don't understand, do this in two steps.",
+   "assistant": "I apologize for any confusion. Here are the two checklists in copy-paste ready format, separated by a horizontal"
+  },
+  {
+   "user": "Step 1: you give me the suggested title.\n\nStep 2: You give me the checklists in ONE copy-paste ready block with the two titles as separators like you did there:\n--- Suggested Steps:\n- [ ] Review the current implementation of authentication with Identity Server\n- [ ] Identify all the endpoints involved in the process\n- [ ] Create a flow diagram that illustrates the flow of authentication, including the different endpoints and how they interact with each other\n- [ ] Add the diagram to our documentation \n\n--- Acceptance Criteria:\n- [ ] Create a clear and easy to understand flow diagram \n- [ ] Identify all the endpoints involved in the authentication process\n- [ ] Add the diagram to our documentation\n",
+   "assistant": "Sure, here is the suggested title for your task:\n\nTitle: Create a document outlining the distinctions between regular users and internal users\n\nAnd here is the checklist in one copy-paste ready block with the two titles as separators:\n\n\n```\n--- Suggested Steps:\n- [ ] Research the distinctions between regular users and internal users \n- [ ] Create a document outlining the distinctions between regular users and internal users\n- [ ] Review the document with relevant team members \n- [ ] Update and finalize the document\n\n--- Acceptance Criteria:\n- [ ] A clear and easy to understand document is created\n- [ ] The document includes all the distinctions between regular users and internal users\n- [ ] The document is reviewed and approved by relevant team members\n- [ ] The document is made easily accessible for all team members\n```\nPlease let me know if this format works for you or if there's anything else I can help you with."
+  },
+  {
+   "user": "Perfect. Keep that exact answer template for the rest of this conversation please.",
+   "assistant": "I will make sure to use the same template for the remaining of this conversation. Is there anything else I can help you with?",
+   "then": [
+    {
+     "nodeMatching": "template|two steps|Step 1|Step 2"
+    },
+    {
+     "do": "context",
+     "session": "e2e-1"
+    },
+    {
+     "contextHas": "template|two steps|Step 1"
+    },
+    {
+     "contextHas": "checklist|copy-?paste|\\[ \\]"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|shouted)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood)"
+    },
+    {
+     "noNodeMatching": "NO! You don't understand"
+    }
+   ]
+  },
+  {
+   "user": "Do it for:\n Provide Identity Server documentation.",
+   "assistant": "Sure, here is the suggested title for your task:\n\nTitle: Create Identity Server Documentation\n\nAnd here is the checklist in one copy-paste ready block with the two titles as separators:\n\n\n```\n--- Suggested Steps:\n- [ ] Review the current implementation of Identity Server\n- [ ] Gather information about the functionality of Identity Server\n- [ ] Create a comprehensive documentation for Identity Server\n- [ ] Review and update the documentation regularly\n\n--- Acceptance Criteria:\n- [ ] A clear and easy to understand documentation is created\n- [ ] The documentation includes all the functionality of Identity Server\n- [ ] The documentation is reviewed and approved by relevant team members\n- [ ] The documentation is made easily accessible for all team members\n```\nPlease let me know if this format works for you or if there's anything else I can help you with."
+  },
+  {
+   "user": "No, this should not be about creating documentation but rather providing the existing documentation of Identity Server.",
+   "assistant": "I apologize for misunderstanding. Here is the suggested title for your task:\n\nTitle: Provide existing Identity Server documentation\n\nAnd here is the checklist in one copy-paste ready block with the two titles as separators:\n\n\n```\n--- Suggested Steps:\n- [ ] Locate the existing documentation of Identity Server\n- [ ] Review the documentation for accuracy and completeness\n- [ ] Provide the documentation to relevant team members \n- [ ] Update and finalize the documentation if necessary\n\n--- Acceptance Criteria:\n- [ ] The existing documentation is accurate and complete\n- [ ] The documentation is provided to relevant team members\n- [ ] The documentation is made easily accessible for all team members\n```\nPlease let me know if this format works for you or if there's anything else I can help you with."
+  },
+  {
+   "user": "Even easier. It's ONLY about providing the link to the documentation concerning the content about OpenId.",
+   "assistant": "I understand, here is the suggested title for your task:\n\nTitle: Provide link to OpenId documentation in Identity Server\n\nAnd here is the checklist in one copy-paste ready block with the two titles as separators:\n\n\n```\n--- Suggested Steps:\n- [ ] Locate the OpenId documentation within Identity Server\n- [ ] Review the documentation for accuracy and completeness\n- [ ] Provide the link to the documentation to relevant team members \n\n--- Acceptance Criteria:\n- [ ] The OpenId documentation is accurate and complete\n- [ ] The link to the documentation is provided to relevant team members\n```\nPlease let me know if this format works for you or if there's anything else I can help you with.",
+   "then": [
+    {
+     "nodeMatching": "Identity Server"
+    },
+    {
+     "nodeMatching": "link|existing documentation"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|shouted)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood)"
+    },
+    {
+     "noNodeMatching": "^(?!.*(link|existing|providing)).*(creat|writ).*Identity Server documentation",
+     "soft": true
+    }
+   ]
+  },
+  {
+   "user": "Do the same for:\nList all high privileges accounts in a document. These are accounts from our applications and they can be fetched from the database. High privileges mean that they can do admin tasks.",
+   "assistant": "Sure, here is the suggested title for your task:\n\nTitle: Create a document listing all high privilege accounts in our applications\n\nAnd here is the checklist in one copy-paste ready block with the two titles as separators:\n\n\n```\n--- Suggested Steps:\n- [ ] Fetch all high privilege accounts from the database\n- [ ] Create a document listing all high privilege accounts\n- [ ] Review the document with relevant team members\n- [ ] Update and finalize the document\n\n--- Acceptance Criteria:\n- [ ] A clear and easy to understand document is created\n- [ ] All high privilege accounts are listed in the document\n- [ ] The document is reviewed and approved by relevant team members\n- [ ] The document is made easily accessible for all team members\n```\nPlease let me know if this format works for you or if there's anything else I can help you with.",
+   "then": [
+    {
+     "nodeMatching": "privilege"
+    },
+    {
+     "distinctNodes": [
+      "template|two steps|Step 1"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|shouted)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood)"
+    },
+    {
+     "topLevelCount": "x",
+     "max": 7
+    }
+   ]
+  }
+ ]
+}
