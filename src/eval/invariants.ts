@@ -43,6 +43,8 @@ for (const f of files) {
   const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
   const seenSib = new Map<string, string>();
   for (const n of live) { if (n.author === 'system') continue; const k = `${n.parent_id}|${norm(n.title || n.content)}`; if (k.split('|')[1].length < 6) continue; if (seenSib.has(k)) hit('sibling_twin', tag, `"${(n.title || n.content).slice(0, 40)}" ×2 under ${(n.parent_id ?? 'root').slice(0, 8)}`, out); seenSib.set(k, n.id); }
+  // 5b. parent/child twin: a live child whose statement equals its parent's (a rewrite-to-child that kept the old text, or a double filing)
+  for (const n of live) { if (n.author === 'system' || !n.parent_id) continue; const p = byId.get(n.parent_id); if (p && p.status !== 'removed' && norm(n.content).length >= 20 && norm(n.content).slice(0, 60) === norm(p.content).slice(0, 60)) hit('parent_child_twin', tag, `${n.id.slice(0, 8)} under ${p.id.slice(0, 8)} "${(p.title || p.content).slice(0, 40)}"`, out); }
   // 6. undo stack inverses referencing unknown nodes
   for (const u of db.query('select id, inverse from undo_stack').all() as any[]) { let inv: any[]; try { inv = JSON.parse(u.inverse); } catch { hit('undo_unparsable', tag, String(u.id), out); continue; } for (const a of inv) if (a.id && !byId.has(a.id)) hit('undo_unknown_node', tag, `${u.id}:${String(a.id).slice(0, 8)}`, out); }
   // 7. governor fights: the same guard on the same node in 2+ rounds

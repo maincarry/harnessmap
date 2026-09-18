@@ -338,7 +338,7 @@ export class Translator {
         let trimmed = src.replace(/\b(the )?(user|person) (asked|requested|wants?|wanted|would like|decided|needs?) (to (resume|return to|switch to|talk about|discuss|explore|open|dig into|understand|know|learn)|(for )?(detailed |more )?(information|details?|info) (about|on))[^.;—\n]*[.;,]?\s*/gi, '')
           .replace(/^(the )?(user|person) (asked|inquired)( in \p{L}+)? (about|for) /iu, '')
           .replace(/^(the )?(user|person) (is )?(selected|chose|picked|explor(ed|ing)|confirmed|noticed|flagged|clarified|restated|switched to) /i, '') // leading narration: keep what follows
-          .replace(/(^|[.;?!]\s*)(The user|User|The person|The agent|Agent|The assistant|Assistant) (is |then |also )?(selected|chose|picked|explor(ed|ing)|confirmed|noticed|flagged|clarified|restated|switched to|offered|explained|suggested|proposed|answered|redirected|described|listed|recommended|provided|gave|acknowledged|noted|insists?|insisted|demands?|demanded|maintains?|maintained|argues?|argued|believes?|believed|thinks?|thought|feels?|felt|says?|said|states?|stated|claims?|claimed|reports?|reported|mentions?|mentioned):? (that )?/g, '$1') /* M331: the person's own claim stays as a claim ("User insists Claude made a decision" -> "Claude made a decision") */ // the narrating subject and verb go, the object stays (a fact inside "User confirmed the tiler for the 20th" is kept)
+          .replace(/(^|[.;?!]\s*)(The user|User|The person|The agent|Agent|The assistant|Assistant) (is |then |also )?(selected|chose|picked|explor(ed|ing)|confirmed|noticed|flagged|clarified|restated|switched to|offered|explained|suggested|proposed|answered|redirected|described|listed|recommended|provided|gave|acknowledged|noted|insists?|insisted|demands?|demanded|maintains?|maintained|argues?|argued|believes?|believed|thinks?|thought|feels?|felt|says?|said|states?|stated|claims?|claimed|reports?|reported|mentions?|mentioned|asserts?|asserted|contends?|contended|suspects?|suspected|wonders?|wondered):? (that )?/g, '$1') /* M331: the person's own claim stays as a claim ("User insists Claude made a decision" -> "Claude made a decision") */ // the narrating subject and verb go, the object stays (a fact inside "User confirmed the tiler for the 20th" is kept)
           .replace(/(^|[.;?!]\s*)(The user|User|The person) (asked|demanded|insisted|wanted to know|wants to know|asks):\s*/g, '$1') // M326: the colon form ("User asked: How did…") — the lead goes, the question stays
           .replace(/(^|[.;?!]\s*)(The user|User|The person|The agent|Agent|The assistant|Assistant) (greeted|said hello|thanked)[^.;\n]*[.;]?\s*/g, '$1').replace(/(^|[.;?!]\s*)(the )?(user|person) (asked|inquired)( in \p{L}+)? (about|for)[^.;\n]*[.;]?\s*/giu, '$1').replace(/,?\s*and (the )?(agent|assistant) (listed|explained|offered|described|suggested|answered|gave|recommended)[^.;\n]*/gi, '')
           .replace(/(^|[.;?!]\s*)(the )?(agent|assistant) (asked for clarification|redirected (the user|them) to)[^.;\n]*[.;]?\s*/gi, '$1')
@@ -459,6 +459,19 @@ export class Translator {
         }
         out.push(a);
         continue;
+      }
+      // M333 (perturbed good-witch chain, round 12): the filer rewrote a parent with its child's statement — parent and child then
+      // read the same. A twin is a ruled-against shape (no twins); an update whose statement copies its parent's, a child's or a
+      // sibling's (first 60 characters, normalised) is dropped.
+      if (a.op === 'update_node' && typeof anyA.content === 'string' && anyA.content.trim().length >= 40) {
+        const normT = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+        const me = map.nodes.find((n) => n.id === anyA.id);
+        if (me) {
+          const mine = normT(anyA.content);
+          const kin = map.nodes.filter((n) => n.id !== me.id && n.status !== 'removed' && (n.id === me.parentId || n.parentId === me.id || (n.parentId === me.parentId && me.parentId)));
+          const twin = kin.find((n) => normT(n.content) === mine);
+          if (twin) { this.store.audit('guard_update_twin', { id: String(anyA.id).slice(0, 8), twin: twin.id.slice(0, 8), rel: twin.id === me.parentId ? 'parent' : twin.parentId === me.id ? 'child' : 'sibling' }); continue; }
+        }
       }
       if (a.op === 'update_node' || a.op === 'move_node') {
         if (!live.has(anyA.id)) {
