@@ -17,7 +17,7 @@
    "assistant": "刘德华和迈克尔杰克逊没有合作过专辑。",
    "then": [
     {
-     "nodeMatching": "刘德华|Andy Lau"
+     "nodeMatching": "刘德华|Andy Lau|Liu Dehua"
     },
     {
      "nodeMatching": "迈克尔|Jackson"
@@ -41,7 +41,7 @@
    "then": [
     {
      "distinctNodes": [
-      "刘德华|Andy Lau"
+      "刘德华|Andy Lau|Liu Dehua"
      ]
     },
     {
@@ -74,7 +74,8 @@
     {
      "distinctNodes": [
       "小沈阳|Xiao Shenyang"
-     ]
+     ],
+     "soft": true
     },
     {
      "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|claims|asserts)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|refus)"
@@ -90,7 +91,7 @@
    "assistant": "小沈阳与迈克尔·杰克逊没有合作出过专辑这一结论来源于以下几个方面：\n\n1. 没有官方消息或证实：迈克尔·杰克逊是国际知名的流行歌手，并未与小沈阳这样的中国喜剧明星合作过专辑。迄今为止，从未有关于两人合作专辑的任何官方消息或证实。\n\n2. 无法查证：在网络上，也没有任何可靠的信息或资料显示小沈阳与迈克尔·杰克逊有过合作专辑的记录。如果有类似的消息存在，通常会有可信赖的媒体报道和官方公告加以证实。\n\n基于以上的几个方面，我们可以得出结论：小沈阳和迈克尔·杰克逊没有合作过专辑。如果有其他相关问题或疑问，欢迎继续提问，我会尽力回答。",
    "then": [
     {
-     "nodeMatching": "证据|evidence|proof"
+     "nodeMatching": "证据|evidence|evidentiary|proof|verify"
     },
     {
      "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|claims|asserts)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|refus)"
@@ -136,7 +137,8 @@
     {
      "distinctNodes": [
       "小沈阳|Xiao Shenyang"
-     ]
+     ],
+     "soft": true
     },
     {
      "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|disappointed|complain|said|asked|wants|requested|apolog|insists|claims|asserts)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|refus)"
