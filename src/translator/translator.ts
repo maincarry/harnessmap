@@ -476,13 +476,13 @@ export class Translator {
       // M333 (perturbed good-witch chain, round 12): the filer rewrote a parent with its child's statement — parent and child then
       // read the same. A twin is a ruled-against shape (no twins); an update whose statement copies its parent's, a child's or a
       // sibling's (first 60 characters, normalised) is dropped.
-      if (a.op === 'update_node' && typeof anyA.content === 'string' && anyA.content.trim().length >= 40) {
-        const normT = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+      if (a.op === 'update_node' && typeof anyA.content === 'string' && anyA.content.trim().length >= 8) { // M333b: a short statement copied exactly is a twin too ("Differential calculus" over its own seed)
+        const normT = (t: string) => { const n = t.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim(); return n.length >= 40 ? n.slice(0, 60) : n; };
         const me = map.nodes.find((n) => n.id === anyA.id);
         if (me) {
           const mine = normT(anyA.content);
           const kin = map.nodes.filter((n) => n.id !== me.id && n.status !== 'removed' && (n.id === me.parentId || n.parentId === me.id || (n.parentId === me.parentId && me.parentId)));
-          const twin = kin.find((n) => normT(n.content) === mine);
+          const twin = kin.find((n) => { const k = normT(n.content); return k === mine && (mine.length >= 40 || k.length === mine.length); });
           if (twin) { this.store.audit('guard_update_twin', { id: String(anyA.id).slice(0, 8), twin: twin.id.slice(0, 8), rel: twin.id === me.parentId ? 'parent' : twin.parentId === me.id ? 'child' : 'sibling' }); continue; }
         }
       }
