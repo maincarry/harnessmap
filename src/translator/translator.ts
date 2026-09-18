@@ -388,6 +388,12 @@ export class Translator {
       }
       // M285 (loop find): a title the person typed on the card is theirs — the filer's update may change the statement, never that title
       if (a.op === 'update_node' && anyA.title !== undefined && anyA.id && this.store.getSetting(`titleBy:${anyA.id}`) === 'user') { delete anyA.title; this.store.audit('guard_hand_title', { id: String(anyA.id).slice(0, 8) }); }
+      // M330 (perturbed imnodes replay): the filer wrote the status into the statement — "RETRACTED — The original evidence…".
+      // The status is a field; a leading label in the text is meta. The label goes; if the op carries no status, the label becomes it.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string') {
+        const m = anyA.content.match(/^\s*\[?(retracted|superseded|rejected|corrected|withdrawn|decided|resolved|parked|dropped|obsolete|outdated)\]?\s*[—:\-–]\s+(?=\S)/i);
+        if (m && anyA.content.length > m[0].length + 12) { const label = m[1].toLowerCase(); anyA.content = anyA.content.slice(m[0].length).replace(/^\p{Ll}/u, (ch: string) => ch.toUpperCase()); if (!anyA.status && ['retracted', 'superseded', 'rejected', 'withdrawn', 'decided', 'parked', 'dropped'].includes(label)) anyA.status = label; this.store.audit('guard_status_label', { id: String(anyA.id ?? '').slice(0, 8), label, status: anyA.status ?? '' }); }
+      }
       if ((a.op === 'create_node' || a.op === 'update_node') && anyA.type && !CANON_TYPES.includes(anyA.type)) {
         this.store.audit('offlist_type', { type: anyA.type });
         anyA.type = 'claim'; // nearest-neutral; user retypes freely
