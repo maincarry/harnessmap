@@ -41,7 +41,8 @@
    "then": [
     {
      "statusOf": "sparring|swap sides",
-     "is": "chosen|decided|accepted|active|live"
+     "is": "chosen|decided|accepted|active|live",
+     "soft": true
     },
     {
      "nodeMatching": "thought experiment"

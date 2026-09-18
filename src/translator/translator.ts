@@ -397,7 +397,11 @@ export class Translator {
         {
           const c = String(anyA.content ?? '');
           const parts = c.split(/\s*(?:\(\d+\)|(?<=^|\s)\d+[).])\s+/).map((x) => x.trim()).filter(Boolean);
-          if (parts.length >= 4 && parts.slice(1).every((x) => x.length >= 8)) {
+          // M324 (real picture-books replay): the filer sometimes creates the list AND one child per item in the same round;
+          // splitting the parent then made a second set of bare fragments ("pre-reading,", "Act 1 (Max in costume),"). No split
+          // when this round already creates children under that node.
+          const kidsInRound = alterations.filter((o: any) => o !== a && o.op === 'create_node' && o.parentId === anyA.id).length;
+          if (parts.length >= 4 && parts.slice(1).every((x) => x.length >= 8) && kidsInRound === 0) {
             const lead = parts[0].replace(/[:\s]+$/, '') || 'options';
             const parentId = anyA.id; const parentOk0 = anyA.parentId == null || live.has(anyA.parentId);
             const parentAlt = { ...anyA, content: lead, type: anyA.type === 'option' ? undefined : anyA.type, status: anyA.type === 'option' ? 'live' : anyA.status };
