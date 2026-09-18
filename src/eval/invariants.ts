@@ -43,6 +43,9 @@ for (const f of files) {
   const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
   const seenSib = new Map<string, string>();
   for (const n of live) { if (n.author === 'system') continue; const k = `${n.parent_id}|${norm(n.title || n.content)}`; if (k.split('|')[1].length < 6) continue; if (seenSib.has(k)) hit('sibling_twin', tag, `"${(n.title || n.content).slice(0, 40)}" ×2 under ${(n.parent_id ?? 'root').slice(0, 8)}`, out); seenSib.set(k, n.id); }
+  // 5a. sibling twin by title vs statement: a live node whose statement equals a sibling's title
+  { const sibs = new Map<string, any[]>(); for (const n of live) { if (n.author === 'system') continue; const k = n.parent_id ?? 'root'; if (!sibs.has(k)) sibs.set(k, []); sibs.get(k)!.push(n); }
+    for (const [, arr] of sibs) for (const n of arr) for (const m of arr) { if (n === m || !m.title) continue; if (norm(n.content).length >= 12 && norm(n.content) === norm(m.title)) hit('sibling_title_twin', tag, `"${n.content.slice(0, 40)}" is the title of ${m.id.slice(0, 8)}`, out); } }
   // 5b. parent/child twin: a live child whose statement equals its parent's (a rewrite-to-child that kept the old text, or a double filing)
   for (const n of live) { if (n.author === 'system' || !n.parent_id) continue; const p = byId.get(n.parent_id); if (p && p.status !== 'removed' && norm(n.content).length >= 20 && norm(n.content).slice(0, 60) === norm(p.content).slice(0, 60)) hit('parent_child_twin', tag, `${n.id.slice(0, 8)} under ${p.id.slice(0, 8)} "${(p.title || p.content).slice(0, 40)}"`, out); }
   // 6. undo stack inverses referencing unknown nodes
