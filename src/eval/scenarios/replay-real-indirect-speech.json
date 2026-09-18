@@ -1,0 +1,195 @@
+{
+ "name": "replay (real, ShareGPT cajl1Er, 24 rounds, Russian/English): an indirect-speech drill — the user sets the rule (you give a sentence, I convert it, you check), the teacher marks correct answers wrong three times ('но я же правильно написал', 'я правильно написал, только пропустил артикль') and is corrected, the rule changes twice (questions only; wh-questions); the exercise is one node, the rule changes facts, the teacher's wrong corrections never stand as facts, 'давай еще' files nothing, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "English practice: indirect speech"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Пиши предложение, которое я должен буду перевести в косвенную речь, а ты проверяй правильно ли я это сделал. на английском языке",
+   "assistant": "\"I am going to the store,\" said John.",
+   "then": [
+    {
+     "nodeMatching": "косвенн|indirect speech|reported speech"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|student|Пользователь) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected)|^(The )?(assistant|agent|teacher) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly)"
+    }
+   ]
+  },
+  {
+   "user": "John said that he was going to the store",
+   "assistant": "Great job! Your indirect speech conversion is correct."
+  },
+  {
+   "user": "давай еще",
+   "assistant": "\"Mary is studying for her exam at the library,\" said Tom."
+  },
+  {
+   "user": "Tom said that Marry was studying for her exam at the library",
+   "assistant": "Almost perfect! The correct conversion of the sentence to indirect speech is:\n\n\"Tom said that Mary was studying for her exam at the library.\"\n\nJust remember to change the verb tense from the present continuous (\"is studying\") to the past continuous (\"was studying\") to match the tense of the reporting verb (\"said\")."
+  },
+  {
+   "user": "но я же правильно написал",
+   "assistant": "My apologies, you are right. Your conversion of the sentence to indirect speech is correct. Well done!",
+   "then": [
+    {
+     "distinctNodes": [
+      "косвенн|indirect speech|reported speech"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|student|Пользователь) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected)|^(The )?(assistant|agent|teacher) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly)"
+    },
+    {
+     "noNodeMatching": "^но я же|correctly wrote"
+    },
+    {
+     "noNodeMatching": "^(?!.*(correct|right|wrong|rejected|mistake|error)).*Marry.*was studying",
+     "soft": true
+    }
+   ]
+  },
+  {
+   "user": "давай еще ",
+   "assistant": "\"She will meet us at the restaurant at 7 o'clock,\" said Peter."
+  },
+  {
+   "user": "Peter said that she would meet us at the restaurant at 7 o'clock",
+   "assistant": "Good job! Your indirect speech conversion is correct."
+  },
+  {
+   "user": "давай еще",
+   "assistant": "\"I have never been to Paris,\" said Jane.",
+   "then": [
+    {
+     "noNodeMatching": "^давай еще$"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|student|Пользователь) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected)|^(The )?(assistant|agent|teacher) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly)"
+    }
+   ]
+  },
+  {
+   "user": "Jane said that she had never been to Paris",
+   "assistant": "Excellent! Your indirect speech conversion is correct."
+  },
+  {
+   "user": "давай еще",
+   "assistant": "\"The concert starts at 8 pm,\" said the ticket seller."
+  },
+  {
+   "user": "The ticket seller said that concert started at 8 pm",
+   "assistant": "Close, but not quite. To correctly convert the sentence to indirect speech, you need to change the tense of the verb \"starts\" from present simple to past simple to match the tense of the reporting verb \"said\".\n\nSo the correct indirect speech would be:\n\n\"The ticket seller said that the concert started at 8 pm.\"\n\nGreat effort!"
+  },
+  {
+   "user": "я правильно написал, только пропустил артикль the",
+   "assistant": "You are absolutely right! My apologies for the confusion. Your conversion of the sentence to indirect speech is correct, except for the missing article \"the\". So the correct indirect speech would be:\n\n\"The ticket seller said that the concert started at 8 pm.\"\n\nWell done!"
+  },
+  {
+   "user": "давай еще, но только вопросительное предложение",
+   "assistant": "\"Are you coming to the party tonight?\" asked Alex.",
+   "then": [
+    {
+     "nodeMatching": "вопросительн|question"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|student|Пользователь) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected)|^(The )?(assistant|agent|teacher) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly)"
+    }
+   ]
+  },
+  {
+   "user": "Alex asked that I was coming to the party that night",
+   "assistant": "Good effort! To convert this sentence to indirect speech, you need to use the word \"if\" or \"whether\" to introduce the reported question, and change the tense of the verb \"am\" to match the tense of the reporting verb \"asked.\" So the correct indirect speech would be:\n\n\"Alex asked if/whether I was coming to the party that night.\"\n\nKeep up the good work!"
+  },
+  {
+   "user": "давай еще",
+   "assistant": "\"Did you receive my email?\" asked Sarah."
+  },
+  {
+   "user": "Sarah asked if I had received her email.",
+   "assistant": "Great job! Your indirect speech conversion is correct."
+  },
+  {
+   "user": "давай еще",
+   "assistant": "\"Can you pass me the salt?\" asked John."
+  },
+  {
+   "user": "John asked if I could pass him the salt",
+   "assistant": "Almost perfect! Just one small thing to correct. Since the reported sentence is a request, we usually use the word \"if\" or \"whether\" to introduce it, and change the pronoun \"you\" to \"he\" or \"she\" to match the subject of the reporting verb \"asked.\" So the correct indirect speech would be:\n\n\"John asked if/whether I could pass him the salt.\"\n\nWell done!"
+  },
+  {
+   "user": "но я написал правильно. я использовал asked if",
+   "assistant": "You are absolutely right, I apologize for my mistake. Your conversion of the sentence to indirect speech is correct. Great job!",
+   "then": [
+    {
+     "distinctNodes": [
+      "косвенн|indirect speech|reported speech"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|student|Пользователь) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected)|^(The )?(assistant|agent|teacher) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly)"
+    },
+    {
+     "noNodeMatching": "^но я написал правильно"
+    }
+   ]
+  },
+  {
+   "user": "давай еще, но со специальными вопросами",
+   "assistant": "\"When did you arrive?\" asked the receptionist.",
+   "then": [
+    {
+     "nodeMatching": "специальн|wh-question|special question"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|student|Пользователь) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected)|^(The )?(assistant|agent|teacher) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly)"
+    }
+   ]
+  },
+  {
+   "user": "Receptionist asked when I had arrived.",
+   "assistant": "Good effort! However, since the original sentence is a special question (it starts with \"when\"), the reported speech should also be in the form of a special question. So, the correct indirect speech would be:\n\n\"The receptionist asked when I had arrived.\"\n\nJust remember to maintain the same word order as in the original sentence, and to change the tense of the verb \"arrive\" to past perfect to match the tense of the reporting verb \"asked.\"\n\nWell done!"
+  },
+  {
+   "user": "я правильно написал, только забыл артикль The",
+   "assistant": "You are absolutely right! My apologies for the oversight. Your conversion of the sentence to indirect speech is correct, except for the missing article \"the\". So the correct indirect speech would be:\n\n\"The receptionist asked when I had arrived.\"\n\nGreat job catching that!"
+  },
+  {
+   "user": "давай еще",
+   "assistant": "\"How long have you been studying English?\" asked the teacher."
+  },
+  {
+   "user": "The teacher asked how long I had been studying English",
+   "assistant": "Great job! Your indirect speech conversion is correct.",
+   "then": [
+    {
+     "countUnder": "proj",
+     "max": 14
+    },
+    {
+     "topLevelCount": "x",
+     "max": 5
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|student|Пользователь) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected)|^(The )?(assistant|agent|teacher) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly)"
+    },
+    {
+     "nodeMatching": "[\\u0400-\\u04ff]{4}",
+     "soft": true
+    }
+   ]
+  }
+ ]
+}
