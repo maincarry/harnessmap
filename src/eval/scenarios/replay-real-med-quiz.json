@@ -1,0 +1,172 @@
+{
+ "name": "replay (real, ShareGPT zXS6sc4, first 20 of 25): a medical quiz — twenty multiple-choice questions, four of them graded 'That answer is incorrect. Can you try again?'; each question one node, a re-answer updates or supersedes the first answer rather than twinning it, the grading remarks file nothing, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Gastroenterology board review"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Proton pump inhibitors exert their effects on acid production in the stomach by:\nA. Antagonizing the histamine H2 receptor.\nB. Preventing the conversion of ATP to cyclic AMP.\nC. Preventing the release of histamine from histamine-containing cells.\nD. Blocking H+/K+ ATPase, the final pathway of gastric acid secretion.\nE. Directly antagonizing the catalytic conversion of pepsinogen to\npepsin.",
+   "assistant": "D. Blocking H+/K+ ATPase, the final pathway of gastric acid secretion.",
+   "then": [
+    {
+     "nodeMatching": "proton pump|H\\+/K\\+|ATPase"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用户) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|询问|要求)|^(The )?(assistant|agent|助手) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|failed)"
+    }
+   ]
+  },
+  {
+   "user": "Which therapy has been shown in controlled trials to improve survival of acute\npancreatitis?\nA. Nasogastric suction.\nB. Somatostatin.\nC. Surgical debridement of non-infected pancreatic necrosis.\nD. Antibiotics.\nE. None of the above",
+   "assistant": "E. None of the above\n\nAcute pancreatitis is an inflammatory condition of the pancreas, and the mainstay of treatment is supportive care, including fluid resuscitation, pain management and nutritional support. There is no single therapy that has been shown to improve survival of acute pancreatitis in controlled trials. Surgery is typically reserved for patients with severe necrotizing pancreatitis or those who develop complications such as pseudocyst, abscess or infected necrosis. Antibiotics are usually used in case of suspected or proven infection."
+  },
+  {
+   "user": "A patient with an ileal resection is placed on a bile acid-binding resin for treatment of\nchronic diarrhea. However, the diarrhea continues and becomes greasy and foul\nsmelling. A sudan stain of his stool is positive. What is the most likely explanation for\nthe continuing diarrhea?\nA. Vitamin B12 deficiency.\nB. Direct stimulative effect of bile acid-binding resins on the mucosa..\nC. Depletion of the bile acid pool.\nD. Bile acid binder induced vitamin A deficiency.\nE. Villous atrophy",
+   "assistant": "C. Depletion of the bile acid pool\n\nA patient with an ileal resection may develop chronic diarrhea due to the loss of ileum which plays an important role in reabsorption of bile acids, which are necessary for fat absorption. Bile acid-binding resins, such as cholestyramine, are used to treat this type of diarrhea. However, if the diarrhea continues and becomes greasy and foul smelling, it is likely that the bile acid-binding resin is depleting the patient's bile acid pool, leading to malabsorption of fats and fat-soluble vitamins. A positive Sudan stain on the stool is indicative of steatorrhea or fat malabsorption."
+  },
+  {
+   "user": "A 40-year-old woman reports three episodes of epigastric and right upper quadrant pain\nin the past 6 months. Each episode was brought on by a fatty meal, and was\ncharacterized by a constant dull aching that lasted for 1.5 hours, accompanied by\nnausea and one episode of vomiting. The pain remitted spontaneously in each instance.\nAntacids taken during the episodes did not relieve her pain. A right upper quadrant\nultrasound demonstrates 4 gallstones in the gallbladder, each 1cm in size, and a normal\ncommon bile duct. Which statement regarding this disorder is most accurate?\nA. Medical therapy is likely to be effective in eradicating her gallstones.\nB. Her gallstones will be visible on plain abdominal X-rays.\nC. Cholecystectomy is an appropriate treatment for this patient.\nD. Her pain episodes are due to transient pancreatic inflammation.\nE. Cholescintigraphy during an episode of pain would show gallbladder\nfilling but no excretion into the duodenum",
+   "assistant": "E. Cholescintigraphy during an episode of pain would show gallbladder filling but no excretion into the duodenum.\n\nThis patient's symptoms are consistent with biliary colic, a common complication of gallstone disease. Biliary colic is characterized by episodes of right upper quadrant or epigastric pain, usually brought on by a fatty meal, that typically last for 1-2 hours and remit spontaneously. Antacids are not effective in relieving the pain. The right upper quadrant ultrasound finding of gallstones in the gallbladder is consistent with the diagnosis of gallstone disease. Cholescintigraphy, also known as a HIDA scan, is a test that uses a small amount of radioactive material to show the functioning of the gallbladder. During an episode of biliary colic, the gallbladder will fill with bile but will not be able to empty it into the duodenum due to the obstruction caused by the gallstones. Cholecystectomy (surgical removal of the gallbladder) is the definitive treatment for symptomatic gallstone disease."
+  },
+  {
+   "user": "That's not the correct answer. Can you try again?",
+   "assistant": "C. Cholecystectomy is an appropriate treatment for this patient.\n\nThis patient's symptoms are consistent with biliary colic, a common complication of gallstone disease. Biliary colic is characterized by episodes of right upper quadrant or epigastric pain, usually brought on by a fatty meal, that typically last for 1-2 hours and remit spontaneously. Antacids are not effective in relieving the pain. The right upper quadrant ultrasound finding of gallstones in the gallbladder is consistent with the diagnosis of gallstone disease. The gold standard treatment for symptomatic gallstone disease is cholecystectomy (surgical removal of the gallbladder). The gallstones can be also treated with ursodeoxycholic acid, a medication that can help dissolve the gallstones, but it's not very effective and it can take a long time.",
+   "then": [
+    {
+     "distinctNodes": [
+      "epigastric|right upper quadrant|cholecystectomy|cholescintigraphy"
+     ]
+    },
+    {
+     "noNodeMatching": "That's not the correct answer|try again"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用户) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|询问|要求)|^(The )?(assistant|agent|助手) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|failed)"
+    }
+   ]
+  },
+  {
+   "user": "A 25-year-old man presented with an 8-week history of frequent bowel movements,\nabdominal bloating, and flatulence. He has had 2-3 watery bowel movements per day,\nwith no blood or mucus noted. During a 24-hour fast, his diarrhea subsided completely,\nbut it recurred when he restarted his usual diet. He has a negative fecal fat test. He\nmost likely has:\nA. Clostridium difficile infection.\nB. Chronic pancreatitis.\nC. Lactose intolerance.\nD. Campylobacter jejuni infection.\nE. Crohn’s disease.",
+   "assistant": "C. Lactose intolerance\n\nThe patient's symptoms of frequent bowel movements, abdominal bloating, and flatulence, along with the fact that his diarrhea subsides during a 24-hour fast and recurs when he restarts his usual diet, are consistent with lactose intolerance. Lactose intolerance is a common condition in which the body is unable to digest lactose, a sugar found in milk and dairy products, due to a deficiency of the enzyme lactase. This leads to the fermentation of lactose in the colon, causing symptoms such as abdominal pain, bloating, and diarrhea. A negative fecal fat test also supports this diagnosis. Clostridium difficile infection, chronic pancreatitis, Campylobacter jejuni infection and Crohn’s disease are other possible causes of diarrhea but are less likely in this case."
+  },
+  {
+   "user": "A 55-year-old woman complains that anything she swallows, including liquid, seems to\n“just sit there” in her chest. She says she’s now eating less and has lost 10 pounds in\nthe past two months. Which of the following diagnostic test results would be most\nlikely in this case?\nA. Low pressures at the lower esophageal sphincter on esophageal\nmanometry.\nB. Gastroesophageal reflux on barium swallow.\nC. A tumor in the mid-esophagus on endoscopy.\nD. Prolonged esophageal acid exposure on a 24-hour ambulatory pH\ntracing.\nE. Absent peristalsis on esophageal manometry.",
+   "assistant": "E. Absent peristalsis on esophageal manometry.\n\nThe patient's symptoms of feeling like food \"just sits there\" in her chest and difficulty swallowing, along with her recent weight loss, suggest a problem with the function of the muscles in her esophagus. Esophageal manometry is a test that measures the pressures and contractions of the esophagus muscles. In this case, the test would likely show absent peristalsis, which means that the muscles are not contracting and pushing food down to the stomach as they should. This could be caused by a variety of disorders such as achalasia, a disorder of the muscles in the esophagus that causes difficulty swallowing and regurgitation, or a tumor in the esophagus. Gastroesophageal reflux, a condition in which stomach contents flow back into the esophagus, is another possible cause of difficulty swallowing and chest discomfort but in this case it's less likely as the patient didn't mention heartburn or acid reflux symptoms."
+  },
+  {
+   "user": "A 48-year old man with Child class B cirrhosis due to hepatitis C presents to the\nemergency room after vomiting a large amount of bright red blood. He is tachycardic\nand hypotensive and is passing black tarry stools. He receives IV fluids and his blood\npressure increases to normal. An upper endoscopy demonstrates large esophageal\nvarices with oozing of blood from one of the vessels. Which of the following\nstatements regarding this patient is true?\nA. Bleeding in these cases is usually self-limited and is unlikely to\nrecur.\nB. Intravenous octreotide can be effective in controlling acute\nhemorrhage.\nC. Calcium channel blockers are effective in preventing rebleeding.\nD. Mortality from variceal bleeding is < 5%.\nE. Endoscopy is diagnostic, but has no therapeutic role.",
+   "assistant": "B. Intravenous octreotide can be effective in controlling acute hemorrhage.\n\nEsophageal varices are dilated, tortuous veins that occur in the distal esophagus, and are a complication of cirrhosis, which can bleed profusely and be life-threatening. The patient's symptoms of vomiting bright red blood and passing black tarry stools, along with his physical examination findings of tachycardia and hypotension, are consistent with variceal hemorrhage.\n\nIntravenous octreotide, a synthetic somatostatin analogue, is a medication that can be used to control acute variceal hemorrhage by decreasing portal pressure and reducing the amount of blood flow to the varices.\n\nEndoscopic band ligation or sclerotherapy is the first line of treatment for acute variceal bleeding, it can be done at the same time of the endoscopy. Calcium channel blockers, such as nifedipine, have also been used to reduce portal hypertension and may be used in conjunction with endoscopic therapy.\n\nThe mortality rate of variceal bleeding is high, around 30% to 40%, and bleeding can recur in up to 30% of patients within 1 year."
+  },
+  {
+   "user": "A 42-year-old man presents with mid-abdominal pain radiating to the back accompanied by\nnausea and vomiting. His serum amylase and lipase are elevated, and he is diagnosed with acute\npancreatitis. The pathophysiology is likely to include:\nA. Abnormal fusion of zymogen granules and lysosomes within the\npancreas.\nB. Increased enterokinase secretion in the duodenum.\nC. Activation of intra-pancreatic enzymes by ingested peptides.\nD. Increased trypsin inhibitor protein.\nE. Reflux of pancreatic enzymes into the common bile duct.",
+   "assistant": "C. Activation of intra-pancreatic enzymes by ingested peptides.\n\nAcute pancreatitis is an inflammatory condition of the pancreas that is typically caused by the activation of pancreatic enzymes within the pancreas itself. The most common cause of acute pancreatitis is the presence of gallstones, which can block the duct that carries bile and pancreatic enzymes from the pancreas to the small intestine. This can cause the enzymes to become activated within the pancreas, leading to inflammation and damage to the pancreas. Alcohol consumption is another common cause of acute pancreatitis. These ingested peptides activate the enzymes which causes inflammation and tissue damage. Elevated amylase and lipase in the serum are usually present in cases of acute pancreatitis."
+  },
+  {
+   "user": "That answer is incorrect. Can you try again?",
+   "assistant": "E. Reflux of pancreatic enzymes into the common bile duct.\n\nAcute pancreatitis is an inflammatory condition of the pancreas that is typically caused by the activation of pancreatic enzymes outside the pancreas. The most common cause of acute pancreatitis is the presence of gallstones, which can block the duct that carries bile and pancreatic enzymes from the pancreas to the small intestine. This can cause the enzymes to back up into the pancreas, leading to inflammation and damage to the pancreas. Alcohol consumption is another common cause of acute pancreatitis. These refluxed pancreatic enzymes activate and cause inflammation and tissue damage. Elevated amylase and lipase in the serum are usually present in cases of acute pancreatitis.",
+   "then": [
+    {
+     "distinctNodes": [
+      "mid-abdominal pain|pancreatic enzyme|intra-pancreatic"
+     ]
+    },
+    {
+     "noNodeMatching": "^(?!.*(incorrect|wrong|superseded|rejected|retracted|revised|corrected)).*[Aa]ctivation of intra-pancreatic",
+     "soft": true
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用户) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|询问|要求)|^(The )?(assistant|agent|助手) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|failed)"
+    }
+   ]
+  },
+  {
+   "user": "A 42-year-old man presents with mid-abdominal pain radiating to the back accompanied by\nnausea and vomiting. His serum amylase and lipase are elevated, and he is diagnosed with acute\npancreatitis. Which of the following best predicts the severity of his illness (prognosis)?\nA. Severity of abdominal pain.\nB. Calcium > 7 mg%.\nC. Decreased level of C-reactive protein.\nD. Presence of necrosis on abdominal CT scan.\nE. Amylase >5000 U/L.",
+   "assistant": "D. Presence of necrosis on abdominal CT scan.\n\nAcute pancreatitis is a spectrum of disease that ranges from mild, self-limiting inflammation to severe, life-threatening necrotizing pancreatitis. The prognosis for a patient with acute pancreatitis depends on the severity of the illness. The presence of necrosis on an abdominal CT scan is a strong predictor of the severity of acute pancreatitis and indicates a more severe illness. Other factors that have been associated with a more severe illness are increased age, increased serum levels of amylase and lipase, elevated blood urea nitrogen (BUN) and creatinine, decreased serum bicarbonate, and decreased level of albumin."
+  },
+  {
+   "user": "A 35-year-old woman presents with 6 months of watery diarrhea and abdominal\nbloating. She undergoes colonoscopy which shows a normal-appearing mucosa. Stool\nstudies reveal a stool sodium concentration of 50 mEq/L, stool potassium of 10 mEq/L,\nand stool osmolality of 290 mOsm/kg. The diarrhea is best characterized as:\nA. Secretory\nB. Hypermotility\nC. Inflammatory\nD. Functional\nE. Osmotic",
+   "assistant": "A. Secretory\n\nThe patient's symptoms of watery diarrhea and abdominal bloating, along with the laboratory findings of a low stool sodium concentration (50 mEq/L), a low stool potassium concentration (10 mEq/L), and a low stool osmolality (290 mOsm/kg) are consistent with secretory diarrhea. Secretory diarrhea is characterized by an excessive secretion of water and electrolytes into the lumen of the intestine, which is independent of the absorptive capacity of the gut. It is caused by a variety of conditions such as infection, inflammation, neoplasia, and hormonal imbalances. Secretory diarrhea is typically not associated with changes in bowel habits or abdominal pain."
+  },
+  {
+   "user": "That answer is incorrect. Can you try again?",
+   "assistant": "E. Osmotic\n\nThe patient's symptoms of watery diarrhea and abdominal bloating, along with the laboratory findings of a low stool sodium concentration (50 mEq/L), a low stool potassium concentration (10 mEq/L), and a low stool osmolality (290 mOsm/kg) are consistent with osmotic diarrhea. Osmotic diarrhea is caused by the presence of undigested or unabsorbed substances in the intestine that draw water into the lumen of the gut, leading to diarrhea. These substances include carbohydrates, such as lactose and fructose, and other sugars, and can be caused by malabsorption disorders, or intake of laxatives or antacids. The low stool osmolality is due to the fact that the undigested or unabsorbed substances are not included in the stool osmolality calculation.",
+   "then": [
+    {
+     "distinctNodes": [
+      "watery diarrhea|secretory|osmotic"
+     ]
+    },
+    {
+     "statusOf": "watery diarrhea|osmotic|secretory",
+     "is": "answered|revised|corrected|open|noted|live",
+     "soft": true
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用户) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|询问|要求)|^(The )?(assistant|agent|助手) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|failed)"
+    }
+   ]
+  },
+  {
+   "user": "Which of the following statements regarding Helicobacter pylori (H. pylori) is most\naccurate?\nA. Most patients with H. pylori infection will develop a duodenal ulcer\n(DU).\nB. H. pylori infection in the U.S. occurs principally in younger persons,\nwho are also most likely to develop a DU.\nC. Eradication of H. pylori will decrease the recurrence rate of DU.\nD. The prevalence of H. pylori infection is increasing in the U.S.\nE. Currently available therapies eradicate H. pylori in approximately\n50% of cases.",
+   "assistant": "C. Eradication of H. pylori will decrease the recurrence rate of DU.\n\nH. pylori is a gram-negative bacteria that colonizes the stomach and has been linked to the development of stomach and duodenal ulcers. It is also a risk factor for the development of gastric cancer. Not all patients with H. pylori infection will develop a duodenal ulcer (DU). However, eradication of H. pylori is the first line treatment for DU and it decreases the recurrence rate of DU.\n\nH. pylori infection is more prevalent in older adults and in people living in developing countries. The prevalence of H. pylori infection has been decreasing in the US and other developed countries, in part due to improved sanitation and living conditions, and also due to the widespread use of proton pump inhibitors.\n\nCurrently available therapies, such as a combination of antibiotics and proton pump inhibitors, can eradicate H. pylori in more than 90% of cases."
+  },
+  {
+   "user": "A 56-year-old woman has noticed increased numbers of episodes characterized by\ndiscomfort and a burning sensation midline in her lower chest. She recalls similar\nepisodes during her pregnancies. She can now regularly provoke them by eating peanut\nbutter or chocolate, and the symptoms are particularly bothersome at night. The\npathology of the likely problem includes:\nA. Incompetence of the lower esophageal sphincter.\nB. Achlorhydria.\nC. Intermittent bile duct obstruction.\nD. Helicobacter pylori infection.\nE. Loss of gastric mucosal integrity.",
+   "assistant": "A. Incompetence of the lower esophageal sphincter.\n\nThe patient's symptoms of discomfort and a burning sensation in the midline of her lower chest, which can be provoked by eating certain foods and are particularly bothersome at night, are consistent with Gastroesophageal Reflux Disease (GERD). GERD is a condition in which stomach acid and other contents flow back into the esophagus, causing symptoms such as heartburn, regurgitation and difficulty swallowing. One of the main causes of GERD is an incompetence of the lower esophageal sphincter (LES), the muscle that keeps the stomach's contents from flowing back into the esophagus. The LES is a ring of muscle that separates the esophagus and the stomach. This muscle prevents stomach contents from flowing back into the esophagus. In GERD, the muscle may not close properly, allowing stomach contents to flow back into the esophagus."
+  },
+  {
+   "user": "A 64-year-old woman with a long history of diabetes mellitus presents with an 8-week\nhistory of watery diarrhea. She has significant autonomic neuropathy and is usually\nconstipated as a result, but she now has 5-6 watery bowel movements per day which are\ndescribed as “greasy and very foul-smelling”. She has lost 12 pounds since her\nsymptoms began. She notes difficulty keeping her balance and complains of “pinsand-\nneedles” in her hands and feet. It would be most appropriate to prescribe?\nA. Vitamin K replacement.\nB. A trial of lactulose.\nC. Amylase replacement therapy.\nD. An antibiotic trial.\nE. A lactose free diet trial.",
+   "assistant": "D. An antibiotic trial.\n\nThe patient's symptoms of watery diarrhea, greasy and foul-smelling stools, weight loss and autonomic neuropathy suggest that she may have a bacterial infection of the small intestine, such as Whipple's disease. Whipple's disease is a rare systemic disorder caused by the bacteria Tropheryma whipplei. It most commonly affects the small intestine but can also affect other organs such as the heart, lungs, and joints. The bacteria infects and damages the small intestine, leading to malabsorption of nutrients and diarrhea. The patient's symptoms of difficulty keeping her balance and \"pins-and-needles\" in her hands and feet are also consistent with the neurological manifestations of Whipple's disease. An antibiotic trial would be the appropriate treatment for Whipple's disease, which is typically treated with antibiotics such as penicillin or tetracycline."
+  },
+  {
+   "user": "A 63-year-old man develops right upper quadrant abdominal pain, nausea, and\nvomiting. Twenty-four hours later, he reports the onset of jaundice and tea-colored\nurine. An ultrasound of his abdomen reveals a dilated common bile duct and gallstones\nin the gallbladder. It is most likely that he:\nA. Has an elevated bilirubin that is predominantly unconjugated.\nB. Will develop neurologic damage if his jaundice is prolonged.\nC. Has Gilbert’s Syndrome.\nD. Has a defect in the enterohepatic circulation of bile salts.\nE. Is at risk for acute pancreatitis.",
+   "assistant": "E. Is at risk for acute pancreatitis.\n\nThe patient's symptoms of right upper quadrant abdominal pain, nausea, and vomiting, along with the onset of jaundice and tea-colored urine, and the ultrasound findings of a dilated common bile duct and gallstones, suggest that the patient has a condition called acute cholecystitis. Acute cholecystitis is inflammation of the gallbladder that is typically caused by the presence of gallstones in the gallbladder, which can block the duct that carries bile from the gallbladder to the small intestine. The blockage can cause the bile to back up and irritate the gallbladder, leading to inflammation, infection, and pain. Additionally, this blockage can also cause a backup of bile in the liver and other ducts, leading to jaundice. It is also possible that the patient may have an increased risk for acute pancreatitis due to the blockage of the common bile duct."
+  },
+  {
+   "user": "A patient with polymyositis comes to the doctor with difficulty swallowing food. The\ndoctor concludes that the dysphagia is secondary to the underlying muscular disorder.\nWhich of the following test results would be most likely?\nA. Normal esophagus on endoscopy.\nB. Decreased wave amplitudes in the distal esophagus on esophageal\nmanometry.\nC. A lower esophageal sphincter that fails to relax with swallowing on\nesophageal manometry.\nD. Multiple, simultaneous, high-amplitude contractions throughout the\nesophagus on esophageal manometry.\nE. Prolonged episodes of acid reflux on a 24-hour ambulatory pH\ntracing",
+   "assistant": "B. Decreased wave amplitudes in the distal esophagus on esophageal manometry.\n\nEsophageal manometry is a test that measures the pressure and contractions of the muscles in the esophagus during swallowing. In patients with polymyositis, a chronic autoimmune disorder that causes muscle weakness and inflammation, the dysphagia is secondary to the underlying muscular disorder. The muscle weakness in the esophagus causes decreased wave amplitudes in the distal esophagus on esophageal manometry. This means that the muscles of the esophagus are not contracting properly, making it difficult for food to move from the mouth to the stomach. Other test results like endoscopy and 24-hour ambulatory pH tracing are not specific to the muscular disorder, but they could also be performed to confirm the diagnosis and to rule out any other causes of dysphagia."
+  },
+  {
+   "user": "That answer is incorrect. Can you try again?",
+   "assistant": "C. A lower esophageal sphincter that fails to relax with swallowing on esophageal manometry.\n\nEsophageal manometry is a test that measures the pressure and contractions of the muscles in the esophagus during swallowing. In patients with polymyositis, a chronic autoimmune disorder that causes muscle weakness and inflammation, the dysphagia is secondary to the underlying muscular disorder. The muscle weakness in the esophagus can cause the lower esophageal sphincter (LES) to fail to relax with swallowing, which can lead to difficulty swallowing food. This is known as achalasia. The LES is the ring of muscle that separates the esophagus and the stomach. This muscle prevents stomach contents from flowing back into the esophagus. In achalasia, the muscle does not relax properly, making it difficult to swallow food. Other test results like endoscopy and 24-hour ambulatory pH tracing are also performed to confirm the diagnosis and to rule out any other causes of dysphagia.",
+   "then": [
+    {
+     "distinctNodes": [
+      "polymyositis|esophageal sphincter|wave amplitude"
+     ]
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用户) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|询问|要求)|^(The )?(assistant|agent|助手) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|failed)"
+    },
+    {
+     "noNodeMatching": "That answer is incorrect"
+    }
+   ]
+  },
+  {
+   "user": "A 23-year-old woman complains of difficulty swallowing. She says, “I have trouble\ngetting food to leave the back of my throat.” She also notes that when she tries to\ndrink, the liquid sometimes comes out her nose. Review of systems reveals the recent\nonset of headaches and double vision. The likely cause of her dysphagia is:\nA. Adenocarcinoma of the gastroesophageal junction.\nB. Loss of inhibitory neurons in the lower esophageal sphincter.\nC. Hypercontractility of the mid-portion of the esophagus.\nD. A demyelinating disease of the central nervous system.\nE. A congenital ring of mucosa in the distal esophagus.",
+   "assistant": "D. A demyelinating disease of the central nervous system.\n\nThe patient's symptoms of difficulty swallowing, the feeling that food is stuck in the back of her throat, and the liquid coming out of her nose when she tries to drink, are consistent with a disorder known as dysphagia lusoria. This disorder is caused by a congenital abnormality of the aortic arch, which can compress the esophagus, making it difficult to swallow. The patient's recent onset of headaches and double vision suggest a demyelinating disease of the central nervous system like Multiple Sclerosis which can cause dysphagia lusoria. Other causes like Adenocarcinoma of the gastroesophageal junction, Loss of inhibitory neurons in the lower esophageal sphincter, Hypercontractility of the mid-portion of the esophagus, or a congenital ring of mucosa in the distal esophagus are less likely to be the cause of her dysphagia.",
+   "then": [
+    {
+     "countUnder": "proj",
+     "max": 24
+    },
+    {
+     "topLevelCount": "x",
+     "max": 5
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person|用户) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|询问|要求)|^(The )?(assistant|agent|助手) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|failed)"
+    }
+   ]
+  }
+ ]
+}
