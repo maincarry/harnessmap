@@ -15,7 +15,8 @@ import { join, basename } from 'node:path';
 const file = process.argv[2]; if (!file) { console.error('usage: e2e-run.ts <scenario.json>'); process.exit(2); }
 const sc = JSON.parse(readFileSync(file, 'utf8'));
 const PORT = Number(process.env.E2E_PORT ?? 8792); const BASE = `http://127.0.0.1:${PORT}`;
-const TMP = `/tmp/claude-1000/harnessmap-e2e-${basename(file, '.json')}${process.env.E2E_MODELS ? `-${process.env.E2E_MODELS}` : ''}`;
+const RESUME = process.argv.includes('--resume'); // Jacob 2026-09-18 ("do they break down as the conversation goes?"): continue an earlier run's map and home instead of a fresh one, so a long thread lives in ONE map
+const TMP = `/tmp/claude-1000/harnessmap-e2e-${process.env.E2E_TMP_NAME ?? basename(file, '.json')}${process.env.E2E_MODELS ? `-${process.env.E2E_MODELS}` : ''}`;
 const DB = join(TMP, 'e2e.sqlite'); // TMP is per ensemble: a batch may run the same scenario on two ensembles at once
 let pass = 0, fail = 0; const notes: string[] = [];
 let softMode = false; let noted = 0; // a soft assertion ("soft": true) is a ruling the models miss by judgment: reported as NOTE, never a FAIL
@@ -32,7 +33,7 @@ const toSortOf = (s: any) => (s.nodes ?? []).find((n: any) => n.parentId === nul
 const rx = (p: string) => new RegExp(p.replace(/^\(\?i\)/, ''), 'i'); // always case-insensitive; a leading (?i) is tolerated
 const match = (s: any, n: any, p: string) => rx(p).test((n.title ?? '') + ' ' + n.content);
 
-rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'proj'), { recursive: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
+if (!RESUME) rmSync(TMP, { recursive: true, force: true }); mkdirSync(join(TMP, 'proj'), { recursive: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
 const expand = (v: string) => String(v).replaceAll('$TMP', TMP);
 for (const [rel, content] of Object.entries(sc.files ?? {})) { const fp = join(TMP, rel); mkdirSync(join(fp, '..'), { recursive: true }); writeFileSync(fp, expand(String(content))); }
 if (sc.env) for (const k of Object.keys(sc.env)) sc.env[k] = expand(sc.env[k]);
@@ -66,16 +67,18 @@ console.log(`\n== ${sc.name} == [models: ${ENSEMBLE}]`);
 let s = await state();
 const keys: Record<string, string> = {};
 const rootTop = (s.nodes ?? []).find((n: any) => n.parentId === null && !String(n.title ?? n.content).startsWith('to sort'));
-for (const n of sc.seed ?? []) {
+if (RESUME) { try { Object.assign(keys, JSON.parse(readFileSync(join(TMP, 'keys.json'), 'utf8'))); } catch {} }
+for (const n of RESUME ? [] : (sc.seed ?? [])) {
   const parent = n.parent ? keys[n.parent] : (n.top ? null : rootTop?.id ?? null);
   const r = await post('/api/nodes', { content: n.content, parentId: parent });
   keys[n.key] = r.body.id;
   if (n.type || n.status) await post(`/api/nodes/${r.body.id}`, { ...(n.type ? { type: n.type } : {}), ...(n.status ? { status: n.status } : {}) }); // a seed may set the category and status the card would
 }
 s = await state(); const cid = () => chatOf(s).id;
-if (sc.focus) await post(`/api/chats/${cid()}/focus`, { nodeId: keys[sc.focus] });
-for (const k of sc.dim ?? []) await post(`/api/chats/${cid()}/lit`, { nodeId: keys[k], on: false });
-for (const k of sc.lit ?? []) await post(`/api/chats/${cid()}/lit`, { nodeId: keys[k], on: true });
+try { writeFileSync(join(TMP, 'keys.json'), JSON.stringify(keys)); } catch {}
+if (sc.focus && !RESUME) await post(`/api/chats/${cid()}/focus`, { nodeId: keys[sc.focus] });
+for (const k of RESUME ? [] : (sc.dim ?? [])) await post(`/api/chats/${cid()}/lit`, { nodeId: keys[k], on: false });
+for (const k of RESUME ? [] : (sc.lit ?? [])) await post(`/api/chats/${cid()}/lit`, { nodeId: keys[k], on: true });
 if (sc.auto) await post('/api/auto', sc.auto);
 // clear the seed's own undo entries from consideration by remembering the baseline count
 async function filerCount() { return (await audit('inference')).filter((r: any) => JSON.stringify(r.detail).includes('"filer"')).length; }
@@ -120,6 +123,12 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'pin') await post(`/api/chats/${cid()}/depth`, { nodeId: keys[a.key], depth: a.depth ?? null });
         else if (a.do === 'title') await post(`/api/nodes/${keys[a.key]}`, { title: a.title, chatId: cid() }); // a title typed on the card
         else if (a.do === 'wait') await sleep(a.ms ?? 5000);
+        else if (a.do === 'bind') { // perturbed replays: give a key to a node the filer made — by regex, else the newest live non-system node
+          const pool = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && n.author !== 'system' && !String(n.content).startsWith('to sort') && n.content !== 'untitled');
+          const n = a.matching ? pool.find((x: any) => match(s, x, a.matching)) : pool.slice().sort((x: any, y: any) => String(y.createdAt ?? '').localeCompare(String(x.createdAt ?? '')))[0];
+          if (n) { keys[a.key] = n.id; console.log(`  bind ${a.key} → ${nameOf(s, n.id)}`); } else console.log(`  bind ${a.key}: no node${a.matching ? ` matching ${a.matching}` : ''}`);
+          try { writeFileSync(join(TMP, 'keys.json'), JSON.stringify(keys)); } catch {}
+        }
         else if (a.do === 'context') { const r = await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(a.session ?? 'e2e-1')}&cwd=${encodeURIComponent(join(TMP, 'proj'))}${a.prompt ? `&prompt=${encodeURIComponent(a.prompt)}` : ''}`); lastContext = await r.json().catch(() => ({})); try { writeFileSync(join(TMP, 'last-context.txt'), String(lastContext?.context ?? '')); } catch {} } // what the next turn would receive (the question rides as `prompt`, as the hook sends it)
         else if (a.do === 'compact') await post('/api/harness/compacted', { session_id: a.session ?? 'e2e-1' });
         else if (a.do === 'recommend') { const r = await post(`/api/chats/${cid()}/recommend`, { kind: a.kind ?? 'zoom' }); lastRec = r.status === 200 ? r.body : null; check(`do recommend ${a.kind ?? 'zoom'} (${r.status})`, r.status === 200 && !!r.body?.containerId, JSON.stringify(r.body).slice(0, 120)); s = await state(); }
