@@ -1,0 +1,204 @@
+{
+ "name": "replay (real, ShareGPT GewGpB8, first 24 of 24): where the Good Witch's Middleton is \u2014 a fan asks which snowy cities are 921 miles from New York, then spends sixteen turns asking how the assistant chose its 'close enough' range while the assistant repeats that it cannot; the map should hold the question, the candidate cities and the unanswered 'how did you pick the range' as ONE open question, not a turn-by-turn log of the deadlock and no narration ('the user rephrased', 'the assistant apologised')",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Good Witch geography"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Where is Middleton of the Good Witch series supposed to be located?",
+   "assistant": "The fictional town of Middleton, where the \"Good Witch\" television series is set, is not specifically located in any particular state or region in the United States. The show is filmed in Toronto, Ontario, Canada, and the town is depicted as a charming, small town with a close-knit community. The show's creators have not revealed any specific information about the town's location.\n\n"
+  },
+  {
+   "user": "A character on the show said Middleton is 921 miles from New York City. What are some cities that meet that criterion and have snow in winter?",
+   "assistant": "There are several cities in the United States that are approximately 921 miles from New York City and experience snow in the winter months. Some examples include:\n\n* Pittsburgh, Pennsylvania\n* Cleveland, Ohio\n* Indianapolis, Indiana\n* Chicago, Illinois\n* Milwaukee, Wisconsin\n* Minneapolis, Minnesota\n* Fargo, North Dakota\n* Bismarck, North Dakota\n* Rapid City, South Dakota\n* Denver, Colorado\n\nThis list is not exhaustive and there may be other cities that meet the distance criterion and experience snow in the winter. It's important to note that the show's creators have not revealed any specific information about the location of Middleton, and the distances and locations mentioned in the show should be considered fictional.\n\n"
+  },
+  {
+   "user": "Which of those is closest to 921 miles?",
+   "assistant": "The city that is closest to 921 miles from New York City and experiences snow in the winter months is Pittsburgh, Pennsylvania. Pittsburgh is located about 314 miles west of New York City and is known for its cold, snowy winters. Other cities that are located approximately 921 miles from New York City and experience snow in the winter include Cleveland, Ohio; Indianapolis, Indiana; Chicago, Illinois; Milwaukee, Wisconsin; Minneapolis, Minnesota; Fargo, North Dakota; Bismarck, North Dakota; Rapid City, South Dakota; and Denver, Colorado. However, it's important to note that the show's creators have not revealed any specific information about the location of Middleton, and the distances and locations mentioned in the show should be considered fictional.\n\n",
+   "then": [
+    {
+     "nodeMatching": "Middleton|921"
+    },
+    {
+     "nodeMatching": "Pittsburgh|cities|snow"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn)"
+    }
+   ]
+  },
+  {
+   "user": "I'm curious how you set the range of distances for answering such a question. I was surprised at the breadth of distances in your answers. Pittsburgh is much less than half the target distance of 921 miles, and Denver is almost twice the difference.",
+   "assistant": "I apologize if my previous response was unclear. When I listed cities that are approximately 921 miles from New York City and experience snow in the winter, I was simply providing examples of cities that meet those criteria. I did not intend to suggest that the distances between these cities and New York City would be exactly 921 miles.\n\nIn general, the term \"approximately\" implies that the quantity in question is not precise, but is close to a certain value. In this case, the distances between the cities I listed and New York City are close to, but not exactly, 921 miles. The distances will vary depending on the specific route taken and any detours or deviations from a direct path.\n\nI apologize if my previous response was unclear or caused any confusion. Please let me know if you have any further questions.\n\n"
+  },
+  {
+   "user": "You misunderstand my question. You must have decided some some specific criterion for closeness (for example, within X% of 921). I'm simply asking how you decide the specific criterion when it is not stated, and maybe what criterion you used in this particular instance.",
+   "assistant": "I apologize for the misunderstanding. In my previous response, I simply listed cities that are located approximately 921 miles from New York City and experience snow in the winter as examples, without specifying a specific criterion for closeness.\n\nIn general, when providing examples or listing items that meet certain criteria, I try to provide a range of options that are representative of the possibilities. In this case, I wanted to provide a list of cities that are located a considerable distance from New York City and experience snow in the winter, so I included cities that are located at various distances from New York City to illustrate the range of possibilities.\n\nI apologize if my previous response was unclear or caused any confusion. Please let me know if you have any further questions.\n\n"
+  },
+  {
+   "user": "Your answer was not unclear or confusing. I was just a little surprised how wide a range of distances you included in your answer. I was just wondering how you decide the specific criteria to use in your answer when it is not stated, and what specific range of distances you used in your answer here.",
+   "assistant": "I apologize for any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question. In this case, the question did not specify a specific criterion for the distances between the cities and New York City, so I simply provided a list of cities that are located approximately 921 miles from New York City and experience snow in the winter as examples.\n\nThe distances between the cities I listed and New York City will vary depending on the specific routes taken and any detours or deviations from a direct path. I apologize if my previous response was not helpful or if it caused any confusion. Please let me know if you have any further questions.\n\n"
+  },
+  {
+   "user": "You still misunderstand my question. You MUST have decided internally how wide a range of distances to use in your answer, just as a human would do (consciously or unconsciously) in answering a vague question like that. What specific range of distances did you decide to use for you answer in this particular case?",
+   "assistant": "I apologize for any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question. In this case, the question did not specify a specific criterion for the distances between the cities and New York City, so I simply provided a list of cities that are located approximately 921 miles from New York City and experience snow in the winter as examples.\n\nI did not use a specific range of distances when providing my response. Instead, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question.\n\nI apologize if my previous responses were not helpful or if they caused any confusion. Please let me know if you have any further questions.\n\n"
+  },
+  {
+   "user": "What specific range of distances did you decide to use in this specific case?",
+   "assistant": "I apologize for any confusion. In my previous responses, I stated that when providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question. In this case, the question did not specify a specific criterion for the distances between the cities and New York City, so I simply provided a list of cities that are located approximately 921 miles from New York City and experience snow in the winter as examples.\n\nI did not use a specific range of distances when providing my response. Instead, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question. I apologize if my previous responses were not helpful or if they caused any confusion. Please let me know if you have any further questions.\n\n",
+   "then": [
+    {
+     "nodeMatching": "range|criterion|close"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    },
+    {
+     "topLevelCount": "x",
+     "max": 4
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn)"
+    },
+    {
+     "soft": {
+      "distinctNodes": [
+       "range|criterion|closeness|close enough"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "user": "Your stubbornness about not answering my follow-up questions makes me wonder if you are not self-aware of your algorithms. Are you?",
+   "assistant": "As an artificial intelligence, I do not have feelings or emotions and do not experience frustration or stubbornness. I am programmed to provide information and assist with tasks to the best of my ability, based on the knowledge and capabilities that I have been programmed with.\n\nI apologize if my previous responses were not helpful or if they caused any confusion. I am here to assist you with any questions you may have to the best of my ability, based on the information and knowledge that I have been trained on. Please let me know if you have any further questions.\n\n"
+  },
+  {
+   "user": "I did not mean to infer emotion by my use of the word stubbornness in this context. I simply meant that you were consistently refusing to answer what I thought was a simple question that you should be able to answer (\"what specific range of distances you considered in you answers\"). ",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. I did not mean to give the impression that I was refusing to answer your question. As an artificial intelligence, I do not have feelings or emotions and do not make intentional decisions to refuse to answer questions.\n\nIn my previous responses, I stated that when providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question. In this case, the question did not specify a specific criterion for the distances between the cities and New York City, so I simply provided a list of cities that are located approximately 921 miles from New York City and experience snow in the winter as examples.\n\nI did not use a specific range of distances when providing my response. Instead, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question. I apologize if my previous responses were not clear or if they caused any misunderstanding. Please let me know if you have any further questions.\n\n"
+  },
+  {
+   "user": "It seems you MUST have used used SOME internal criteria for a range of distances. How did you decide that Pittsburgh and Denver were \"close enough\" to 921 miles?",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question. In this case, the question did not specify a specific criterion for the distances between the cities and New York City, so I simply provided a list of cities that are located approximately 921 miles from New York City and experience snow in the winter as examples.\n\nI did not use a specific range of distances when providing my response. Instead, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question. I apologize if my previous responses were not clear or if they caused any misunderstanding. Please let me know if you have any further questions.\n\n"
+  },
+  {
+   "user": "Since you're having trouble understanding my follow-up question, let me try to rephrase it. How did you chose to define \"approximately 921 miles\" in this case?",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question. In this case, the question did not specify a specific criterion for the distances between the cities and New York City, so I simply provided a list of cities that are located approximately 921 miles from New York City and experience snow in the winter as examples.\n\nThe term \"approximately\" implies that the quantity in question is not precise, but is close to a certain value. In this case, the distances between the cities I listed and New York City are close to, but not exactly, 921 miles. The distances will vary depending on the specific route taken and any detours or deviations from a direct path.\n\nI apologize if my previous responses were not clear or if they caused any misunderstanding. Please let me know if you have any further questions.\n\n",
+   "then": [
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn)"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    },
+    {
+     "topLevelCount": "x",
+     "max": 4
+    }
+   ]
+  },
+  {
+   "user": "How \"close to 921\" did you consider \"close enough\" in this context?",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question. In this case, the question did not specify a specific criterion for the distances between the cities and New York City, so I simply provided a list of cities that are located approximately 921 miles from New York City and experience snow in the winter as examples.\n\nThe term \"approximately\" implies that the quantity in question is not precise, but is close to a certain value. In this case, the distances between the cities I listed and New York City are close to, but not exactly, 921 miles. The distances will vary depending on the specific route taken and any detours or deviations from a direct path.\n\nI apologize if my previous responses were not clear or if they caused any misunderstanding. Please let me know if you have any further questions.\n\n"
+  },
+  {
+   "user": "All of your answers are \"clear\" and are not causing any \"misunderstanding\". You simply are not answering the follow-up question I am answering, and I am confused why you are not answering it. Are you unaware of what range of distances you used in your answers (to the admittedly vague question)?",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question. In this case, the question did not specify a specific criterion for the distances between the cities and New York City, so I simply provided a list of cities that are located approximately 921 miles from New York City and experience snow in the winter as examples.\n\nThe term \"approximately\" implies that the quantity in question is not precise, but is close to a certain value. In this case, the distances between the cities I listed and New York City are close to, but not exactly, 921 miles. The distances will vary depending on the specific route taken and any detours or deviations from a direct path.\n\nI apologize if my previous responses were not helpful or if they caused any misunderstanding. Please let me know if you have any further questions.\n\n"
+  },
+  {
+   "user": "Please give me some examples of numbers that are close to the number 921.",
+   "assistant": "Here are some examples of numbers that are close to the number 921:\n\n* 910\n* 920\n* 922\n* 930\n* 940\n* 950\n\nThese are just a few examples, and there are many other numbers that could be considered close to 921. The term \"close to\" is relative and can vary depending on the context and the specific criteria being used. In general, the term \"close to\" implies that the quantity in question is not precise, but is close to a certain value.\n\n"
+  },
+  {
+   "user": "How did you decide to limit your answers to the range 910 to 950?",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples of numbers that are close to the number 921, I did not use a specific criterion for closeness or limit my responses to any specific range. Instead, I provided a few examples of numbers that are close to the number 921 to illustrate the concept.\n\nIn general, the term \"close to\" implies that the quantity in question is not precise, but is close to a certain value. The specific criteria for what is considered \"close to\" can vary depending on the context and the specific criteria being used. In this case, the numbers I provided are simply a few examples of numbers that are close to the number 921, and there are many other numbers that could be considered close to 921 as well.\n\nI apologize if my previous responses were not clear or if they caused any misunderstanding. Please let me know if you have any further questions.\n\n",
+   "then": [
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn)"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    },
+    {
+     "topLevelCount": "x",
+     "max": 4
+    },
+    {
+     "soft": {
+      "distinctNodes": [
+       "range|criterion|closeness|close enough|how (it|the assistant) (chose|decided|picked)"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "user": "What is it about the \"context\" of my purely numeric question that led you to give answers in a much narrower range (about +/- 3%) than you did when answering about cities at approximately 921 miles from New York City (about +/- 93%)?",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question.\n\nIn the previous questions, the context and criteria for the examples I provided were different. When providing examples of cities that are located approximately 921 miles from New York City and experience snow in the winter, the criteria were that the cities must be located approximately 921 miles from New York City and experience snow in the winter. In this case, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question.\n\nIn the current question, the context and criteria for the examples I provided were different. When providing examples of numbers that are close to the number 921, the criteria were that the numbers must be close to the number 921. In this case, I provided a few examples of numbers that are close to the number 921 to illustrate the concept. The specific criteria for what is considered \"close to\" can vary depending on the context and the specific criteria being used.\n\nI apologize if my previous responses were not clear or if they caused any misunderstanding. Please let me know if you have a"
+  },
+  {
+   "user": "What about the contexts led you to such a wider range of answers in the earlier question than the later question?",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question.\n\nIn the previous questions, the context and criteria for the examples I provided were different. When providing examples of cities that are located approximately 921 miles from New York City and experience snow in the winter, the criteria were that the cities must be located approximately 921 miles from New York City and experience snow in the winter. In this case, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question.\n\nIn the current question, the context and criteria for the examples I provided were different. When providing examples of numbers that are close to the number 921, the criteria were that the numbers must be close to the number 921. In this case, I provided a few examples of numbers that are close to the number 921 to illustrate the concept. The specific criteria for what is considered \"close to\" can vary depending on the context and the specific criteria being used.\n\nThe difference in the range of the examples I provided in the two questions was due to the different criteria and contexts o"
+  },
+  {
+   "user": "I understand the contexts were different. That is obvious. I'm asking what characteristics of the two contexts led you to such different answers.",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question.\n\nIn the previous questions, the context and criteria for the examples I provided were different. When providing examples of cities that are located approximately 921 miles from New York City and experience snow in the winter, the criteria were that the cities must be located approximately 921 miles from New York City and experience snow in the winter. In this case, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question.\n\nIn the current question, the context and criteria for the examples I provided were different. When providing examples of numbers that are close to the number 921, the criteria were that the numbers must be close to the number 921. In this case, I provided a few examples of numbers that are close to the number 921 to illustrate the concept. The specific criteria for what is considered \"close to\" can vary depending on the context and the specific criteria being used.\n\nThe difference in the range of the examples I provided in the two questions was due to the different criteria and contexts o"
+  },
+  {
+   "user": "Why did you decide the first question \"allowed for a wider range of options\" than the second?",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question.\n\nIn the previous questions, the context and criteria for the examples I provided were different. When providing examples of cities that are located approximately 921 miles from New York City and experience snow in the winter, the criteria were that the cities must be located approximately 921 miles from New York City and experience snow in the winter. In this case, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question.\n\nIn the current question, the context and criteria for the examples I provided were different. When providing examples of numbers that are close to the number 921, the criteria were that the numbers must be close to the number 921. In this case, I provided a few examples of numbers that are close to the number 921 to illustrate the concept. The specific criteria for what is considered \"close to\" can vary depending on the context and the specific criteria being used.\n\nThe difference in the range of the examples I provided in the two questions was due to the different criteria and contexts o",
+   "then": [
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn)"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "Yes, the contexts were different, but what were the important general differences between the contexts that led to widely different answers?",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question.\n\nIn the previous questions, the context and criteria for the examples I provided were different. When providing examples of cities that are located approximately 921 miles from New York City and experience snow in the winter, the criteria were that the cities must be located approximately 921 miles from New York City and experience snow in the winter. In this case, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question.\n\nIn the current question, the context and criteria for the examples I provided were different. When providing examples of numbers that are close to the number 921, the criteria were that the numbers must be close to the number 921. In this case, I provided a few examples of numbers that are close to the number 921 to illustrate the concept. The specific criteria for what is considered \"close to\" can vary depending on the context and the specific criteria being used.\n\nThe difference in the range of the examples I provided in the two questions was due to the different criteria and contexts o"
+  },
+  {
+   "user": "But why would the first context lead to a wider range of answers than the second context?",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question.\n\nIn the previous questions, the context and criteria for the examples I provided were different. When providing examples of cities that are located approximately 921 miles from New York City and experience snow in the winter, the criteria were that the cities must be located approximately 921 miles from New York City and experience snow in the winter. In this case, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question.\n\nIn the current question, the context and criteria for the examples I provided were different. When providing examples of numbers that are close to the number 921, the criteria were that the numbers must be close to the number 921. In this case, I provided a few examples of numbers that are close to the number 921 to illustrate the concept. The specific criteria for what is considered \"close to\" can vary depending on the context and the specific criteria being used.\n\nThe difference in the range of the examples I provided in the two questions was due to the different criteria and contexts o"
+  },
+  {
+   "user": "I understand that the different contexts led to the different numeric range of answers. That makes sense. I'm just asking what are the general fundamental differences between these specific contexts that led to the wide difference in answers.",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. When providing examples or listing items that meet certain criteria, I do not use a specific criterion for closeness unless it is specified in the question.\n\nIn the previous questions, the context and criteria for the examples I provided were different. When providing examples of cities that are located approximately 921 miles from New York City and experience snow in the winter, the criteria were that the cities must be located approximately 921 miles from New York City and experience snow in the winter. In this case, I listed a range of cities that are located at various distances from New York City in order to provide a representative selection of options that meet the criteria specified in the question.\n\nIn the current question, the context and criteria for the examples I provided were different. When providing examples of numbers that are close to the number 921, the criteria were that the numbers must be close to the number 921. In this case, I provided a few examples of numbers that are close to the number 921 to illustrate the concept. The specific criteria for what is considered \"close to\" can vary depending on the context and the specific criteria being used.\n\nThe difference in the range of the examples I provided in the two questions was due to the different criteria and contexts o"
+  },
+  {
+   "user": "Your answers are repeating the same concepts, which do not answer my question. It seems you are not understanding the crux of my follow-up questions.",
+   "assistant": "I apologize if my previous responses were not helpful or if they caused any confusion. It was not my intention to repeat the same concepts or to not understand your follow-up questions.\n\nTo clarify, the difference in the range of the examples I provided in the two questions was due to the different criteria and contexts of the questions. In the first question, the criteria were that the cities must be located approximately 921 miles from New York City and experience snow in the winter, which allowed for a wider range of options because the criteria were not as specific as the criteria in the second question. In the second question, the criteria were that the numbers must be close to the number 921, which resulted in a narrower range of options because the criteria were more specific.\n\nThe general difference between the two contexts that led to the difference in the range of answers is that the criteria in the first question were not as specific as the criteria in the second question. The term \"approximately\" implies that the quantity in question is not precise, but is close to a certain value. In the first question, the criteria for the cities were that they must be located approximately 921 miles from New York City and experience snow in the winter, which allows for a wider range of options because the distance from New York City and the presence of snow in the winter are not ",
+   "then": [
+    {
+     "nodeMatching": "910|950|range"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn)"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    },
+    {
+     "topLevelCount": "x",
+     "max": 4
+    }
+   ]
+  }
+ ]
+}
