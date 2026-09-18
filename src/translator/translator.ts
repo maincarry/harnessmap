@@ -475,7 +475,7 @@ export class Translator {
             this.store.audit('guard_dim_redirect', { id: String(anyA.id).slice(0, 8) });
             continue;
           }
-          this.store.audit('guard_dim_drop', { op: a.op }); continue;
+          this.store.audit('guard_dim_drop', { op: a.op, id: String(anyA.id ?? '').slice(0, 8), why: !dimNode && a.op === 'update_node' ? (map.nodes.some((n) => n.id === anyA.id) ? 'removed' : 'unknown id') : (dimNode && newContent === dimNode.content.trim() ? 'same statement' : 'dim') }); continue; // M332: the sweep needs to tell an invented id from a dim target
         }
         if (a.op === 'move_node' && anyA.parentId && !live.has(anyA.parentId)) { this.store.audit('guard_dim_drop', { op: 'move_node' }); continue; }
         out.push(a);
