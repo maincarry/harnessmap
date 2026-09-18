@@ -125,7 +125,8 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'wait') await sleep(a.ms ?? 5000);
         else if (a.do === 'bind') { // perturbed replays: give a key to a node the filer made — by regex, else the newest live non-system node
           const pool = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && n.author !== 'system' && !String(n.content).startsWith('to sort') && n.content !== 'untitled');
-          const n = a.matching ? pool.find((x: any) => match(s, x, a.matching)) : pool.slice().sort((x: any, y: any) => String(y.createdAt ?? '').localeCompare(String(x.createdAt ?? '')))[0];
+          const sorted = pool.slice().sort((x: any, y: any) => String(y.createdAt ?? '').localeCompare(String(x.createdAt ?? '')));
+          const n = a.matching ? pool.find((x: any) => match(s, x, a.matching)) : sorted[a.nth ?? 0]; // nth: 0 = newest, 1 = the one before (so two binds can name two different nodes)
           if (n) { keys[a.key] = n.id; console.log(`  bind ${a.key} → ${nameOf(s, n.id)}`); } else console.log(`  bind ${a.key}: no node${a.matching ? ` matching ${a.matching}` : ''}`);
           try { writeFileSync(join(TMP, 'keys.json'), JSON.stringify(keys)); } catch {}
         }
