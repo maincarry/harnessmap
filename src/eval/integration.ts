@@ -7,7 +7,7 @@
 //
 // Run: HARNESSMAP_INFERENCE=api bun run src/eval/integration.ts
 
-import { rmSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { rmSync, mkdirSync, existsSync, readFileSync, writeFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PORT = 8793;
@@ -56,8 +56,7 @@ mkdirSync(CWD_DEF, { recursive: true });
 // scrub ended that, and this makes the suite honestly subscription-authed.)
 mkdirSync(join(TMP, 'home', '.claude'), { recursive: true });
 try {
-  const creds = readFileSync(join(process.env.HOME ?? '', '.claude', '.credentials.json'));
-  writeFileSync(join(TMP, 'home', '.claude', '.credentials.json'), creds, { mode: 0o600 });
+  { const dst = join(TMP, 'home', '.claude', '.credentials.json'); try { rmSync(dst, { force: true }); } catch {} symlinkSync(join(process.env.HOME ?? '', '.claude', '.credentials.json'), dst); } // M323: a symlink, never a copy — a copy let children rotate the refresh token
 } catch { console.warn('no subscription credentials to copy — model sections will fail'); }
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
   env: { ...process.env, ANTHROPIC_API_KEY: 'sk-test-fake-must-be-scrubbed', HARNESSMAP_DB: DB, PORT: String(PORT), HARNESSMAP_REANCHOR: '2', HARNESSMAP_TERM_CMD: 'bash', HARNESSMAP_LATEST_OVERRIDE: '99.0.0', HARNESSMAP_AUTOTIDY_ROUNDS: '0',
