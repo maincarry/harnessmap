@@ -219,7 +219,7 @@ export class Translator {
         }) as RoundResult;
         text = JSON.stringify(parsed);
         summary = parsed.summary ?? '';
-        alterations = normalizeIds(parsed.alterations ?? [], map);
+        alterations = normalizeIds(parsed.alterations ?? [], map, (k, d) => this.store.audit(k, d));
         // M75: resolve focus_request against existing nodes, or pair a
         // this-round create by position (normalizeIds is 1:1 in order).
         focusRequestId = null;
@@ -530,7 +530,7 @@ export function spansBranches(store: Store, nodes: { id: string; parentId: strin
   for (const n of nodes) { let p: any = n; const seen = new Set<string>(); while (p && p.parentId && !seen.has(p.id)) { seen.add(p.id); const q: any = store.getNode(p.parentId); if (!q || !q.parentId) break; p = q; } tops.add(p?.id ?? n.id); }
   return tops.size >= 2;
 }
-export function normalizeIds(alterations: Alteration[], map: MapView): Alteration[] {
+export function normalizeIds(alterations: Alteration[], map: MapView, audit?: (kind: string, detail: Record<string, unknown>) => void): Alteration[] {
   const known = new Map<string, string>();
   for (const n of map.nodes) known.set(n.id.slice(0, 8), n.id);
   const minted = new Map<string, string>();
@@ -538,10 +538,15 @@ export function normalizeIds(alterations: Alteration[], map: MapView): Alteratio
   const createdOnce = new Set<string>();
   const resolve = (raw: string | null | undefined, creating: boolean): string | null => {
     if (raw === null || raw === undefined) return null;
-    const id = String(raw).replace(/[\[\]]/g, '');
+    const id = String(raw).replace(/[\[\]]/g, '').trim();
     if (known.has(id)) return known.get(id)!;
     const full = [...known.values()].find((v) => v === id);
     if (full) return full;
+    // M339 (real calculus replay): the model wrote a full-looking id whose first 8 characters were a real node's prefix and the rest
+    // invented — the update was dropped as "unknown id". A longer id (or a differently-cased one) that starts with a known prefix
+    // resolves to that node; the model sees prefixes, so the prefix is the reference.
+    const lower = id.toLowerCase();
+    if (lower.length >= 8 && !creating && known.has(lower.slice(0, 8))) { audit?.('id_prefix_resolved', { raw: id.slice(0, 40), to: known.get(lower.slice(0, 8))!.slice(0, 8) }); return known.get(lower.slice(0, 8))!; }
     if (minted.has(id)) {
       const prior = minted.get(id)!;
       // M65 fix: models sometimes REUSE a short id for a second create —
