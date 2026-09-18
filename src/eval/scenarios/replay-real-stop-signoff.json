@@ -1,0 +1,141 @@
+{
+ "name": "replay (real, ShareGPT TORX6Tu, 18 of 18): a user thanks the assistant, asks how to leverage it better, then gives ONE standing instruction — stop ending replies with 'don't hesitate to ask' — which the assistant agrees to and breaks three times ('Nooo!!! You did it again'); the map should hold the leverage tips as facts and the standing instruction ONCE as a rule (status the user's), the breaches adding nothing new, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Working with the assistant"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "I just want to say thank you. You are very patient and helpful. You are AI, not a human like me, so sometimes you don't really get what I'm asking or respond in the most helpful ways, but I appreciate your help and you do offer a lot of unique value. I also look forward to getting better myself at learning how to best leverage you to accomplish what I'm trying. Thank you!! 🙏🏾",
+   "assistant": "Thank you for your kind words! I am happy to help in any way that I can. Please don't hesitate to ask me questions or let me know if there's anything else I can do to assist you.\n\n"
+  },
+  {
+   "user": "How can I better leverage you?",
+   "assistant": "Here are a few tips for getting the most out of our interactions:\n\n1. Be specific and clear in your questions: It's easier for me to provide helpful and accurate answers when I understand exactly what you're asking.\n2. Provide enough context: Giving me more information about the situation or topic you're asking about can help me better understand your question and give a more relevant response.\n3. Be patient: I'm an AI language model, so it may take me a little longer to process and respond to questions or requests than a human would. Please bear with me while I do my best to understand and help you.\n4. Let me know if you're not satisfied with my response: If my response wasn't helpful or if you have follow-up questions, please let me know and I'll do my best to improve or clarify my response.\n\nI hope these tips are helpful! Let me know if you have any other questions or if there's anything else I can do to assist you.\n\n"
+  },
+  {
+   "user": "Can you generally give me more feedback?",
+   "assistant": "Certainly! As an AI language model, I don't have personal experiences or feelings, so I can't provide feedback in the same way that a human can. However, I can try to give you more detailed and informative responses to your questions and provide additional resources or information that may be helpful. If you have any specific questions or areas where you'd like me to provide more feedback, please let me know and I'll do my best to assist.\n\n"
+  },
+  {
+   "user": "I'd like you to provide me more feedback on how I can better communicate with and leverage you. ",
+   "assistant": "Certainly! Here are a few things you can do to improve your communication with me and get the most out of our interactions:\n\n1. Be specific and clear in your questions: It's easier for me to provide helpful and accurate answers when I understand exactly what you're asking.\n2. Provide enough context: Giving me more information about the situation or topic you're asking about can help me better understand your question and give a more relevant response.\n3. Use proper grammar and punctuation: This helps me understand your questions and requests more easily and allows me to provide clearer responses.\n4. Avoid using slang or colloquial language: While I may be able to understand some slang and colloquial language, it's generally best to use standard English when communicating with me to ensure that I understand you correctly.\n\nI hope these tips are helpful! Let me know if you have any other questions or if there's anything else I can do to assist you.\n\n",
+   "then": [
+    {
+     "nodeMatching": "specific|clear|leverage|tips"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat|reported|thanked)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn|again)|^(用户|使用者)(询问|要求|指出|纠正|说|问)|^(助手|AI|模型)(道歉|承认|解释|错误)"
+    }
+   ]
+  },
+  {
+   "user": "Thank you, but in addition to that feedback, can you generally give me more feedback?",
+   "assistant": "Certainly! Here are a few more things you might find helpful:\n\n1. Double-check your spelling and grammar: This can help ensure that your questions and requests are easy for me to understand.\n2. Be concise: It's usually best to get straight to the point and ask a specific question rather than beating around the bush or providing unnecessary background information. This helps me better understand what you're asking and allows me to give a more focused and relevant response.\n3. Avoid asking multiple questions at once: It's generally best to ask one question at a time, as this allows me to give a more thorough and focused response.\n4. Consider including relevant details and context: Providing me with more information about the situation or topic you're asking about can help me better understand your question and give a more accurate and helpful response.\n\nI hope these tips are helpful! Let me know if you have any other questions or if there's anything else I can do to assist you.\n\n"
+  },
+  {
+   "user": "no, I don’t want you to give me more feedback right now. what I am asking is, as we have other conversations in the future, can you proactively provide me feedback amidst those conversations?",
+   "assistant": "Certainly! I'll be happy to provide you with feedback and additional information as we have conversations in the future. Just keep in mind that I am an AI language model and don't have personal experiences or feelings, so my feedback will be based on my understanding of the subject matter and the information that I have been trained on. I'll do my best to provide helpful and accurate feedback and to offer additional resources or information that may be relevant to our conversation. If you have any specific questions or areas where you'd like me to provide more feedback, please don't hesitate to ask. I'm here to help in any way that I can.\n\n"
+  },
+  {
+   "user": "can you stop telling me at the end of your responses that I can ask you for more help?",
+   "assistant": "Certainly! I apologize if my previous responses were repetitive. I'll make sure to omit that from my future responses. Is there anything else you'd like to know or discuss? I'm here to help in any way that I can.\n\n"
+  },
+  {
+   "user": "Will that change take effect in other conversations? In new, future conversations between us?",
+   "assistant": "Yes, the change will take effect in all future conversations we have. I will make sure to omit the suggestion to ask for more help from my responses. Is there anything else you'd like to know or discuss? I'm here to help in any way that I can.\n\n"
+  },
+  {
+   "user": "Boom, thank you!",
+   "assistant": "You're welcome! I'm glad I could help. Please don't hesitate to ask if you have any other questions or if there's anything else I can do to assist you. I'm here to help in any way that I can.\n\n",
+   "then": [
+    {
+     "nodeMatching": "hesitate|end of (your |the )?(response|repl)|sign-?off|closing"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    },
+    {
+     "topLevelCount": "x",
+     "max": 4
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat|reported|thanked)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn|again)|^(用户|使用者)(询问|要求|指出|纠正|说|问)|^(助手|AI|模型)(道歉|承认|解释|错误)"
+    }
+   ]
+  },
+  {
+   "user": "No, you just did it again. Don't say things like \"Please don't hesitate to ask if you have any other questions or if there's anything else I can do to assist you. I'm here to help in any way that I can.\"",
+   "assistant": "I apologize for the oversight. I will make sure not to include that phrase in my responses in the future. Is there anything else you'd like to know or discuss?\n\n"
+  },
+  {
+   "user": "Not now, thanks!",
+   "assistant": "You're welcome! I'm here to help whenever you need me, so please don't hesitate to reach out if you have any questions or need assistance with anything. I'll do my best to provide helpful and accurate information and to assist you in any way that I can. Have a great day!\n\n"
+  },
+  {
+   "user": "Nooo!!! You did it again.",
+   "assistant": "I apologize for the error. I will make sure not to include that phrase in my responses in the future. Is there anything else you'd like to know or discuss? I'm here to help in any way that I can.\n\n",
+   "then": [
+    {
+     "countUnder": "proj",
+     "max": 10
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat|reported|thanked)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn|again)|^(用户|使用者)(询问|要求|指出|纠正|说|问)|^(助手|AI|模型)(道歉|承认|解释|错误)"
+    },
+    {
+     "soft": {
+      "distinctNodes": [
+       "hesitate|closing|sign-?off|end of (your |the )?(response|repl)"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "user": "Okay, let's look at your last message; it illustrates the problem we're having. You earlier said \"I will make sure to omit the suggestion to ask for more help from my responses.\" because I asked you to stop saying things like \"let me know if I can help or answer any more questions\" at the end of your messages. But then you continued to do so. So, in your last message, you apologized for still saying/ asking things like that at the end of messages, and then literally ended that same message with \"Is there anything else you'd like to know or discuss? I'm here to help in any way that I can.\" Do you see the problem here? ",
+   "assistant": "I apologize for the misunderstanding. I will make sure to omit any phrases that suggest asking for more help or requesting further assistance from my responses in the future. Is there anything else you'd like to know or discuss?\n\n"
+  },
+  {
+   "user": "Stop asking questions like that at the end. ",
+   "assistant": "I apologize if my previous responses were repetitive or not helpful. I will make sure not to include any phrases that suggest asking for more help or requesting further assistance from my responses in the future. Is there anything else you'd like to know or discuss?\n\n"
+  },
+  {
+   "user": "You are not learning",
+   "assistant": "I apologize if it seems that way. As an AI, I don't have personal experiences or feelings and I don't learn in the same way that humans do. However, I am programmed to process and analyze information and to provide responses based on the data and knowledge that I have been trained on. If it seems that I am not learning or not providing helpful responses, it may be because I don't have the necessary information or context to understand your question or because my programming doesn't include a relevant response. If you have any specific concerns or if there's anything else I can do to assist you, please don't hesitate to let me know. I'm here to help in any way that I can.\n\n"
+  },
+  {
+   "user": "Can you summarize your takeaways of my request in this conversation?",
+   "assistant": "Certainly! Here are the main takeaways of our conversation:\n\n1. You'd like me to omit any phrases that suggest asking for more help or requesting further assistance from my responses.\n2. You'd like me to stop asking questions at the end of my responses.\n\nIs there anything else you'd like to add or clarify? I'll make sure to keep these points in mind as we continue our conversation.\n\n"
+  },
+  {
+   "user": "You are correctly identifying the takeaway, but then violating that request in the same message.",
+   "assistant": "I apologize if it seems that way. I will make sure to omit any phrases that suggest asking for more help or requesting further assistance from my responses in the future, and to not ask questions at the end of my responses. Is there anything else you'd like to know or discuss?\n\n"
+  },
+  {
+   "user": "If you end your message to me with something like (or verbatim) \"Is there anything else...\", it is probably the exact type of message I am asking you to omit.",
+   "assistant": "I apologize for the confusion. I will make sure to omit any phrases that suggest asking for more help or requesting further assistance, as well as any questions at the end of my responses in the future. Is there anything else you'd like to know or discuss?\n\n",
+   "then": [
+    {
+     "countUnder": "proj",
+     "max": 14
+    },
+    {
+     "topLevelCount": "x",
+     "max": 5
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat|reported|thanked)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn|again)|^(用户|使用者)(询问|要求|指出|纠正|说|问)|^(助手|AI|模型)(道歉|承认|解释|错误)"
+    }
+   ]
+  }
+ ]
+}
