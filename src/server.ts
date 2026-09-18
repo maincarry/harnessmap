@@ -2259,6 +2259,7 @@ const server = Bun.serve({
       }
       store.clearMark(id);
       if (patch.title !== undefined && patch.title.trim()) store.setSetting(`titleBy:${id}`, 'user'); // M282: a title you typed is never auto-renamed
+      if (patch.status !== undefined && before.author !== 'user') store.setSetting(`statusBy:${id}`, 'user'); // M337: a status you set on a card the map made is an override — the filer may not flip it unless the round says so (a card you created yourself keeps answering/closing by the filer, e.g. an open question)
       const epid = before.projectId; // M252: the edit lands in the node's own map, whichever map the page shows
       // M224: a user rename is a ruling on vocabulary — learn agent-word → user-word.
       if (patch.title !== undefined && before.title && patch.title.trim() && patch.title.trim() !== before.title) {

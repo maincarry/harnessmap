@@ -296,7 +296,7 @@ export class Translator {
   private guardCorrectionTwin(alterations: any[], map: { nodes: MapNode[] }): any[] {
     return dropCorrectionTwins(alterations, map.nodes, (d) => this.store.audit('guard_correction_twin', d));
   }
-  private guardScope(alterations: Alteration[], scope: Set<string>, map: MapView, params: { chatId: string; focusContainerId: string }): Alteration[] {
+  private guardScope(alterations: Alteration[], scope: Set<string>, map: MapView, params: { chatId: string; focusContainerId: string; userText?: string }): Alteration[] {
     const live = new Set(scope);
     const focusName = map.nodes.find((n) => n.id === params.focusContainerId)?.title
       ?? map.nodes.find((n) => n.id === params.focusContainerId)?.content ?? '?';
@@ -476,6 +476,12 @@ export class Translator {
           const twin = kin.find((n) => normT(n.content) === mine);
           if (twin) { this.store.audit('guard_update_twin', { id: String(anyA.id).slice(0, 8), twin: twin.id.slice(0, 8), rel: twin.id === me.parentId ? 'parent' : twin.parentId === me.id ? 'child' : 'sibling' }); continue; }
         }
+      }
+      // M337 (perturbed pandas replay; hand-status-kept passes by prompt alone): a status the person set on the card survives the
+      // filer's updates unless the person's words in this round carry a status (done, rejected, parked, decided, open…).
+      if (a.op === 'update_node' && anyA.status && this.store.getSetting(`statusBy:${anyA.id}`) === 'user') {
+        const said = /\b(done|finished|complete[ds]?|reject(ed|s)?|drop(ped|s)?|park(ed|s)?|decid(ed|es?)|accept(ed|s)?|resolv(ed|es?)|re-?open(ed|s)?|moot(ed)?|retract(ed|s)?|supersed(ed|es)|cancel(led|ed|s)?|abandon(ed|s)?|不做了|放弃|完成|决定|搁置|撤回)\b/i.test(String(params.userText ?? ''));
+        if (!said) { this.store.audit('guard_hand_status', { id: String(anyA.id).slice(0, 8), kept: map.nodes.find((n) => n.id === anyA.id)?.status ?? '', dropped: anyA.status }); delete anyA.status; }
       }
       if (a.op === 'update_node' || a.op === 'move_node') {
         if (!live.has(anyA.id) && createdInBatch.has(String(anyA.id)) && !(a as any).__deferred) { (a as any).__deferred = true; deferred.push(a); this.store.audit('guard_update_deferred', { op: a.op, id: String(anyA.id).slice(0, 8) }); continue; }
