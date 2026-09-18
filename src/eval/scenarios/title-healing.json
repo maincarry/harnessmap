@@ -22,7 +22,7 @@
    "then": [
     {
      "do": "wait",
-     "ms": 10000
+     "ms": 30000
     },
     {
      "audit": "title_healed"
