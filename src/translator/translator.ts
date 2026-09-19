@@ -451,8 +451,9 @@ export class Translator {
       }
       // M353 (codex-native JSON-404 replay, Chinese): "核对 JSON 路径。存在一个路径核验", "本地 JSON 仍返回 404.。存在一个资源不存在" — the codex
       // filer glued a second sentence after a CJK full stop inside a title. A name never contains "。"; the title ends at its first one.
-      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[。．]/.test(anyA.title)) {
-        const head = anyA.title.split(/[。．]/)[0].replace(/[\s.:：;；,，]+$/u, '').trim();
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[。．]|[？！][^\s？！?!)）」』"”]/u.test(anyA.title)) {
+        // M353b: "跳线是什么意思？公告" — a word glued after a CJK question/exclamation mark is the same shape; a trailing "？" alone stays (a question title).
+        const head = anyA.title.split(/[。．]|(?<=[？！])(?=[^\s？！?!)）」』"”])/u)[0].replace(/[\s.:：;；,，]+$/u, '').trim();
         if (head.length >= 3 && head !== anyA.title.trim()) { this.store.audit('guard_title_full_stop', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(head.length, head.length + 30) }); anyA.title = head; }
       }
       // M347 (codex-native board-game replay): the codex filer wrote the STATUS into the title — "Wins and complexity bonus ─ chosen?".
@@ -464,7 +465,7 @@ export class Translator {
       // M348 (codex-native maths replay): "Distinct graph labels ⟂" — the codex filer leaves stray symbols at the end of titles (⟂, ─, a lone
       // dash or colon). Trailing symbols and dangling punctuation go; a closing ")" "]" quote, "?" or "!" stays, as does any letter or digit.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
-        const t0 = anyA.title.replace(/(?:\s+|[\p{S}\p{Pd}\p{Pc}:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '').replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ???" — a run of ?/! is noise; a single "?" is a question
+        const t0 = anyA.title.replace(/(?:\s+|[\p{S}\p{No}\p{Pd}\p{Pc}:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '').replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ???" — a run of ?/! is noise; a single "?" is a question
         const t = t0.split(/\s+/).length >= 3 ? t0.replace(/\s+(?:of|for|to|and|or|with|in|on|by|the|a|an|at|from)$/i, '').trim() : t0; // M348c: "Face classification task of" — a dangling preposition after a stripped tail goes too ("Log in" stays: two words)
         if (t !== anyA.title && t.length >= 3) { this.store.audit('guard_title_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-12) }); anyA.title = t; }
       }
