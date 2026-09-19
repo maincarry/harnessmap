@@ -1562,9 +1562,10 @@ const FILING_RETRY_TICK_MS = (() => { const e = Number(process.env.HARNESSMAP_FI
 setInterval(() => { try { retryDueFilings(); } catch (err) { store.audit('filing_worker_error', { error: String(err).slice(0, 200) }); } }, FILING_RETRY_TICK_MS);
 // Boot: rows a restart interrupted become failed and due; exchanges from before the ledger that never got a round are recovered
 // from the stored turns (M342 backfill: last 14 days, at most 50, live views only) — they replay one at a time through the worker.
+const bootedAt = sqlNow();
 setTimeout(() => {
   try {
-    const interrupted = store.failInterruptedFilings();
+    const interrupted = store.failInterruptedFilings(bootedAt);
     const recovered = store.backfillMissingFilings(14, 50);
     if (interrupted || recovered) { store.audit('filing_boot_recovery', { interrupted, recovered }); broadcast({ type: 'filings', ...filingSummary() }); }
     retryDueFilings();
