@@ -443,6 +443,12 @@ export class Translator {
           .replace(/\u200D/g, (m: string, off: number, str: string) => (pic(str.codePointAt(off - 2) ?? str.codePointAt(off - 1)) && pic(str.codePointAt(off + 1)) ? m : '')); // a lookbehind cannot see an astral pictograph (surrogate pair), so the flanks are read by hand
         if (tz !== anyA.title) { this.store.audit('guard_title_invisible', { id: String(anyA.id ?? '').slice(0, 8), codes: [...anyA.title].filter((ch) => !tz.includes(ch) || /\p{Cf}/u.test(ch)).map((ch) => ch.codePointAt(0)!.toString(16)).slice(0, 4) }); anyA.title = tz.trim(); }
       }
+      // M352 (codex-native Oracle + Krauss replays): "Shortest worker query goes here?", "Krauss ODE definition full sample placeholder" — the
+      // codex filer leaves a template's placeholder phrase at the end of a name. Placeholder words are never part of a name; the phrase goes.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
+        const tp = anyA.title.replace(/\s+(?:(?:full\s+)?sample\s+placeholder|placeholder(?:\s+(?:title|text|name))?|goes\s+here|title\s+(?:goes\s+)?here|insert\s+title(?:\s+here)?|tbd|todo\s+title)\s*[?？.!]?\s*$/i, '').trim();
+        if (tp !== anyA.title && tp.length >= 3) { this.store.audit('guard_title_placeholder', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-30) }); anyA.title = tp; }
+      }
       // M347 (codex-native board-game replay): the codex filer wrote the STATUS into the title — "Wins and complexity bonus ─ chosen?".
       // A trailing separator + status word (+ a stray "?") is a field leaking into a name; it goes, and the status is kept if the op has none.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
