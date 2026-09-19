@@ -41,6 +41,8 @@ for (const f of files) {
   for (const [t, col] of [['relations', 'node_id'], ['node_memory', 'node_id'], ['memory_details', 'node_id'], ['fresh_marks', 'node_id'], ['favorites', 'node_id']] as const) { for (const r of db.query(`select distinct ${col} id from ${t}`).all() as any[]) { if (!byId.has(r.id)) hit(`${t}_missing_node`, tag, r.id.slice(0, 8), out); } }
   // 5. twins: live siblings with the same normalised title or content
   const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, '').trim(); // whitespace dropped entirely: "检查mainloop" and "检查 mainloop" are one title (codex TCP replay)
+  // 5e. invisible format characters in a live title (M350, codex nf_conntrack replay: a ZWNJ glued to "IPv6 连接跟踪配置") — a ZWJ between two pictographs is legitimate
+  for (const n of live) { if (n.author === 'system' || !n.title) continue; const bad = n.title.replace(/\p{Extended_Pictographic}\u200D(?=\p{Extended_Pictographic})/gu, '').match(/\p{Cf}/u); if (bad) hit('title_invisible', tag, `${String(n.id).slice(0, 8)} "${n.title.slice(0, 30)}" U+${bad[0].codePointAt(0)!.toString(16)}`, out); }
   const seenSib = new Map<string, string>();
   for (const n of live) { if (n.author === 'system') continue; const k = `${n.parent_id}|${norm(n.title || n.content)}`; if (k.split('|')[1].length < 6) continue; if (seenSib.has(k)) hit('sibling_twin', tag, `"${(n.title || n.content).slice(0, 40)}" ×2 under ${(n.parent_id ?? 'root').slice(0, 8)}`, out); seenSib.set(k, n.id); }
   // 5a. sibling twin by title vs statement: a live node whose statement equals a sibling's title

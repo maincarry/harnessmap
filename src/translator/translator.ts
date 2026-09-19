@@ -434,6 +434,15 @@ export class Translator {
       }
       // M285 (loop find): a title the person typed on the card is theirs — the filer's update may change the statement, never that title
       if (a.op === 'update_node' && anyA.title !== undefined && anyA.id && this.store.getSetting(`titleBy:${anyA.id}`) === 'user') { delete anyA.title; this.store.audit('guard_hand_title', { id: String(anyA.id).slice(0, 8) }); }
+      // M350 (codex-native nf_conntrack replay): "IPv6 连接跟踪配置\u200c" — the codex filer glued a zero-width non-joiner to the end of a title.
+      // Invisible format characters (ZWSP/ZWNJ/LRM/RLM/word joiner/BOM/soft hyphen) are never part of a name; they go anywhere in the title, and a
+      // ZWJ goes unless it joins two pictographs (a family emoji keeps its joiner).
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
+        const pic = (cp: number | undefined) => cp !== undefined && /\p{Extended_Pictographic}/u.test(String.fromCodePoint(cp));
+        const tz = anyA.title.replace(/[\u200B\u200C\u200E\u200F\u2060-\u2064\u206A-\u206F\uFEFF\u00AD\u061C\u180E]/g, '')
+          .replace(/\u200D/g, (m: string, off: number, str: string) => (pic(str.codePointAt(off - 2) ?? str.codePointAt(off - 1)) && pic(str.codePointAt(off + 1)) ? m : '')); // a lookbehind cannot see an astral pictograph (surrogate pair), so the flanks are read by hand
+        if (tz !== anyA.title) { this.store.audit('guard_title_invisible', { id: String(anyA.id ?? '').slice(0, 8), codes: [...anyA.title].filter((ch) => !tz.includes(ch) || /\p{Cf}/u.test(ch)).map((ch) => ch.codePointAt(0)!.toString(16)).slice(0, 4) }); anyA.title = tz.trim(); }
+      }
       // M347 (codex-native board-game replay): the codex filer wrote the STATUS into the title — "Wins and complexity bonus ─ chosen?".
       // A trailing separator + status word (+ a stray "?") is a field leaking into a name; it goes, and the status is kept if the op has none.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
