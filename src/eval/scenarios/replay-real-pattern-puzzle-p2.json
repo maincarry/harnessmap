@@ -1,0 +1,55 @@
+{
+ "name": "replay (real, WildChat 37013, 6 of 6, English): a pattern puzzle — the same (input, result) pairs pasted twice, then 'the pattern is wrong', 'find the pattern, up to 3 patterns', 'more single patterns please', 'the pattern is wrong' again; the map should hold ONE puzzle topic with the pairs as the given, the assistant's guessed patterns as options and the user's two rejections marking them rejected (never as accepted facts), no twin of the pasted pairs, no narration — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Pattern puzzle"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "find the pattern, even if you have many pattern (but 3 at max)",
+   "assistant": "After analyzing the input and output pairs, I found the following three possible patterns that match some of the input-output pairs:\n\nPattern 1:\n- Inputs A, B, C, D are multiplied and added: A * B * C * D.\n- The resulting number is then divided by A and multiplied by C: (A * B * C * D) / A * C.\n- Finally, the resulting number is subtracted from B: B - ((A * B * C * D) / A * C).\n\nThis pattern matches the following input-output pairs:\n- Input: 2, 2, 2, 0 Result: 2\n- Input: 3, 3, 3, 3 Result: 56\n\nPattern 2:\n- Input A is added to input B: A + B.\n- This is multiplied by input C: (A + B) * C.\n- The result is then added to input D and multiplied again by C: ((A + B) * C + D) * C.\n- Finally, input A is multiplied by input C and  divided by input B and added to the result: ((A + B) * C + D) * C + (A * C / B).\n\nThis pattern matches the following input-output pairs:\n- Input: 2, 4, 4, 0 Result: 5\n- Input: 3, 4, 4, 4 Result: 302\n\nPattern 3:\n- Inputs A and B are multiplied and added: A * B + A + B.\n- This result is then added to input C: A * B + A + B + C.\n- Finally, the resulting number is multiplied by input D: (A * B + A + B + C) * D.\n\nThis pattern matches the following input-output pairs:\n- Input: 2, 5, 5, 0 Result: 8\n- Input: 2, 6, 6, 0 Result: 13\n\nNote that these are not the only possible patterns that match the input-output pairs, and there may be other patterns as well that I have not identified. Also, please note that some input-output pairs may not follow any discernible pattern at all.",
+   "then": [
+    {
+     "nodeMatching": "pattern|candidate|option|formula"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  },
+  {
+   "user": "pls get some more single pattern",
+   "assistant": "After analyzing the input and output pairs again, I found another possible single pattern that fits most of the input-output pairs:\n\nPattern 1:\n- Input A is squared and added to input B: A^2 + B.\n- This result is multiplied by input C and added to input D: (A^2 + B) * C + D.\n- Finally, this result is multiplied by input A: (A^2 + B) * C + D * A.\n\nThis pattern matches the following input-output pairs:\n- Input: 1, 6, 2, 2 Result: 6\n- Input: 1, 9, 2, 5 Result: 21\n- Input: 1, 12, 3, 6 Result: 84\n- Input: 2, 5, 5, 0 Result: 8\n- Input: 2, 6, 6, 0 Result: 13\n- Input: 2, 4, 4, 0 Result: 5\n- Input: 2, 2, 2, 0 Result: 2\n- Input: 3, 3, 2, 2 Result: 11\n- Input: 3, 4, 6, 0 Result: 11\n- Input: 3, 4, 5, 2 Result: 123\n- Input: 3, 3, 4, 1 Result: 18\n- Input: 3, 3, 3, 3 Result: 56\n- Input: 3, 3, 2, 5 Result: 44\n- Input: 3, 3, 1, 7 Result: 12\n- Input: 3, 4, 4, 4 Result: 302\n- Input: 3, 4, 3, 6 Result: 267\n- Input: 3, 4, 2, 8 Result: 102\n- Input: 3, 4, 1, 10 Result: 17\n\nPlease note that this may not be the only pattern that matches the input-output pairs, and there may be other patterns as well that I have not identified. Also, some input-output pairs may not follow any discernible pattern at all.",
+   "then": [
+    {
+     "nodeMatching": "pattern|single|formula"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    }
+   ]
+  },
+  {
+   "user": "the pattern is wrong",
+   "assistant": "I apologize for the mistake in my previous response. It appears that the pattern I provided in my previous response is incorrect. After analyzing the input and output pairs again, I found the following possible pattern that matches the input-output pairs:\n\nPattern:\n- Input A is multiplied by input D: A * D.\n- Input B is added to this result: A * D + B.\n- This result is then multiplied by input C: (A * D + B) * C.\n- Finally, input C is added to this result: (A * D + B) * C + C.\n\nThis pattern matches the following input-output pairs:\n- Input: 1, 6, 2, 2 Result: 6\n- Input: 1, 9, 2, 5 Result: 21\n- Input: 1, 12, 3, 6 Result: 84\n- Input: 2, 4, 4, 0 Result: 5\n- Input: 2, 2, 2, 0 Result: 2\n- Input: 2, 5, 5, 0 Result: 8\n- Input: 2, 6, 6, 0 Result: 13\n- Input: 2, 4, 3, 2 Result: 26\n- Input: 2, 3, 2, 2 Result: 11\n- Input: 2, 5, 3, 4 Result: 94\n- Input: 3, 3, 1, 7 Result: 12\n- Input: 3, 3, 2, 5 Result: 44\n- Input: 3, 3, 3, 3 Result: 56\n- Input: 3, 3, 4, 1 Result: 18\n- Input: 3, 4, 6, 0 Result: 11\n- Input: 3, 4, 2, 8 Result: 102\n- Input: 3, 4, 4, 4 Result: 302\n- Input: 3, 4, 5, 2 Result: 123\n- Input: 3, 4, 3, 6 Result: 267\n- Input: 3, 4, 1, 10 Result: 17\n\nPlease note that this is just one possible pattern that matches the input-output pairs, and there may be other patterns as well that I have not identified. Also, some input-output pairs may not follow any discernible pattern at all.",
+   "then": [
+    {
+     "nodeMatching": "wrong|incorrect|reject|not (the )?pattern"
+    },
+    {
+     "countUnder": "proj",
+     "max": 15
+    }
+   ]
+  }
+ ]
+}
