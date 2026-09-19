@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 35004, 9 of 9, Chinese): a security vendor's pre-sales — 'how do I pitch our 安全大脑 product in a security-awareness PPT for a prospect', a drift ('is Oracle still in China after 去IOE?'), then a seven-question chain on container baseline checks ('how to baseline-monitor container assets', 'which techniques', 'check an nginx baseline config in a container', 'what if the container has no shell commands', 'deploy an agent?', 'can the k8s API do it?', 'so an agent gets richer baseline data than the API — right?'); the map should hold the PPT pitch as one topic, Oracle as its own small topic, the baseline chain as ONE topic with the techniques as facts and the user's closing conclusion filed as their conclusion (not a fresh question), in Chinese, no narration — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "售前材料"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "公司有一个产品叫做安全大脑，现在为某个潜在客户提供网络信息安全防护和安全意识提升的ppt材料，怎么结合我们的安全大脑产品推荐给客户",
+   "assistant": "首先，介绍安全大脑产品的特点和优势，包括：\n\n1. 安全大脑采用先进的人工智能技术进行网络威胁监测和分析，能够及时发现并预警各种网络攻击行为。\n\n2. 安全大脑可以根据企业的实际情况和需求，量身定制个性化的防护方案和措施，确保网络安全得到全面保障。\n\n3. 安全大脑还具备安全教育和意识提升的功能，可以通过各种形式的训练和提示，让员工增强安全意识和防范能力，有效降低内部安全风险。\n\n接下来，针对潜在客户的实际需求，提供一份信息安全防护和意识提升的ppt材料，包括以下内容：\n\n1. 介绍当前网络安全风险形势和趋势，分析企业面临的主要威胁类型和攻击手段。\n\n2. 探讨信息安全防护策略和措施，包括网络边界防护、数据备份和恢复、应急响应和处理等方面，重点介绍安全大脑产品和解决方案的优势和实现效果。\n\n3. 强调员工的安全意识和防范能力的重要性，介绍各种形式的安全教育和训练手段，如模拟攻击演练、定期安全培训等，安全大脑产品的安全培训模块可以在其中占据重要地位。\n\n最后，在总结部分强调安全大脑产品在网络信息安全防护和意识提升方面的优势和实现效果，鼓励潜在客户尽早选购安全大脑产品，为企业的网络信息安全提供全面保障。",
+   "then": [
+    {
+     "nodeMatching": "安全大脑|PPT|ppt|安全意识"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "中国公司在大搞去IOE，已经搞了好多年，请问Oracle公司还在中国吗",
+   "assistant": "是的，Oracle公司仍然在中国开展业务。Oracle公司是一家美国跨国科技企业，在中国已经开展了数十年的业务，并在中国拥有多个办事处和研发中心。Oracle公司提供的软件、硬件、云计算和其他技术方案已经被广泛应用于中国的企业、政府机构和个人用户中，包括数据库、中间件、业务应用、分析、安全、人工智能等产品和服务线。不过，由于当前中美贸易关系的复杂性和不稳定性，Oracle在中国的经营和投资环境也存在一些挑战和不确定性。",
+   "then": [
+    {
+     "nodeMatching": "Oracle|甲骨文|去IOE|IOE"
+    },
+    {
+     "countUnder": "proj",
+     "max": 9
+    }
+   ]
+  },
+  {
+   "user": "怎么对容器资产进行基线监测",
+   "assistant": "对于容器资产的基线监测，以下是一些建议：\n\n1. 定义容器资产的规范配置：制定适当的容器资产配置规范，包括镜像来源、基础镜像组件、端口暴露、环境变量、数据挂载等等。\n\n2. 镜像扫描检测：通过镜像扫描检测工具，检测镜像是否存在漏洞、潜在威胁和不符合规范的配置。Docker Hub 和Google Container Registry都提供了基于漏洞库和对镜像的安全加固功能的安全服务。\n\n3. 运行时检测：利用容器安全监测工具，在容器部署运行时检测，识别是否存在不安全行为，如未授权的访问、容器资源占用、容器进程异常等等。\n\n4. 网络流量监测：使用网络流量监测工具，对容器网络流量进行审计和监测，识别是否存在异常流量、不正常的网络行为、不正确的配置等。\n\n5. 日志分析：对容器产生的日志进行分析，寻找异常情况、错误事件等，并建立报警机制，及时发现并解决问题。\n\n6. 容器资产管理系统：建立统一的容器资产管理系统，对资产进行统一的管理和监控，全面掌握容器资产的情况和动态，发现和解决问题。\n\n综合使用以上的方法可以实现对容器资产的完整监测和保护。",
+   "then": [
+    {
+     "nodeMatching": "基线|容器|监测"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  },
+  {
+   "user": "用什么技术可以实现容器资产基线检测",
+   "assistant": "实现容器资产基线检测的技术大多是基于容器安全监测，以下是几种实现方法或技术：\n\n1. 容器安全扫描工具：这种工具可以伸缩性地对容器进行自动化的扫描和检测，识别潜在的漏洞、配置错误和其他和安全相关的问题，包括Docker安全扫描和Kubernetes安全扫描等。\n\n2. 容器运行时检测技术: 关注容器运行时期的异常与攻击，比如未授权访问，越权操作以及恶意程序，针对性地进行监控和响应。包括运行时控制工具如Sysdig、Falco、KubeAudit，以及runc-based安全工具如gVisor。\n\n3. 镜像仓库安全扫描技术：这种技术利用漏洞库检测容器镜像，找到其中的漏洞，利用安全加固功能对镜像进行加固，在容器部署之前及时识别潜在的威胁。常用工具包括Docker Hub提供的扫描服务，以及容器安全平台如Aqua Security，Sysdig Secure等。\n\n4. 容器安全监控和日志审核技术：对容器运行时的行为进行监控和维护，实时地采集容器内部的日志数据，并结合机器学习算法发现异常行为，同时提供自动化的巡检和配置盘点。常用工具包括Sysdig Falco以及OpenShift的Elasticstack集合。\n\n5. 容器解决方案的基线配置监测：建立针对容器基线的规则或黑名单，实时地监测和监管容器的配置及运行情况，包括端口暴露，数据库密码以及业务接口，通过自动化的方式保证容器运行的合规。\n\n综上所述，基于容器安全监控的技术方案，能够对容器资产进行有效的基线检测和保护。",
+   "then": [
+    {
+     "nodeMatching": "技术|工具|基线|CIS|OpenSCAP|扫描"
+    },
+    {
+     "countUnder": "proj",
+     "max": 15
+    }
+   ]
+  }
+ ]
+}

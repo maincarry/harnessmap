@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 35242, 13 of 13, Chinese): a craft-beer bar owner writing the one-year post — the post pasted (675 chars), 'what title? not the traditional 周年庆', 'use 跳线 as the core word', 'one year in English', 'theme with 跳线', 'stress 跳线 and the first year', 'what does 跳线 mean', 'in music?', 'Xiguan architecture styles', 'Republic-era Xiguan buildings', '门店的跳跃', 'in English', then the SAME post pasted again; the map should hold the post as one topic with the title work as facts (the user's constraints — no 周年庆, 跳线 as core — standing as rules), the 跳线-meaning and Xiguan questions as side topics, the second identical paste adding nothing (no twin), in Chinese, no narration — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "九维 Jumpwire 一周年"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "以“跳线”为核心词 命名一周年推文的主题",
+   "assistant": "以下是几个以“跳线”为核心词的可能主题：\n\n1. Keeping the Jumpwire spirit alive——追寻九维Jumpwire的创新和突破\n2. Jumping to the next level——九维Jumpwire的一周年回顾与展望\n3. Tapping into new possibilities——与九维Jumpwire一起跳出舒适区\n4. Beyond the wires——九维Jumpwire的跳线精神让成就更高维度\n5. Celebrating one year of jumping wires——庆祝九维Jumpwire一周年的激情和创造\n6. In the pursuit of jumping excellence——跨越线路，探索更高维度的九维Jumpwire\n7. Wires have never been so inspiring——九维Jumpwire跳线一周年推文的主题",
+   "then": [
+    {
+     "nodeMatching": "跳线|主题|推文"
+    },
+    {
+     "countUnder": "proj",
+     "max": 15
+    }
+   ]
+  },
+  {
+   "user": "突出跳线和第一年 的",
+   "assistant": "以下是几个突出“跳线”和“第一年”的主题：\n\n1. A year of flying high and jumping far——九维Jumpwire 第一年跳了多少线路？\n2. Crossing the wires on the first anniversary of Jumpwire——揭秘九维Jumpwire 第一年跳线的故事\n3. The first year of jumping——九维Jumpwire 在跳线中的得与失\n4. Jumping with vigor——怀着热情迎接九维Jumpwire 第一年跳线的艰辛与欣喜\n5. The electrifying first year of Jumpwire——突破创新的光芒下，九维Jumpwire第一年庆\n6. From the first jump to countless leaps——九维Jumpwire 第一年里那些让人难忘的跳跃瞬间\n7. A year of leaping forward with Jumpwire——怀着梦想跳线——九维Jumpwire 第一年的跳跃之旅",
+   "then": [
+    {
+     "nodeMatching": "跳线|第一年|一周年"
+    },
+    {
+     "countUnder": "proj",
+     "max": 16
+    }
+   ]
+  },
+  {
+   "user": "跳线是什么意思",
+   "assistant": "“跳线”通常指的是指电路板上的导线，跳接两个接口或两个节点，以使电路通路得以连接或调整。在其他领域中，“跳线”可以表示“跨越”、“超越”、“进阶”等意思。在九维Jumpwire名字中，“跳线”代表创新、突破的意义，寓意着品牌能够超越传统思维，进行跨界创新。",
+   "then": [
+    {
+     "nodeMatching": "跳线|意思|含义|电路|导线"
+    },
+    {
+     "countUnder": "proj",
+     "max": 18
+    }
+   ]
+  },
+  {
+   "user": "在音乐领域里面，跳线是什么意思",
+   "assistant": "在音乐领域，“跳线”通常指的是踏板 (Pedal) 之间的接线，可以让音乐家使用脚来控制乐器的不同音色，例如吉他的效果器、钢琴的踏板等。在制作电子音乐的过程中，“跳线”也可以表示引导电信号或音频信号的导线，帮助音乐家创造出更加复杂精美的音乐效果。",
+   "then": [
+    {
+     "nodeMatching": "音乐|跳线|吉他|效果器|patch"
+    },
+    {
+     "countUnder": "proj",
+     "max": 20
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,81 @@
+{
+ "name": "replay (real, WildChat 35242, 13 of 13, Chinese): a craft-beer bar owner writing the one-year post — the post pasted (675 chars), 'what title? not the traditional 周年庆', 'use 跳线 as the core word', 'one year in English', 'theme with 跳线', 'stress 跳线 and the first year', 'what does 跳线 mean', 'in music?', 'Xiguan architecture styles', 'Republic-era Xiguan buildings', '门店的跳跃', 'in English', then the SAME post pasted again; the map should hold the post as one topic with the title work as facts (the user's constraints — no 周年庆, 跳线 as core — standing as rules), the 跳线-meaning and Xiguan questions as side topics, the second identical paste adding nothing (no twin), in Chinese, no narration — piece 3",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "九维 Jumpwire 一周年"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "西关建筑有什么风格",
+   "assistant": "西关建筑根据建筑年代和风格可分为多类，包括了粤式建筑、西式建筑、古典园林、民居建筑等。\n\n其中，粤式建筑是广州西关地区最具特色的一种建筑风格，其特点是红墙绿瓦檐、装饰丰富，常见于20世纪初民居和商铺建筑。西式建筑则多为民国时期或之后的建筑，融合欧洲和中国传统建筑风格，有着更加现代化的外观。而古典园林则是庭院景观设计的体现，广州西关建筑中著名的有陈家祠、文昌阁等。除此之外，还有一些民居建筑，如马家屋、赵家大屋等，它们不仅保留了传统建筑风格，还展现了西关地区不同年代的历史风貌和文化特色。",
+   "then": [
+    {
+     "nodeMatching": "西关|建筑|骑楼|趟栊|风格"
+    },
+    {
+     "countUnder": "proj",
+     "max": 23
+    }
+   ]
+  },
+  {
+   "user": "民国5年的西关建筑呢，有没有什么比较特色的标识",
+   "assistant": "民国五年是1916年，这个年代的西关建筑也是典型广州风情的代表，相比之前的建筑更多地融入了欧洲建筑元素并加入当时的新式材料，并开始出现了新建筑风格。\n\n在当时，一些商业建筑尤其注重标识的设计与体现，如建筑物立面、门头、门牌等都进行了精心设计，营造出极具个性的西关街区风貌。此外，一些私人住宅也注重独特的标识设计，例如该建筑的家族门匾、家训、家谱等。\n\n此外，通常来说，民国五年的西关建筑多采用了新颖的建筑材料，如突显建筑形状的钢筋混凝土、砖木构造等；同时利用壁柱、檐口等部位进行装饰，外观造型多以简洁优美、大气而有些斯文之感为主，常常凸显欧洲建筑风格。",
+   "then": [
+    {
+     "nodeMatching": "民国|西关|标识|特色"
+    },
+    {
+     "countUnder": "proj",
+     "max": 25
+    }
+   ]
+  },
+  {
+   "user": "门店的跳跃",
+   "assistant": "“门店的跳跃”通常指的是门店进行跨界、创新、突破等尝试，以让消费者获得更加新鲜、多样的体验。这种尝试可以是品类创新、服务创新、用户体验创新等多方面的，旨在满足消费者多元化、个性化的需求。\n\n门店的跳跃可以让品牌赢得新的市场和用户群体。与此同时，门店的跳跃也需要品牌在策略、风险控制、文化传承等方面做好充分的准备和规划。例如，在跨界尝试时要确保品牌的核心价值不变，不失去在市场中特色的地位；在新业务开展时，需要注意与现有业务之间的配合和协调，以及风险和资源的控制管理等。",
+   "then": [
+    {
+     "nodeMatching": "跳跃|门店"
+    },
+    {
+     "countUnder": "proj",
+     "max": 27
+    }
+   ]
+  },
+  {
+   "user": "门店的跳跃 的 英文",
+   "assistant": "“门店的跳跃”在英文中可以翻译为“Store's Leap”或“Store's Jump”，也可以用“One Store, Many Experiences”或“Innovative Store Experience”等词组来表达。",
+   "then": [
+    {
+     "nodeMatching": "leap|jump|Leap|Jump|英文"
+    },
+    {
+     "countUnder": "proj",
+     "max": 28
+    }
+   ]
+  },
+  {
+   "user": "【九维Jumpwire一周年庆：跳线成就更高维度】 一年前，我们在海珠开了一家精酿吧，取名为“九维Jumpwire”。这一年里，我们经历了许多挑战和阻碍，但也因此看到了更多可能性，实现了更多突破和跳跃。 \n  在疫情期间，我们被迫关门长达两个月，甚至还有一段时间道路被封“无家可归”。但是，我们没有放弃，而是尝试了在外卖、电商、品牌cross over的突破，改变了传统单一的经营模式，这种尝试让我们更清晰地知道“九维”这家门店更多的可能性。 \n  除了经营上的突破，我们还举办了素人音乐会、水爷电影节、杨钧宇氛围器乐专场、难磁其旧分享会、电影月等各种活动。这些活动不仅让我们更好地了解了我们的顾客，也让我们更清晰地认识到我们自己的定位和风格。 同时，我们成立了九维艺术联盟，这个联盟汇聚了各行各业的艺术家和爱好者，通过帮助九维打破各种限制和束缚，让九维人自己成为活动内容中的主角，更好地释放他们的才华。 最近，我们还推出了九维自家品牌的雪糕系列（九维雪糕），并将在接下来的周年庆典上推出我们九维私房菜。这些都是九维在这个平台里不断尝试、跨界创新的成果，也是我们对顾客的回馈和对自己的肯定。 在这个周年庆典上，我们不仅仅是在庆祝我们的成就，更是在向未来跳跃。我们希望九维Jumpwire不仅是一个空间，而是一种思考方式和生活态度。九维是一艘在太空不断探索的飞船，这是九维启航的第一年，在即将到来的周年庆典上，我们诚挚邀请各位一起上船，跨越三维空间，共同探索更高维度的可能性。让我们一起勇敢跳出舒适区，挑战自我，创造更多的可能性，成就更高维度的未来！\n",
+   "assistant": "【Jumpwire's First Anniversary Celebration: Leaping to Higher Dimensions】\nA year ago, we opened a craft beer bar in Haizhu and named it \"Jumpwire.\" Throughout the year, we overcame numerous challenges and obstacles, which allowed us to see more possibilities and achieve greater breakthroughs.\n\nDuring the pandemic, we were forced to close for two months, and for some time, it was even",
+   "then": [
+    {
+     "nodeMatching": "九维|Jumpwire|一周年|推文"
+    },
+    {
+     "countUnder": "proj",
+     "max": 29
+    }
+   ]
+  }
+ ]
+}
