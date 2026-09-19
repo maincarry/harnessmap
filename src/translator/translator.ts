@@ -454,7 +454,7 @@ export class Translator {
         const words = anyA.title.trim().split(/\s+/); const last = words[words.length - 1] ?? '';
         if (words.length >= 2 && last.length >= 6 && /\d/.test(last) && /[a-z]/i.test(last)) {
           const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
-          const chunks = last.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((c: string) => c.length >= 3); // "100/min" → 100, min; "te4a1b6c" → itself
+          const chunks = last.toLowerCase().split(/[^\p{L}\p{N}]+/u).flatMap((c: string) => c.match(/\p{Script=Han}+|[^\p{Script=Han}]+/gu) ?? []).filter((c: string) => c.length >= 3); // "100/min" → 100, min; "te4a1b6c" → itself; M349b: "2.0.0-p648吧w" → p648 (kept — the version is in the statement)
           if (chunks.length && !chunks.some((c: string) => hay.includes(c))) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: last }); anyA.title = words.slice(0, -1).join(' '); }
         }
       }
