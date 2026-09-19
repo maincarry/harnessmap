@@ -434,6 +434,12 @@ export class Translator {
       }
       // M285 (loop find): a title the person typed on the card is theirs — the filer's update may change the statement, never that title
       if (a.op === 'update_node' && anyA.title !== undefined && anyA.id && this.store.getSetting(`titleBy:${anyA.id}`) === 'user') { delete anyA.title; this.store.audit('guard_hand_title', { id: String(anyA.id).slice(0, 8) }); }
+      // M347 (codex-native board-game replay): the codex filer wrote the STATUS into the title — "Wins and complexity bonus ─ chosen?".
+      // A trailing separator + status word (+ a stray "?") is a field leaking into a name; it goes, and the status is kept if the op has none.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
+        const m = anyA.title.match(/\s*[─—–\-:|(\[]\s*(chosen|accepted|decided|rejected|retracted|parked|active|done|open|floated|noted|answered|todo|doing|hard|provisional|superseded|resolved|live|proposed)\s*[)\]]?\s*\??\s*$/i);
+        if (m && anyA.title.length > m[0].length + 3) { const label = m[1].toLowerCase(); anyA.title = anyA.title.slice(0, anyA.title.length - m[0].length).trim(); if (!anyA.status) anyA.status = label; this.store.audit('guard_title_status_tail', { id: String(anyA.id ?? '').slice(0, 8), label }); }
+      }
       // M327c (codex-native replays): the codex filer ends TITLES with a period; a title is a name.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[.。]+$/.test(anyA.title)) anyA.title = anyA.title.replace(/[.。]+$/, '');
       // M343 (codex-native pyomo replay): the codex filer wrote "exception type errorอบué?" over an English statement — stray
