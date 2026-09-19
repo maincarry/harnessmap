@@ -678,7 +678,14 @@ const BRAIN_CHAT_SCHEMA = {
 } as const;
 
 export async function brainChat(store: Store, projectId: string, text: string): Promise<{ reply: string; guidance: string } | { error: string }> {
-  const u = getUnderstanding(store, projectId);
+  let u = getUnderstanding(store, projectId);
+  // M351 (loop, monitor-the-mind pass): on a young map the understanding is written by the rhythm only after ten filed rounds, so the
+  // brain, asked "what have we decided so far?" on a 25-node map, answered "nothing — no understanding yet". A brain asked about a map it
+  // has never read reads it first: one cycle (assess changed areas → structure → synthesis), then the answer comes from the written understanding.
+  if (!u && loadMap(store, projectId).nodes.some((n) => n.status !== 'removed' && n.author !== 'system' && n.parentId !== null)) {
+    try { const c = await brainCycle(store, projectId); store.audit('brain_understanding_on_demand', { assessed: c.assessed, synthesized: c.synthesized }); } catch (err) { store.audit('brain_understanding_on_demand', { error: String(err instanceof Error ? err.message : err).slice(0, 200) }); }
+    u = getUnderstanding(store, projectId);
+  }
   const status = getMapStatus(store, projectId);
   const tuning = store.getSetting(`braintuning:${projectId}`) ?? '';
   try {
