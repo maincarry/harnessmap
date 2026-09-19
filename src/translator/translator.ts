@@ -417,6 +417,8 @@ export class Translator {
       }
       // M285 (loop find): a title the person typed on the card is theirs — the filer's update may change the statement, never that title
       if (a.op === 'update_node' && anyA.title !== undefined && anyA.id && this.store.getSetting(`titleBy:${anyA.id}`) === 'user') { delete anyA.title; this.store.audit('guard_hand_title', { id: String(anyA.id).slice(0, 8) }); }
+      // M327c (codex-native replays): the codex filer ends TITLES with a period; a title is a name.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[.。]+$/.test(anyA.title)) anyA.title = anyA.title.replace(/[.。]+$/, '');
       // M330 (perturbed imnodes replay): the filer wrote the status into the statement — "RETRACTED — The original evidence…".
       // The status is a field; a leading label in the text is meta. The label goes; if the op carries no status, the label becomes it.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string') {
