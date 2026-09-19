@@ -48,6 +48,11 @@ for (const f of files) {
     for (const [, arr] of sibs) for (const n of arr) for (const m of arr) { if (n === m || !m.title) continue; if (norm(n.content).length >= 12 && norm(n.content) === norm(m.title)) hit('sibling_title_twin', tag, `"${n.content.slice(0, 40)}" is the title of ${m.id.slice(0, 8)}`, out); } }
   // 5c. sibling twin by statement prefix (first 60 normalised characters) — two filings of the same thing
   { const seen = new Map<string, any>(); for (const n of live) { if (n.author === 'system' || norm(n.content).length < 40) continue; const k = `${n.parent_id}|${norm(n.content).slice(0, 60)}`; if (seen.has(k)) hit('sibling_content_twin', tag, `"${(n.title || n.content).slice(0, 36)}" ~ "${(seen.get(k).title || seen.get(k).content).slice(0, 36)}"`, out); else seen.set(k, n); } }
+  // 5d. root/descendant title twin (M-loop 2026-09-19, codex Laravel): the untitled root rewritten into the first topic's name while the
+  // topic node itself was created below it — root and grandchild, invisible to the sibling and parent/child checks
+  for (const r of live) { if (r.parent_id || r.author === 'system' || !r.title || norm(r.title).length < 6 || norm(r.title).startsWith('to sort')) continue;
+    for (const n of live) { if (n === r || n.author === 'system' || !n.title || n.parent_id === r.id) continue; let anc = byId.get(n.parent_id); let under = false; while (anc) { if (anc.id === r.id) { under = true; break; } anc = byId.get(anc.parent_id); }
+      if (under && norm(n.title) === norm(r.title)) hit('root_title_twin', tag, `"${r.title.slice(0, 40)}" is the root and a descendant ${String(n.id).slice(0, 8)}`, out); } }
   // 5b. parent/child twin: a live child whose statement equals its parent's (a rewrite-to-child that kept the old text, or a double filing)
   for (const n of live) { if (n.author === 'system' || !n.parent_id) continue; const p = byId.get(n.parent_id); if (p && p.status !== 'removed' && norm(n.content).length >= 20 && norm(n.content).slice(0, 60) === norm(p.content).slice(0, 60)) hit('parent_child_twin', tag, `${n.id.slice(0, 8)} under ${p.id.slice(0, 8)} "${(p.title || p.content).slice(0, 40)}"`, out); }
   // 6. undo stack inverses referencing unknown nodes
