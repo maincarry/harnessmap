@@ -447,7 +447,13 @@ export class Translator {
       // codex filer leaves a template's placeholder phrase at the end of a name. Placeholder words are never part of a name; the phrase goes.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
         const tp = anyA.title.replace(/\s+(?:(?:full\s+)?sample\s+placeholder|placeholder(?:\s+(?:title|text|name))?|goes\s+here|title\s+(?:goes\s+)?here|insert\s+title(?:\s+here)?|tbd|todo\s+title)\s*[?？.!]?\s*$/i, '').trim();
-        if (tp !== anyA.title && tp.length >= 3) { this.store.audit('guard_title_placeholder', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-30) }); anyA.title = tp; }
+        if (tp !== anyA.title.trim() && tp.length >= 3) { this.store.audit('guard_title_placeholder', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-30) }); anyA.title = tp; }
+      }
+      // M353 (codex-native JSON-404 replay, Chinese): "核对 JSON 路径。存在一个路径核验", "本地 JSON 仍返回 404.。存在一个资源不存在" — the codex
+      // filer glued a second sentence after a CJK full stop inside a title. A name never contains "。"; the title ends at its first one.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[。．]/.test(anyA.title)) {
+        const head = anyA.title.split(/[。．]/)[0].replace(/[\s.:：;；,，]+$/u, '').trim();
+        if (head.length >= 3 && head !== anyA.title.trim()) { this.store.audit('guard_title_full_stop', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(head.length, head.length + 30) }); anyA.title = head; }
       }
       // M347 (codex-native board-game replay): the codex filer wrote the STATUS into the title — "Wins and complexity bonus ─ chosen?".
       // A trailing separator + status word (+ a stray "?") is a field leaking into a name; it goes, and the status is kept if the op has none.
