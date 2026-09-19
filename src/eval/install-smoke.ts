@@ -609,6 +609,15 @@ console.log('\n== 6r. the map never files its own inference calls (M271) ==');
   const rejected = ((await (await fetch(`${BASE}/api/audit?limit=200&kind=observe_inner_rejected`)).json()) as any[]).some((e: any) => String(e.detail?.session ?? '').startsWith('inner-z'));
   check('the map\'s own prompt never becomes a view: refused at the door (M309), or purged with its nodes', pr.ok && !(st1.chats ?? []).some((c: any) => c.host?.sessionId === 'inner-z') && (rejected || (!!junk && pr.views >= 1)), `rejected=${rejected} junk=${!!junk} purged=${pr.views}`);
   check('a real host session with a real first message survives the purge (host-A from 6f)', (st1.chats ?? []).some((c: any) => c.host?.sessionId === 'host-A'));
+  // M346 (Mark's first real Codex session): "open map" itself was filed as a top-level node that adopted the real goal. A map command is never a round.
+  const obs = async (user_text: string, assistant_text: string) => (await fetch(`${BASE}/api/harness/observe`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ session_id: 'host-A', cwd: PROJ, user_text, assistant_text }) })).json() as Promise<any>;
+  const c1 = await obs('open map', 'The map is attached to this session (request abc123).');
+  const c2 = await obs('map doctor', 'Doctor: 8 OK.');
+  const c3 = await obs('open map and then tell me about the graph algorithm we chose', 'We chose Dijkstra over A* because the heuristic was unreliable.');
+  check('a map command ("open map", "map doctor") is refused at the door as mechanics (M346), never a round', c1.ok === false && /map command/.test(String(c1.reason)) && c2.ok === false && /map command/.test(String(c2.reason)), JSON.stringify([c1, c2]));
+  check('a sentence that merely starts with "open map" and carries real content is still filed (M346 is narrow)', c3.ok !== false, JSON.stringify(c3));
+  const mc = ((await (await fetch(`${BASE}/api/audit?limit=100&kind=observe_map_command`)).json()) as any[]).length;
+  check('the refusal is audited (observe_map_command ×2)', mc >= 2, String(mc));
 }
 
 console.log('\n== 6e. Codex rollouts are read natively (M245) ==');

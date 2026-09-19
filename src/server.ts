@@ -3633,6 +3633,13 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         }
         return json({ ok: false, reason: "the map's own prompt — not filed" }, 200);
       }
+      // M346 (Mark's first real Codex session, 2026-09-19 06:04 UTC): the "open map" exchange itself was filed — a top-level node
+      // "Open map — the map is open and attached to this session" that then adopted the person's real goal as its child. A map
+      // command (open/close/update map, map doctor/status, the /map:… skills) is mechanics between the person and the map: never a round.
+      if (/^\s*(?:please\s+)?(?:open|close|update|restart|stop)\s+(?:the\s+)?map(?:\s+(?!and\b|then\b|of\b|for\b|to\b|about\b|with\b|in\b|on\b)[\w.:-]{1,30})?\s*[.!]?\s*$/i.test(userText) || /^\s*map\s*[:\-]?\s*(?:doctor|status|update|open|close|restart|stop)\s*[.!]?\s*$/i.test(userText) || /^\s*(?:run\s+)?\/?map[:/](?:open|close|doctor|status|update|restart|stop)\b[^\n]{0,80}$/i.test(userText)) {
+        store.audit('observe_map_command', { session: (body.session_id ?? '').slice(0, 8), head: userText.slice(0, 40) });
+        return json({ ok: false, reason: 'a map command — not filed' }, 200);
+      }
       if (body.session_id) pendingPrompts.delete(body.session_id);
       if (!userText && !assistantText) return json({ ok: false, reason: 'empty round' }, 200);
       // M270 (Jacob: "map is 37 rounds behind… its 50 rounds now"): a hook that fires again for the same exchange
