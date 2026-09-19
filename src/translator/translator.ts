@@ -380,6 +380,10 @@ export class Translator {
           const oldC = tok(cur.content), newC = tok(anyA.content);
           const gone = [...tok(cur.title)].filter((w) => oldC.has(w) && !newC.has(w));
           if (gone.length) { anyA.title = ''; this.store.audit('guard_stale_title', { id: String(anyA.id).slice(0, 8), gone }); }
+          // M341 (real ring-buffer replay): "off-by-one error unresolved" over a statement that now says it was fixed — the stale word
+          // was never in the old statement, so the rule above could not see it. A title that says unresolved/open/pending/failing on
+          // an update whose status or statement says answered/done/resolved/fixed is blanked for the healer.
+          else if (/\b(unresolved|unsolved|open question|pending|still (failing|broken|wrong)|not (yet )?(fixed|working|resolved)|failing|blocked|missing)\b/i.test(cur.title) && (/^(answered|done|resolved|decided|accepted|fixed|closed)$/i.test(String(anyA.status ?? '')) || /\b(was|is|has been|now) (fixed|resolved|solved|working|corrected|complete[d]?)\b/i.test(String(anyA.content)))) { anyA.title = ''; this.store.audit('guard_stale_title', { id: String(anyA.id).slice(0, 8), gone: ['(resolved)'] }); }
         }
       }
       // M311 (loop find, guard under M278/M77): a NEW node the filer parked in "to sort" without the provenance note and without
