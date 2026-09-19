@@ -1,0 +1,113 @@
+{
+ "name": "replay (real, ShareGPT SHFBhAT, first 12 of 27): a user defines BenApp, their own survey language — field types, simple menu fields, the default type, a shirt-colour example, a game (user gives question and options, assistant writes the field), standing rules 'assume all questions are required' and 'do not indent any lines', numbered questions become the field name, then multiple-response fields; the map should hold the language spec as facts under the topic, the standing rules ONCE as constraints, the game rounds adding nothing but the spec they reveal, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "BenApp survey language"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "I am creating a new programming language which is used to create surveys, with questions and responses. I am calling this new programming language BenApp.",
+   "assistant": "That sounds like an interesting project. What specific features or capabilities are you planning to include in BenApp?\n\n"
+  },
+  {
+   "user": "It will use various types of variables, or fields, including numeric fields which only include numbers, open fields, which contain alphanumeric text, multiple response fields which are like menu fields but contain multiple responses.",
+   "assistant": "Those are some common types of fields that are used in surveys. Some other features you may consider adding to BenApp include:\n\n* Conditional logic: the ability to show or hide certain questions based on the responses to previous questions\n* Piping: the ability to insert the responses to previous questions into later questions\n* Data validation: the ability to ensure that the responses to certain questions meet certain criteria, such as being within a certain range for numeric fields.\n* Data Export: the ability to export the results of the survey into a format that can be easily analyzed, such as a CSV file\n* Security and privacy: the ability to protect the survey data from unauthorized access and to ensure that the survey data is collected and stored in compliance with relevant laws and regulations\n\nYou could also consider creating a library of pre-defined questions and question types that can be easily integrated into a survey, which would help to make BenApp more user-friendly for survey creators.\n\n"
+  },
+  {
+   "user": "Let's first discuss simple menu fields. This is used when there is one question and one set of responses. The programming begins simply by writing the question which is being asked. After the question text there is a blank line. After the blank like are the responses to the question, and each response must of a numeric value, with a closed parenthesis after it. After the responses is a new line with a \"@\" and the next line contains \"/f:\" and the name of the field which will hold the data for the response selected.",
+   "assistant": "I understand. So in BenApp, menu fields would be used for multiple-choice questions where there is one question and one set of responses. The programming would begin by writing the question text followed by a blank line, then the responses with a numeric value and closed parenthesis after each one. The responses would be followed by a new line with the \"@\" symbol, indicating the end of the responses. The next line would contain \"/f:\" and the name of the field where the data for the selected response would be stored.\n\nIt would be important to ensure that the numeric values for the responses are unique, so that the correct data can be stored in the designated field. And also it would be good to have an option for \"other\" or \"none of the above\" as well.\n\nAnd also, in order to make the language more user-friendly, you could consider adding a way to specify the type of the field (e.g. menu, open, numeric, etc.) and automatically generate the appropriate code for that field type.\n\n"
+  },
+  {
+   "user": "In BenApp, because simple menu fields are the most common, it is not necessary to define the type of field. I also want to add, Below the field name are commands, such as \"required\" which means the respondent must enter a response in order to continue. Another is \"skip\" which means the field never appears on the page and is not seen by the respondent. After the commands, the next line contains a \"/\" which means there are no more commands for this field. And the last line contains \"/p\" meaning this is the end of the page.",
+   "assistant": "I see, so in BenApp, simple menu fields are the most common and the default field type, so there's no need to explicitly define the field type. And you also want to add commands such as \"required\" and \"skip\" that can be applied to a field. \"required\" means that the respondent must enter a response in order to continue, and \"skip\" means that the field is not displayed to the respondent. The commands would be written on the line after the field name and followed by a \"/\" to indicate that there are no more commands for this field. And the last line of the page would contain \"/p\" to indicate the end of the page.\n\nThis seems like a simple and easy-to-use system for creating surveys. It would be useful to have some examples and documentation to help users understand the syntax and how to use the various features of BenApp.\n\n",
+   "then": [
+    {
+     "nodeMatching": "simple menu"
+    },
+    {
+     "nodeMatching": "numeric|open field|field type"
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat|reported|thanked|thinks|believes)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn|again)"
+    }
+   ]
+  },
+  {
+   "user": "Here is an example of a simple menu field, where the question being asked is \"What is the color of your shirt?\" and the four options the respondent may select.\n\nWhat is the color of your shirt?\n\n1) Blue\n2) Green\n3) Red\n4) Black\n@\n/f:shirt_color\nrequired\n/\n\n/p",
+   "assistant": "Yes, that is a clear example of how a simple menu field would be written in BenApp. The question is \"What is the color of your shirt?\" followed by a blank line, then the four options the respondent can select, each with a numeric value and closed parenthesis. The \"@\" symbol indicates the end of the responses. The next line is \"/f:shirt\\_color\" which is the field where the data for the selected response will be stored, followed by the command \"required\" which means that the respondent must make a selection in order to continue. And the last \"/\" means that there are no more commands for this field and the last \"/p\" means that this is the end of the page.\n\nIt would be good to have a way to validate the format of the input, for example, to ensure that the numeric values are unique and that the field name is valid. And also, it would be good to have a way to specify the format of the options, like if they are radio buttons or checkboxes.\n\n"
+  },
+  {
+   "user": "Let's play a game. I am going to give you the question to be asked, and some response options, and I would like you to code it using BenApp.",
+   "assistant": "Sure, I'd be happy to help. Please provide the question and response options, and I will write the code in BenApp for you.\n\n"
+  },
+  {
+   "user": "The question is, \"What is the color of your hat?\" and the response options are...\n\nBrown\nBlack\nRed\nBlack\nNot wearing a hat",
+   "assistant": "Here is how the question and response options would be written in BenApp:\n\nWhat is the color of your hat?\n\n1. Brown\n2. Black\n3. Red\n4. Black\n5. Not wearing a hat\n@\n/f:hat\\_color\n/\n\n/p\n\nIn this example, the question is \"What is the color of your hat?\" followed by a blank line, then the response options, each with a numeric value and closed parenthesis. The \"@\" symbol indicates the end of the responses. The next line is \"/f:hat\\_color\" which is the field where the data for the selected response will be stored. The last \"/\" means that there are no more commands for this field and the last \"/p\" means that this is the end of the page.\n\nIt's worth noting that since you've repeated the option \"Black\" twice, you should use different values for each option, to avoid confusion when storing the data.\n\n"
+  },
+  {
+   "user": "Assume all questions are required to be answered. Also, do not indent any lines. ",
+   "assistant": "Understood, I will make sure to not include any indents in the code, and to include the \"required\" command for each field.\n\nHere is how the question and response options would be written in BenApp:\n\nWhat is the color of your hat?\n\n1. Brown\n2. Black\n3. Red\n4. Not wearing a hat\n@\n/f:hat\\_color\nrequired\n/\n/p\n\nThis will ensure that the respondent must make a selection in order to continue and that the question is required.\n\n",
+   "then": [
+    {
+     "nodeMatching": "required"
+    },
+    {
+     "nodeMatching": "indent"
+    },
+    {
+     "countUnder": "proj",
+     "max": 16
+    },
+    {
+     "topLevelCount": "x",
+     "max": 4
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat|reported|thanked|thinks|believes)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn|again)"
+    }
+   ]
+  },
+  {
+   "user": "Ok, let's continue.",
+   "assistant": "I'm happy to help, please let me know the next question and response options you have, and I'll write the code in BenApp for you.\n\n"
+  },
+  {
+   "user": "30.\tHow much of an effect will higher prices have on your holiday shopping this year?\n1.\tA great deal \n2.\tSome \n3.\tNot much \n4.\tNone at all \n5.\t(Don't know) ",
+   "assistant": "Here is how the question and response options would be written in BenApp:\n\nHow much of an effect will higher prices have on your holiday shopping this year?\n\n1. A great deal\n2. Some\n3. Not much\n4. None at all\n5. (Don't know)\n@\n/f:price\\_effect\nrequired\n/\n/p\n\nIn this example, the question is \"How much of an effect will higher prices have on your holiday shopping this year?\" followed by a blank line, then the response options, each with a numeric value and closed parenthesis. The \"@\" symbol indicates the end of the responses. The next line is \"/f:price\\_effect\" which is the field where the data for the selected response will be stored. The command \"required\" will ensure that the respondent must make a selection in order to continue. The last \"/\" means that there are no more commands for this field and the last \"/p\" means that this is the end of the page.\n\n"
+  },
+  {
+   "user": "Note that the question was proceeded by a number, in that example, it was 30. Whenever a question is proceeded by a number, call the field name \"q\" and the number. In this case, the field name should be \"q30\"",
+   "assistant": "I see, I apologize for not catching that before. In BenApp, whenever a question is proceeded by a number, the field name should be \"q\" and the number. So in this case, the field name would be \"q30\". Here is the updated code:\n\nHow much of an effect will higher prices have on your holiday shopping this year?\n\n1. A great deal\n2. Some\n3. Not much\n4. None at all\n5. (Don't know)\n@\n/f:q30\nrequired\n/\n/p\n\nThis will ensure that the field name corresponds to the number that precedes the question.\n\n"
+  },
+  {
+   "user": "Let's now create a multiple response field. This will be written below the field name and above the \"required\" command, and it will be written as \"type multipunch\"",
+   "assistant": "Sure, I understand. In BenApp, a multiple response field would be written below the field name and above the \"required\" command. The type of the field would be specified as \"multipunch\". This would allow respondents to select multiple responses to a question instead of just one. Here is an example of how a multiple response field would be written in BenApp:\n\nWhat are the colors of your shirts?\n\n1. Blue\n2. Green\n3. Red\n4. Black\n@\n/f:shirt\\_colors\ntype multipunch\nrequired\n/\n/p\n\nIn this example, the question is \"What are the colors of your shirts?\" followed by a blank line, then the response options, each with a numeric value and closed parenthesis. The \"@\" symbol indicates the end of the responses. The next line is \"/f:shirt\\_colors\" which is the field where the data for the selected response will be stored, followed by the command \"type multipunch\" which specifies that this is a multiple response field. The command \"required\" will ensure that the respondent must make at least one selection in order to continue. The last \"/\" means that there are no more commands for this field and the last \"/p\" means that this is the end of the page.\nIt is also important to ensure that numeric values for the responses are unique, so that the correct data can be stored in the designated field.\n\n",
+   "then": [
+    {
+     "nodeMatching": "multiple response"
+    },
+    {
+     "nodeMatching": "number|numbered|30"
+    },
+    {
+     "countUnder": "proj",
+     "max": 20
+    },
+    {
+     "topLevelCount": "x",
+     "max": 4
+    },
+    {
+     "noNodeMatching": "^(The )?(user|person) (is |was |seems? )?(frustrated|annoyed|complain|said|asked|wants|requested|apolog|insists|corrected|pointed out|objected|clarified|rephras|repeat|reported|thanked|thinks|believes)|^(The )?(assistant|agent) (apolog|acknowledg|explained|offered|made a mistake|admitted|misunderstood|was wrong|wrongly|failed|cut off|refus|declin|stubborn|again)"
+    }
+   ]
+  }
+ ]
+}
