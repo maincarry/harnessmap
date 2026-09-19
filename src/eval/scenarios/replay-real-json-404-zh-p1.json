@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 34924, 13 of 13, Chinese): a front-end developer stuck on loading a local JSON file — 'read a JSON file in JS and collect the values', a 404 from the request, 'where does the JSON go in a Spring Boot project', 'the file exists but 404', code paste, 'xhr.send() errors', 'xhr.open fails', 'write an HTML page that reads the JSON', code paste again, 'how do I check access rights on the JSON', a DevTools source-map warning, 'JSON and HTML in the same folder, still 404', 'the server config blocks the JSON'; the map should hold this as ONE problem (JSON 404) with the user's repeated reports as the standing state and the assistant's attempts as tried options (no five twins of '404'), Spring Boot static folder as a fact, the source-map warning as a minor aside, in Chinese, no narration — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "前端项目"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "js实现读取json文件并遍历value存储在数组中",
+   "assistant": "可以使用XMLHttpRequest对象来读取JSON文件，然后使用JSON.parse()方法将其转换为JavaScript对象。接着使用for...in循环遍历对象的属性，获取每个属性对应的值并将其存储在一个数组中。以下是示例代码：\n\n```\n// 创建XMLHttpRequest对象\nvar xhr = new XMLHttpRequest();\n\n// 打开JSON文件\nxhr.open('GET', 'data.json', true);\n\n// 发送请求\nxhr.send();\n\n// 监听load事件\nxhr.onload = function() {\n  // 如果请求成功\n  if (xhr.status === 200) {\n    // 将JSON字符串转换为JavaScript对象\n    var obj = JSON.parse(xhr.responseText);\n\n    // 定义一个数组来存储值\n    var values = [];\n\n    // 遍历对象的属性\n    for (var key in obj) {\n      // 获取每个属性对应的值并添加到数组中\n      values.push(obj[key]);\n    }\n\n    // 输出数组\n    console.log(values);\n  } else {\n    console.log('请求失败：' + xhr.status);\n  }\n};\n```",
+   "then": [
+    {
+     "nodeMatching": "JSON|json|遍历|数组"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "Request URL: http://localhost/qualitymanagmt/qaTestrail/data.json\nRequest Method: GET\nStatus Code: 404 ",
+   "assistant": "根据你提供的信息，可以看出请求的URL地址为http://localhost/qualitymanagmt/qaTestrail/data.json，返回了404错误码，说明请求的资源不存在。请确保该路径下存在名为data.json的文件，并且路径正确。同时也要注意文件名和文件后缀是否正确。如果确认路径和文件名无误，可以尝试在浏览器中直接访问该路径查看是否能正常访问。如果依然无法解决问题，可以考虑使用其他方法来获取JSON数据。",
+   "then": [
+    {
+     "nodeMatching": "404|Request URL|GET|状态"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "springboot项目中json文件放在那个文件夹下",
+   "assistant": "在 Spring Boot 项目中，JSON 文件可以放在以下几个文件夹下：\n\n1. resources 文件夹下：可以将 JSON 文件放在 src/main/resources 目录下，当项目打包或运行时，JSON 文件会被打包成 jar 文件或 class 文件，位于项目根目录的 target/classes 目录下。\n\n2. static 文件夹下：可以将 JSON 文件放在 src/main/resources/static 目录下，当项目启动时，JSON 文件会被复制到项目部署目录的 static 目录中，并可以直接通过 URL 访问。\n\n3. public 文件夹下：可以将 JSON 文件放在 src/main/resources/public 目录下，当项目启动时，JSON 文件会被复制到项目部署目录的根目录下，并可以直接通过 URL 访问。\n\n需要注意的是，如果在 resources 文件夹下直接放置 JSON 文件，请确保文件名和后缀名正确。在访问 JSON 文件时，可以通过导入 org.springframework.core.io.Resource 类，使用 ResourceLoader 接口的 getResource() 方法获取文件的 Resource 对象，再用 InputStream 或 Reader 对象读取文件内容，并转换成相应的 Java 对象。",
+   "then": [
+    {
+     "nodeMatching": "static|resources|springboot|Spring Boot|文件夹"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    }
+   ]
+  },
+  {
+   "user": "本地目录下存在json文件，但是返回404",
+   "assistant": "如果在正确的路径下存在 JSON 文件，但是在访问时返回 404 错误，可能有以下几个原因：\n\n1. 路径不正确：请确保路径的正确性，特别是在本地访问时要检查路径是否为绝对路径或相对路径。\n\n2. 文件名或后缀名错误：请检查文件名和后缀名的正确性，尤其是在使用浏览器访问 JSON 文件时，浏览器要根据文件名和后缀名来确定文件类型。\n\n3. 访问方式不正确：请确认访问方式是否正确，例如使用 HTTP GET 或 POST 请求，或者在浏览器中直接输入文件路径。\n\n4. 服务器配置问题：如果使用服务器访问文件，可能是服务器配置问题导致无法访问，请检查服务器的配置文件或者访问控制权限。\n\n5. 文件不存在或权限问题：如果所有设置都正确，可能是因为文件不存在或者没有访问文件的权限导致。请检查文件是否存在，并且检查文件的读取权限和所在目录的访问权限。\n\n希望以上几点能够帮助你解决问题。",
+   "then": [
+    {
+     "nodeMatching": "404|静态|路径|存在"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  }
+ ]
+}

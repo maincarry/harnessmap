@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 34924, 13 of 13, Chinese): a front-end developer stuck on loading a local JSON file — 'read a JSON file in JS and collect the values', a 404 from the request, 'where does the JSON go in a Spring Boot project', 'the file exists but 404', code paste, 'xhr.send() errors', 'xhr.open fails', 'write an HTML page that reads the JSON', code paste again, 'how do I check access rights on the JSON', a DevTools source-map warning, 'JSON and HTML in the same folder, still 404', 'the server config blocks the JSON'; the map should hold this as ONE problem (JSON 404) with the user's repeated reports as the standing state and the assistant's attempts as tried options (no five twins of '404'), Spring Boot static folder as a fact, the source-map warning as a minor aside, in Chinese, no narration — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "前端项目"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "var xhr = new XMLHttpRequest();\n\n// 打开JSON文件\nxhr.open('GET', 'data.json', true);\n\n// 发送请求\nxhr.send();",
+   "assistant": "这段代码使用了 XMLHttpRequest 对象来发送 GET 请求，请求的 URL 是 data.json。这里的 data.json 是相对于当前 HTML 页面的 URL 路径来解析的，即如果 HTML 文件和 JSON 文件在同一目录下，则使用 data.json 或 ./data.json 即可。如果 JSON 文件在 HTML 文件的上级目录中，则需要使用 ../data.json 来访问。\n\n在发送请求之前，通过 open() 方法指定请求的方法类型和 URL，这里使用了 GET 方法。第三个参数指示请求是否异步，默认为 true；如果设置为 false，则会使用同步模式阻塞其他操作，不建议使用。\n\n最后，在发送请求之后会触发 readyStateChange 事件。可以通过设置 onreadystatechange 属性来设置事件的回调函数。如果请求成功，响应状态为 200，则可以通过 responseText 属性获取响应内容 JSON 字符串，然后使用 JSON.parse() 方法将其转换为 JavaScript 对象。",
+   "then": [
+    {
+     "nodeMatching": "XMLHttpRequest|xhr|open|send"
+    },
+    {
+     "countUnder": "proj",
+     "max": 13
+    }
+   ]
+  },
+  {
+   "user": "xhr.send();报错",
+   "assistant": "如果在运行 xhr.send() 方法时出现错误，可能会有以下几个原因需要检查：\n\n1. 请求方法不正确：请确保请求方法是否正确，例如使用 GET 或 POST 方法。\n\n2. 请求的 URL 不正确：请检查请求的 URL 是否正确，特别是在本地访问时，要检查文件路径是否为相对路径或绝对路径，并且文件名和后缀名的正确性。\n\n3. 请求头信息不正确：请检查请求头是否包含必要的信息，例如 Content-Type、Accept 等，具体需要根据请求需要相应设置。\n\n4. 传递的参数不正确：如果请求需要带参数，必须将参数以字符串或对象的形式传递给 send() 方法，如果格式不正确则会导致请求失败。\n\n5. 请求过于频繁或请求体过大：如果发送过于频繁的请求或者请求体过大，可能会导致请求失败，请检查所请求的资源是否支持高并发请求和大请求体。\n\n6. 跨域问题：如果发送请求的域与请求所在页面的域不一致，浏览器会出现跨域问题。在访问跨域资源时需要设置响应头，或者使用 JSONP、CORS 等技术来解决跨域问题。\n\n希望以上几点能够帮助你解决问题。",
+   "then": [
+    {
+     "nodeMatching": "send|报错|错误|xhr"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    }
+   ]
+  },
+  {
+   "user": "xhr.open('GET', 'data.json', true);打开json文件失败",
+   "assistant": "如果在调用 xhr.open() 方法打开 JSON 文件时失败，可能会有以下几个原因：\n\n1. 文件路径不正确：请确保文件路径的正确性，特别是在本地访问时，要检查路径是否为相对路径或绝对路径，并检查文件名和后缀名的正确性。\n\n2. 路径中包含特殊字符：如果路径中包含特殊字符，例如中文或空格等，可能会导致 open() 方法解析失败，请将路径中的特殊字符进行编码。\n\n3. 文件不可读取或文件不存在：如果文件无法被打开或不存在，也会导致 open() 方法失败，请确保文件存在并且具有可读取权限。\n\n4. 请求方法不正确：请检查请求方法是否正确，例如使用 GET 或 POST 方法。\n\n5. 请求头信息不正确：请检查请求头是否包含必要的信息，例如 Content-Type、Accept 等，具体需要根据请求需要相应设置。\n\n希望以上几点能够帮助你解决问题。",
+   "then": [
+    {
+     "nodeMatching": "open|失败|xhr|路径"
+    },
+    {
+     "countUnder": "proj",
+     "max": 15
+    }
+   ]
+  },
+  {
+   "user": "写一个访问本地json文件并遍历value存在数组中的Html页面",
+   "assistant": "下面是一个访问本地 JSON 文件并将其解析为 JavaScript 对象的示例代码：\n\n```html\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <title>访问本地 JSON 文件示例</title>\n</head>\n<body>\n  <script>\n    var xhr = new XMLHttpRequest();\n    xhr.open('GET', 'data.json', true);\n    xhr.send();\n    xhr.onreadystatechange = function() {\n      if (xhr.readyState === 4 && xhr.status === 200) {\n        var data = JSON.parse(xhr.responseText);\n        var values = [];\n        for (var key in data) {\n          values.push(data[key]);\n        }\n        console.log(values);\n      }\n    };\n  </script>\n</body>\n</html>\n```\n\n在这个示例中，我们通过 XMLHttpRequest 对象发送 GET 请求，请求的 URL 是 'data.json'，这个文件位于当前 HTML 文件所在目录的根目录下。\n\n当 XMLHttpRequest 对象的 readyState 状态值变为 4，HTTP 状态码为 200 时，表示请求成功，我们通过 JSON.parse() 方法将 JSON 字符串解析为 JavaScript 对象，并通过 for...in 循环遍历对象的属性，将所有属性的值存储在一个数组中，最后通过 console.log() 方法输出数组。\n\n注意：如果你要在浏览器中访问本地文件，可能需要将浏览器的安全策略进行设置，或者在本地搭建一个 Web 服务器，以免出现跨域问题或访问权限问题。",
+   "then": [
+    {
+     "nodeMatching": "HTML|html|fetch|XMLHttpRequest|页面"
+    },
+    {
+     "countUnder": "proj",
+     "max": 17
+    }
+   ]
+  }
+ ]
+}

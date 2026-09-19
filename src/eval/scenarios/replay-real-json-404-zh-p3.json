@@ -1,0 +1,81 @@
+{
+ "name": "replay (real, WildChat 34924, 13 of 13, Chinese): a front-end developer stuck on loading a local JSON file — 'read a JSON file in JS and collect the values', a 404 from the request, 'where does the JSON go in a Spring Boot project', 'the file exists but 404', code paste, 'xhr.send() errors', 'xhr.open fails', 'write an HTML page that reads the JSON', code paste again, 'how do I check access rights on the JSON', a DevTools source-map warning, 'JSON and HTML in the same folder, still 404', 'the server config blocks the JSON'; the map should hold this as ONE problem (JSON 404) with the user's repeated reports as the standing state and the assistant's attempts as tried options (no five twins of '404'), Spring Boot static folder as a fact, the source-map warning as a minor aside, in Chinese, no narration — piece 3",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "前端项目"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": " var xhr = new XMLHttpRequest();\n    xhr.open('GET', 'data.json', true);\n    xhr.send();  xhr.send报404错误",
+   "assistant": "如果在使用 XMLHttpRequest 对象发送请求时发生 404 错误，可能有以下几个原因：\n\n1. 请求的 URL 地址不正确：请检查请求的 URL 是否正确，特别是在使用相对路径访问本地文件时，要检查文件名和路径的正确性。\n\n2. 服务器或文件不存在：如果请求的服务器或文件不存在，会返回 404 错误，请确认服务器和文件是否存在，路径是否正确。\n\n3. 访问权限不足：如果请求的资源没有访问权限，也会返回 404错误，请确认当前用户是否有访问该资源的权限。\n\n4. 跨域问题：如果请求的服务器和请求发起的页面不在同一个域下，会出现跨域问题，请使用 JSONP 或者 CORS 等方式进行跨域访问。\n\n5. 存在缓存：可能是由于浏览器缓存的原因导致请求失败，请清除浏览器缓存后再进行尝试。\n\n希望以上几点能够帮助你解决问题。",
+   "then": [
+    {
+     "nodeMatching": "xhr|JSON|json|遍历"
+    },
+    {
+     "countUnder": "proj",
+     "max": 18
+    }
+   ]
+  },
+  {
+   "user": "如何看请求的json资源有没有访问权限",
+   "assistant": "可以通过调试工具来查看请求的 JSON 资源是否有访问权限，具体步骤如下：\n\n1. 打开开发者工具：打开浏览器，按下 F12 键或右键选择“检查”选项即可打开开发者工具。\n\n2. 切换到 Network（网络）选项卡：在开发者工具中，切换到 Network（网络）选项卡。\n\n3. 发送请求并查看响应：刷新页面或者发送请求，并在 Network 选项卡下找到该请求，查看状态码是否为 200（表示请求成功）以及响应内容是否正确。如果响应内容为错误提示（例如 403 Forbidden 或者 401 Unauthorized），则表示该请求资源无权限访问。\n\n4. 查看请求头和响应头：在 Network 选项卡下，找到该请求，并点击该请求，可以查看请求头和响应头信息。如果服务器返回了响应头中的 Access-Control-Allow-Origin 属性，则表示该请求资源具有跨域访问权限。\n\n以上是使用浏览器开发者工具查看请求 JSON 资源的访问权限的方法。如果需要进行身份验证等高级操作，可能需要使用专业的 API 开发工具，例如 Postman 或 Insomnia。",
+   "then": [
+    {
+     "nodeMatching": "权限|访问|状态码|Network|network"
+    },
+    {
+     "countUnder": "proj",
+     "max": 20
+    }
+   ]
+  },
+  {
+   "user": "vTools failed to load source map: Could not load content for http://localhost/css/bootstrap.min.css.map: HTTP error: status code 404, net::ERR_HTTP_RESPONSE_CODE_FAILURE",
+   "assistant": "该错误提示表明网页加载 bootstrap.min.css.map 文件时出现了 404 错误或服务器返回了 HTTP 400 错误。该文件是 Bootstrap 框架的 CSS 文件的一部分，用于提供 CSS 代码和源映射，以便开发人员调试和查看源代码。\n\n在这种情况下，可能有以下几个原因：\n\n1. bootstrap.min.css.map 文件不存在或路径不正确：请检查该文件是否存在于指定的路径中，并且路径是否正确。如果该文件路径不正确，可以尝试重新下载并在正确的路径下加载。\n\n2. 服务器没有返回该文件：请检查服务器是否已经正确地配置，以便一起提供请求的CSS文件和该 CSS 文件的映射。如果服务器未正确配置，会返回 404 错误或 HTTP 400 错误，表示文件未找到或请求无效。\n\n3. 安全策略限制访问文件：请注意，如果浏览器安全策略不允许访问位于另一个域中的文件，也会导致访问该文件失败。在这种情况下，可以通过使用 CORS 或 JSONP 等技术来解决跨域问题。\n\n如果你确信引用路径和文件都是正确的，可以尝试将浏览器缓存清空并重新加载页面。另外，一些版本的 Bootstrap 框架不包含 bootstrap.min.css.map 文件，因此可以尝试手动下载并加载该文件。",
+   "then": [
+    {
+     "nodeMatching": "source map|Source Map|sourcemap|bootstrap|警告"
+    },
+    {
+     "countUnder": "proj",
+     "max": 22
+    }
+   ]
+  },
+  {
+   "user": "json和html位于同一文件夹下，再html中访问json报错404",
+   "assistant": "如果 HTML 和 JSON 文件在同一文件夹下，但是在 HTML 文件中访问 JSON 文件时报 404 错误，可能会有以下几个原因：\n\n1. 文件路径不正确：请检查 JSON 文件的路径是否正确，特别是在使用相对路径访问文件时，要检查文件名和路径的正确性。\n\n2. 文件名和后缀名错误：请检查 JSON 文件的文件名和后缀名是否正确，以确保浏览器可以正确识别文件类型。\n\n3. 服务器配置问题：如果启动了一个 Web 服务器并运行 HTML 文件，服务器的配置可能会导致无法访问 JSON 文件。请检查服务器配置，确保该文件可用。\n\n4. 同源策略以及跨域问题：如果 JSON 文件在不同的域上并且没有进行跨域资源共享（CORS）配置，浏览器可能会阻止访问该文件。在这种情况下，需要使用 CORS 或 JSONP 等技术来解决跨域问题。\n\n希望这些信息能帮助你找到问题所在并解决问题。",
+   "then": [
+    {
+     "nodeMatching": "404|同一|文件夹|路径"
+    },
+    {
+     "countUnder": "proj",
+     "max": 23
+    }
+   ]
+  },
+  {
+   "user": "服务器配置导致无法访问json文件",
+   "assistant": "如果服务器配置不正确，可能会导致浏览器无法访问 JSON 文件，具体原因可能如下：\n\n1. 服务器未配置正确的 MIME 类型：服务器需要配置正确的 MIME 类型，以便浏览器可以正确识别 JSON 文件的内容类型。MIME 类型通常为 application/json。\n\n2. 服务器未正确地映射文件：如果服务器不能正确地识别传入的 URL，它可能会无法找到所请求的 JSON 文件。\n\n3. 服务器故障：如果服务器出现故障或停机，可能会导致浏览器无法访问 JSON 文件。\n\n4. 权限问题：服务器需要具有适当的权限，才能够提供 JSON 文件并让它们可以被访问。\n\n5. 防火墙或安全设置：一些防火墙或网络安全设置可能会阻止",
+   "then": [
+    {
+     "nodeMatching": "服务器|配置|nginx|Nginx|Tomcat|静态资源"
+    },
+    {
+     "countUnder": "proj",
+     "max": 25
+    }
+   ]
+  }
+ ]
+}
