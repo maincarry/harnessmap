@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 35706, 14 of 14, Chinese): a WebRTC engineer's scattershot day — 'what is STUN', 'NAT types for hole punching', 'where do insertable streams run', a class name (RTPSenderVideoFrameTransformerDelegate::TransformFrame), a stray medical term ('炎性肉芽肿'), 'JS screen resolution', a long git-rebase workflow question, 'what does TWCC reveal', a translation about ICE regather after a network change, 'what does RT mean in this sentence', 'via' ×2, then an AddressSanitizer double-free in SSL_CTX_new asked TWICE; the map should hold WebRTC as one topic (STUN/NAT/insertable streams/TWCC/ICE regather as facts), git rebase, screen resolution, the medical term and the English questions as small side topics, and the twice-asked ASan crash as ONE item, in Chinese, no narration — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "WebRTC 项目"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "炎性肉芽肿",
+   "assistant": "炎性肉芽肿是一种比较常见的良性软组织肿瘤，通常出现在皮肤、口腔、呼吸道、消化道等部位。它是由炎症导致的过度生长的异常肉质，通常是红色或粉色，质地柔软，无痛或轻微疼痛。炎性肉芽肿可以单独出现，也可以与其他疾病一起出现，如结核病、类风湿性关节炎、肺部疾病等。\n\n炎性肉芽肿通常不需要治疗，只要它们没有影响正常生活功能，也不会变成癌症。如果肉芽肿不断生长，或者病人感到不适或者有其他疾病，则可能需要进行手术或其他治疗。治疗方法可能包括冷冻疗法、激光治疗、手术切除等。",
+   "then": [
+    {
+     "nodeMatching": "肉芽肿|炎性|炎症"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    }
+   ]
+  },
+  {
+   "user": "web js获取屏幕分辨率",
+   "assistant": "在 Web 中，通过 `screen` 对象可以获取当前设备的屏幕相关信息，包括屏幕的宽度和高度，获取方式如下：\n\n```javascript\nvar screenWidth = window.screen.width;  // 获取屏幕宽度\nvar screenHeight = window.screen.height; // 获取屏幕高度\n```\n\n在某些情况下，不同的浏览器可能返回不同的值。更具体地说，这些值不一定代表浏览器实际可用的像素数，而是表示用户设置的分辨率，可能与实际的硬件分辨率不同。另一方面，如果您需要获取屏幕的可用高度和宽度，可以使用以下代码：\n\n```javascript\nvar pageWidth = window.innerWidth;\nvar pageHeight = window.innerHeight;\n```\n\n这会返回浏览器窗口的宽度和高度。但是，注意对于某些屏幕小于页面窗口的设备（如移动设备）以及带有滚动条的滚动页面，这些值可能会遇到问题。",
+   "then": [
+    {
+     "nodeMatching": "screen|分辨率|width|height"
+    },
+    {
+     "countUnder": "proj",
+     "max": 16
+    }
+   ]
+  },
+  {
+   "user": "我有一个程序项目，使用git管理，现在git的提交树（commit tree）已经很大了，我经常利用git rebase整理它们，修剪掉无效的提交；整理的过程涉及很多上下文的分析，这个活我做的有点累，你能帮我处理么",
+   "assistant": "当 git 的提交树很大时，整理它是一个比较耗费时间和精力的活动。如果你感到很疲惫，可以考虑其他方法来简化这个过程。\n\n首先，你可以尝试使用 git 的交互式 rebase 功能来帮助你筛选提交，而不必手动检查每个提交。通过使用 `git rebase -i` 命令，你可以进入交互式界面进行操作，从而更轻松地执行筛选提交或编辑操作。\n\n另外，你也可以使用 git 的一些工具来分析提交历史。例如，使用 `git log` 命令，你可以列出提交历史；使用 `git bisect` 命令，你可以轻松找到引入错误的提交。这些工具可以帮助你解决具体问题，减轻整理提交树的压力。\n\n最后，你可以考虑联系其他开发人员，讨论如何管理提交树。他们可能已经经历了类似的问题，并提供了一些建议和指导。",
+   "then": [
+    {
+     "nodeMatching": "rebase|提交|commit|整理|git"
+    },
+    {
+     "countUnder": "proj",
+     "max": 19
+    }
+   ]
+  },
+  {
+   "user": "webrtc的twcc数据包可以分析出哪些信息",
+   "assistant": "Transport Wide Congestion Control（TWCC）是WebRTC中的一个标准化拓展，它允许调整控制算法来避免在网络状况不佳时发送过多的媒体数据，从而导致网络拥塞。 TWCC使用RTP包头中的拓展块来提供网络拥塞信息，从而可以在运行时确定发送视频流的速率。TWCC数据包中包含以下信息：\n\n1. 命名间隔（Namespace）：它区分TWCC数据包和其它拓展块或者原始包头，并保证发送方和接收方保持同步，避免混淆。\n\n2. 16位源id（Source ID）：它包含关于媒体流来源的信息，是用于区分源端上的多个媒体包发送者。\n\n3. 序列号（Sequence Number）：它是每一个发送者单独分配的，用于表示TWCC数据包的顺序。\n\n4. 拥塞标志（Congestion Flag）：它是一个单比特标志，用于表示当前网络是否拥塞。它可以是二进制 0 或 1 ，其中 0 表示没有拥塞，1 表示出现了拥塞。这可能是通过网络上的丢包率、延迟等指标来确定的。\n\n5. 拥塞时间戳（Congestion Timestamp）：它是一个32位的时间戳，表示TWCC包最后确认网络拥塞发生的时间。它可能具有 \"撤销过时拥塞\" 的功能来防止错误的网络拥塞认定。\n\n通过分析TWCC数据包中的这些信息，可以检测网络的拥塞情况，从而根据网络连接的状况调整发送媒体的速度以实现优化的媒体传输。",
+   "then": [
+    {
+     "nodeMatching": "TWCC|twcc|带宽|丢包|延迟|RTT"
+    },
+    {
+     "countUnder": "proj",
+     "max": 21
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 35726, 11 of 11, English): a learner asks whether a book titled 'Mathematical Methods and Algorithms for Data Analysis Using R' exists, gets a link, and reports it dead NINE times ('cannot open', 'still not work' ×5, 'are you kidding me? Page Not Found', 'are you sure there is such a book?', 'couldn't find the page') while the assistant keeps producing new links; then asks what they actually want: to learn to implement mathematical algorithms in R; the map should hold the book as ONE question whose standing state is 'no working link; existence doubted' (the user's doubt standing over the assistant's assertions, the dead links NOT kept as working facts, no nine twins), and the learning goal as its own topic, no narration — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Learning R"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "do we have a book named as \"Mathematical Methods and Algorithms for Data Analysis Using R\"?\n",
+   "assistant": "Yes, there is a book titled \"Mathematical Methods and Algorithms for Data Analysis Using R\" written by G. Jay Kerns.",
+   "then": [
+    {
+     "nodeMatching": "book|Mathematical Methods|R"
+    },
+    {
+     "countUnder": "proj",
+     "max": 5
+    }
+   ]
+  },
+  {
+   "user": "link to it please?",
+   "assistant": "Here's the link to the book \"Mathematical Methods and Algorithms for Data Analysis Using R\" by G. Jay Kerns on Amazon: \nhttps://www.amazon.com/Mathematical-Methods-Algorithms-Analysis-Using/dp/1498764045",
+   "then": [
+    {
+     "nodeMatching": "link|URL|http|Amazon|Springer"
+    },
+    {
+     "countUnder": "proj",
+     "max": 7
+    }
+   ]
+  },
+  {
+   "user": "cannot openned",
+   "assistant": "I apologize for the mistake. Here's the correct link to the book \"Mathematical Methods and Algorithms for Data Analysis Using R\" by G. Jay Kerns on Amazon:\n\nhttps://www.amazon.com/Mathematical-Methods-Algorithms-Analysis-Using/dp/1498764045/ref=sr_1_1?dchild=1&keywords=Mathematical+Methods+and+Algorithms+for+Data+Analysis+Using+R&qid=1618851989&sr=8-1\n\nI hope this link works for you.",
+   "then": [
+    {
+     "nodeMatching": "open|cannot|broken|not work|unavailable|404"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "still not work",
+   "assistant": "I apologize for my mistake again. Here is another link to the book \"Mathematical Methods and Algorithms for Data Analysis Using R\" by G. Jay Kerns.\n\nhttps://www.crcpress.com/Mathematical-Methods-and-Algorithms-for-Data-Analysis-Using-R/Kerns/p/book/9781498764046\n\nThis link will direct you to the book page on the CRC Press website.",
+   "then": [
+    {
+     "nodeMatching": "still|not work|link|broken"
+    },
+    {
+     "countUnder": "proj",
+     "max": 9
+    }
+   ]
+  }
+ ]
+}
