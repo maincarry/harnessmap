@@ -1218,8 +1218,8 @@ async function shortTitleFor(id: string): Promise<string | null> {
   for (let i = 0; i < 2; i++) {
     const r = await suggestTitle(store, id);
     if (!('title' in r) || !r.title) return null;
-    if (!longName(r.title)) return r.title;
-    if (i === 1) { let clipped = r.title.trim().split(/\s+/).slice(0, 6).join(' ').replace(/[,;:\-–—]+$/, ''); if (clipped.length > 48) clipped = clipped.slice(0, 48).replace(/\s+\S*$/, ''); /* M301b: clip on a word boundary, never mid-word ("…scri") */ clipped = clipped.replace(/(\s+(is|are|was|were|be|the|a|an|of|to|for|and|or|in|on|at|with|by|from|that|which|how|what|its|their))+$/i, '') || clipped; /* M327: never end on a function word ("…the background grid is") */ store.audit('title_clipped', { id: id.slice(0, 8), from: r.title.slice(0, 80), to: clipped }); return clipped; }
+    if (!longName(r.title)) return r.title.replace(/\.+$/, ''); // M327b
+    if (i === 1) { let clipped = r.title.trim().split(/\s+/).slice(0, 6).join(' ').replace(/[,;:.\-–—]+$/, ''); /* M327b: the codex title model ends titles with a period */ if (clipped.length > 48) clipped = clipped.slice(0, 48).replace(/\s+\S*$/, ''); /* M301b: clip on a word boundary, never mid-word ("…scri") */ clipped = clipped.replace(/(\s+(is|are|was|were|be|the|a|an|of|to|for|and|or|in|on|at|with|by|from|that|which|how|what|its|their))+$/i, '') || clipped; /* M327: never end on a function word ("…the background grid is") */ store.audit('title_clipped', { id: id.slice(0, 8), from: r.title.slice(0, 80), to: clipped }); return clipped; }
   }
   return null;
 }
