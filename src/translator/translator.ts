@@ -447,6 +447,17 @@ export class Translator {
         const t = t0.split(/\s+/).length >= 3 ? t0.replace(/\s+(?:of|for|to|and|or|with|in|on|by|the|a|an|at|from)$/i, '').trim() : t0; // M348c: "Face classification task of" — a dangling preposition after a stripped tail goes too ("Log in" stays: two words)
         if (t !== anyA.title && t.length >= 3) { this.store.audit('guard_title_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-12) }); anyA.title = t; }
       }
+      // M349 (codex-native panorama replay): "Float target shape values te4a1b6c", "Image dimensions differata1b6c" — a glitch token with
+      // digits glued to the end of a title, the same token on two nodes of one round, matching no id and no word in the statement.
+      // A title's last word that carries a digit, is 6+ characters and appears nowhere in the statement or the person's words goes.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
+        const words = anyA.title.trim().split(/\s+/); const last = words[words.length - 1] ?? '';
+        if (words.length >= 2 && last.length >= 6 && /\d/.test(last) && /[a-z]/i.test(last)) {
+          const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
+          const chunks = last.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((c: string) => c.length >= 3); // "100/min" → 100, min; "te4a1b6c" → itself
+          if (chunks.length && !chunks.some((c: string) => hay.includes(c))) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: last }); anyA.title = words.slice(0, -1).join(' '); }
+        }
+      }
       // M327c (codex-native replays): the codex filer ends TITLES with a period; a title is a name.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[.。]+$/.test(anyA.title)) anyA.title = anyA.title.replace(/[.。]+$/, '');
       // M343 (codex-native pyomo replay): the codex filer wrote "exception type errorอบué?" over an English statement — stray
