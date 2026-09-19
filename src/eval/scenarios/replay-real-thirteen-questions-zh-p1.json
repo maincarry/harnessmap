@@ -1,0 +1,81 @@
+{
+ "name": "replay (real, WildChat 36405, 13 of 13, Chinese): thirteen unrelated one-line questions in a row — how to charge a BYD Qin DM, a Roewe pulling left, a Buick dashboard dimming on high beam, a Jeep service-reset interval, a Pinduoduo sale, a CapCut filter, a BAIC fog-light position, a Changhe service light, an OPPO app install, a Skoda hazard light, a Genshin dungeon quest, a mobile-game unlock, a Honda's blinking red light; the map should give each question its own small topic (car questions may share a 'cars' parent), never merge unrelated ones, keep every answer to 2–4 facts, no narration — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "随手问"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "秦DM2015款15T双冠旗舰Plus版怎么充电？",
+   "assistant": "秦DM2015款15T双冠旗舰Plus版可以通过插电充电和充电站充电两种方式进行充电。\n\n插电充电：\n1. 打开车辆左侧后门。\n2. 插入充电枪。\n3. 按下充电锁定键锁定充电枪。\n4. 确认车辆屏幕上的充电参数，并启动充电。\n\n充电站充电：\n1. 找到周围的充电站。\n2. 使用电子地图或APP查询充电站信息。\n3. 通过充电卡或APP进行充电站支付。\n4. 连接充电枪到车辆充电口，按照充电站界面提示启动充电。\n\n在充电期间，请注意车辆和充电设备的安全问题。同时，请遵守相关的交通法规和充电设备的使用说明。",
+   "then": [
+    {
+     "nodeMatching": "充电|秦|DM|插电"
+    },
+    {
+     "countUnder": "proj",
+     "max": 5
+    }
+   ]
+  },
+  {
+   "user": "荣威rx5plus方向左偏？",
+   "assistant": "荣威RX5 Plus方向左偏可能是由以下原因引起的：\n\n1. 轮胎压力不平衡：如果某个轮胎的压力过低，车辆行驶时可能会有方向左偏的情况。建议检查轮胎的压力，确保所有轮胎的压力都符合车辆制造商的要求。\n\n2. 轮胎磨损不均匀：如果某个轮胎磨损不均匀，可能会导致车辆行驶时方向左偏。建议检查所有轮胎的磨损情况，如果出现严重的磨损不均匀问题，需要更换轮胎。\n\n3. 前悬架失调：如果前悬架失调，可能会导致车辆行驶时方向左偏。建议让专业技师检查前悬架和转向系统，确认是否需要更换零件或进行调整。\n\n4. 车轮定位问题：如果车轮定位不正确，可能会导致车辆行驶时方向左偏。建议检查车轮定位，确认是否需要进行校正。\n\n如果您无法确定问题的原因，请及时联系专业技师进行检查和修理，以确保车辆行驶的安全性和稳定性。",
+   "then": [
+    {
+     "nodeMatching": "方向|跑偏|四轮定位|胎压"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "别克英朗开远光仪表盘灯变暗？",
+   "assistant": "如果别克英朗开启远光灯时，仪表盘的灯变暗，可能是由于以下原因引起的：\n\n1. 电压不稳定：远光灯启动时需要消耗大量电流，这可能会导致电压下降而导致仪表盘灯变暗。如果这是导致问题的原因，则建议检查车辆电池和车辆充电系统，确保它们正常工作。\n\n2. 灯泡老化：仪表盘上的灯泡如果老化或损坏，可能会导致灯光变暗。这种情况下，需要更换灯泡。\n\n3. 电线连接不良：仪表盘上的电线连接不良也可能导致灯光变暗。建议检查仪表盘上的电线连接状态，有必要时重新连接。\n\n4. 故障的电子元件：仪表盘上的电子元件或电路故障也可能导致灯光变暗。需要用专业诊断工具检查车辆的电子系统，确认是否需要更换故障的元件。\n\n如果您不确定问题的原因，建议前往专业的汽车维修厂进行检查和维修，以确保驾驶安全。",
+   "then": [
+    {
+     "nodeMatching": "远光|仪表|亮度|调光"
+    },
+    {
+     "countUnder": "proj",
+     "max": 11
+    }
+   ]
+  },
+  {
+   "user": "吉普自由光保养归零是多少公里？",
+   "assistant": "吉普自由光保养归零的公里数取决于具体的车型和车辆年份。一般来说，吉普自由光的保养归零公里数为1.6万公里或者两年一次，根据实际情况而定。在吉普自由光的仪表盘上，保养归零是指维修服务灯的重置。当在进行常规维修保养之后，应将维修服务灯重置到“0”以便下次维修保养时使用。一般来说，重置方法可以在车辆使用手册中找到，不同车型和年份可能略有不同，请具体参考车辆的手册或向专业的维修技师咨询。",
+   "then": [
+    {
+     "nodeMatching": "保养|归零|公里"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    }
+   ]
+  },
+  {
+   "user": "拼多多99特卖怎么参加？",
+   "assistant": "参加拼多多99特卖活动的方法如下：\n\n1. 登录拼多多账户或注册账户。\n2. 打开拼多多99特卖页面，浏览商品信息和抢购规则。\n3. 根据自己的需求选择想要购买的商品，抢购前要先加入购物车。\n4. 注意活动时间，在秒杀开始时，迅速下单购买。\n\n需要注意的是，拼多多99特卖活动的商品数量有限，且抢购时属于秒杀模式，购物车内商品不保证一定能购买成功。当参加拼多多99特卖活动时，建议提前规划自己的购物清单，多关注拼多多的公告和活动信息，以便在抢购和支付时能够顺利完成购物流程。",
+   "then": [
+    {
+     "nodeMatching": "拼多多|99|特卖|活动"
+    },
+    {
+     "countUnder": "proj",
+     "max": 17
+    }
+   ]
+  }
+ ]
+}

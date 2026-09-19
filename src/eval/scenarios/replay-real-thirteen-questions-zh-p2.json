@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 36405, 13 of 13, Chinese): thirteen unrelated one-line questions in a row — how to charge a BYD Qin DM, a Roewe pulling left, a Buick dashboard dimming on high beam, a Jeep service-reset interval, a Pinduoduo sale, a CapCut filter, a BAIC fog-light position, a Changhe service light, an OPPO app install, a Skoda hazard light, a Genshin dungeon quest, a mobile-game unlock, a Honda's blinking red light; the map should give each question its own small topic (car questions may share a 'cars' parent), never merge unrelated ones, keep every answer to 2–4 facts, no narration — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "随手问"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "剪映樱粉滤镜怎么没有了？",
+   "assistant": "如果剪映软件中的樱粉滤镜突然消失，可能是以下原因：\n\n1. 软件更新：如果剪映软件最近更新了版本，在新版本中可能更改了樱粉滤镜的名字或位置。可以尝试在滤镜列表中查找其他名字或位置类似的滤镜。\n\n2. 滤镜包问题：如果您之前购买了一个樱粉滤镜包，并且该滤镜包的使用期已经过期，那么樱粉滤镜就不再可用。可以尝试在滤镜包列表中查看是否有该滤镜包，或者购买一个新的樱粉滤镜包。\n\n3. 软件Bug：如果以上两个原因排除，可能是因为软件出现了Bug。建议卸载并重新安装剪映软件，或者联系剪映官方客服团队解决问题。\n\n需要注意的是，在拍摄或编辑视频时，滤镜的应用仅仅是一种手段，它不应该成为视频质量和效果的主要依赖。对于特定的场景和需求，也可以尝试使用其他的滤镜或调色工具，以达到更好的视频效果。",
+   "then": [
+    {
+     "nodeMatching": "剪映|滤镜|樱粉"
+    },
+    {
+     "countUnder": "proj",
+     "max": 20
+    }
+   ]
+  },
+  {
+   "user": "北汽幻速s3雾灯位置？",
+   "assistant": "北汽幻速S3的雾灯位于前保险杠下部，在前大灯下方两侧位置，一般为圆形或椭圆形设计。其位置与车辆年款和配置有关，具体位置可能会有所不同，但是一般都在前保险杠下部。如果您不能确定雾灯的具体位置，可以查阅车辆的使用说明书或者向专业的汽车维修人员咨询。在开启雾灯前，请确保您所在的地区允许雾灯的使用，并注意不要影响其他车辆的正常行驶。在使用雾灯时，建议根据不同的天气和路况情况进行选择，以确保驾驶安全和对其他车辆和行人的视觉不造成干扰和影响。",
+   "then": [
+    {
+     "nodeMatching": "雾灯|幻速|位置|开关"
+    },
+    {
+     "countUnder": "proj",
+     "max": 23
+    }
+   ]
+  },
+  {
+   "user": "北汽昌河a6保养灯怎么清除？",
+   "assistant": "清除北汽昌河A6的保养灯可以按照以下步骤进行：\n\n1. 在车辆启动之前，按下行驶信息显示装置的按钮，在车辆显示屏上显示出行驶信息。\n\n2. 使用方向键将光标移至“保养”，然后按下“确认”键。\n\n3. 使用方向键将光标移动到“保养复位”，然后按下“确认”键。\n\n4. 在显示的对话框中按下“是”按钮，以确认保养灯的清除。\n\n5. 按下方向键向上选择“返回”，然后按下“确认”键退出菜单。\n\n在清除保养灯之后，您可能需要重新设置您的下一个预定保养里程数和保养时间点等设置。建议在进行下一次保养之前，再次检查这些设置，以确保您的车辆始终保持在最佳状态下。如有疑问，您可以查阅相关的使用说明书，或者咨询专业的汽车维修人员。",
+   "then": [
+    {
+     "nodeMatching": "保养灯|清除|昌河|复位"
+    },
+    {
+     "countUnder": "proj",
+     "max": 26
+    }
+   ]
+  },
+  {
+   "user": "oppolab怎么安装？",
+   "assistant": "安装OPPO LAB需要以下步骤：\n\n1. 打开OPPO手机，进入手机上的应用商店（即应用市场），搜索“OPPO LAB”。\n\n2. 选择安装OPPO LAB应用程序，并等待下载和安装完成。\n\n3. 安装完成后，打开OPPO LAB应用程序，按照提示进行登录操作，可以使用OPPO手机自带的账号登录，也可以使用官网注册的账号登陆。\n\n4. 成功登录后，即可开始使用OPPO LAB应用程序，探索并尝试其中的各种功能。\n\n需要注意的是，OPPO LAB应用程序只适用于OPPO手机用户，安装之前，请确保您的手机型号符合应用程序的要求。另外，在使用OPPO LAB的过程中，请注意保护您的个人隐私和信息安全，不要将您的个人账户和密码泄漏给他人或第三方机构。",
+   "then": [
+    {
+     "nodeMatching": "OPPO|oppo|安装|应用"
+    },
+    {
+     "countUnder": "proj",
+     "max": 29
+    }
+   ]
+  }
+ ]
+}

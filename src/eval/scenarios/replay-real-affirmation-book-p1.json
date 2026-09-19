@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 36409, 8 of 8, English): 'is \"confidently you\" trademarked?', 'where to search for trademarks', 'outside the US', then the real project — a catchy title for a women's affirmation book, 'speaking directly to women', 'again' (more options), 'what should the first pages contain', 'write a short introduction for a morning-and-night affirmation book for women'; the map should hold the trademark search as one topic (USPTO/WIPO facts), the affirmation book as its own topic with the title options as options (the 'again' round adding options, not a twin question), the first-pages checklist and the intro as items under it, no narration — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Affirmation book"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "is \"confidently you\" trademarked?",
+   "assistant": "I'm sorry, as an AI language model, I cannot access trademark databases. It is best to search for the trademark on the USPTO website or seek legal assistance.",
+   "then": [
+    {
+     "nodeMatching": "trademark|USPTO|TESS|registered"
+    },
+    {
+     "countUnder": "proj",
+     "max": 5
+    }
+   ]
+  },
+  {
+   "user": "where to search for trademarks in wild world",
+   "assistant": "To search for trademarks in the United States, you can visit the official website of the United States Patent and Trademark Office (USPTO) at www.uspto.gov. There you will find a database of registered trademarks and pending trademark applications. From the USPTO homepage, you can click on the \"Trademark\" tab, where you will find links to search for trademarks, apply for a trademark, and other resources related to trademarks.",
+   "then": [
+    {
+     "nodeMatching": "USPTO|search|TESS|database"
+    },
+    {
+     "countUnder": "proj",
+     "max": 7
+    }
+   ]
+  },
+  {
+   "user": "what about outside th us",
+   "assistant": "To search for trademarks outside the US, you can check the intellectual property office of the specific country where you wish to conduct a search. Most countries have an official governmental office responsible for intellectual property rights registration and enforcement. You can check the website of the World Intellectual Property Organization (WIPO) for a list of national intellectual property offices around the world. Additionally, you may consult with a trademark attorney or a trademark search firm to help you conduct a thorough search of both the national and international trademark databases.",
+   "then": [
+    {
+     "nodeMatching": "WIPO|EUIPO|Madrid|international|outside"
+    },
+    {
+     "countUnder": "proj",
+     "max": 9
+    }
+   ]
+  },
+  {
+   "user": "can you give me something like \"confidently you\" as a catchy title, it's for affirmation book for women",
+   "assistant": "Sure! Here are a few suggestions for catchy titles for an affirmation book for women:\n\n1. Brave and Bold: 365 Affirmations to Empower Women\n2. Strength Within: A Daily Affirmation Guide for Women\n3. Unstoppable Confidence: A Year of Affirmations for Women\n4. Radiant and Resilient: Daily Affirmations for Women's Wellness\n5. Flourish and Thrive: 365 Days of Affirmations for Women\n6. She Believed She Could: A Year of Affirmations to Encourage Women\n7. Empowered and Inspired: A Daily Affirmation Book for Women\n8. Fearless and Fierce: A Year of Affirmations for Confident Women\n9. From Doubt to Belief: A Daily Affirmation Guide for Women.\n10. Radiate Positivity: A Year of Affirmations for Women",
+   "then": [
+    {
+     "nodeMatching": "title|affirmation|catchy|Confident"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  }
+ ]
+}
