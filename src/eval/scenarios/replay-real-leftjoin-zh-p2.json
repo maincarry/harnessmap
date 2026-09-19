@@ -1,0 +1,55 @@
+{
+ "name": "replay (real, WildChat 32644, 6 of 6, Chinese): a DBA — 'LEFT JOIN example', 'show the output', then an Oracle dba_tables/dba_tab_privs query the user wants merged with a GRANTEE condition, and the SAME correction typed three times ('但是SELECT 后面没有GRANTEE') while the assistant apologises and fails each time; the map should hold LEFT JOIN as one topic with the example, the Oracle query as its own topic, the repeated correction as ONE open objection (no three twins), the assistant's failed attempts not recorded as facts, in Chinese, no narration — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "SQL 问题"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "但是SELECT 后面没有GRANTEE",
+   "assistant": "非常抱歉，引起了您的困惑。下面是已经添加了 GRANTEE 条件的 SQL 查询语句：\n\n```\nSELECT table_name\nFROM dba_tables\nWHERE owner='AE'\nAND table_name NOT IN (\n    SELECT TABLE_NAME\n    FROM dba_tab_privs\n    WHERE owner='AE'\n    AND GRANTEE='T1'\n)\nAND table_name NOT IN (\n    SELECT TABLE_NAME\n    FROM dba_tab_privs\n    WHERE owner='AE'\n    AND GRANTEE='T2'\n)\nAND owner='AE';\n```\n\n该 SQL 查询语句中，`AND owner='AE'` 也是必须添加的条件，因为 `dba_tab_privs` 视图中可能包含其他拥有者的表的信息。这个条件用来确保查询结果只包含 AE 用户下的表。",
+   "then": [
+    {
+     "nodeMatching": "GRANTEE"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    }
+   ]
+  },
+  {
+   "user": "但是SELECT 后面没有GRANTEE\n",
+   "assistant": "非常抱歉，我的回答仍然存在问题。下面是一个添加了 GRANTEE 条件并且合并为一条 SQL 查询语句的示例：\n\n```\nSELECT table_name\nFROM dba_tables\nWHERE owner = 'AE'\n  AND NOT EXISTS (\n    SELECT 1\n    FROM dba_tab_privs\n    WHERE owner = 'AE'\n      AND table_name = dba_tables.table_name\n      AND grantee IN ('T1', 'T2')\n)\n```\n\n该 SQL 查询语句中，使用了子查询的方式，以 `db_tab_privs` 视图为基础查询具有 GRANTEE 权限的表，同时 `NOT EXISTS` 用于过滤掉具有 GRANTEE 权限的表，保留没有 GRANTEE 权限的 AE 用户下的表。其中的 `IN` 子句用于指定需要排除的 GRANTEE 值。",
+   "then": [
+    {
+     "nodeMatching": "GRANTEE"
+    },
+    {
+     "countUnder": "proj",
+     "max": 15
+    }
+   ]
+  },
+  {
+   "user": "但是SELECT 后面没有GRANTEE\n",
+   "assistant": "非常抱歉，我的回答中确实有错误。下面是添加了 GRANTEE 条件并且合并为一条 SQL 查询语句的正确版本：\n\n```\nSELECT table_name\nFROM dba_tables\nWHERE owner = 'AE'\n  AND NOT EXISTS (\n    SELECT 1\n    FROM dba_tab_privs\n    WHERE owner = 'AE'\n      AND table_name = dba_tables.table_name\n      AND grantee IN ('T1', 'T2')\n)\n```\n\n该 SQL 查询语句中，使用了子查询的方式，以 `dba_tab_privs` 视图为基础查询具有 GRANTEE 权限的表，同时 `NOT EXISTS` 用于过滤掉具有 GRANTEE 权限的表，保留没有 GRANTEE 权限的 AE 用户下的表。其中的 `IN` 子句用于指定需要排除的 GRANTEE 值。",
+   "then": [
+    {
+     "nodeMatching": "GRANTEE|NOT EXISTS"
+    },
+    {
+     "countUnder": "proj",
+     "max": 16
+    }
+   ]
+  }
+ ]
+}
