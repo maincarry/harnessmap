@@ -1,0 +1,55 @@
+{
+ "name": "replay (real, WildChat 33662, 10 of 10, Chinese): a lab worker asking for the TaqMan probe for APOE rs7412 — the locus, 'the probe sequence', 'where is the quencher?', 'which paper is this probe from?' (the assistant admits its earlier answer was wrong), the user names a paper title, 'similar papers?', 'summarise the probe info in these papers', then 'any MGB-labelled probes?', 'more papers?', 'is that accurate?'; the map should hold rs7412 as one topic with the locus/probe/quencher facts, the assistant's retracted probe sequence marked retracted or replaced (not kept as a fact), the literature as its own question, the MGB question under the probe topic, the user's 'is that accurate?' as an open doubt, in Chinese, no narration — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "APOE 基因分型"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "A rapid and cost-effective method for genotyping apolipoprotein E gene polymorphism",
+   "assistant": "如果您想确定“5’-ACCACCTGCGGTGACAGA-3’ (引物1) 5’-TCGGCCTGGTACACACTGTCT-3’ (引物2) 5’-FAM-TGGTAAAGGTGAACAAAGGTGGAGGG-TAMRA-3’ (荧光标记和猝灭器)”探针的文献来源，我能告诉您，这个探针是来自于一篇名为“A rapid and cost-effective method for genotyping apolipoprotein E gene polymorphism” (Kupstyte et al., 2011) 的研究。\n\n这篇研究是2011年发表在Gene分子生物学期刊上，发表了一个基于TaqMan探针技术的快速和经济的方法来分型人类APOE基因多态性。在该方法中，使用了引物1和引物2扩增APOE基因的目标片段，并添加了荧光标记和荧光猝灭器，以检测rs7412位点的多态性。\n\n希望这次回答能够回答您的问题。",
+   "then": [
+    {
+     "nodeMatching": "Kupstyte|引物|FAM|TAMRA|2011"
+    },
+    {
+     "countUnder": "proj",
+     "max": 16
+    }
+   ]
+  },
+  {
+   "user": "还有没有类似文献",
+   "assistant": "除了Kupstyte等人2011年的研究之外，还有很多其他的文献也使用TaqMan探针技术来对rs7412基因进行分型。\n\n以下是一些使用TaqMan探针技术对rs7412进行基因分型的研究：\n\n1. 王瑛，等（2018年）。关于APOE Alzheimer's风险基因与MOI之间关系的探索。《中国药理学通报》第34卷，第6期，841-845页。\n\n2. 王丽娟，等（2019年）。 炎症性肠病患者APOE基因多态性分析。 《中华胃肠外科杂志》第22卷，第8期，746-750页。\n\n3. 魏军，等（2020年）。基于TaqMan探针技术的POLE2基因多态性分析。 《中国基础医学杂志》第30卷，第7期，949-953页。\n\n4. 加济法诺夫，等（2021年）。 瑞格林医院内分泌科疾病患者APOE基因分型研究。 《神经内分泌学杂志》第38卷，第2期，180-182页。\n\n这些研究都使用了TaqMan探针技术，其中一些研究使用的探针序列与Kupstyte等人使用的探针序列类似。\n\n希望这些信息能帮助回答您的问题。",
+   "then": [
+    {
+     "nodeMatching": "文献|研究|王瑛|2018"
+    },
+    {
+     "countUnder": "proj",
+     "max": 18
+    }
+   ]
+  },
+  {
+   "user": "请总结一些这些文献中探针信息",
+   "assistant": "以下是一些使用TaqMan探针技术对rs7412进行基因分型的文献中探针的信息总结：\n\n1. Kupstyte等人（2011年）使用的探针：\n\n引物1序列：5'- ACCACCTGCGGTGACAGA -3'\n引物2序列：5'- TCGGCCTGGTACACACTGTCT -3'\n荧光标记FAM序列：5'- TGGTAAAGGTGAACAAAGGTGGAGGG -3'\n荧光猝灭器TAMRA序列：无\n\n2. 王瑛等人（2018年）使用的探针：\n\n引物1序列：5'- CCTCACTCAGCGGCG -3'\n引物2序列：5'- TGTTCCGAAGGCCACGTAAG -3'\n荧光标记FAM序列：5'- TCTCACAGGAGGACAGGG -3'\n荧光猝灭器TAMRA序列：5'- CACATGTGTGGGAGG -3'\n\n3. 魏军等人（2020年）使用的探针：\n\n引物1序列：5'- CCAGGCAGGTGAAAGA -3'\n引物2序列：5'- TCTGGTCTTGGTGGTCTGAAGA -3'\n荧光标记FAM序列：5'- AGGACAGGTCTCACTCAGTGCAGAGT -3'\n荧光猝灭器TAMRA序列：5'- AAGTGTACAACTCACC -3'\n\n4. 加济法诺夫等人（2021年）使用的探针：\n\n引物1序列：5'- ACATCTGCCGTTTAATGAAAAGC -3'\n引物2序列：5'- CTGCCACCCCCACTCAGT -3'\n荧光标记Hex序列：5'- TCCTCCGCTGGTGCCGGGAACAGTG -3'\n荧光猝灭器Black Hole Quencher-1（BHQ-1）序列：5'- ACAGGGCCC -3'\n\n需要注意的是，不同的研究可能采用不同的探针序列，并且不同探针之间的性能可能存在差异。因此，在具体的实验中，需要选择适当的探针，并进行验证。",
+   "then": [
+    {
+     "nodeMatching": "探针|总结|引物"
+    },
+    {
+     "countUnder": "proj",
+     "max": 21
+    }
+   ]
+  }
+ ]
+}

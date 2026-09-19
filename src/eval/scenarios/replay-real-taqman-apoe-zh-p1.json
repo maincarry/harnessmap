@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 33662, 10 of 10, Chinese): a lab worker asking for the TaqMan probe for APOE rs7412 — the locus, 'the probe sequence', 'where is the quencher?', 'which paper is this probe from?' (the assistant admits its earlier answer was wrong), the user names a paper title, 'similar papers?', 'summarise the probe info in these papers', then 'any MGB-labelled probes?', 'more papers?', 'is that accurate?'; the map should hold rs7412 as one topic with the locus/probe/quencher facts, the assistant's retracted probe sequence marked retracted or replaced (not kept as a fact), the literature as its own question, the MGB question under the probe topic, the user's 'is that accurate?' as an open doubt, in Chinese, no narration — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "APOE 基因分型"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "rs7412的taqman探针",
+   "assistant": "rs7412是APOE基因中的一种常见多态性。APOE基因在人类中常常存在三种常见等位基因：ε2，ε3和ε4。rs7412位于APOE基因的第19个外显子上，多态性位置为c.454T>C，导致氨基酸替换为其它的氨基酸。\n\n在基因分型研究中，为了检测rs7412基因的多态性，可以采用TaqMan探针技术。TaqMan探针是一种荧光探针，其结构包含一个荧光染料分子和一个荧光猝灭器分子。荧光染料和荧光猝灭器分子均被链接到引物上，引物用于扩增目标序列。当TaqMan探针与扩增产物结合时，荧光染料和荧光猝灭器分子间的空间距离发生变化，导致荧光信号发生变化。通过检测荧光信号，可以确定样品中rs7412基因的等位基因。",
+   "then": [
+    {
+     "nodeMatching": "rs7412|APOE|ε"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "这个位点的taqman探针序列",
+   "assistant": "以下是rs7412位点的TaqMan探针序列：\n\nTaqMan探针的引物1序列：5’- CCT CAA AGG TGA TGG AAA AGA TGC -3’\nTaqMan探针的引物2序列：5’- AGG TGA TGG AAA AGA TGT GAT GGC -3’\n荧光标记FAM序列：5’- TTC CGC ATG GCA CGA-3’\n荧光猝灭器黑质序列：5’- TGG CCT GCA GGC ACA -3’ \n\n请注意，TaqMan探针序列可能在不同的研究中有所不同，因此建议在选择探针时参考最新的文献或生物信息数据库。",
+   "then": [
+    {
+     "nodeMatching": "探针|引物|5|FAM"
+    },
+    {
+     "countUnder": "proj",
+     "max": 9
+    }
+   ]
+  },
+  {
+   "user": "怎么没有淬灭集团",
+   "assistant": "非常抱歉，我的回答中确实没有提到荧光猝灭器序列中的“淬灭”（quencher）分子。在TaqMan探针中，荧光标记和荧光猝灭器通常都与引物序列相邻，并且荧光猝灭器会对荧光信号进行淬灭作用，以避免探针未结合到扩增产物时产生的背景荧光。在rs7412位点的TaqMan探针中，荧光猝灭器的序列为：5’- TGG CCT GCA GGC ACA -3’，与引物2序列相邻。\n\n再次感谢您指出我的疏忽，希望这次回答能够回答您的问题。",
+   "then": [
+    {
+     "nodeMatching": "淬灭|猝灭|quencher|TAMRA"
+    },
+    {
+     "countUnder": "proj",
+     "max": 11
+    }
+   ]
+  },
+  {
+   "user": "这个探针参考那篇文献",
+   "assistant": "很抱歉，我之前的回答有误。由于rs7412位点的TaqMan探针在不同的研究中可能有所不同，因此需要参考具体的研究或数据库来获取正确的探针序列。\n\n在对rs7412位点进行基因分型的研究中，有一些常用的TaqMan探针序列，例如：\n\n* 5’-ACCACCTGCGGTGACAGA-3’ (引物1)\n* 5’-TCGGCCTGGTACACACTGTCT-3’ (引物2)\n* 5’-FAM-TGGTAAAGGTGAACAAAGGTGGAGGG-TAMRA-3’ (荧光标记和猝灭器)\n\n这个探针序列的来源可能因研究而异。在一些研究中，可能会事先设计、合成和验证新的探针序列用于rs7412位点的基因分型。\n\n因此，我无法直接回答这个探针序列参考那篇文献的问题。但如果您有对具体研究的文献信息，我可以帮您确认该文献是否提供了相应探针的信息。",
+   "then": [
+    {
+     "nodeMatching": "文献|研究|数据库|有误"
+    },
+    {
+     "countUnder": "proj",
+     "max": 13
+    }
+   ]
+  }
+ ]
+}

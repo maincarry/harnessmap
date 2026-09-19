@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 33855, 11 of 16, English): a hobbyist's scattershot session — 'does Quizlet have an API', 'the developers URL', 'that URL is not working', 'the docs URL redirects?', 'thanks', 'Quizizz REST API?', 'developers.quizizz.com doesn't work', then drifts: 'HTML how to add Unity WebGL', 'a fast VPS runner in Python', 'legit free VPS servers?', 'AWS free VPS'; the map should hold Quizlet API as one topic where the user's three 'not working' reports stand beside (or over) the assistant's URLs, Quizizz as a sibling, and Unity/VPS/AWS as their own topics — many drifts, few nodes each, 'thanks' files nothing, no narration — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Side projects"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "does quizlet have a api",
+   "assistant": "Yes, Quizlet has an API. It allows developers to access Quizlet's database of user-generated study materials and integrate them into their own applications. The Quizlet API is RESTful and uses HTTP requests to retrieve and manipulate data. Developers can use the API to build custom study applications, create flashcard games, and more. For more information on the Quizlet API, visit the Quizlet Developers website.",
+   "then": [
+    {
+     "nodeMatching": "Quizlet|API"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "whats the  Quizlet Developers website. url",
+   "assistant": "The Quizlet Developers website can be found at the following URL: https://quizlet.com/api/2.0/docs/",
+   "then": [
+    {
+     "nodeMatching": "developer|url|URL|quizlet\\.com"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "https://quizlet.com/api/2.0/docs/ not working",
+   "assistant": "I apologize for that. It seems like Quizlet might have changed its API documentation since my previous message. You can access Quizlet's API documentation through this new link:\n \nhttps://quizlet.com/help/api-docs\n \nThis link should take you to the Quizlet Help Center, and from there, you can navigate to the API documentation.",
+   "then": [
+    {
+     "nodeMatching": "not working|无法|broken|404|deprecated|discontinued|unavailable"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    }
+   ]
+  },
+  {
+   "user": "quizlet https://quizlet.com/help/api-docs api docs redirected?",
+   "assistant": "I apologize for giving you the wrong information. It seems that the Quizlet API documentation is not currently available publicly. However, Quizlet does offer an API for commercial use through their Quizlet for Organizations program. If you're interested in that, you can find out more information by contacting Quizlet at <PRESIDIO_ANONYMIZED_EMAIL_ADDRESS>.",
+   "then": [
+    {
+     "nodeMatching": "redirect|help|docs|API"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  }
+ ]
+}
