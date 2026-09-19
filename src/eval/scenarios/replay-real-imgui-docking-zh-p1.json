@@ -1,0 +1,81 @@
+{
+ "name": "replay (real, WildChat 38122, 5 of 5, Chinese): an imgui version dispute — 'does imgui 1.84 have docking?', 'but I downloaded it and there is nothing about docking, I cannot create a dock window' (evidence), 'how do I enable it then — in detail', 'I did what you said and it does not work: (1) the IMGUI_ENABLE_DOCKING macro does nothing — it is not in the code; (2) 1.84 has no Dock… functions' (evidence again, numbered), 'how do I get the 1.84 documentation'; the map should hold one imgui-docking question where the USER's evidence stands over the assistant's claim (the claim marked wrong/unverified, not kept as a fact), the docs question as a follow-up, in Chinese, no narration",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "imgui 项目"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "imgui的1.84版本具有docking功能吗？",
+   "assistant": "是的，imgui的1.84版本中具有docking功能。它允许用户将窗口拖动到屏幕边缘或其他窗口边缘，以实现自动停靠和分割屏幕等功能。这使得UI的布局更加灵活和方便。",
+   "then": [
+    {
+     "nodeMatching": "docking|Docking|1\\.84|停靠"
+    },
+    {
+     "countUnder": "proj",
+     "max": 5
+    }
+   ]
+  },
+  {
+   "user": "但是，我下载了这个版本，却没有搜索到任何有关docking的信息，创建不了dock窗口啊",
+   "assistant": "确实，在imgui的1.84版本中，dock窗口的功能需要手动开启。您可以通过编译时定义IMGUI_ENABLE_DOCKING宏来启用该功能。在您的项目中，可以在使用imgui之前添加以下代码行：\n\n```cpp\n#define IMGUI_ENABLE_DOCKING\n#include \"imgui.h\"\n```\n\n然后，您可以使用ImGui::DockSpace函数在您的窗口中创建dock窗口。例如：\n\n```cpp\nImGui::DockSpace(dockId, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);\n```\n\n请注意，在使用ImGui::DockSpace函数之前，您需要通过创建ImFontAtlas对象、设置一些窗口属性（例如保存和加载窗口布局）等进行其他设置。您可以查看ImGui的官方文档以获取更多信息。",
+   "then": [
+    {
+     "nodeMatching": "没有|搜索|docking|无法|证据|实际"
+    },
+    {
+     "countUnder": "proj",
+     "max": 7
+    }
+   ]
+  },
+  {
+   "user": "在imgui的1.84版本中，dock窗口的功能需要手动开启，怎么开启请详细讲讲",
+   "assistant": "好的，下面我详细介绍一下如何在imgui的1.84版本中开启dock窗口功能。\n\n首先，需要在你的代码中定义`IMGUI_ENABLE_DOCKING`宏来启用dock窗口的功能。也就是说，在您的imgui代码之前应该包含以下几行代码：\n\n```cpp\n// 定义IMGUI_ENABLE_DOCKING宏\n#define IMGUI_ENABLE_DOCKING\n\n// 引入imgui头文件\n#include \"imgui.h\"\n```\n\n接着，Imgui提供了用于window之间拖拽和停靠的API，并且在使用这些API之前，需要添加几个额外的代码以支持dock窗口：\n\n```cpp\nImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;        // 开启docking支持 \nImGui::StyleColorsDark();                                            // 设置主题\n```\n\n你可以在你的初始化函数中打开dock窗口功能，例如：\n\n```cpp\n// 初始化函数\nvoid MyImguiApp::init()\n{\n    // 启用docking支持\n    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;\n\n    // 设置主题\n    ImGui::StyleColorsDark();\n\n    // ...\n}\n```\n\n一旦dock窗口功能已经启用，你就可以使用ImGui::DockSpace函数创建一个dock节点，用于承载其他窗口：\n\n```cpp\nImGui::DockSpace(windowID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);\n```\n\n其中，`windowID`可以通过调用`ImGui::GetID`函数生成一个唯一的ID。\n\n最后，你需要用ImNodes或ImGui来创建可停靠的窗口，例如：\n\n```cpp\nif (ImGui::Begin(\"My Dockable Window\", &show))\n{\n    ImGui::Text(\"This is a dockable window\");\n    ImGui::End();\n}\n```\n\n当你拖动窗口时，它会自动停靠到其它可停靠窗口旁边。你可以通过调用ImNodes或ImGui提供的一些API来定义停靠窗口的行为和设置。 \n\n需要注意的是，为了使dock窗口能够正确工作，你还需要调用几个额外的功能，比如保存、保存并加载窗口布局，以及处理窗口拖拽等。你可以查看ImGui的官方文档，了解这些特性的使用方法。",
+   "then": [
+    {
+     "nodeMatching": "IMGUI_ENABLE_DOCKING|开启|宏|docking 分支|branch"
+    },
+    {
+     "countUnder": "proj",
+     "max": 9
+    }
+   ]
+  },
+  {
+   "user": "我按你说的这么做了，是不行的，有这些问题：（1）定义IMGUI_ENABLE_DOCKING宏根本没有用，因为我在代码里搜不到这个宏，说明它不具备啥作用；（2）1.84版本的imgui没有DockSpace方法；（3）1这个版本的imgui没有ImGuiConfigFlags_DockingEnable",
+   "assistant": "非常抱歉，我所提供的信息可能并不适用于1.84版本的ImGui，这可能是我没有注意到版本的问题。在早期版本的ImGui中，确实需要手动开启docking功能并使用DockSpace函数创建dock节点。\n\n但根据您的描述，1.84版本可能不再需要手动开启docking功能，相关API也可能有所变化。因此，我建议您阅读官方文档来获取更详细的信息，以确保您使用的是适当的代码。\n\n您可以在 ImGui 官网的 Github 地址获取 ImGui 的最新和历史版本，随时切换到想要使用的版本。此外，ImGui官方文档对于不同版本的ImGui可能提供不同的文档，您可以选择查看合适的版本进行参考。",
+   "then": [
+    {
+     "nodeMatching": "不行|没有用|不存在|错误|docking 分支|branch|1\\.84"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    }
+   ]
+  },
+  {
+   "user": "那怎么获取1.84版本的说明文档",
+   "assistant": "您可以在ImGui的Github页面中找到1.84版本的API文档。在ImGui的Github页面中，你可以通过以下方式来获得特定版本的API文档：\n\n1. 在最上面的导航栏中，单击Releases选项卡。\n2. 在可用的发布版本列表中选择您想要的版本（如1.84版本），然后单击它。\n3. 在文件列表中，选择您需要的文档，例如imgui_demo.cpp以及imgui.h等等。\n\n您也可以直接使用GitHub的搜索功能来查找特定版本的API文档，例如搜索“imgui 1.84 documentation”。\n\n另外，如果您使用的是在GitHub上的ImGui，您可以找到各个版本的API文档，以便在编码时参考。\n\n最后，为确保您使用的是适当的API和方法，请始终查看与您使用的ImGui版本相对应的官方文档。",
+   "then": [
+    {
+     "nodeMatching": "文档|说明|GitHub|release|docs"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  }
+ ]
+}
