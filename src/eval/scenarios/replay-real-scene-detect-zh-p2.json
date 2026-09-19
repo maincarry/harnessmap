@@ -56,7 +56,7 @@
    "assistant": "以下是以上代码的中文翻译和注释：\n\n```python\nimport cv2\nimport scenedetect\n\n# 创建视频管理器实例以读取视频并进行场景检测\nvideo_manager = scenedetect.VideoManager(['my_video.mp4'])\n# 添加 ContentDetector 算法（构造函数接受检测器选项，如阈值）。\nscene_manager = scenedetect.SceneManager()\nscene_manager.add_detector(scenedetect.ContentDetector())\n\n# 通过调用 set_downscale_factor() 方法减小处理时间。\nvideo_manager.set_downscale_factor()\n\n# 启动视频管理器并进行场景检测。\nvideo_manager.start()\nscene_manager.detect_scenes(frame_source=video_manager)\n\n# 每个检测到的场景都作为 Start 和 End 时间的元组返回。\n# 可以使用以下方法打印它们：\nprint('List of scenes obtained:')\nfor i, scene in enumerate(scene_manager.get_scene_list()):\n      print('    Scene %2d: Start %s / Frame %d, End %s / Frame %d' % (\n              i+1,\n              scene[0].get_timecode(), scene[0].get_frames(),\n              scene[1].get_timecode(), scene[1].get_frames()))\n\n# 将修改后的场景列表仅写入 stats 文件。\nwith open('my_video.stats.csv', 'w') as stats_file:\n    stats_file.write(str(scene_manager))\n\n# 示例 2：如何将输出视频保存到另一个文件中。\nfrom scenedetect.video_splitter import split_video\n# 获取场景列表作为先前步骤中获得的。\nvideo_path = 'my_video.mp4'\nsplit_video(video_path, scene_list, \"output_video.mp4\")\n```\n\n希望以上翻译能够帮助您更好地理解代码的含义。",
    "then": [
     {
-     "nodeMatching": "注释|中文|翻译"
+     "nodeMatching": "注释|中文|翻译|detect_scenes|VideoManager|SceneManager|ContentDetector|场景列表|代码"
     },
     {
      "countUnder": "proj",
