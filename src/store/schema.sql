@@ -322,3 +322,22 @@ CREATE TABLE IF NOT EXISTS chapter_assessments (
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (project_id, chapter_id)
 );
+
+-- M342: the filing ledger — one row per exchange handed to the filer. A round that fails (timeout, parse, crash)
+-- stays here as failed with its error and a retry time; a restart turns pending rows into failed ones; the retry
+-- worker replays failed rows through the same translation path. turn_id is the user turn (the round's key).
+CREATE TABLE IF NOT EXISTS filings (
+  turn_id TEXT PRIMARY KEY,
+  chat_id TEXT NOT NULL,
+  user_text TEXT NOT NULL,
+  assistant_text TEXT NOT NULL,
+  provenance TEXT,                           -- JSON {sessionId, slice} or NULL
+  status TEXT NOT NULL,                      -- pending | succeeded | failed | abandoned
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  next_retry_at TEXT,
+  round_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_filings_status ON filings(status, next_retry_at);

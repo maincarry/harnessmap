@@ -12,8 +12,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type {
+
+
   Alteration, Chat, Link, MapNode, RoundResult, Suggestion, Turn,
 } from '../types.js';
+export interface FilingRow { turnId: string; chatId: string; userText: string; assistantText: string; provenance: any | null; status: 'pending' | 'succeeded' | 'failed' | 'abandoned'; attempts: number; lastError: string | null; nextRetryAt: string | null; roundId: string | null; createdAt: string; updatedAt: string }
+const rowToFiling = (r: any): FilingRow => ({ turnId: r.turn_id, chatId: r.chat_id, userText: r.user_text, assistantText: r.assistant_text, provenance: r.provenance ? (() => { try { return JSON.parse(r.provenance); } catch { return null; } })() : null, status: r.status, attempts: r.attempts, lastError: r.last_error, nextRetryAt: r.next_retry_at, roundId: r.round_id, createdAt: r.created_at, updatedAt: r.updated_at });
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -301,6 +305,58 @@ export class Store {
     this.db.prepare('INSERT INTO rounds (id, chat_id, turn_id, summary, alterations, model) VALUES (?, ?, ?, ?, ?, ?)')
       .run(id, chatId, turnId, result.summary, JSON.stringify(result.alterations), model);
     return id;
+  }
+
+  // ---- M342: the filing ledger ----
+  upsertFilingPending(f: { turnId: string; chatId: string; userText: string; assistantText: string; provenance: unknown | null }): void {
+    this.db.prepare(`INSERT INTO filings (turn_id, chat_id, user_text, assistant_text, provenance, status, attempts)
+      VALUES (?, ?, ?, ?, ?, 'pending', 0)
+      ON CONFLICT(turn_id) DO UPDATE SET status = 'pending', updated_at = datetime('now')`)
+      .run(f.turnId, f.chatId, f.userText, f.assistantText, f.provenance ? JSON.stringify(f.provenance) : null);
+  }
+  markFilingSucceeded(turnId: string, roundId: string): void {
+    this.db.prepare("UPDATE filings SET status = 'succeeded', round_id = ?, last_error = NULL, next_retry_at = NULL, updated_at = datetime('now') WHERE turn_id = ?").run(roundId, turnId);
+  }
+  markFilingFailed(turnId: string, error: string, nextRetryAt: string | null, abandon: boolean): void {
+    this.db.prepare(`UPDATE filings SET status = ?, attempts = attempts + 1, last_error = ?, next_retry_at = ?, updated_at = datetime('now') WHERE turn_id = ?`)
+      .run(abandon ? 'abandoned' : 'failed', error.slice(0, 500), nextRetryAt, turnId);
+  }
+  getFiling(turnId: string): FilingRow | undefined { const r = this.db.prepare('SELECT * FROM filings WHERE turn_id = ?').get(turnId) as any; return r ? rowToFiling(r) : undefined; }
+  listFilings(status?: string[], limit = 200): FilingRow[] {
+    const st = status?.length ? status : ['pending', 'failed', 'abandoned'];
+    return (this.db.prepare(`SELECT * FROM filings WHERE status IN (${st.map(() => '?').join(',')}) ORDER BY created_at DESC LIMIT ?`).all(...st, limit) as any[]).map(rowToFiling);
+  }
+  dueFilings(nowIso: string, limit = 1): FilingRow[] {
+    return (this.db.prepare("SELECT * FROM filings WHERE status = 'failed' AND (next_retry_at IS NULL OR next_retry_at <= ?) ORDER BY created_at ASC LIMIT ?").all(nowIso, limit) as any[]).map(rowToFiling);
+  }
+  requeueFiling(turnId: string, resetAttempts: boolean): void {
+    this.db.prepare(`UPDATE filings SET status = 'failed', next_retry_at = datetime('now'), attempts = CASE WHEN ? THEN 0 ELSE attempts END, updated_at = datetime('now') WHERE turn_id = ? AND status IN ('failed', 'abandoned')`).run(resetAttempts ? 1 : 0, turnId);
+  }
+  /** A restart interrupted these: pending rows become failed, due now. */
+  failInterruptedFilings(): number {
+    return this.db.prepare("UPDATE filings SET status = 'failed', last_error = 'interrupted by a server restart', next_retry_at = datetime('now'), updated_at = datetime('now') WHERE status = 'pending'").run().changes;
+  }
+  roundForTurn(turnId: string): { id: string } | undefined { return this.db.prepare('SELECT id FROM rounds WHERE turn_id = ? ORDER BY created_at DESC LIMIT 1').get(turnId) as any; }
+  /** M342 backfill: user turns (with an assistant turn after them) that never got a round and have no ledger row — the
+   *  exchanges lost to a failed filing before the ledger existed. Recent ones only, capped, live chats only. */
+  backfillMissingFilings(days = 14, cap = 50): number {
+    const rows = this.db.prepare(`
+      SELECT u.id AS turn_id, u.chat_id, u.content AS user_text,
+        (SELECT a.content FROM turns a WHERE a.chat_id = u.chat_id AND a.idx = u.idx + 1 AND a.role = 'assistant') AS assistant_text
+      FROM turns u JOIN chats c ON c.id = u.chat_id
+      WHERE u.role = 'user' AND c.status != 'archived' AND u.created_at >= datetime('now', ?)
+        AND NOT EXISTS (SELECT 1 FROM rounds r WHERE r.turn_id = u.id)
+        AND NOT EXISTS (SELECT 1 FROM filings f WHERE f.turn_id = u.id)
+      ORDER BY u.created_at ASC LIMIT ?`).all(`-${days} days`, cap) as any[];
+    let n = 0;
+    for (const r of rows) {
+      if (r.assistant_text === null || r.assistant_text === undefined) continue;
+      if (!String(r.user_text).trim() && !String(r.assistant_text).trim()) continue;
+      this.db.prepare(`INSERT OR IGNORE INTO filings (turn_id, chat_id, user_text, assistant_text, provenance, status, attempts, last_error, next_retry_at)
+        VALUES (?, ?, ?, ?, NULL, 'failed', 0, 'never filed (recovered from the stored conversation)', datetime('now'))`).run(r.turn_id, r.chat_id, r.user_text, r.assistant_text);
+      n++;
+    }
+    return n;
   }
 
   // ---- lit set ----

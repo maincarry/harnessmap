@@ -8,6 +8,17 @@ import { loadMap, renderTree, renderScopedTree, descendantNodes, type MapView } 
 import { matchNodes } from '../map/match.js';
 import type { MapNode } from '../types.js';
 
+// M342 (Mark, Windows/Codex): the filer's 60 s was sized for the Claude backend; on the codex backend one call is a fresh
+// `codex exec` process (CLI start-up, sandbox, then a reasoning model writing a 2k-token JSON) and a successful filing
+// took 45 s on Mark's machine, so 60 s left no headroom and the round was lost. The limit follows the backend;
+// HARNESSMAP_FILER_TIMEOUT_MS overrides it. The ledger and retries (server) are what make a timeout survivable.
+export function filerTimeoutMs(): number {
+  const env = Number(process.env.HARNESSMAP_FILER_TIMEOUT_MS);
+  if (Number.isFinite(env) && env > 0) return env;
+  return backendName() === 'codex' ? 150_000 : 60_000;
+}
+
+
 // The bridge (DESIGN.md §4): per-round, map-conditioned translation.
 // Runs async — never blocks the chat. Cheap fast model.
 
@@ -143,6 +154,8 @@ const STOP = new Set(['this','that','with','from','into','have','been','were','t
 
 export class Translator {
   constructor(private store: Store) {}
+  /** M342: the last round's failure, readable by the server after translateRound returns null. */
+  lastError: string | null = null;
 
   // Translate one round. Returns the applied result (already persisted) or null on failure.
   // Failures are non-fatal by design: the map is a beat behind, never a blocker.
@@ -204,7 +217,7 @@ export class Translator {
           ? `EXISTING NODES ON THIS ROUND'S SUBJECTS (word-matched; check before creating): ${existing.map((n) => `[${n.id}] ${n.title || n.content.slice(0, 60)}`).join(' · ')}\nIf the round refines, corrects or supersedes one of these, update_node THAT id (the node keeps its history); create a new node only for a subject none of them holds. When the round OVERTURNS part of a node's statement, REWRITE that part so the statement reads as the current rule — never leave the old clause standing beside the new one.${spansBranches(this.store, existing) ? `\nTHESE SIT IN DIFFERENT BRANCHES: when this round connects two of them (one rests on, answers, blocks or contradicts the other), emit create_link between them with the type that fits — the map holds no cross-links until you make them.` : ''}`
           : '';
         const parsed = await call({
-          task: 'filer', system: SYSTEM + systemCard(this.store, params.projectId, 'the FILER'), maxTokens: 2048, schema: SCHEMA, timeoutMs: 60_000,
+          task: 'filer', system: SYSTEM + systemCard(this.store, params.projectId, 'the FILER'), maxTokens: 2048, schema: SCHEMA, timeoutMs: filerTimeoutMs(),
           audit: (k, d) => this.store.audit(k, d),
           user: [
               `CURRENT MAP (▶ = focus; ids in [brackets]):\n${tree}`,
@@ -277,11 +290,17 @@ export class Translator {
       alterations = this.guardScope(alterations, writeScope, map, params);
       alterations = this.guardCorrectionTwin(alterations, map);
       const result: RoundResult = { summary, alterations };
+      // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
+      const prior = this.store.roundForTurn(params.turnId);
+      if (prior) { this.store.audit('round_already_filed', { turn: params.turnId.slice(0, 8), round: prior.id.slice(0, 8) }); return { roundId: prior.id, result: { summary: 'already filed', alterations: [] }, focusRequestId: null, debug: { inputTree: '', rawText: '' } }; }
       const roundId = this.store.recordRound(params.chatId, params.turnId, result, `${backendName()}:${modelFor('filer')}`);
       this.store.applyAlterations(params.projectId, result.alterations, { kind: 'round', roundId });
+      this.lastError = null;
       return { roundId, result, focusRequestId, debug: { inputTree: renderScopedTree(map, readScope, { focusId: params.focusContainerId }), rawText: text } };
     } catch (err) {
-      console.error('[translator] round failed (map will lag, chat unaffected):', err);
+      this.lastError = String(err instanceof Error ? err.message : err).slice(0, 500);
+      console.error('[translator] round failed (kept in the filing ledger for retry):', err);
+      this.store.audit('round_failed', { turn: params.turnId.slice(0, 8), error: this.lastError.slice(0, 200) });
       return null;
     }
   }

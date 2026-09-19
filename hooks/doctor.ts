@@ -84,7 +84,11 @@ if (be) {
     if (FIX) { const r = await postJ('/api/backend', { backend: 'codex' }); say(r.json?.ok ? 'FIX' : 'FAIL', r.json?.ok ? 'the engine was Claude but no claude CLI exists here — switched to GPT via Codex' : `could not switch the engine: ${r.json?.error ?? r.error}`); }
     else say('WARN', 'the engine is Claude but no claude CLI exists here — run the doctor with --fix to switch to GPT via Codex (or choose it in ⚙ models)');
   }
-  if (be.backend === 'codex') { if (codex) { const ls = sh([codex, 'login', 'status'], 10_000); if (ls.code === 0) say('OK', 'codex is signed in'); else say('YOU', 'codex is not signed in — run:  codex login'); } else say('YOU', 'the engine is Codex but no codex CLI was found (PATH or the Codex app) — install the Codex CLI or app, or choose Claude in ⚙ models'); }
+  if (be.backend === 'codex') { if (codex) { const ls = sh([codex, 'login', 'status'], 10_000); const said = `${ls.out}\n${ls.err}`;
+      // M342b (Mark): inside a sandbox the check itself fails ("Could not find home directory") — that is "could not check", not "signed out".
+      if (ls.code === 0) say('OK', 'codex is signed in');
+      else if (/not logged in|not signed in|no credentials|please run.*login|logged out/i.test(said)) say('YOU', 'codex is not signed in — run:  codex login');
+      else say('WARN', `could not check the Codex sign-in from here (${(ls.err || ls.out || `exit ${ls.code}`).split('\n')[0].slice(0, 120)}) — run  codex login status  yourself; a sandbox without a home directory fails this check while the sign-in is fine`); } else say('YOU', 'the engine is Codex but no codex CLI was found (PATH or the Codex app) — install the Codex CLI or app, or choose Claude in ⚙ models'); }
   if (be.backend === 'subscription' && !claude) say('YOU', 'the engine is Claude but no claude CLI was found — install Claude Code and sign in, or choose GPT via Codex in ⚙ models');
 }
 

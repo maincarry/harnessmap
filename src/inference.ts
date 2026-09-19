@@ -267,6 +267,27 @@ async function apiCall(opts: CallOpts, model: string): Promise<any> {
 // rollout), read-only sandbox, no git check. Same two-attempt JSON discipline
 // as the subscription path.
 const codexUnsupported = new Set<string>(); // model ids this account's Codex has refused (M242)
+// M342c: OpenAI's strict structured output wants every object to list ALL its keys in `required` and to carry
+// additionalProperties:false; optional keys are expressed as nullable. The map's schemas mark optional keys by leaving
+// them out of `required`; this transform makes the strict form, and stripNulls() removes the nulls the model then emits
+// for keys it would otherwise have omitted (a null parentId already means "top level" everywhere in the translator).
+export function strictSchema(node: any): any {
+  if (Array.isArray(node)) return node.map(strictSchema);
+  if (!node || typeof node !== 'object') return node;
+  const out: any = {};
+  for (const [k, v] of Object.entries(node)) out[k] = k === 'properties' && v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as any).map(([pk, pv]) => [pk, strictSchema(pv)])) : strictSchema(v);
+  if (out.type === 'object' && out.properties) {
+    const keys = Object.keys(out.properties); const req = new Set<string>(Array.isArray(out.required) ? out.required : []);
+    for (const k of keys) if (!req.has(k)) { const pv = out.properties[k]; out.properties[k] = pv && typeof pv === 'object' && !Array.isArray(pv.anyOf) ? { anyOf: [pv, { type: 'null' }] } : pv && Array.isArray(pv.anyOf) ? { anyOf: [...pv.anyOf, { type: 'null' }] } : pv; }
+    out.required = keys; out.additionalProperties = false;
+  }
+  return out;
+}
+export function stripNulls(v: any): any {
+  if (Array.isArray(v)) return v.map(stripNulls);
+  if (v && typeof v === 'object') { const o: any = {}; for (const [k, x] of Object.entries(v)) if (x !== null) o[k] = stripNulls(x); return o; }
+  return v;
+}
 const codexBadSchemas = new Set<string>(); // schemas Codex's strict structured output rejected (M242b)
 export const codexRefusedModels = (): string[] => [...codexUnsupported];
 async function codexCall(opts: CallOpts, model: string): Promise<any> {
@@ -283,7 +304,7 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
   // the subscription path always has.
   const schemaKey = opts.schema ? JSON.stringify(opts.schema) : '';
   let schemaFile = opts.schema && !codexBadSchemas.has(schemaKey) ? join(dir, 'schema.json') : null;
-  if (schemaFile) writeFileSync(schemaFile, JSON.stringify(opts.schema));
+  if (schemaFile) writeFileSync(schemaFile, JSON.stringify(strictSchema(opts.schema))); // M342c: the strict form
   const jsonNote = opts.schema ? `\n\nRESPOND WITH JSON ONLY — a single JSON object matching this schema (no prose, no code fences):\n${JSON.stringify(opts.schema)}` : '';
   let lastErr = '';
   let useModel: string | null = codexUnsupported.has(model) ? null : model; // null = the account's default model
@@ -299,15 +320,23 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
       const p = Bun.spawn(args, { stdin: new Response(prompt), stdout: 'pipe', stderr: 'pipe', env });
       const limitMs = opts.timeoutMs ?? 120_000;
       let timedOut = false;
-      const timer = setTimeout(() => { timedOut = true; try { p.kill(); } catch {} }, limitMs);
-      const [stdout, stderr] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
-      const code = await p.exited; clearTimeout(timer);
+      // M342: on timeout the CLI is killed, but its own children can hold the pipes open (the failure surfaced only when the
+      // whole tree ended — 60,380 ms after a 60,000 ms limit on Mark's machine). The read is raced against the limit plus a
+      // short grace, so a timed-out call is reported as such at once and the ledger can schedule its retry.
+      let killed: (() => void) | null = null; const killedP = new Promise<void>((res) => { killed = res; });
+      const timer = setTimeout(() => { timedOut = true; try { p.kill(); } catch {} setTimeout(() => killed?.(), 1500); }, limitMs);
+      const streams = Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
+      const [stdout, stderr] = await Promise.race([streams, killedP.then(() => ['', 'timed out'] as [string, string])]);
+      const code = timedOut ? -1 : await p.exited; clearTimeout(timer);
       if (process.env.HARNESSMAP_CLI_STDERR === '1' && stderr) console.error('[codex stderr]', stderr.slice(0, 800));
       if (timedOut) throw new Error(`codex exec timed out after ${limitMs}ms`);
       // M242 (Mark, Windows): a ChatGPT sign-in allows only some model ids
       // (plan-dependent; ids retire). When Codex refuses the id, remember it
       // and run this call on the account's default model instead of failing.
-      if (schemaFile && code !== 0 && /Invalid schema/i.test(stderr)) {
+      // M342c (measured 2026-09-19 with codex-cli 0.155): the Responses API now answers a strict-schema refusal as HTTP 400 with
+      // "'required' is required to be supplied … Missing 'parentId'" (param text.format.schema) — not the "Invalid schema" text this
+      // matched, so every filer/memory/tidy call failed outright instead of falling back to prompted JSON.
+      if (schemaFile && code !== 0 && /Invalid schema|text\.format\.schema|'required' is required|additionalProperties|Missing '[A-Za-z_]+'/i.test(stderr)) {
         codexBadSchemas.add(schemaKey);
         console.error(`[inference] codex rejected the ${opts.task} schema (strict structured output) — this call and later ones with that schema use prompted JSON`);
         schemaFile = null; attempt--; continue;
@@ -319,9 +348,10 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
       }
       let text = ''; try { text = readFileSync(outFile, 'utf8'); } catch {}
       if (!text.trim()) text = stdout;
+      if (code !== 0 && /401 Unauthorized|Missing bearer|not logged in|Not signed in/i.test(stderr)) throw new Error('codex is not signed in for this server (OpenAI answered 401) — run `codex login` in the account the map server runs under; the exchange stays in the filing ledger and is retried'); // M342: an actionable error instead of "unexpected status"
       if (code !== 0 && !text.trim()) throw new Error(`codex exec exited ${code}: ${stderr.slice(-300)}`);
       if (!opts.schema) return text.trim();
-      try { return JSON.parse(text.replace(/^[\s\S]*?(\{)/, '$1').replace(/\}[^}]*$/, '}')); } catch (e) { lastErr = String(e).slice(0, 120); }
+      try { const parsed = JSON.parse(text.replace(/^[\s\S]*?(\{)/, '$1').replace(/\}[^}]*$/, '}')); return schemaFile ? stripNulls(parsed) : parsed; } catch (e) { lastErr = String(e).slice(0, 120); }
     }
     throw new Error(`codex returned invalid JSON twice: ${lastErr}`);
   } finally { try { rmSync(dir, { recursive: true, force: true }); } catch {} }

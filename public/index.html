@@ -452,6 +452,7 @@
       <button class="hbtn" id="ctx-btn" hidden title="see the exact map description the CHAT agent receives next turn">chat agent's view</button>
       <span id="beat" title="the turn lifecycle: message seen → agent replying → filed onto the map" style="margin-left:auto;font-weight:400;font-size:12px;color:var(--muted)">waiting for activity</span>
       <span class="lag" id="lag" style="margin-left:10px">map current</span>
+      <span id="filing-notice" class="lag behind" style="margin-left:10px;display:none;cursor:pointer" title="exchanges the filer did not manage to put on the map yet — they are retried on their own; click to retry now"></span>
     </header>
     <div id="crumbs"></div>
     <div id="zoom-tools">
@@ -1501,6 +1502,13 @@ function paintUndo() {
   b.textContent = S.undoNext ? `↩ undo: ${S.undoNext.length > 42 ? S.undoNext.slice(0, 40) + '…' : S.undoNext}` : '↩ undo';
   b.title = S.undoNext ? `take back the last change — ${S.undoNext} (Ctrl/Cmd+Z works too)` : 'nothing to undo yet — deletes, merges, tidies, moves, placements, added nodes and aims all land here (Ctrl/Cmd+Z)';
   b.disabled = !S.undoNext;
+  // M342: exchanges the filer failed on wait in the ledger and are retried by themselves; the line says so and offers retry-now.
+  { const fn = $('filing-notice'); const F = S.filings; if (fn) { const n = F ? (F.failed + F.abandoned + F.pending) : 0;
+      if (!F || n === 0) { fn.style.display = 'none'; fn.textContent = ''; }
+      else { const failing = F.items.find((x) => x.status !== 'succeeded'); const when = failing && failing.nextRetryAt ? Math.max(0, Math.round((new Date(failing.nextRetryAt.replace(' ', 'T') + 'Z').getTime() - Date.now()) / 60000)) : null;
+        fn.style.display = ''; fn.textContent = `${n} exchange${n === 1 ? '' : 's'} not on the map yet${F.pending ? ' · filing…' : when !== null ? ` · retrying in ${when} min` : F.abandoned ? ' · gave up, click to retry' : ''}`;
+        fn.title = F.items.filter((x) => x.status !== 'succeeded').map((x) => `${x.status} (${x.attempts} tr${x.attempts === 1 ? 'y' : 'ies'}): "${x.userHead}" — ${x.error ?? ''}`).join('\n') + '\nclick to retry now';
+        fn.onclick = async () => { await fetch('/api/filings/retry-all', { method: 'POST' }); }; } } }
 }
 function paintAuto() {
   const a = S.auto || {}; const b = $('auto-btn'); if (!b) return;
@@ -4021,6 +4029,8 @@ function connect() {
       if (lastReferral) lastReferral.rounds++;
       $('round-line').classList.remove('working');
       $('round-line').textContent = `↳ ${m.summary} (${m.alterations} change${m.alterations === 1 ? '' : 's'})`;
+    } else if (m.type === 'filings') {
+      if (S) { S.filings = { pending: m.pending, failed: m.failed, abandoned: m.abandoned, items: m.items }; try { paintUndo(); } catch {} }
     } else if (m.type === 'lag') {
       const el = $('lag');
       el.textContent = m.lag > 0 ? `map is ${m.lag} round${m.lag === 1 ? '' : 's'} behind` : 'map current';

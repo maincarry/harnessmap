@@ -1344,24 +1344,53 @@ let translationChain: Promise<void> = Promise.resolve();
 let lag = 0;
 const lastObserved = new Map<string, { sig: string; at: number }>(); // M270
 const obsKeyOf = (b: any) => String(b?.transcript_path ?? b?.cwd ?? '');
-function enqueueTranslation(params: { chatId: string; turnId: string; userText: string; assistantText: string; provenance?: { sessionId: string | null; slice: RoundSlice } }) {
+// M342 (Mark, 2026-09-19): a filer timeout used to lose the exchange for good — the turns were stored, the round was not, and
+// nothing came back for it. Every exchange handed to the filer now has a ledger row (filings): pending while in flight,
+// succeeded with its round, or failed with the error and a retry time. The worker below replays failed rows through this
+// same path with backoff; a restart turns pending rows into failed ones; a replay never applies a round twice (translator).
+const FILING_BACKOFF_MS = (() => { const e = Number(process.env.HARNESSMAP_FILING_BACKOFF_MS); return Number.isFinite(e) && e > 0 ? e : 60_000; })();
+const FILING_MAX_ATTEMPTS = 5;
+const filingBackoff = (attemptsSoFar: number) => FILING_BACKOFF_MS * [1, 3, 10, 30, 60][Math.min(attemptsSoFar, 4)]; // 1, 3, 10, 30, 60 minutes by default
+const sqlNow = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString().slice(0, 19).replace('T', ' ');
+let filingInFlight: string | null = null;
+function enqueueTranslation(params: { chatId: string; turnId: string; userText: string; assistantText: string; provenance?: { sessionId: string | null; slice: RoundSlice }; retry?: boolean }) {
   lag += 1;
   broadcast({ type: 'lag', lag });
+  if (!params.retry) { try { store.upsertFilingPending({ turnId: params.turnId, chatId: params.chatId, userText: params.userText, assistantText: params.assistantText, provenance: params.provenance ?? null }); } catch (err) { store.audit('filing_ledger_error', { error: String(err).slice(0, 200) }); } }
   translationChain = translationChain.then(async () => {
     const chat = store.getChat(params.chatId);
     // M270: a round whose view is gone still counts DOWN (it counted up on enqueue) — the counter leaked otherwise.
-    if (!chat) { lag -= 1; broadcast({ type: 'lag', lag }); return; }
+    if (!chat) { lag -= 1; broadcast({ type: 'lag', lag }); try { store.markFilingFailed(params.turnId, 'the view for this exchange is gone', null, true); } catch {} return; }
     const roundPid = chat.projectId; // M88: rounds file into THEIR map
+    // M342 idempotency: a replay whose turn already has a round (the original landed after all) is done, not redone.
+    const prior = store.roundForTurn(params.turnId);
+    if (params.retry && prior) { lag -= 1; broadcast({ type: 'lag', lag }); store.markFilingSucceeded(params.turnId, prior.id); store.audit('filing_retry_skipped', { turn: params.turnId.slice(0, 8), why: 'already filed' }); return; }
+    if (params.retry) { try { store.upsertFilingPending({ turnId: params.turnId, chatId: params.chatId, userText: params.userText, assistantText: params.assistantText, provenance: params.provenance ?? null }); } catch {} }
+    filingInFlight = params.turnId;
     let out: Awaited<ReturnType<typeof translator.translateRound>> = null as any;
+    let errText = '';
     try {
       out = await translator.translateRound({
         projectId: roundPid, chatId: params.chatId, turnId: params.turnId,
         focusContainerId: chat.focusContainerId,
         userText: params.userText, assistantText: params.assistantText,
       });
-    } catch (err) { store.audit('round_error', { error: String(err).slice(0, 200) }); out = null as any; } // M270: one failed round never poisons the chain
+      if (!out) errText = translator.lastError ?? 'the filer returned nothing';
+    } catch (err) { errText = String(err).slice(0, 300); store.audit('round_error', { error: errText.slice(0, 200) }); out = null as any; } // M270: one failed round never poisons the chain
+    filingInFlight = null;
     lag -= 1;
     broadcast({ type: 'lag', lag });
+    if (out) {
+      try { store.markFilingSucceeded(params.turnId, out.roundId); } catch {}
+      if (params.retry) { store.audit('filing_retry_succeeded', { turn: params.turnId.slice(0, 8), alterations: out.result.alterations.length }); chats.noteMapChange(params.chatId, `an earlier exchange that had failed to file has now been filed (${out.result.alterations.length} change(s))`); }
+    } else {
+      try {
+        const f = store.getFiling(params.turnId); const attempts = (f?.attempts ?? 0) + 1; const abandon = attempts >= FILING_MAX_ATTEMPTS;
+        store.markFilingFailed(params.turnId, errText, abandon ? null : sqlNow(filingBackoff(attempts - 1)), abandon);
+        store.audit(abandon ? 'filing_abandoned' : 'filing_failed', { turn: params.turnId.slice(0, 8), attempts, error: errText.slice(0, 160) });
+        broadcast({ type: 'filings', ...filingSummary() });
+      } catch (err) { store.audit('filing_ledger_error', { error: String(err).slice(0, 200) }); }
+    }
     if (out) {
       store.metric(roundPid, 'chat.tokens', Math.ceil((params.userText.length + params.assistantText.length) / 4));
       store.metric(roundPid, 'round.filed', out.result.alterations.length);
@@ -1509,6 +1538,39 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
   }).catch((err) => { store.audit('round_chain_error', { error: String(err).slice(0, 200) }); }); // M270: the chain never stays rejected
 }
 
+// M342: what the page and the API see of the ledger.
+function filingSummary() {
+  const rows = store.listFilings(['pending', 'failed', 'abandoned'], 50);
+  return {
+    pending: rows.filter((r) => r.status === 'pending').length,
+    failed: rows.filter((r) => r.status === 'failed').length,
+    abandoned: rows.filter((r) => r.status === 'abandoned').length,
+    items: rows.map((r) => ({ turnId: r.turnId, chatId: r.chatId, status: r.status, attempts: r.attempts, error: r.lastError, nextRetryAt: r.nextRetryAt, createdAt: r.createdAt, userHead: r.userText.slice(0, 80), inFlight: filingInFlight === r.turnId })),
+  };
+}
+// M342: the retry worker — one replay at a time, never while live rounds are queued, oldest due row first.
+function retryDueFilings(force?: string) {
+  if (lag > 0 && !force) return;
+  const due = force ? [store.getFiling(force)].filter((f): f is NonNullable<typeof f> => !!f && (f.status === 'failed' || f.status === 'abandoned')) : store.dueFilings(sqlNow(), 1);
+  for (const f of due) {
+    if (!store.getChat(f.chatId)) { store.markFilingFailed(f.turnId, 'the view for this exchange is gone', null, true); continue; }
+    store.audit('filing_retry', { turn: f.turnId.slice(0, 8), attempt: f.attempts + 1, forced: !!force });
+    enqueueTranslation({ chatId: f.chatId, turnId: f.turnId, userText: f.userText, assistantText: f.assistantText, provenance: f.provenance ?? undefined, retry: true });
+  }
+}
+const FILING_RETRY_TICK_MS = (() => { const e = Number(process.env.HARNESSMAP_FILING_RETRY_MS); return Number.isFinite(e) && e > 0 ? e : 30_000; })();
+setInterval(() => { try { retryDueFilings(); } catch (err) { store.audit('filing_worker_error', { error: String(err).slice(0, 200) }); } }, FILING_RETRY_TICK_MS);
+// Boot: rows a restart interrupted become failed and due; exchanges from before the ledger that never got a round are recovered
+// from the stored turns (M342 backfill: last 14 days, at most 50, live views only) — they replay one at a time through the worker.
+setTimeout(() => {
+  try {
+    const interrupted = store.failInterruptedFilings();
+    const recovered = store.backfillMissingFilings(14, 50);
+    if (interrupted || recovered) { store.audit('filing_boot_recovery', { interrupted, recovered }); broadcast({ type: 'filings', ...filingSummary() }); }
+    retryDueFilings();
+  } catch (err) { store.audit('filing_boot_error', { error: String(err).slice(0, 200) }); }
+}, 8_000);
+
 // M48: focus can be orphaned by any removal path (tidy-apply had no rescue,
 // unlike the delete endpoint). Validate cheaply on every state build: a dead
 // focus falls back to the first live top-level node.
@@ -1598,6 +1660,7 @@ function state() {
     auto: autoSettings(projectId), // M263
     update: updateInfo(), // M265
     undoNext: store.listUndo(projectId, 1)[0]?.label ?? null, // M263b: the button says what it would take back
+    filings: filingSummary(), // M342: exchanges not yet on the map
     updateAvailable: updateAvailable(),
     feedbackEmail: process.env.HARNESSMAP_FEEDBACK_EMAIL ?? 'yuhinc@sas.upenn.edu',
     version: VERSION,
@@ -2900,6 +2963,23 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     }
     if (path === '/api/undo/list' && req.method === 'GET') {
       return json({ entries: store.listUndo(projectId) });
+    }
+    // M342: the filing ledger — what has not reached the map yet, and a retry-now button.
+    if (path === '/api/filings' && req.method === 'GET') return json(filingSummary());
+    const filingRetry = path.match(/^\/api\/filings\/([\w-]+)\/retry$/);
+    if (filingRetry && req.method === 'POST') {
+      const f = store.getFiling(filingRetry[1]);
+      if (!f) return json({ error: 'unknown filing' }, 404);
+      if (f.status === 'succeeded') return json({ ok: true, already: true });
+      if (f.status === 'pending') return json({ ok: true, inFlight: true });
+      store.requeueFiling(f.turnId, f.status === 'abandoned');
+      retryDueFilings(f.turnId);
+      return json({ ok: true, ...filingSummary() });
+    }
+    if (path === '/api/filings/retry-all' && req.method === 'POST') {
+      for (const f of store.listFilings(['failed', 'abandoned'], 50)) store.requeueFiling(f.turnId, true);
+      retryDueFilings(); // one at a time from here; the worker takes the rest
+      return json({ ok: true, ...filingSummary() });
     }
 
     // M263: auto mode — per map; the checkboxes are the person's, the guards are not.
