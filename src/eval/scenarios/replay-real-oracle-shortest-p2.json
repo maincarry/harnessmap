@@ -1,0 +1,55 @@
+{
+ "name": "replay (real, WildChat 33156, 6 of 6, English): a student's Oracle SQL coursework — 'select the worker who worked the shortest per team — is my query right?', the assistant says no, the user pushes back ('you just contradicted yourself — hired last IS shortest, and I know what the result should look like'), 'a different way to write it?', 'a way with a subquery?', then a drift: 'my teacher dismissed my solution even though it returned the right answer — why?' and 'this teacher is described as a bad, picky one'; the map should hold the query as one topic with the user's correction standing over the assistant's first verdict, the two rewrites as facts under it, the teacher question as its own topic, no narration — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Oracle SQL coursework"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "how about a way which uses a subquery?",
+   "assistant": "Yes, here is another way to rewrite the query using a subquery:\n\n```\nSELECT p.nazwisko, p.zatrudniony, p.id_zesp\nFROM pracownicy p\nWHERE p.zatrudniony = (\n  SELECT MIN(zatrudniony)\n  FROM pracownicy\n  WHERE id_zesp = p.id_zesp\n)\nORDER BY p.id_zesp;\n```\n\nThis query uses a subquery to find the minimum hiring date for every team. The outer query then selects the worker who was hired on that date for every team, hence selecting the worker who worked the shortest for every team.\n\nAgain, this query should give the same result as the previous queries, and it's up to personal preference and performance considerations which one to use.",
+   "then": [
+    {
+     "nodeMatching": "subquery|MIN\\(|WHERE"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    }
+   ]
+  },
+  {
+   "user": "my teacher did not contact  me. do you have any idea what might cause him to dismiss my solution, even though it returned a correct answer?",
+   "assistant": "It's difficult to say for sure why your teacher dismissed your solution without more information. Here are a few possible reasons:\n\n1. The teacher might have specific requirements or restrictions that your query did not meet, even though it returned a correct answer.\n\n2. The teacher might want you to demonstrate a particular technique or approach that your query did not use, even though it achieved the correct result.\n\n3. The teacher might have made an error or oversight when grading your query, and it might be worth reaching out to them for clarification and feedback.\n\nIt's important to remember that teachers are human and can make mistakes, and that grading is a subjective process. It's always a good idea to seek feedback and clarification from your teacher on how you can improve your queries and techniques.",
+   "then": [
+    {
+     "nodeMatching": "teacher|dismiss|grading|requirement"
+    },
+    {
+     "countUnder": "proj",
+     "max": 17
+    }
+   ]
+  },
+  {
+   "user": "it's also worth noting that this particular teacher was apparently described as a very bad one, who has no talent for teaching and being extremely picky",
+   "assistant": "I'm sorry to hear that your teacher has a reputation for being a bad one. It's unfortunate when students are not able to receive the support and guidance they need to learn and improve. \n\nIf you believe that your teacher is being extremely picky or irrational in their grading, it might be worth speaking to another teacher or academic advisor for a second opinion, or to discuss any concerns you have about the grading process. \n\nIn the meantime, it's important to stay focused on your learning goals and to continue practicing and improving your skills, regardless of any obstacles or setbacks. Keep asking questions, seeking feedback, and working hard, and you'll be sure to make progress.",
+   "then": [
+    {
+     "nodeMatching": "teacher|picky|bad|reputation"
+    },
+    {
+     "countUnder": "proj",
+     "max": 19
+    }
+   ]
+  }
+ ]
+}
