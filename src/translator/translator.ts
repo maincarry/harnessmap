@@ -443,7 +443,8 @@ export class Translator {
       // M348 (codex-native maths replay): "Distinct graph labels ⟂" — the codex filer leaves stray symbols at the end of titles (⟂, ─, a lone
       // dash or colon). Trailing symbols and dangling punctuation go; a closing ")" "]" quote, "?" or "!" stays, as does any letter or digit.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
-        const t = anyA.title.replace(/(?:\s+|[\p{S}\p{Pd}\p{Pc}:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '').replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ???" — a run of ?/! is noise; a single "?" is a question
+        const t0 = anyA.title.replace(/(?:\s+|[\p{S}\p{Pd}\p{Pc}:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '').replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ???" — a run of ?/! is noise; a single "?" is a question
+        const t = t0.split(/\s+/).length >= 3 ? t0.replace(/\s+(?:of|for|to|and|or|with|in|on|by|the|a|an|at|from)$/i, '').trim() : t0; // M348c: "Face classification task of" — a dangling preposition after a stripped tail goes too ("Log in" stays: two words)
         if (t !== anyA.title && t.length >= 3) { this.store.audit('guard_title_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-12) }); anyA.title = t; }
       }
       // M327c (codex-native replays): the codex filer ends TITLES with a period; a title is a name.
