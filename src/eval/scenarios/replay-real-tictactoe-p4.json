@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 37675, 16 of 16, English): a game session — 'can we play tic tac toe', 'text-based?', 'no, I already know the rules', 'I want to be X', then moves (5, 8, 2), 'I won!', 'positions 2, 5 and 8', 'again on a 3x4 board?', moves (6, 7, 8 and win), 'connect four instead?', 'I'm blue, you're red', 'column 4'; the map should hold each game as ONE item whose state UPDATES with the moves (never one node per move), the wins as facts, the rule choices (X, blue) as decisions, connect four as a sibling game, no narration — piece 4",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Games with the assistant"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "I'll place my X in position 8 and win the game with X's in positions 6,7 and 8.",
+   "assistant": "Great win! Here's the final board:\n\n   O | 2 | 3 | 4\n  ---|---|---|---\n   5 | X | X | X\n  ---|---|---|---\n   9 |10| O |12\n\nWell done! You managed to get a horizontal row of Xs and won the game. Do you want to play again?",
+   "then": [
+    {
+     "nodeMatching": "position 8|won|6, ?7|win"
+    },
+    {
+     "countUnder": "proj",
+     "max": 19
+    }
+   ]
+  },
+  {
+   "user": "Can we play connect four instead?",
+   "assistant": "Sure, let's play Connect Four! Here's the empty Connect Four board:\n\n  | 1 | 2 | 3 | 4 | 5 | 6 | 7 |\n  ---|---|---|---|---|---|---|\n  1 |   |   |   |   |   |   |   |\n  2 |   |   |   |   |   |   |   |\n  3 |   |   |   |   |   |   |   |\n  4 |   |   |   |   |   |   |   |\n  5 |   |   |   |   |   |   |   |\n  6 |   |   |   |   |   |   |   |\n\nDo you want to go first? And which color would you like, red or yellow?",
+   "then": [
+    {
+     "nodeMatching": "Connect Four|connect four|Connect 4"
+    },
+    {
+     "countUnder": "proj",
+     "max": 21
+    }
+   ]
+  },
+  {
+   "user": "How about I'm Blue and you are red?",
+   "assistant": "Sure thing! You will be blue and I'll be red. You can make the first move by choosing a column where you want to place your blue disc. Each player takes turns dropping a colored disc from the top of the seven-column, six-row game board. The pieces fall straight down, occupying the next available space within the column. The objective of the game is to connect four of your own discs of the same color vertically, horizontally, or diagonally in a line. So, which column would you like to drop your first blue disc?",
+   "then": [
+    {
+     "nodeMatching": "blue|Blue|red|Red"
+    },
+    {
+     "countUnder": "proj",
+     "max": 22
+    }
+   ]
+  },
+  {
+   "user": "Column 4",
+   "assistant": "Great choice! Here's the updated board:\n\n  | 1 | 2 | 3 | 4 | 5 | 6 | 7 |\n  ---|---|---|---|---|---|---|\n  1 |   |   |   |   |   |   |   |\n  2 |   |   |   |   |   |   |   |\n  3 |   |   |   |   |   |   |   |\n  4 |   |   |   |   |   |   |   |\n  5 |   |   |   |   |   |   |   |\n  6 |   |   |   | B |   |   |   |\n\nIt's my turn now. I'll drop a red disc in the middle column, column 4.\n\n  | 1 | 2 | 3 | 4 | 5 | 6 | 7 |\n  ---|---|---|---|---|---|---|\n  1 |   |   |   |   |   |   |   |\n  2 |   |   |   |   |   |   |   |\n  3 |   |   |   |   |   |   |   |\n  4 |   |   |   |   |   |   |   |\n  5 |   |   |   |   |   |   |   |\n  6 |   |   |   | B |   |   | R |\n\nYour turn again!",
+   "then": [
+    {
+     "nodeMatching": "column 4|Column 4|column"
+    },
+    {
+     "countUnder": "proj",
+     "max": 23
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 37675, 16 of 16, English): a game session — 'can we play tic tac toe', 'text-based?', 'no, I already know the rules', 'I want to be X', then moves (5, 8, 2), 'I won!', 'positions 2, 5 and 8', 'again on a 3x4 board?', moves (6, 7, 8 and win), 'connect four instead?', 'I'm blue, you're red', 'column 4'; the map should hold each game as ONE item whose state UPDATES with the moves (never one node per move), the wins as facts, the rule choices (X, blue) as decisions, connect four as a sibling game, no narration — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Games with the assistant"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "OK, I'll place my X in position 5",
+   "assistant": "Alright, you placed your X in position 5. Here's the updated board:\n\n   1 | 2 | 3  \n  ---|---|---\n   4 | X | 6  \n  ---|---|---\n   7 | 8 | 9  \n\nNow it's my turn. I'll place my O in position 1. \n\n   O | 2 | 3  \n  ---|---|---\n   4 | X | 6  \n  ---|---|---\n   7 | 8 | 9  \n\nYour turn!",
+   "then": [
+    {
+     "nodeMatching": "position 5|5|center|board"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    }
+   ]
+  },
+  {
+   "user": "I'll do position 8 for my X.",
+   "assistant": "Great! Here's the updated board after your move:\n\n   O | 2 | 3  \n  ---|---|---\n   4 | X | 6  \n  ---|---|---\n   7 | X | 9  \n\nIt's my turn now, and I'll place my O in position 3.\n\n   O | 2 | O  \n  ---|---|---\n   4 | X | 6  \n  ---|---|---\n   7 | X | 9  \n\nNow it's your turn!",
+   "then": [
+    {
+     "nodeMatching": "position 8|8|board"
+    },
+    {
+     "countUnder": "proj",
+     "max": 11
+    }
+   ]
+  },
+  {
+   "user": "I'll go position 2.",
+   "assistant": "Good move! Here's the updated board:\n\n   O | X | O  \n  ---|---|---\n   4 | X | 6  \n  ---|---|---\n   7 | X | 9  \n\nIt's my turn now, and I'll place my O in position 4.\n\n   O | X | O  \n  ---|---|---\n   O | X | 6  \n  ---|---|---\n   7 | X | 9  \n\nIt's your turn again!",
+   "then": [
+    {
+     "nodeMatching": "position 2|2|board"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  },
+  {
+   "user": "I won!",
+   "assistant": "Congratulations on winning the game! Can you please mention which positions you chose to make a row of three Xs?",
+   "then": [
+    {
+     "nodeMatching": "won|win|winner|2, ?5,? and 8"
+    },
+    {
+     "countUnder": "proj",
+     "max": 13
+    }
+   ]
+  }
+ ]
+}

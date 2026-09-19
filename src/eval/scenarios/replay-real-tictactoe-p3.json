@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 37675, 16 of 16, English): a game session — 'can we play tic tac toe', 'text-based?', 'no, I already know the rules', 'I want to be X', then moves (5, 8, 2), 'I won!', 'positions 2, 5 and 8', 'again on a 3x4 board?', moves (6, 7, 8 and win), 'connect four instead?', 'I'm blue, you're red', 'column 4'; the map should hold each game as ONE item whose state UPDATES with the moves (never one node per move), the wins as facts, the rule choices (X, blue) as decisions, connect four as a sibling game, no narration — piece 3",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Games with the assistant"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Positions 2,5, and 8.",
+   "assistant": "Great job! You managed to get a vertical row of Xs and win the game. Well played!",
+   "then": [
+    {
+     "nodeMatching": "2, ?5|won|winning|positions"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    }
+   ]
+  },
+  {
+   "user": "Can we play it again on a 3x4 board?",
+   "assistant": "Certainly, let's play tic tac toe on a 3x4 board. Here's the updated empty game board:\n\n   1 | 2 | 3 | 4\n  ---|---|---|---\n   5 | 6 | 7 | 8\n  ---|---|---|---\n   9 |10|11|12\n\nAs before, would you like to be X or O? And who would like to make the first move?",
+   "then": [
+    {
+     "nodeMatching": "3x4|3 x 4|board|again"
+    },
+    {
+     "countUnder": "proj",
+     "max": 16
+    }
+   ]
+  },
+  {
+   "user": "I'll place X in position 6",
+   "assistant": "Alright, you placed your X in position 6. Here's the updated board:\n\n   1 | 2 | 3 | 4\n  ---|---|---|---\n   5 | X | 7 | 8\n  ---|---|---|---\n   9 |10|11|12\n\nNow, it's my turn. I'll place my O in position 1.\n\n   O | 2 | 3 | 4\n  ---|---|---|---\n   5 | X | 7 | 8\n  ---|---|---|---\n   9 |10|11|12\n\nYour turn again!",
+   "then": [
+    {
+     "nodeMatching": "position 6|6|board"
+    },
+    {
+     "countUnder": "proj",
+     "max": 17
+    }
+   ]
+  },
+  {
+   "user": "I'll place my X in position 7",
+   "assistant": "Great move! Here's the updated board:\n\n   O | 2 | 3 | 4\n  ---|---|---|---\n   5 | X | X | 8\n  ---|---|---|---\n   9 |10|11|12\n\nIt's my turn now. I'll place my O in position 11.\n\n   O | 2 | 3 | 4\n  ---|---|---|---\n   5 | X | X | 8\n  ---|---|---|---\n   9 |10| O |12\n\nYour turn again!",
+   "then": [
+    {
+     "nodeMatching": "position 7|7|board"
+    },
+    {
+     "countUnder": "proj",
+     "max": 18
+    }
+   ]
+  }
+ ]
+}
