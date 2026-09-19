@@ -150,6 +150,13 @@ export const SCHEMA = {
   additionalProperties: false,
 };
 
+// M343: letter scripts a filer title may carry only when the statement or the person's words carry them too (Latin excluded).
+const SCRIPTS: Array<[string, RegExp]> = [
+  ['thai', /\p{Script=Thai}/u], ['cyrillic', /\p{Script=Cyrillic}/u], ['greek', /\p{Script=Greek}/u], ['arabic', /\p{Script=Arabic}/u],
+  ['hebrew', /\p{Script=Hebrew}/u], ['hangul', /\p{Script=Hangul}/u], ['hiragana', /\p{Script=Hiragana}/u], ['katakana', /\p{Script=Katakana}/u],
+  ['han', /\p{Script=Han}/u], ['devanagari', /\p{Script=Devanagari}/u], ['bengali', /\p{Script=Bengali}/u], ['tamil', /\p{Script=Tamil}/u],
+  ['georgian', /\p{Script=Georgian}/u], ['armenian', /\p{Script=Armenian}/u], ['ethiopic', /\p{Script=Ethiopic}/u], ['khmer', /\p{Script=Khmer}/u],
+];
 const STOP = new Set(['this','that','with','from','into','have','been','were','they','them','their','than','then','will','would','should','could','about','after','before','along','also','only','some','such','very','more','most','goes','need','needs','still','over','under','when','where','which','while','what','your','there','these','those','does','done','just','like','make','made','much','many','each','both','same','other','every','next','last','first'])
 
 export class Translator {
@@ -419,6 +426,14 @@ export class Translator {
       if (a.op === 'update_node' && anyA.title !== undefined && anyA.id && this.store.getSetting(`titleBy:${anyA.id}`) === 'user') { delete anyA.title; this.store.audit('guard_hand_title', { id: String(anyA.id).slice(0, 8) }); }
       // M327c (codex-native replays): the codex filer ends TITLES with a period; a title is a name.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[.。]+$/.test(anyA.title)) anyA.title = anyA.title.replace(/[.。]+$/, '');
+      // M343 (codex-native pyomo replay): the codex filer wrote "exception type errorอบué?" over an English statement — stray
+      // letters of a script (Thai here) that appear in neither the statement nor the person's words are a decoding slip, not a
+      // name. Such a title is blanked for the healer. Latin is never judged here (the map's title language is a design question).
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && anyA.title) {
+        const seen = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`;
+        const stray = SCRIPTS.filter(([, re]) => re.test(anyA.title) && !re.test(seen)).map(([name]) => name);
+        if (stray.length) { this.store.audit('guard_title_script', { id: String(anyA.id ?? '').slice(0, 8), title: anyA.title.slice(0, 40), stray }); anyA.title = ''; }
+      }
       // M330 (perturbed imnodes replay): the filer wrote the status into the statement — "RETRACTED — The original evidence…".
       // The status is a field; a leading label in the text is meta. The label goes; if the op carries no status, the label becomes it.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string') {

@@ -1353,18 +1353,20 @@ const FILING_MAX_ATTEMPTS = 5;
 const filingBackoff = (attemptsSoFar: number) => FILING_BACKOFF_MS * [1, 3, 10, 30, 60][Math.min(attemptsSoFar, 4)]; // 1, 3, 10, 30, 60 minutes by default
 const sqlNow = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString().slice(0, 19).replace('T', ' ');
 let filingInFlight: string | null = null;
+const enqueuedHere = new Set<string>(); // M342f: turns this process has queued or in flight — the boot recovery leaves these alone
 function enqueueTranslation(params: { chatId: string; turnId: string; userText: string; assistantText: string; provenance?: { sessionId: string | null; slice: RoundSlice }; retry?: boolean }) {
   lag += 1;
   broadcast({ type: 'lag', lag });
+  enqueuedHere.add(params.turnId);
   if (!params.retry) { try { store.upsertFilingPending({ turnId: params.turnId, chatId: params.chatId, userText: params.userText, assistantText: params.assistantText, provenance: params.provenance ?? null }); } catch (err) { store.audit('filing_ledger_error', { error: String(err).slice(0, 200) }); } }
   translationChain = translationChain.then(async () => {
     const chat = store.getChat(params.chatId);
     // M270: a round whose view is gone still counts DOWN (it counted up on enqueue) — the counter leaked otherwise.
-    if (!chat) { lag -= 1; broadcast({ type: 'lag', lag }); try { store.markFilingFailed(params.turnId, 'the view for this exchange is gone', null, true); } catch {} return; }
+    if (!chat) { lag -= 1; enqueuedHere.delete(params.turnId); broadcast({ type: 'lag', lag }); try { store.markFilingFailed(params.turnId, 'the view for this exchange is gone', null, true); } catch {} return; }
     const roundPid = chat.projectId; // M88: rounds file into THEIR map
     // M342 idempotency: a replay whose turn already has a round (the original landed after all) is done, not redone.
     const prior = store.roundForTurn(params.turnId);
-    if (params.retry && prior) { lag -= 1; broadcast({ type: 'lag', lag }); store.markFilingSucceeded(params.turnId, prior.id); store.audit('filing_retry_skipped', { turn: params.turnId.slice(0, 8), why: 'already filed' }); return; }
+    if (params.retry && prior) { lag -= 1; enqueuedHere.delete(params.turnId); broadcast({ type: 'lag', lag }); store.markFilingSucceeded(params.turnId, prior.id); store.audit('filing_retry_skipped', { turn: params.turnId.slice(0, 8), why: 'already filed' }); return; }
     if (params.retry) { try { store.upsertFilingPending({ turnId: params.turnId, chatId: params.chatId, userText: params.userText, assistantText: params.assistantText, provenance: params.provenance ?? null }); } catch {} }
     filingInFlight = params.turnId;
     let out: Awaited<ReturnType<typeof translator.translateRound>> = null as any;
@@ -1378,6 +1380,7 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
       if (!out) errText = translator.lastError ?? 'the filer returned nothing';
     } catch (err) { errText = String(err).slice(0, 300); store.audit('round_error', { error: errText.slice(0, 200) }); out = null as any; } // M270: one failed round never poisons the chain
     filingInFlight = null;
+    enqueuedHere.delete(params.turnId);
     lag -= 1;
     broadcast({ type: 'lag', lag });
     if (out) {
@@ -1562,10 +1565,9 @@ const FILING_RETRY_TICK_MS = (() => { const e = Number(process.env.HARNESSMAP_FI
 setInterval(() => { try { retryDueFilings(); } catch (err) { store.audit('filing_worker_error', { error: String(err).slice(0, 200) }); } }, FILING_RETRY_TICK_MS);
 // Boot: rows a restart interrupted become failed and due; exchanges from before the ledger that never got a round are recovered
 // from the stored turns (M342 backfill: last 14 days, at most 50, live views only) — they replay one at a time through the worker.
-const bootedAt = sqlNow();
 setTimeout(() => {
   try {
-    const interrupted = store.failInterruptedFilings(bootedAt);
+    const interrupted = store.failInterruptedFilings([...enqueuedHere]);
     const recovered = store.backfillMissingFilings(14, 50);
     if (interrupted || recovered) { store.audit('filing_boot_recovery', { interrupted, recovered }); broadcast({ type: 'filings', ...filingSummary() }); }
     retryDueFilings();

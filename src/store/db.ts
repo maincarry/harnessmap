@@ -333,8 +333,9 @@ export class Store {
     this.db.prepare(`UPDATE filings SET status = 'failed', next_retry_at = datetime('now'), attempts = CASE WHEN ? THEN 0 ELSE attempts END, updated_at = datetime('now') WHERE turn_id = ? AND status IN ('failed', 'abandoned')`).run(resetAttempts ? 1 : 0, turnId);
   }
   /** A restart interrupted these: pending rows become failed, due now. */
-  failInterruptedFilings(bootedAt: string): number { // only rows that were pending BEFORE this boot — a round enqueued in the first seconds is in flight, not interrupted
-    return this.db.prepare("UPDATE filings SET status = 'failed', last_error = 'interrupted by a server restart', next_retry_at = datetime('now'), updated_at = datetime('now') WHERE status = 'pending' AND updated_at < ?").run(bootedAt).changes;
+  failInterruptedFilings(exceptTurnIds: string[]): number { // M342f: pending rows this process did not enqueue — a clock rule missed a row when kill and reboot fell in one second
+    const ph = exceptTurnIds.map(() => '?').join(',');
+    return this.db.prepare(`UPDATE filings SET status = 'failed', last_error = 'interrupted by a server restart', next_retry_at = datetime('now'), updated_at = datetime('now') WHERE status = 'pending'${ph ? ` AND turn_id NOT IN (${ph})` : ''}`).run(...exceptTurnIds).changes;
   }
   roundForTurn(turnId: string): { id: string } | undefined { return this.db.prepare('SELECT id FROM rounds WHERE turn_id = ? ORDER BY created_at DESC LIMIT 1').get(turnId) as any; }
   /** M342 backfill: user turns (with an assistant turn after them) that never got a round and have no ledger row — the
