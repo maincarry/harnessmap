@@ -1,0 +1,55 @@
+{
+ "name": "replay (real, WildChat 35463, 11 of 11, Chinese): a Python developer — 'time.clock() errors on 3.8.2', 'time.time vs time.clock', 'was clock really deprecated in 3.3? I can still use it in 3.6' (a pushback the assistant must reconcile: deprecated 3.3, removed 3.8), 'process_time vs perf_counter', then drifts: zip only certain files, 'files with a specific name', 'why are files not at the zip root', 'I did not use arcname yet they are not at the root' (a report), a Visual Studio linker error about compiler versions, 'how to check compiler and linker versions', 'what does Py_NO_ENABLE_SHARED do'; the map should hold time.clock as one topic with the deprecated/removed timeline reconciled with the user's 3.6 observation, zip as a sibling topic with the user's report standing, VS/Py_NO_ENABLE_SHARED as separate topics, in Chinese, no narration — piece 3",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Python 工具脚本"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "vs运行时报错：对象或库文件是使用与其他对象不同的编译器版本创建的",
+   "assistant": "当在 Visual Studio 中编译某个项目时，有可能会使用不同版本的编译器或链接器来编译或链接不同的源代码文件或库文件，这可能会导致在运行时出现“对象或库文件是使用与其他对象不同的编译器版本创建的”错误。\n\n如果你遇到了这个错误，可以尝试以下几种解决方案：\n\n1. 确认你使用的是相同版本的编译器和链接器\n\n这是最常见的原因。如果你使用了不同版本的编译器或链接器来编译和链接项目的不同部分，就会导致在运行时出现此错误。确保在编译器和链接器的选项中使用了相同的版本。\n\n2. 使用相同的运行时库\n\n另一个可能导致此错误的原因是运行时库的不同版本。如果你在编译项目的不同部分时使用了不同版本的运行时库，就会导致此错误。确保在编译器和链接器的选项中使用了相同的运行时库版本。\n\n3. 清理缓存\n\n通过清理项目和解决方案的缓存，可以尝试解决此错误。方法是在 Visual Studio 中选择“生成”菜单，然后选择“重新生成解决方案”或“清理解决方案”。\n\n4. 重新安装编译器\n\n如果你使用的是 Visual Studio 提供的编译器和链接器，则可以尝试重新安装它们。这可能会清除任何版本不兼容的问题。首先从“控制面板”中卸载原始编译器及其相关组件，然后下载并安装最新版本的编译器和链接器。\n\n总之，为了避免类似的错误，应该在编译项目过程中使用相同的编译器、链接器和运行时库，并定期清理项目和解决方案的缓存。",
+   "then": [
+    {
+     "nodeMatching": "编译器|链接器|版本|Visual Studio|VS|LNK"
+    },
+    {
+     "countUnder": "proj",
+     "max": 21
+    }
+   ]
+  },
+  {
+   "user": "怎么确认使用的编译器和链接器版本",
+   "assistant": "在 Visual Studio 中，可以通过以下步骤来确认使用的编译器和链接器版本：\n\n1. 打开项目的属性页面：在“解决方案资源管理器”中，右键单击项目，然后选择“属性”选项。\n\n2. 选择“配置属性 -> C/C++ -> 命令行”页面：在这个页面中，你可以查看编译器和编译选项。编译器的完整路径在“命令行”文本框中，一般情况下默认情况下这个文本框中会以“cl.exe”开头，例如：\n\n   ```\n   /DWIN32 /D_WINDOWS /W3 /GR /EHsc /Zc:__cplusplus /Fo\"Debug\\\\\" /Fd\"Debug\\vc142.pdb\" /FS /RTC1 /c\n   /Zi /TP /errorReport:prompt\n   \"D:\\path\\to\\file.cpp\"\n   ```\n\n3. 选择“配置属性 -> 链接器 -> 命令行”页面：在这个页面中，你可以查看链接器和链接选项。链接器的完整路径在“命令行”文本框中，一般情况下默认情况下这个文本框中会以“link.exe”开头，例如：\n\n   ```\n   /OUT:\"D:\\path\\to\\project\\Debug\\project.exe\" /INCREMENTAL /NOLOGO /LIBPATH:\"D:\\path\\to\\libs\" /LIBPATH:\"D:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Tools\\MSVC\\14.29.30037\\lib\\x86\" /DEBUG /DLL /MANIFEST /MANIFESTUAC:\"level='asInvoker' uiAccess='false'\" /PDB:\"D:\\path\\to\\project\\Debug\\project.pdb\" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:\"D:\\path\\to\\project\\Debug\\project.lib\" /MACHINE:X86 /ERRORREPORT:PROMPT kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib\n   ```\n\n通过查看编译器、链接器的完整路径，你可以确认所使用编译器和链接器的版本。在上面的示例中，可以看到使用的是 MSVC 2019 的版本号为 14.29.30037 的编译器和链接器。\n\n总之，通过查看项目的属性页面，你可以找到所使用的编译器和链接器的版本信息。如果遇到版本不兼容的问题，就可以进行调整。",
+   "then": [
+    {
+     "nodeMatching": "cl\\.exe|link\\.exe|版本|编译器|链接器"
+    },
+    {
+     "countUnder": "proj",
+     "max": 23
+    }
+   ]
+  },
+  {
+   "user": "python 的Py_NO_ENABLE_SHARED的作用是什么",
+   "assistant": "`Py_NO_ENABLE_SHARED` 是 Python 解释器编译时的一个编译选项，用于控制解释器是否启用共享库（shared library）的支持。\n\n共享库是一种类库，可以在多个应用程序之间共享使用",
+   "then": [
+    {
+     "nodeMatching": "Py_NO_ENABLE_SHARED|静态|共享库|pythonXY"
+    },
+    {
+     "countUnder": "proj",
+     "max": 25
+    }
+   ]
+  }
+ ]
+}
