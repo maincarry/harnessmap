@@ -1,0 +1,56 @@
+{
+ "name": "replay (real, WildChat 28164, 12 of 12, Chinese): a developer's drifting Q&A — Flutter vs uniapp and WeChat mini-programs, Flutter's efficiency, 'is Flutter JS?', then 'Vue or React for an ERP-like admin system', '你帮我选一个' (pick one for me), 'considering future updates', then C# video-learning sites, 'high quality — what do most programmers choose', 'highest rated', 'Pluralsight has no subtitles and my English is poor', 'can I download the audio', and the subtitles question asked again; the map should hold three topics (Flutter, the Vue/React choice with the ERP context as its constraint, C# learning resources with the subtitles constraint), the repeated question adding nothing, in Chinese, no narration — piece 3",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "技术选型与学习资源"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "网友评价最高的的",
+   "assistant": "很难说哪个网站是最好的，因为每个人需要的学习资源不同且主观因素很强。不过，我可以提供一些在 C# 学习方面，网友评价非常高的网站：\n\n1. Pluralsight：网络上评价很好，拥有大量的 C# 视频教程，且课程深度和难度较大。\n\n2. Udemy：众多带有五星评价的 C# 学习课程，涵盖了多个难度和概念层次，受到许多C# 学习者的好评。\n\n3. Coursera：许多高质量的 C# 课程来自世界知名大学授课，有着更加严谨、结构化、深入的教学方式，广受好评。\n\n4. Microsoft Virtual Academy：微软官方的完全免费的学习平台，提供了大量与 C# 相关的知识、实例和资源，广受C# 开发者欢迎。\n\n5. edX：与Coursera类似的在线学习平台，拥有来自世界著名大学和学院的课程，提供了较高质量、面向深度的C#和 .NET平台课程。\n\n以上这几个网站都能由不同角度满足C#学习者的需求，无论你是初学者或高级开发者，都能找到自己需要的资源。不同的学习者需要不同的学习资源，建议您选择适合自己需求的平台进行学习。",
+   "then": [
+    {
+     "nodeMatching": "评价|Pluralsight"
+    }
+   ]
+  },
+  {
+   "user": "Pluralsight没有字幕 我英文不好怎么班",
+   "assistant": "如果你的英文能力不太好，可以考虑使用一些拥有中文字幕或者提供翻译服务的网站。以下是一些可以帮助你学习 C# 且拥有英文字幕或中文字幕的网站：\n\n1. Lynda: 提供了全球最为丰富的 C# 资源中英文双语教程，有中文字幕且翻译质量较高。\n\n2. Codecademy: 适合初学者学习 C# 语言基础，拥有中文界面和翻译。\n\n3. Udemy: 许多 C# 学习课程拥有英文字幕和中文字幕，且翻译质量较高。\n\n4. Coursera: 提供了世界知名大学授课的 C# 课程，可以选择使用英文字幕和中文字幕，同时支持翻译和字幕。\n\n5. edX:提供英文字幕和中文字幕的 C#和.NET 相关课程，同时支持翻译和字幕。\n\n使用支持翻译和字幕功能的学习资源可以帮助你更好地理解和掌握 C# 开发相关知识，同时也可以提高你的英语能力水平。因此，建议您选择能够支持翻译和字幕功能的网站，从而获得更好的学习体验。",
+   "then": [
+    {
+     "nodeMatching": "字幕|英文|英语"
+    }
+   ]
+  },
+  {
+   "user": "是否可以把Pluralsight的音频下载下来",
+   "assistant": "在Pluralsight官方网站上，通常情况下是不允许下载视频和音频的，这是由于版权原因以及保障知识产权的考虑。但是，Pluralsight官方提供了离线学习的功能，只要你是付费会员并且安装了官方的应用程序，就可以将课程下载下来并以离线方式进行学习。\n\n此外，如果您非常需要将Pluralsight音频下载下来，您可以通过其他屏幕录制软件或音频录制软件录制音频并保存在您的本地计算机中。但是请注意，在某些地区，下载或记录付费的Pluralsight学习资源是不被法律允许的，因此请在进行此类操作之前务必查询当地法律法规。",
+   "then": [
+    {
+     "nodeMatching": "下载|音频|版权|离线"
+    }
+   ]
+  },
+  {
+   "user": "Pluralsight学习c# 但是没有字幕 英语不太好 我应该怎么做",
+   "assistant": "如果您没有太多语言基础，建议您可以参考以下方法：\n\n1. 通过使用字幕翻译工具来帮助理解视频内容。可以使用在线的字幕翻译网站或者软件，帮助您将视频的英文字幕翻译成您的母语，提高学习的效率。\n\n2. 借助一些英语学习资源来提高您的英语基本能力。通过听英语新闻、观看英文电影、阅读英文文献等多种方式，提高你的听、说、读、写能力，增强英语基本能力的同时，也能帮助您更好地理解视频内容。\n\n3. 结合书籍和其他资源来帮助学习。购买适合C# 编程入门的书籍，可以帮助您在学习时更好地理解相关知识，提高学",
+   "then": [
+    {
+     "nodeMatching": "字幕|翻译|英语"
+    },
+    {
+     "countUnder": "proj",
+     "max": 16
+    }
+   ]
+  }
+ ]
+}
