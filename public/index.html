@@ -1544,11 +1544,14 @@ function openAutoSettings() {
     <label style="display:flex;gap:8px;align-items:center;font-weight:600;margin-bottom:8px"><input type="checkbox" id="as-on" ${a.on ? 'checked' : ''}> auto mode on</label>
     ${rows.map(([k, name, why]) => `<label style="display:flex;gap:8px;align-items:flex-start;margin:4px 0;font-size:13px"><input type="checkbox" data-k="${k}" ${a[k] ? 'checked' : ''} style="margin-top:3px"><span><b>${name}</b><br><span style="color:var(--muted);font-size:12px">${why}</span></span></label>`).join('')}
     <div style="font-size:11px;color:var(--muted);margin-top:8px">never automatic: favorites, home, move, merge, delete, import, enrich, your marks. The aim skips rounds that stayed inside the focus.</div>
+    <div style="border-top:1px solid var(--line);margin:10px 0 6px"></div>
+    <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px"><input type="checkbox" id="as-coalesce" ${(S.coalesce?.on ?? true) ? 'checked' : ''} style="margin-top:3px"><span><b>⇉ catch-up filing</b><br><span style="color:var(--muted)">only when the map is seriously behind — ${S.coalesce?.min ?? 4} or more exchanges waiting, or the first has waited ${S.coalesce?.afterS ?? 60} s — the waiting exchanges file as one round (at most ${S.coalesce?.max ?? 4} at a time). Off: every exchange files as its own round, in order, however far behind.</span></span></label>
     <div class="actions"><button id="as-now" title="aim now, whatever the skip rule says">aim now</button><button id="as-close" class="primary">done</button></div>
   </div>`;
   document.body.appendChild(ov);
   const save = async (patch) => { try { const r = await post('/api/auto', patch); S.auto = r.auto; paintAuto(); } catch (err) { $('round-line').textContent = `auto mode: ${err.message}`; } };
   ov.querySelector('#as-on').onchange = (e) => save({ on: e.target.checked });
+  ov.querySelector('#as-coalesce').onchange = async (e) => { try { const r = await post('/api/coalesce', { on: e.target.checked }); S.coalesce = { ...(S.coalesce || {}), on: r.on }; $('round-line').textContent = r.on ? 'catch-up filing on: a serious backlog files as one round' : 'catch-up filing off: every exchange files on its own'; } catch (err) { $('round-line').textContent = `catch-up filing: ${err.message}`; } };
   for (const cb of ov.querySelectorAll('input[data-k]')) cb.onchange = (e) => save({ [e.target.dataset.k]: e.target.checked });
   ov.querySelector('#as-close').onclick = () => ov.remove();
   ov.querySelector('#as-now').onclick = async () => {

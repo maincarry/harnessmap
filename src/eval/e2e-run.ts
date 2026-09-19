@@ -123,6 +123,19 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
         else if (a.do === 'pin') await post(`/api/chats/${cid()}/depth`, { nodeId: keys[a.key], depth: a.depth ?? null });
         else if (a.do === 'title') await post(`/api/nodes/${keys[a.key]}`, { title: a.title, chatId: cid() }); // a title typed on the card
         else if (a.do === 'wait') await sleep(a.ms ?? 5000);
+        else if (a.do === 'burst') { // Jacob 2026-09-19 04:45 UTC: "can the lag become real serious if user accumulates rounds" — post N exchanges back to back, watch the queue drain
+          const t0 = Date.now(); const n = (a.rounds ?? []).length; let peak = 0; let drained = -1;
+          let accepted = 0;
+          for (const b of a.rounds ?? []) { const ob = await post('/api/harness/observe', { session_id: b.session ?? 'e2e-1', cwd: join(TMP, 'proj'), user_text: b.user, assistant_text: b.assistant }); if (ob.body?.ok !== false) accepted++; }
+          const posted = Date.now();
+          for (let i = 0; i < Math.ceil((a.maxWaitMs ?? 600_000) / 2000); i++) { const f: any = await get('/api/filings'); peak = Math.max(peak, f.pending ?? 0); if ((f.pending ?? 0) === 0 && i > 0) { drained = Date.now() - posted; break; } await sleep(2000); }
+          const f: any = await get('/api/filings'); const bad = (f.items ?? []).filter((x: any) => x.status === 'failed' || x.status === 'abandoned').length; // rows leave "pending" only by success, failure or abandonment
+          const ok = drained >= 0 && bad === 0 ? accepted : 0;
+          console.log(`  burst: ${n} exchanges posted in ${Math.round((posted - t0) / 1000)} s (${accepted} accepted) · peak queue ${peak} · drained in ${drained < 0 ? 'NOT within the wait' : Math.round(drained / 1000) + ' s'} · ${ok}/${n} filed · ${bad} failed/abandoned`);
+          check(`burst of ${n}: every exchange accepted and filed (${ok}/${n}), none failed (${bad})`, accepted === n && ok === n);
+          check(`burst of ${n}: the queue drained within ${Math.round((a.maxWaitMs ?? 600_000) / 1000)} s (${drained < 0 ? 'no' : Math.round(drained / 1000) + ' s'}; peak queue ${peak})`, drained >= 0);
+          s = await state();
+        }
         else if (a.do === 'bind') { // perturbed replays: give a key to a node the filer made — by regex, else the newest live non-system node
           const pool = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && n.author !== 'system' && !String(n.content).startsWith('to sort') && n.content !== 'untitled');
           const sorted = pool.slice().sort((x: any, y: any) => String(y.createdAt ?? '').localeCompare(String(x.createdAt ?? '')));

@@ -173,8 +173,18 @@ export class Translator {
     focusContainerId: string;
     userText: string;
     assistantText: string;
+    /** M344: a backlog taken as one round — every waiting exchange of the view, oldest first (the last one is params.turnId). */
+    exchanges?: { turnId: string; userText: string; assistantText: string }[];
   }): Promise<{ roundId: string; result: RoundResult; focusRequestId: string | null; debug: { inputTree: string; rawText: string } } | null> {
     const map = loadMap(this.store, params.projectId);
+    const batch = params.exchanges && params.exchanges.length > 1 ? params.exchanges : null;
+    const perAgent = batch ? Math.max(1000, Math.floor(6000 / batch.length)) : 3000;
+    const userAll = batch ? batch.map((e) => e.userText).join('\n\n') : params.userText;
+    const agentAll = batch ? batch.map((e) => truncate(e.assistantText, perAgent)).join('\n\n') : truncate(params.assistantText, 3000);
+    const roundBlock = batch
+      ? `NEW ROUND: ${batch.length} exchanges arrived while the map was catching up — oldest first. Translate them ALL as one round; where a later exchange corrects or supersedes an earlier one, file the later state (update, not a twin).\n` + batch.map((e, i) => `[${i + 1}] USER: ${e.userText}\nAGENT: ${truncate(e.assistantText, perAgent)}`).join('\n\n')
+      : `NEW ROUND:\nUSER: ${params.userText}\nAGENT: ${truncate(params.assistantText, 3000)}`;
+    if (batch) params = { ...params, userText: userAll }; // the guards and checks below judge the whole backlog
     // M47: the filer's knowledge obeys the light — focus subtree + lit
     // branches + "to sort" render in full; the rest is name-only. WRITE scope
     // never grows; READ scope may grow once via expansion-on-demand.
@@ -218,7 +228,7 @@ export class Translator {
         // matcher over titles and memory, named to the filer so a refinement
         // or a later ruling becomes update_node on the existing node (its
         // earlier state stays in the node's history) — not a twin node.
-        const existing = matchNodes(this.store, params.projectId, `${params.userText}\n${truncate(params.assistantText, 3000)}`, { limit: 6 })
+        const existing = matchNodes(this.store, params.projectId, `${userAll}\n${agentAll}`, { limit: 6 })
           .map((m) => map.nodes.find((n) => n.id === m.id)).filter((n): n is MapNode => !!n && readScope.has(n.id));
         const existingNote = existing.length
           ? `EXISTING NODES ON THIS ROUND'S SUBJECTS (word-matched; check before creating): ${existing.map((n) => `[${n.id}] ${n.title || n.content.slice(0, 60)}`).join(' · ')}\nIf the round refines, corrects or supersedes one of these, update_node THAT id (the node keeps its history); create a new node only for a subject none of them holds. When the round OVERTURNS part of a node's statement, REWRITE that part so the statement reads as the current rule — never leave the old clause standing beside the new one.${spansBranches(this.store, existing) ? `\nTHESE SIT IN DIFFERENT BRANCHES: when this round connects two of them (one rests on, answers, blocks or contradicts the other), emit create_link between them with the type that fits — the map holds no cross-links until you make them.` : ''}`
@@ -229,7 +239,7 @@ export class Translator {
           user: [
               `CURRENT MAP (▶ = focus; ids in [brackets]):\n${tree}`,
               `FOCUS NODE ID: ${params.focusContainerId}`,
-              `NEW ROUND:\nUSER: ${params.userText}\nAGENT: ${truncate(params.assistantText, 3000)}`,
+              roundBlock,
               existingNote,
               integrationNote,
               pass === 2 && !emptyRetry ? 'You requested expansion; the branches are now readable (READ-ONLY). Translate this round fully — request_expansion is no longer available.' : '',
@@ -257,7 +267,7 @@ export class Translator {
         // M310 (loop find, guard under M64 "a new topic always lands"): the filer's own summary says a subject was raised
         // ("asked to chat about Chongqing attractions") and the agent answered at length, yet it filed nothing — the over-skip
         // Jacob reported live. Ask once more, plainly (the M205 precedent for a too-short import summary); never a third time.
-        if (pass === 1 && !expansion && alterations.length === 0 && params.userText.trim().length >= 6 && params.assistantText.trim().length >= 300 && !/\b(greet|pleasantr|mechanic|thank|acknowledg|small talk|no topic|nothing new|meta[- ]?(talk|question)|capabilit)/i.test(summary)) {
+        if (pass === 1 && !expansion && alterations.length === 0 && userAll.trim().length >= 6 && agentAll.trim().length >= 300 && !/\b(greet|pleasantr|mechanic|thank|acknowledg|small talk|no topic|nothing new|meta[- ]?(talk|question)|capabilit)/i.test(summary)) {
           emptyRetry = true; this.store.audit('filer_empty_retry', { summary: summary.slice(0, 80) }); continue;
         }
         if (!expansion) break;

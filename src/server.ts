@@ -1354,37 +1354,86 @@ const filingBackoff = (attemptsSoFar: number) => FILING_BACKOFF_MS * [1, 3, 10, 
 const sqlNow = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString().slice(0, 19).replace('T', ' ');
 let filingInFlight: string | null = null;
 const enqueuedHere = new Set<string>(); // M342f: turns this process has queued or in flight — the boot recovery leaves these alone
-function enqueueTranslation(params: { chatId: string; turnId: string; userText: string; assistantText: string; provenance?: { sessionId: string | null; slice: RoundSlice }; retry?: boolean }) {
+// M344 (Jacob, 2026-09-19 04:56 UTC: "Only do so when the rounds are seriously behind"): when the queue is seriously behind — at
+// least COALESCE_MIN exchanges waiting, or the head has waited COALESCE_AFTER_MS with others behind it — the filer takes the
+// waiting exchanges of one view as ONE round (capped at COALESCE_MAX), so a backlog drains in one step instead of N. Normal
+// cadence never coalesces. A failed batch falls back to filing its exchanges one by one. Every turn keeps its own ledger row.
+type FilingJob = { chatId: string; turnId: string; userText: string; assistantText: string; provenance?: { sessionId: string | null; slice: RoundSlice }; retry?: boolean; enqueuedAt: number; single?: boolean };
+const envInt = (k: string, d: number) => { const e = Number(process.env[k]); return Number.isFinite(e) && e >= 0 ? e : d; };
+const COALESCE_MIN = envInt('HARNESSMAP_COALESCE_MIN', 4), COALESCE_AFTER_MS = envInt('HARNESSMAP_COALESCE_AFTER_MS', 60_000), COALESCE_MAX = Math.max(2, envInt('HARNESSMAP_COALESCE_MAX', 4));
+const waiting: FilingJob[] = [];
+let pumping = false;
+const coalesceOn = () => (store.getSetting('coalesce') ?? 'on') !== 'off'; // M344b (Jacob 05:04 UTC: "Coalescing must be closable as a function") — a switch on the page, kept in settings
+function takeBatch(): FilingJob[] {
+  const head = waiting[0]; const behind = waiting.length; const waited = Date.now() - head.enqueuedAt;
+  const serious = coalesceOn() && COALESCE_MIN > 0 && (behind >= COALESCE_MIN || (behind >= 2 && waited >= COALESCE_AFTER_MS));
+  if (!serious || head.retry || head.single) return [waiting.shift()!];
+  const batch = [waiting.shift()!];
+  while (waiting.length && batch.length < COALESCE_MAX && waiting[0].chatId === head.chatId && !waiting[0].retry && !waiting[0].single) batch.push(waiting.shift()!);
+  if (batch.length > 1) store.audit('filing_coalesced', { turns: batch.length, behind, waited_s: Math.round(waited / 1000) });
+  return batch;
+}
+function pump() {
+  if (pumping) return; pumping = true;
+  translationChain = (async () => {
+    while (waiting.length) {
+      const items = takeBatch();
+      try { await fileItems(items); } catch (err) { store.audit('round_chain_error', { error: String(err).slice(0, 200) }); for (const it of items) { lag -= 1; enqueuedHere.delete(it.turnId); } broadcast({ type: 'lag', lag }); } // M270: the chain never stays rejected
+    }
+  })().finally(() => { pumping = false; if (waiting.length) pump(); });
+}
+function enqueueTranslation(params: { chatId: string; turnId: string; userText: string; assistantText: string; provenance?: { sessionId: string | null; slice: RoundSlice }; retry?: boolean; single?: boolean }) {
   lag += 1;
   broadcast({ type: 'lag', lag });
   enqueuedHere.add(params.turnId);
   if (!params.retry) { try { store.upsertFilingPending({ turnId: params.turnId, chatId: params.chatId, userText: params.userText, assistantText: params.assistantText, provenance: params.provenance ?? null }); } catch (err) { store.audit('filing_ledger_error', { error: String(err).slice(0, 200) }); } }
-  translationChain = translationChain.then(async () => {
-    const chat = store.getChat(params.chatId);
+  waiting.push({ ...params, enqueuedAt: Date.now() });
+  pump();
+}
+async function fileItems(items: FilingJob[]) {
+  {
+    const chatId = items[0].chatId;
+    const chat = store.getChat(chatId);
+    const settle = (it: FilingJob) => { lag -= 1; enqueuedHere.delete(it.turnId); };
     // M270: a round whose view is gone still counts DOWN (it counted up on enqueue) — the counter leaked otherwise.
-    if (!chat) { lag -= 1; enqueuedHere.delete(params.turnId); broadcast({ type: 'lag', lag }); try { store.markFilingFailed(params.turnId, 'the view for this exchange is gone', null, true); } catch {} return; }
+    if (!chat) { for (const it of items) { settle(it); try { store.markFilingFailed(it.turnId, 'the view for this exchange is gone', null, true); } catch {} } broadcast({ type: 'lag', lag }); return; }
     const roundPid = chat.projectId; // M88: rounds file into THEIR map
     // M342 idempotency: a replay whose turn already has a round (the original landed after all) is done, not redone.
-    const prior = store.roundForTurn(params.turnId);
-    if (params.retry && prior) { lag -= 1; enqueuedHere.delete(params.turnId); broadcast({ type: 'lag', lag }); store.markFilingSucceeded(params.turnId, prior.id); store.audit('filing_retry_skipped', { turn: params.turnId.slice(0, 8), why: 'already filed' }); return; }
-    if (params.retry) { try { store.upsertFilingPending({ turnId: params.turnId, chatId: params.chatId, userText: params.userText, assistantText: params.assistantText, provenance: params.provenance ?? null }); } catch {} }
-    filingInFlight = params.turnId;
+    items = items.filter((it) => {
+      const prior = it.retry ? store.roundForTurn(it.turnId) : undefined;
+      if (it.retry && prior) { settle(it); broadcast({ type: 'lag', lag }); store.markFilingSucceeded(it.turnId, prior.id); store.audit('filing_retry_skipped', { turn: it.turnId.slice(0, 8), why: 'already filed' }); return false; }
+      if (it.retry) { try { store.upsertFilingPending({ turnId: it.turnId, chatId: it.chatId, userText: it.userText, assistantText: it.assistantText, provenance: it.provenance ?? null }); } catch {} }
+      return true;
+    });
+    if (!items.length) return;
+    const last = items[items.length - 1];
+    // the round the rest of this function sees: one exchange, or the batch as one (texts joined oldest first; the last exchange's turn and provenance)
+    const params = { chatId, turnId: last.turnId, userText: items.map((it) => it.userText).join('\n\n'), assistantText: items.map((it) => it.assistantText).join('\n\n'), provenance: last.provenance, retry: items.some((it) => it.retry) };
+    filingInFlight = last.turnId;
     let out: Awaited<ReturnType<typeof translator.translateRound>> = null as any;
     let errText = '';
     try {
       out = await translator.translateRound({
         projectId: roundPid, chatId: params.chatId, turnId: params.turnId,
         focusContainerId: chat.focusContainerId,
-        userText: params.userText, assistantText: params.assistantText,
+        userText: last.userText, assistantText: last.assistantText,
+        exchanges: items.length > 1 ? items.map((it) => ({ turnId: it.turnId, userText: it.userText, assistantText: it.assistantText })) : undefined,
       });
       if (!out) errText = translator.lastError ?? 'the filer returned nothing';
     } catch (err) { errText = String(err).slice(0, 300); store.audit('round_error', { error: errText.slice(0, 200) }); out = null as any; } // M270: one failed round never poisons the chain
     filingInFlight = null;
-    enqueuedHere.delete(params.turnId);
-    lag -= 1;
+    if (!out && items.length > 1) {
+      // M344: a failed batch never costs its exchanges an attempt — they go back to the head of the queue as singles
+      store.audit('filing_batch_failed', { turns: items.length, error: errText.slice(0, 160) });
+      waiting.unshift(...items.map((it) => ({ ...it, single: true })));
+      return;
+    }
+    for (const it of items) enqueuedHere.delete(it.turnId);
+    lag -= items.length;
     broadcast({ type: 'lag', lag });
     if (out) {
-      try { store.markFilingSucceeded(params.turnId, out.roundId); } catch {}
+      for (const it of items) { try { store.markFilingSucceeded(it.turnId, out.roundId); } catch {} }
+      if (items.length > 1) store.audit('filing_coalesced_filed', { turns: items.length, round: out.roundId.slice(0, 8), alterations: out.result.alterations.length });
       if (params.retry) { store.audit('filing_retry_succeeded', { turn: params.turnId.slice(0, 8), alterations: out.result.alterations.length }); chats.noteMapChange(params.chatId, `an earlier exchange that had failed to file has now been filed (${out.result.alterations.length} change(s))`); }
     } else {
       try {
@@ -1426,7 +1475,7 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
           store.audit('nudge_focus_request', { id: fn.id.slice(0, 8), name: nodeName(fn) });
         }
       }
-      if (params.provenance) recordProvenance(store, out.roundId, params.provenance.sessionId, params.provenance.slice);
+      for (const it of items) if (it.provenance) recordProvenance(store, out.roundId, it.provenance.sessionId, it.provenance.slice);
       touch(out.result.alterations.map((a: any) => a.id ?? a.nodeId ?? a.containerId).filter(Boolean));
       health.filedAt = Date.now();
       broadcast({ type: 'round', chatId: params.chatId, summary: out.result.summary, alterations: out.result.alterations.length });
@@ -1538,7 +1587,7 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
     } else {
       broadcast({ type: 'translator_error', chatId: params.chatId });
     }
-  }).catch((err) => { store.audit('round_chain_error', { error: String(err).slice(0, 200) }); }); // M270: the chain never stays rejected
+  }
 }
 
 // M342: what the page and the API see of the ledger.
@@ -1661,6 +1710,7 @@ function state() {
     home: (() => { const h = store.getSetting(`home:${projectId}`); return h && store.getNode(h)?.status !== 'removed' ? h : null; })(),
     influenceOff: influenceOff(projectId),
     auto: autoSettings(projectId), // M263
+    coalesce: { on: coalesceOn(), min: COALESCE_MIN, afterS: Math.round(COALESCE_AFTER_MS / 1000), max: COALESCE_MAX }, // M344b
     update: updateInfo(), // M265
     undoNext: store.listUndo(projectId, 1)[0]?.label ?? null, // M263b: the button says what it would take back
     filings: filingSummary(), // M342: exchanges not yet on the map
@@ -2987,6 +3037,14 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
 
     // M263: auto mode — per map; the checkboxes are the person's, the guards are not.
     if (path === '/api/auto' && req.method === 'GET') return json({ auto: autoSettings(projectId) });
+    if (path === '/api/coalesce' && req.method === 'GET') return json({ on: coalesceOn(), min: COALESCE_MIN, afterS: Math.round(COALESCE_AFTER_MS / 1000), max: COALESCE_MAX });
+    if (path === '/api/coalesce' && req.method === 'POST') { // M344b: catch-up filing on/off
+      const body = await req.json().catch(() => ({})) as { on?: boolean };
+      if (typeof body.on !== 'boolean') return json({ ok: false, error: 'on: true|false' }, 400);
+      store.setSetting('coalesce', body.on ? 'on' : 'off'); store.audit('coalesce_setting', { on: body.on });
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true, on: body.on });
+    }
     if (path === '/api/auto' && req.method === 'POST') {
       const body = await req.json().catch(() => ({})) as Partial<AutoSettings>;
       const patch: Partial<AutoSettings> = {};

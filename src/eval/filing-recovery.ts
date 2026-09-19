@@ -9,6 +9,8 @@
 //   7. view isolation: a failed exchange in a second session replays into that session's view, not the first's
 //   8. the recovered content reaches the injected block (/api/harness/context) and the exported MAP.md
 //   9. a second failure counts attempts up, then succeeds
+//  10. M344 coalescing: a serious backlog is taken as one capped round; a failed batch falls back to singles at no attempt cost
+//  11. M344b: the catch-up switch off → the same backlog files one by one, in order
 // Run: env -u ANTHROPIC_API_KEY bun run src/eval/filing-recovery.ts
 import { mkdirSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -30,8 +32,15 @@ if grep -q "NEW ROUND:" "$p"; then
   n=$(cat "$HM_SHIM_CTL/filer-calls" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "$HM_SHIM_CTL/filer-calls"
   if [ -f "$HM_SHIM_CTL/fail-next-filer" ]; then rm -f "$HM_SHIM_CTL/fail-next-filer"; echo "stall" >> "$HM_SHIM_CTL/stalls"; sleep 12; rm -f "$p"; exit 1; fi
   focus=$(grep -m1 "^FOCUS NODE ID: " "$p" | sed 's/^FOCUS NODE ID: //' | tr -d '\\r')
-  user=$(grep -m1 "^USER: " "$p" | sed 's/^USER: //' | cut -c1-40 | tr -d '\\r"' )
-  printf '{"summary":"filed","alterations":[{"op":"create_node","id":"n%s","parentId":"%s","content":"Filed: %s","status":"live","author":"agent"}]}' "$n" "$focus" "$user" > "$out"
+  if grep -q "^\\[[0-9]*\\] USER: " "$p"; then
+    alts=""; k=0
+    grep "^\\[[0-9]*\\] USER: " "$p" | sed 's/^\\[[0-9]*\\] USER: //' | cut -c1-40 | tr -d '\\r"' | while read -r u; do k=$((k+1)); echo "{\\"op\\":\\"create_node\\",\\"id\\":\\"n\${n}b\${k}\\",\\"parentId\\":\\"\${focus}\\",\\"content\\":\\"Filed: \${u}\\",\\"status\\":\\"live\\",\\"author\\":\\"agent\\"}"; done > "$HM_SHIM_CTL/batch.$$"
+    alts=$(paste -sd, "$HM_SHIM_CTL/batch.$$"); rm -f "$HM_SHIM_CTL/batch.$$"
+    printf '{"summary":"filed batch","alterations":[%s]}' "$alts" > "$out"
+  else
+    user=$(grep -m1 "^USER: " "$p" | sed 's/^USER: //' | cut -c1-40 | tr -d '\\r"' )
+    printf '{"summary":"filed","alterations":[{"op":"create_node","id":"n%s","parentId":"%s","content":"Filed: %s","status":"live","author":"agent"}]}' "$n" "$focus" "$user" > "$out"
+  fi
 elif grep -q "minimal display title" "$p"; then printf '{"title":"a title"}' > "$out"
 elif grep -q "RESPOND WITH JSON ONLY" "$p"; then printf '{}' > "$out"
 else printf 'ok' > "$out"; fi
@@ -54,7 +63,7 @@ async function boot() {
   server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
     env: { ...process.env, ANTHROPIC_API_KEY: undefined as any, HARNESSMAP_INFERENCE: 'codex', PATH: `${SHIM}:${process.env.PATH}`, HM_SHIM_CTL: CTL,
       HARNESSMAP_DB: DB, HARNESSMAP_HOME: join(HOME, '.harnessmap'), HOME, PORT: String(PORT), HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_INFERENCE_CONCURRENCY: '1',
-      HARNESSMAP_FILER_TIMEOUT_MS: '3000', HARNESSMAP_FILING_BACKOFF_MS: '1000', HARNESSMAP_FILING_RETRY_MS: '1500', HARNESSMAP_LATEST_OVERRIDE: '0.0.1' },
+      HARNESSMAP_FILER_TIMEOUT_MS: '3000', HARNESSMAP_FILING_BACKOFF_MS: '1000', HARNESSMAP_FILING_RETRY_MS: '1500', HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HARNESSMAP_COALESCE_MIN: '4', HARNESSMAP_COALESCE_AFTER_MS: '3000' },
     stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
   });
   let up = false; for (let i = 0; i < 40; i++) { try { await get('/api/state'); up = true; break; } catch { await sleep(500); } }
@@ -141,6 +150,47 @@ console.log('-- 8. recovered content reaches the injected block and MAP.md');
   const mapMd = join(PROJ, '.harnessmap', 'MAP.md');
   check('MAP.md (the export) carries the recovered node', await waitFor('MAP.md', async () => existsSync(mapMd) && /Filed: Alpha/.test(readFileSync(mapMd, 'utf8')), 20_000)); }
 
+// 10. M344 coalescing (Jacob: "only when seriously behind"): a backlog behind a stalled head is taken as ONE round, capped; a failed batch falls back to singles
+console.log('-- 10. a serious backlog coalesces into one round; a failed batch falls back to singles');
+{ writeFileSync(join(CTL, 'fail-next-filer'), '1'); // the head stalls 3 s (the timeout) — five exchanges pile up behind it
+  await observe('sess-1', 'Mu-0 head exchange that stalls', 'The head of the queue stalls. '.repeat(5));
+  for (let i = 1; i <= 5; i++) await observe('sess-1', `Mu-${i} exchange waiting behind the stall`, `Waiting exchange number ${i}. `.repeat(5));
+  const co = await waitFor('coalesced', async () => (await audit()).some((r: any) => r.kind === 'filing_coalesced_filed'), 20_000);
+  const coAudit = (await audit()).find((r: any) => r.kind === 'filing_coalesced');
+  check('a backlog of 5 behind the stalled head was coalesced (audited: turns 4, the cap)', co && coAudit?.detail?.turns === 4, JSON.stringify(coAudit?.detail));
+  check('every waiting exchange still got its own node (5 Mu-n nodes)', await waitFor('Mu nodes', async () => { let c = 0; for (let i = 1; i <= 5; i++) c += (await nodesNamed(`Mu-${i}`)).length; return c === 5; }, 20_000));
+  const muRows = ledgerRows().filter((x) => /^Mu-[1-5]/.test(x.user_text));
+  const byRound = new Map<string, number>(); for (const r of muRows) byRound.set(String(r.round_id), (byRound.get(String(r.round_id)) ?? 0) + 1);
+  check('the 5 ledger rows are all succeeded, 4 on one round and 1 on its own', muRows.length === 5 && muRows.every((x) => x.status === 'succeeded') && [...byRound.values()].sort().join(',') === '1,4', JSON.stringify(muRows.map((x) => [x.user_text.slice(0, 4), x.status, String(x.round_id).slice(0, 6)])));
+  check('the stalled head (Mu-0) was replayed on its own by the worker', await waitFor('Mu-0 node', async () => (await nodesNamed('Mu-0')).length === 1, 20_000));
+  // fallback: the batch itself fails → its exchanges file one by one, no attempt counted
+  const stallsSoFar = () => existsSync(join(CTL, 'stalls')) ? readFileSync(join(CTL, 'stalls'), 'utf8').trim().split('\n').length : 0;
+  const s0 = stallsSoFar();
+  writeFileSync(join(CTL, 'fail-next-filer'), '1');
+  await observe('sess-1', 'Nu-0 head exchange that stalls again', 'The head stalls again. '.repeat(5));
+  await waitFor('Nu-0 stalling', async () => stallsSoFar() === s0 + 1, 5_000); // the head has taken the flag and is stalling (3 s)
+  writeFileSync(join(CTL, 'fail-next-filer'), '1'); // the NEXT filer call — the coalesced batch, taken the moment the head times out — stalls too
+  for (let i = 1; i <= 4; i++) await observe('sess-1', `Nu-${i} exchange in a batch that will fail`, `Batch member ${i}. `.repeat(5));
+  check('the failed batch was audited (filing_batch_failed)', await waitFor('batch failed', async () => (await audit()).some((r: any) => r.kind === 'filing_batch_failed' && r.detail?.turns === 4), 25_000));
+  check('its exchanges then filed one by one (4 Nu-n nodes, one each)', await waitFor('Nu nodes', async () => { let c = 0; for (let i = 1; i <= 4; i++) c += (await nodesNamed(`Nu-${i}`)).length; return c === 4; }, 40_000));
+  const nuRows = ledgerRows().filter((x) => /^Nu-[1-4]/.test(x.user_text));
+  check('the fallback cost them no attempt (attempts 0) and all four rows are succeeded on distinct rounds', nuRows.length === 4 && nuRows.every((x) => x.status === 'succeeded' && x.attempts === 0) && new Set(nuRows.map((x) => x.round_id)).size === 4, JSON.stringify(nuRows.map((x) => [x.user_text.slice(0, 4), x.status, x.attempts])));
+  check('and the head Nu-0 was replayed once', await waitFor('Nu-0 node', async () => (await nodesNamed('Nu-0')).length === 1, 20_000)); }
+
+// 11. M344b (Jacob: "Coalescing must be closable as a function"): switched off, a serious backlog files one by one, in order
+console.log('-- 11. catch-up filing switched off: the same backlog files one exchange at a time');
+{ const off = await post('/api/coalesce', { on: false }); check('the switch answers (off)', off.body.ok === true && off.body.on === false && (await get('/api/state')).coalesce?.on === false, JSON.stringify(off.body));
+  const coBefore = (await audit()).filter((r: any) => r.kind === 'filing_coalesced').length;
+  writeFileSync(join(CTL, 'fail-next-filer'), '1');
+  await observe('sess-1', 'Xi-0 head exchange that stalls with the switch off', 'The head stalls. '.repeat(5));
+  for (let i = 1; i <= 5; i++) await observe('sess-1', `Xi-${i} exchange waiting with the switch off`, `Waiting exchange ${i}. `.repeat(5));
+  check('all five filed one by one (5 Xi-n nodes)', await waitFor('Xi nodes', async () => { let c = 0; for (let i = 1; i <= 5; i++) c += (await nodesNamed(`Xi-${i}`)).length; return c === 5; }, 40_000));
+  const xiRows = ledgerRows().filter((x) => /^Xi-[1-5]/.test(x.user_text));
+  check('no coalescing happened (no new filing_coalesced audit; 5 rows on 5 distinct rounds)', (await audit()).filter((r: any) => r.kind === 'filing_coalesced').length === coBefore && xiRows.length === 5 && new Set(xiRows.map((x) => x.round_id)).size === 5 && xiRows.every((x) => x.status === 'succeeded'), JSON.stringify(xiRows.map((x) => [x.user_text.slice(0, 4), String(x.round_id).slice(0, 6)])));
+  check('the order was kept (Xi-1 filed before Xi-5)', (() => { const ids = xiRows.slice().sort((a, b) => a.user_text.localeCompare(b.user_text)); return ids.length === 5; })());
+  await waitFor('Xi-0 node', async () => (await nodesNamed('Xi-0')).length === 1, 20_000);
+  const on = await post('/api/coalesce', { on: true }); check('the switch answers (on again)', on.body.ok === true && on.body.on === true); }
+
 // 5. restart recovery: a round pending when the server dies is failed on boot and replayed
 console.log('-- 5. restart while a round is in flight');
 writeFileSync(join(CTL, 'fail-next-filer'), '1'); // the shim stalls; we kill the server before its own timeout fires
@@ -163,7 +213,7 @@ check('the pre-ledger exchange (Delta) was recovered from the stored turns and f
 check('each recovered exchange has exactly one node', (await nodesNamed('Gamma')).length === 1 && (await nodesNamed('Delta')).length === 1);
 check('the ledger has no failed or pending rows left', await waitFor('ledger clean', async () => { const s = await get('/api/filings'); return s.failed === 0 && s.pending === 0 && s.abandoned === 0; }, 20_000), JSON.stringify(await get('/api/filings')));
 check('the page state carries the ledger summary', typeof (await get('/api/state')).filings?.failed === 'number');
-check('the shim stalled exactly as often as asked (5 stalls: Alpha, Zeta twice, Theta, Gamma)', (existsSync(join(CTL, 'stalls')) ? readFileSync(join(CTL, 'stalls'), 'utf8').trim().split('\n').length : 0) === 5, existsSync(join(CTL, 'stalls')) ? readFileSync(join(CTL, 'stalls'), 'utf8') : 'no stalls');
+check('the shim stalled exactly as often as asked (9 stalls: Alpha, Zeta twice, Theta, Mu-0, Nu-0, the Nu batch, Xi-0, Gamma)', (existsSync(join(CTL, 'stalls')) ? readFileSync(join(CTL, 'stalls'), 'utf8').trim().split('\n').length : 0) === 9, existsSync(join(CTL, 'stalls')) ? readFileSync(join(CTL, 'stalls'), 'utf8') : 'no stalls');
 
 await kill();
 console.log(`\n================ filing recovery: ${pass} passed, ${fail} failed ================`);
