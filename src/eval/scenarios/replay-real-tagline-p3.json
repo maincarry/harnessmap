@@ -1,0 +1,40 @@
+{
+ "name": "replay (real, WildChat 26318, 11 of 11): a copywriter steers one call-to-action line — 'like this but focusing on creativity', 'for a maze', 'without determination and focus', 'again', 'again', 'short', 'something like find creativity through navigating', 'don't use maze', 'Navigate Your Way To creativity?!'; the map should hold the tagline as ONE artefact updated in place with the writer's constraints (no determination/focus, short, no maze) as standing rules, the 'again' rounds adding nothing, no narration — piece 3",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Maze call-to-action tagline"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "navigate with creativity within you..",
+   "assistant": "\"Navigate through Our Maze with the Creative Force Within You!\"",
+   "then": []
+  },
+  {
+   "user": "don't use maze",
+   "assistant": "\"Unleash Your Creativity With A Focused Mindset and Navigate Your Way To Success!\"",
+   "then": [
+    {
+     "nodeMatching": "maze"
+    }
+   ]
+  },
+  {
+   "user": "Navigate Your Way To creativity?!",
+   "assistant": "\"Navigate Your Way To Creative Genius - Unleash Your Imagination Today!\"",
+   "then": [
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,44 @@
+{
+ "name": "replay (real, WildChat 26318, 11 of 11): a copywriter steers one call-to-action line — 'like this but focusing on creativity', 'for a maze', 'without determination and focus', 'again', 'again', 'short', 'something like find creativity through navigating', 'don't use maze', 'Navigate Your Way To creativity?!'; the map should hold the tagline as ONE artefact updated in place with the writer's constraints (no determination/focus, short, no maze) as standing rules, the 'again' rounds adding nothing, no narration — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Maze call-to-action tagline"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "\"Navigate Your Way to Your Goals Through Focused Determination.\" i want a call to action like this focusing on creativity",
+   "assistant": "\"Unleash Your Creative Potential with a Clear and Focused Mindset.\"",
+   "then": [
+    {
+     "nodeMatching": "creativ"
+    }
+   ]
+  },
+  {
+   "user": "“Navigate Your Way to Your Goals Through Focused Determination.” i want a call to action like this focusing on creativity for a maze",
+   "assistant": "\"Discover Your Creative Path with Focused Determination Through Our Maze.\"",
+   "then": []
+  },
+  {
+   "user": "without determination and focus",
+   "assistant": "\"Unlock Your Creative Potential with Our Maze - Let Your Imagination Run Wild!\"",
+   "then": [
+    {
+     "nodeMatching": "determination|focus"
+    }
+   ]
+  },
+  {
+   "user": "“Navigate Your Way to Your Goals Through Focused Determination.” i want a call to action like this focusing on creativity instead of \"focused determination, it's for a maze puzzle",
+   "assistant": "\"Explore your innovative side and conquer our maze with creative persistence!\"",
+   "then": []
+  }
+ ]
+}
