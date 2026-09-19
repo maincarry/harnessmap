@@ -43,7 +43,7 @@
    "assistant": "I'm sorry to hear that the link still doesn't work. Let me try again. Here's the link to the book \"Mathematical Methods and Algorithms for Data Analysis Using R\" by G. Jay Kerns on the publisher's website:\n\nhttps://www.routledge.com/Mathematical-Methods-and-Algorithms-for-Data-Analysis-Using-R/Kerns/p/book/9781498764046\n\nThis link should work for you. Once again, I apologize for the previous mistakes and any frustration this has caused.",
    "then": [
     {
-     "nodeMatching": "Page Not Found|not found|404|kidding"
+     "nodeMatching": "Page Not Found|not found|404|kidding|not work|does not work|broken|unverified|not verified"
     },
     {
      "countUnder": "proj",
