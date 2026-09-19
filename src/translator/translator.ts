@@ -332,7 +332,7 @@ export class Translator {
   private guardCorrectionTwin(alterations: any[], map: { nodes: MapNode[] }): any[] {
     return dropCorrectionTwins(alterations, map.nodes, (d) => this.store.audit('guard_correction_twin', d));
   }
-  private guardScope(alterations: Alteration[], scope: Set<string>, map: MapView, params: { chatId: string; focusContainerId: string; userText?: string }): Alteration[] {
+  private guardScope(alterations: Alteration[], scope: Set<string>, map: MapView, params: { chatId: string; focusContainerId: string; userText?: string; assistantText?: string }): Alteration[] {
     const live = new Set(scope);
     const focusName = map.nodes.find((n) => n.id === params.focusContainerId)?.title
       ?? map.nodes.find((n) => n.id === params.focusContainerId)?.content ?? '?';
@@ -455,6 +455,22 @@ export class Translator {
         // M353b: "跳线是什么意思？公告" — a word glued after a CJK question/exclamation mark is the same shape; a trailing "？" alone stays (a question title).
         const head = anyA.title.split(/[。．]|(?<=[？！])(?=[^\s？！?!)）」』"”])/u)[0].replace(/[\s.:：;；,，]+$/u, '').trim();
         if (head.length >= 3 && head !== anyA.title.trim()) { this.store.audit('guard_title_full_stop', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(head.length, head.length + 30) }); anyA.title = head; }
+      }
+      // M354 (codex-native hash-table replay): asked to "remember this format" (the person's h(11) = 2 (a) → … layout), the filer wrote a rule
+      // "Use the requested JSON map format for every response" — its OWN output instructions, leaked into the person's map. A statement that
+      // speaks of JSON, schemas, alterations or the "map/response format" when neither the person nor the agent said any of it is a leak, not a fact.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string') {
+        const LEAK = /\b(json|schema|alterations?|map format|response format|filer|translat(?:or|ion) (?:prompt|schema)|parentId|nodeId)\b/i;
+        const m = anyA.content.match(LEAK);
+        if (m) {
+          const said = `${params.userText ?? ''}\n${params.assistantText ?? ''}`.toLowerCase();
+          const word = m[1].toLowerCase().replace(/s$/, '');
+          if (!said.includes(word) && !said.includes(m[1].toLowerCase())) {
+            this.store.audit('guard_self_leak', { id: String(anyA.id ?? '').slice(0, 8), word: m[1], content: anyA.content.slice(0, 80) });
+            if (a.op === 'create_node') continue; // dropped: never pushed to out
+            delete anyA.content; if (anyA.title === undefined && anyA.status === undefined) continue;
+          }
+        }
       }
       // M347 (codex-native board-game replay): the codex filer wrote the STATUS into the title — "Wins and complexity bonus ─ chosen?".
       // A trailing separator + status word (+ a stray "?") is a field leaking into a name; it goes, and the status is kept if the op has none.
