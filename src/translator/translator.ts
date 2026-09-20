@@ -571,7 +571,7 @@ export class Translator {
       // "Use the requested JSON map format for every response" — its OWN output instructions, leaked into the person's map. A statement that
       // speaks of JSON, schemas, alterations or the "map/response format" when neither the person nor the agent said any of it is a leak, not a fact.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string') {
-        const LEAK = /\b(json|schema|alterations?|map format|response format|filer|translat(?:or|ion) (?:prompt|schema)|parentId|nodeId)\b/i;
+        const LEAK = /\b(json|schema|alterations?|map format|response format|filer|translat(?:or|ion) (?:prompt|schema)|parentId|nodeId|no more than \d+(?:-\d+)? words|\d+-\d+ words|display name)\b/i; // M354b (latex replay): "Homography link references show no more than 2-4 words" — the title rule itself leaked into a name
         const m = anyA.content.match(LEAK);
         if (m) {
           const said = `${params.userText ?? ''}\n${params.assistantText ?? ''}`.toLowerCase();
