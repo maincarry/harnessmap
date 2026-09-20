@@ -312,7 +312,7 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
     for (let attempt = 1; attempt <= 2; attempt++) {
       const user = attempt === 1 ? opts.user : `${opts.user}\n\n(Your previous reply was not valid JSON for the schema: ${lastErr}. Reply again with ONLY the JSON object.)`;
       const prompt = `SYSTEM INSTRUCTIONS:\n${opts.system}${jsonNote}\n\n---\n\n${user}`;
-      const args = [codexBin() ?? 'codex', 'exec', '-', ...(useModel ? ['-m', useModel] : []), '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '-C', dir, '-o', outFile, ...(schemaFile ? ['--output-schema', schemaFile] : [])];
+      const args = [codexBin() ?? 'codex', 'exec', '-', ...(useModel ? ['-m', useModel] : []), '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', ...(process.env.HARNESSMAP_CODEX_PLUGINS === '1' ? [] : ['--disable', 'remote_plugin', '--disable', 'plugins', '--disable', 'apps']), '-C', dir, '-o', outFile, ...(schemaFile ? ['--output-schema', schemaFile] : [])];
       const env: Record<string, string> = {}; for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v;
       // M271: this codex exec is the MAP's own call — Codex runs the user's hooks for it too; they must exit at once
       // (else the filer's own prompt is filed as a session, its Stop files a round, which calls the filer… — Jacob's 50 rounds).

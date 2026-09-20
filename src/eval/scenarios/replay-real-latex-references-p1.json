@@ -1,0 +1,89 @@
+{
+ "name": "replay (real, WildChat 39818, 17 of 17, English): a student's LaTeX report — references in a given format, 'make the link clickable', 'a reference for the homography formula' → 'no, a website please' (correction), 'the link is dead' (rejection), 'link dead, give me 10 so I check them quickly', 'how to type _', reference these links, an EMPTY message, 'retrieved date?', '\\begin{ack}', a too-wide image, 'it does not work', 'dimension too large' ×2, 'ok I scaled it externally' (workaround), a batch-resize tool — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "LaTeX report references"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "we are referencing using this format: \"[1] Assoc. Prof. Nazlı İkizler Cinbiş. Image Panorama Stitching. BBM 418 - Computer Vision Laboratory, 2023.\" I don't know what format is this but now I need to reference a wikipedia page: \"https://en.wikipedia.org/wiki/Random_sample_consensus\" Can you help me ?",
+   "assistant": "Sure! You can use the following format to reference the Wikipedia page:\n\nRandom sample consensus. (2021, September 9). In Wikipedia. Retrieved September 14, 2021, from https://en.wikipedia.org/wiki/Random_sample_consensus\n\nJust replace the date with the date you accessed the page.",
+   "then": [
+    {
+     "nodeMatching": "reference|format|\\[1\\]|bibitem"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "can you make the link clickable in latex",
+   "assistant": "Yes, you can make the link clickable in LaTeX by using the hyperref package. Here's an example:\n\n\\usepackage{hyperref}\n...\nRandom sample consensus. (2021, September 9). In \\href{https://en.wikipedia.org/wiki/Random_sample_consensus}{Wikipedia}. Retrieved September 14, 2021, from \\url{https://en.wikipedia.org/wiki/Random_sample_consensus}\n\nThis will create a clickable hyperlink for the title \"Wikipedia\" and the URL, which will direct the reader to the Wikipedia page when clicked.",
+   "then": [
+    {
+     "nodeMatching": "clickable|href|hyperref|url"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "give me a reference to calculating  homography matrix like a formula",
+   "assistant": "Here is a reference to the calculation of homography matrix with the formula:\n\nHartley, R. and Zisserman, A. (2003). Multiple View Geometry in Computer Vision (2nd ed.). Cambridge University Press. \n\nFormula (8.12) on page 252 gives the equation for computing the homography matrix using corresponding points in two images. The formula uses the Direct Linear Transform (DLT) method to solve for the homography matrix by minimizing the sum of squared distances between the projected points and the actual points.",
+   "then": [
+    {
+     "nodeMatching": "homography|formula|matrix|reference"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    }
+   ]
+  },
+  {
+   "user": "no a website please",
+   "assistant": "Here is a website reference that provides the formula for computing homography matrix:\n\n\"Calculating a Homography\" by R. Pollefeys. Stanford University, Computer Science Department. Available online: http://graphics.stanford.edu/courses/cs231a-2010/Pollefeys.pdf\n\nIn section 2.1 of the document, the author explains how to compute the homography matrix using a set of corresponding points between two images. The formula is given in Equation (7), which is based on the assumption of a projective transformation between the images.",
+   "then": [
+    {
+     "nodeMatching": "website|link|url|homography"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    },
+    {
+     "mentions": "homography|reference",
+     "must": "website|link|URL|url"
+    }
+   ]
+  },
+  {
+   "user": "can you give me other the link is dead",
+   "assistant": "Sure! Here is another website reference that provides the formula for computing homography matrix:\n\n\"Applications of homography matrices\" by Saeed Khan, Tauseef Rehman, and Ahmed Yahya. Document available online: https://www.mathworks.com/content/dam/mathworks/mathworks-dot-com/moler/homography-saic.pdf \n\nIn section 2 of the document, the authors explain how to compute the homography matrix using a system of linear equations. The formula is given in Equation (4), which uses the Direct Linear Transformation (DLT) method to solve for the homography matrix from a set of corresponding points. The document also provides an example MATLAB code for computing the homography matrix.",
+   "then": [
+    {
+     "nodeMatching": "dead|link|alternative|another|homography"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    },
+    {
+     "mentions": "homography|link",
+     "must": "dead|not work|broken|invalid|open|alternative|unverified"
+    }
+   ]
+  }
+ ]
+}

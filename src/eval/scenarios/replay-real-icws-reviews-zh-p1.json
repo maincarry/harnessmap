@@ -1,0 +1,72 @@
+{
+ "name": "replay (real, WildChat 39614, 9 of 9, Chinese→English): a conference reviewer drafting English review feedback for THREE different papers — graph-hierarchy method (its problem list pasted TWICE verbatim), a service-computing framing note, 'efficiency but not the meaning of the ranks', 'the appendix is never referenced', then a reentrancy-vulnerability paper, 'this is a challenging problem — in English', a behaviour-similarity paper, 'why no comparison with [13],[22]; POP lacks citations — write the review' — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "ICWS reviews"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "这个论文主要是提出了一个计算图层次性的新方法。新方法比旧方法更快速。论文的主要问题是：1. 文章写的不太容易看懂，很多概念在第一次出现时没解释，如单词Agony、hierarchy在文中很重要，但是直到第A节才介绍；2. 文中的图清晰度都不高；3. 文中的英语比较差，语法错误比较多，在一定程度上影响了阅读，如在描述别人过去工作的时候都用的现在时，很不符合写作的规范；4.实验中使用的数据集太少了。其实类似的数据集蛮多的，建议作者在20+数据集上检验；5. 在数据集Slshdot上，作者的方法比Lu等人的时间开销大，这是为什么呢？作者需要给出分析。",
+   "assistant": "总之，虽然论文提出的方法有一定的创新性和实用性，但是在写作和实验方面还存在一些问题需要改进。具体来说：\n\n1. 文章需要更好的解释和阐述。作者需要提醒自己，写论文不是给自己看，而是要让读者看懂。所以在用到新的概念和专有名词时要做好解释和引导。\n\n2. 图片需要更清晰。一个好的论文需要有清晰的图片来支持和说明。作者需要认真检查图片分辨率和大小，确保它们能清晰地传达信息。\n\n3. 语言需要更准确。英语语法错误会给读者带来困惑，同时也降低了文章的科学性和严谨性。作者需要认真编辑和校对文章，确保语言准确无误。\n\n4. 实验需要更多数据集。实验需要充分考虑数据的复杂性和实用性。建议作者增加更多数据集，以测量算法的稳定性和适用性。\n\n5. 需要更好的实验分析。实验结果不是最终目的，关键是分析实验结果。作者需要更全面和深入地分析实验结果，找出算法存在的缺陷和不足之处，以便更好地改进和完善算法。",
+   "then": [
+    {
+     "nodeMatching": "层次|hierarchy|Agony|清晰|review"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "这个论文主要是提出了一个计算图层次性的新方法。新方法比旧方法更快速。论文的主要问题是：1. 文章写的不太容易看懂，很多概念在第一次出现时没解释，如单词Agony、hierarchy在文中很重要，但是直到第A节才介绍；2. 文中的图清晰度都不高；3. 文中的英语比较差，语法错误比较多，在一定程度上影响了阅读，如在描述别人过去工作的时候都用的现在时，很不符合写作的规范；4.实验中使用的数据集太少了。其实类似的数据集蛮多的，建议作者在20+数据集上检验；5. 在数据集Slshdot上，作者的方法比Lu等人的时间开销大，这是为什么呢？作者需要给出分析。请以上述意见为基础，帮我写一份英文的评审意见。",
+   "assistant": "Review Feedback:\n\nThe paper proposes a new method for computing graph hierarchy that outperforms the existing methods. However, the paper has several issues that need to be addressed:\n\n1. The manuscript is not easy to understand, and many concepts are introduced without proper explanation. For instance, the terms \"Agony\" and \"hierarchy\" are crucial to the paper but are only introduced in section A.\n\n2. The figures in the paper are not of good quality, which makes it difficult to understand the findings. The authors should ensure that the figures are clear, legible, and convey the necessary information.\n\n3. The language used in the manuscript is not of good standard, with many grammatical errors that impact readability. For example, using the present tense to describe past work is not acceptable. The authors should carefully proofread the manuscript to ensure that the language is precise and accurate.\n\n4. The study has a limited number of datasets, which does not sufficiently test the algorithm's performance. We recommend the authors evaluate the algorithm on at least 20 different datasets to determine its suitability.\n\n5. The authors need to explain why their method performs worse than that of Lu et al. on the Slashdot dataset. Further analysis is required to determine the algorithm's efficiency and limitations.\n\nIn summary, while the paper presents an innovative and practical approach to computing graph hierarchy, several improvements need to be made in the writing and experimental aspects. The authors must provide a clear and comprehensive explanation of their work, including precise language and well-crafted figures, to ensure that readers can understand the findings.",
+   "then": [
+    {
+     "nodeMatching": "hierarchy|Review|review|清晰|English"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    },
+    {
+     "atMostTitles": "hierarchy|层次|graph hierarchy",
+     "max": 2
+    }
+   ]
+  },
+  {
+   "user": "这是服务计算相关的会议。作者在研究背景部分最好体现一下，从而说明其符合大会的主题。用英文描述一下",
+   "assistant": "This is a conference related to service computing. The authors should consider highlighting the relevance of their research to the conference's theme in the background section. This would demonstrate how their work aligns with the conference's overarching agenda.",
+   "then": [
+    {
+     "nodeMatching": "service computing|服务计算|conference|背景"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  },
+  {
+   "user": "论文主要关注了效率，但是忽视了结果的意义部分。各个方法范围的节点的rank值都不同，节点之间的相对顺序也不一样。为什么有这些差异，那个方法的结果是真正有实际意义的呢？作者需要分析所计算的Rank值是否有实际意义。用英文表述这个意思",
+   "assistant": "The paper primarily focuses on efficiency but overlooks the significance of the results. The rank values of nodes vary across methods, and the relative order among nodes is also different. It is essential to understand the reason for these differences and determine which method's outcome has practical implications. The authors should analyze whether the calculated rank values have actual significance.",
+   "then": [
+    {
+     "nodeMatching": "rank|Rank|meaning|significance|效率"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    }
+   ]
+  }
+ ]
+}

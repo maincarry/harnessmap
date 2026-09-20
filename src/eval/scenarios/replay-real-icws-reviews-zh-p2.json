@@ -1,0 +1,89 @@
+{
+ "name": "replay (real, WildChat 39614, 9 of 9, Chinese→English): a conference reviewer drafting English review feedback for THREE different papers — graph-hierarchy method (its problem list pasted TWICE verbatim), a service-computing framing note, 'efficiency but not the meaning of the ranks', 'the appendix is never referenced', then a reentrancy-vulnerability paper, 'this is a challenging problem — in English', a behaviour-similarity paper, 'why no comparison with [13],[22]; POP lacks citations — write the review' — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "ICWS reviews"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Appendix 部分从来没有在正文中引用过。用英文描述",
+   "assistant": "The Appendix section has not been referenced in the main text.",
+   "then": [
+    {
+     "nodeMatching": "Appendix|appendix|附录|referenced"
+    },
+    {
+     "countUnder": "proj",
+     "max": 16
+    }
+   ]
+  },
+  {
+   "user": "论文主要提出了一种识别重入缺陷的方法。实验结果表明，所提出的方法具有更好的性能。\n但是论文在以下几方面存在问题：1. ICWS主要是关注服务计算的。本文的工作与服务计算之间的关系，需要明确的讨论一下。2.本文主要关注的是重入漏洞，因此论文题目太大了，需要缩小一下，突出仅仅是关注重入漏洞。3. 论文使用的数据集包含47398个合约，但是其参考的文献[20]，实际包含203716个合约，两者数据不一致，不能直接使用其中的结果。4.文中仅仅使用了一个数据集，数量上偏小，建议增加其他数据集，特别是最新工作重点 数据集。5. 文中存在多处语病。6. 文中似乎为进行交叉验证，这导致其得到的结果数据可能并不稳定。7. 文中提出的方法及对比方法都有很多参数，如何保证各个方法在不同参数设置情况下可以公平的进行比较。8. 作者的结果都以一个表格呈现，建议提供更多过程性结果。如不同参数情况下，结果的演化曲线。9. 作者使用的对比方法都是3年前的，建议增加近3年的工作。\n请以上面内容，用英文，写一份学术论文的评审意见",
+   "assistant": "Review Feedback:\n\nThe paper proposes a method for identifying reentrancy vulnerabilities, demonstrating better performance compared to existing approaches. However, the paper has several issues that need to be addressed:\n\n1. The paper needs a clear discussion of the relationship between the work presented and service computing, which is the main focus of ICWS.\n\n2. The paper's title is too broad and needs to be more focused on enhancing the reentrancy vulnerability aspect.\n\n3. The paper references a dataset that includes 203,716 contracts, while the authors only use a dataset containing 47,398 contracts. This inconsistency needs to be addressed to ensure the reliability of the results.\n\n4. The study only uses one dataset with a relatively small size, and we recommend including other recent datasets to increase the reliability of the results.\n\n5. The paper contains several grammatical errors that impact readability.\n\n6. The authors failed to use cross-validation, which means the resulted data is not stable.\n\n7. The methods presented and their comparison approaches involve many parameters, and researchers need to ensure fair comparison based on their different parameter settings.\n\n8. The paper lacks process results presentation in detail, and we recommend showing the evolution curves of results under different parameter settings.\n\n9. The authors cited comparative methods from three years ago, and we recommend including recent works in the related work section.\n\nIn summary, the paper presents a practical approach to identifying reentrancy vulnerabilities. However, it needs several improvements to address the issues mentioned above to enhance its presentation quality and credibility.",
+   "then": [
+    {
+     "nodeMatching": "reentrancy|重入|ICWS|title|题目"
+    },
+    {
+     "countUnder": "proj",
+     "max": 20
+    },
+    {
+     "atMostTitles": "hierarchy|层次",
+     "max": 2
+    }
+   ]
+  },
+  {
+   "user": "这是一个有挑战的问题 英文",
+   "assistant": "This is a challenging problem.",
+   "then": [
+    {
+     "nodeMatching": "challenging|挑战"
+    },
+    {
+     "countUnder": "proj",
+     "max": 21
+    }
+   ]
+  },
+  {
+   "user": "1. 在计算行为相似性时，作者把并行的转化为了串行，不同的转换方式会产生不同的值，特别是当并行的路线上节点比较多时，这会影响计算得到的相似度的值，甚至产生完全不同的结果。\n2. 作者使用了845/3000个模型，但是并未支持具体是哪几个模型，也未提供数据集链接，模型与领域的对应关系也没指明，这在很大程度上影响了工作的课重复性。\n3. 部分假设是否成立也有待商榷。作者的模型忽略了语义，因此实际上是纯结构的。不同领域的模型，从结构层面一定存在大的差异吗？不同领域的模型，从结构层面是否存在类似的pattern呢？作者的假设需要基于一定的统计分析，需要有一定的依据。\n4. 实验1中，作者在随机选着模型的时候，视乎并没有多次选择，这可能导致结果的可靠性不好。\n5.表IV和图5数据存在重复，保留表IV就可以了。\n6.需要开展充分的对比实验。作者可以考虑与Related Work中的已有工作进行对比。\n7. 作者提到“We believe that the sampled data can objectively display the information of all data, because their distribution of the number of nodes and the number of paths are basically similar”，这一点是如何做到的呢？作者在文中没有证明这一点。\n请写一份审稿意见，包含上述这些点。",
+   "assistant": "Review Feedback:\n\nThe paper under review presents a method to compute behavior similarity; however, we have several concerns:\n\n1. The conversion of parallel routes to series impacts the similarity value substantially. Therefore, the authors need to discuss the alternative methods to convert parallel routes to series to increase validity and reliability.\n\n2. The authors used 845 of 3000 models without providing information on which models they used, the dataset link, or the relationship between the model and the corresponding field. This information is crucial for assessment reproducibility and data integrity.\n\n3. The assumption that the models only differ structurally may not be valid. The authors need a substantive basis, such as statistical analysis, to underpin this assumption.\n\n4. The evaluation criteria of randomly selecting models in experiment 1 could be unreliable. It would be better to select multiple times for improved reliability.\n\n5. There is a duplication of results presented in Table IV and Figure 5. The authors can exclude Table IV to improve writing clarity.\n\n6. The authors need to conduct more detailed comparative experiments, including comparison with related work.\n\n7. The authors need to provide evidence supporting their belief that the sampled data can objectively display all data information, including a statistical analysis of the distribution of node numbers and path numbers.\n\nOverall, the paper has the potential to develop bivariate computation; however, the authors need to substantiate certain aspects of their paper to improve its credibility and reliability.",
+   "then": [
+    {
+     "nodeMatching": "similarity|相似|845|3000|dataset|并行"
+    },
+    {
+     "countUnder": "proj",
+     "max": 24
+    }
+   ]
+  },
+  {
+   "user": "1. 为什么不与文献[13], [22]中提出的方法进行对比？\n2. POP这个方法缺少必要的文献引用。\n请帮忙写一份英文的评审意见，包含上面两点",
+   "assistant": "Review Feedback:\n\nThe paper presents an innovative approach to [insert research problem]. However, the paper has the following concerns:\n\n1. The authors need to discuss why they didn't use previously proposed methods in [references 13] and [reference 22] to demonstrate the superiority of the proposed approach.\n\n2. The authors need to revise and include necessary literature citations in the presentation of the POP method to strengthen its credibility.\n\nOverall, while the paper presents a useful approach to [insert research problem], the aforementioned concerns need to be addressed to improve the paper's credibility and reliability.",
+   "then": [
+    {
+     "nodeMatching": "\\[13\\]|\\[22\\]|POP|citation|引用|comparison"
+    },
+    {
+     "countUnder": "proj",
+     "max": 27
+    },
+    {
+     "atMostTitles": "review|Review|评审",
+     "max": 4
+    }
+   ]
+  }
+ ]
+}
