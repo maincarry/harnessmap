@@ -308,7 +308,7 @@ export class Translator {
       alterations = this.guardCorrectionTwin(alterations, map);
       alterations = this.guardCorrectionRetire(alterations, map, params);
       alterations = this.guardResolutionClose(alterations, map, params);
-      if (process.env.HARNESSMAP_GUARD_REJECTION === '1') alterations = this.guardUserRejection(alterations, map, params); // M358: OFF by default until its live proof lands (M358c) — two runs missed the target (ff2 skipped touched nodes; ff3 hit the tool's name in three detail nodes instead of the URL nodes)
+      if (process.env.HARNESSMAP_GUARD_REJECTION !== '0') alterations = this.guardUserRejection(alterations, map, params); // M358c: on by default since 0.9.69 (HARNESSMAP_GUARD_REJECTION=0 switches it off) — proven on the scene-detect thread: the two URL nodes reopened, the tool-name list card untouched
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
       const prior = this.store.roundForTurn(params.turnId);
@@ -385,18 +385,14 @@ export class Translator {
     const byId = new Map<string, any[]>();
     for (const a of alterations) if (typeof a?.id === 'string') (byId.get(a.id) ?? byId.set(a.id, []).get(a.id)!).push(a);
     const settled = (a: any) => /^(open|rejected|retracted|parked|superseded|removed)$/.test(String(a?.status ?? '')) || (typeof a?.content === 'string' && NEG.test(a.content));
-    const carries = (text: string) => { const hay = text.toLowerCase(); return [...tokens].find((t) => hay.includes(t.toLowerCase())); };
+    // M358c (third and last attempt, Jacob's rule: narrow, not wider): when the user's words say it is the ADDRESS that is wrong
+    // (网址 / 链接 / 地址 / URL / link / address), only nodes that carry a URL containing the token are targets — a node that merely
+    // names the tool ("ffmpeg-scene-change-detector provides threshold and dynamic modes") is not what the user rejected.
+    const urlWords = /网址|链接|地址|\bURL\b|\blink\b|\baddress\b/i.test(ut);
+    const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const carries = (text: string) => { const hay = text.toLowerCase(); return [...tokens].find((t) => /^https?:\/\//i.test(t) ? hay.includes(t.toLowerCase()) : urlWords ? new RegExp(`https?:\\/\\/[^\\s"'）)>]*${esc(t)}`, 'i').test(text) : hay.includes(t.toLowerCase())); };
     const out = [...alterations];
     let n = 0;
-    for (const a of out) { // what the filer creates this round with the rejected thing in it, and no rejection of its own
-      if (n >= 3) break;
-      if (a?.op !== 'create_node' || typeof a.content !== 'string' || settled(a)) continue;
-      const hit = carries(`${a.title ?? ''}\n${a.content}`);
-      if (!hit) continue;
-      a.status = 'open';
-      this.store.audit('guard_user_rejection', { id: String(a.id ?? '').slice(0, 8), token: hit.slice(0, 60), was: 'new', title: String(a.title || a.content).slice(0, 40) });
-      n++;
-    }
     for (const node of map.nodes) {
       if (n >= 3) break;
       if (node.status === 'removed' || /^(open|rejected|retracted|parked|superseded|removed)$/.test(node.status)) continue;
@@ -407,6 +403,15 @@ export class Translator {
       const upd = own.find((a) => a.op === 'update_node');
       if (upd) upd.status = 'open'; else out.push({ op: 'update_node', id: node.id, status: 'open' });
       this.store.audit('guard_user_rejection', { id: node.id.slice(0, 8), token: hit.slice(0, 60), was: node.status, title: (node.title || node.content).slice(0, 40), overrode: !!upd });
+      n++;
+    }
+    for (const a of out) { // what the filer creates this round with the rejected thing in it, and no rejection of its own
+      if (n >= 3) break;
+      if (a?.op !== 'create_node' || typeof a.content !== 'string' || settled(a)) continue;
+      const hit = carries(`${a.title ?? ''}\n${a.content}`);
+      if (!hit) continue;
+      a.status = 'open';
+      this.store.audit('guard_user_rejection', { id: String(a.id ?? '').slice(0, 8), token: hit.slice(0, 60), was: 'new', title: String(a.title || a.content).slice(0, 40) });
       n++;
     }
     return out;
