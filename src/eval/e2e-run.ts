@@ -253,6 +253,10 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
   }
   auditMark = (await audit()).length;
 }
+// M361b (runner, 2026-09-20): a codex 150 s stall leaves a round in the filing ledger with a retry due after its backoff (M342); ending the
+// piece first left that round out of the saved .map three times in one hour. Wait (≤180 s) for the ledger to drain, forcing failed rows
+// through the retry route (the server's own worker only runs every 30 s and only when no live round is queued).
+try { const t0 = Date.now(); for (;;) { const f = await get('/api/filings'); const open = ((f?.items ?? []) as any[]).filter((r) => r.status === 'pending' || r.status === 'failed'); if (!open.length) break; if (Date.now() - t0 > 180_000) { console.log(`filing ledger not drained: ${open.length} left`); notes.push(`ledger: ${open.length} unfiled`); break; } for (const r of open) if (r.status === 'failed' && !r.inFlight) await post(`/api/filings/${r.turnId}/retry`, {}); await sleep(5000); } } catch {}
 let tokens = 0; try { const c = await get('/api/cost?window=24h'); tokens = Number(c?.total?.tokens ?? 0); } catch {}
 // M295 (Jacob: "experiment with speeding up the map updates"): the speed baseline — median round wall time (filing landed, minus the settle) and per-agent latency
 let speed = ''; try { const inf = (await audit('inference')).filter((r: any) => r.detail?.ok); const by: Record<string, number[]> = {}; for (const r of inf) (by[r.detail.task] ??= []).push(Number(r.detail.ms)); const med = (a: number[]) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; }; speed = `round ${med(roundMs) / 1000 | 0}s · ` + Object.entries(by).map(([t, a]) => `${t} ${Math.round(med(a) / 100) / 10}s×${a.length}`).join(' '); } catch {}

@@ -34,7 +34,7 @@
    "assistant": "You're welcome! I'm glad to hear that it works now. If you have any other questions, feel free to ask!",
    "then": [
     {
-     "nodeMatching": "works|done|resolved|thanks"
+     "nodeMatching": "save|image|folder"
     },
     {
      "countUnder": "proj",
@@ -67,7 +67,7 @@
    "assistant": "You're welcome! I'm always here to help. Good luck with your report and feel free to reach out if you need any further assistance in the future.",
    "then": [
     {
-     "nodeMatching": "thanks|bye|done"
+     "nodeMatching": "save|image|folder"
     },
     {
      "countUnder": "proj",

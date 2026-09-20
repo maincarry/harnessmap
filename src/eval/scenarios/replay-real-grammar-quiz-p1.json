@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 39426, 13 of 13, English/Russian): an English grammar quiz — thirteen 'Choose one grammatically correct answer' items with 3 options each (answered one word each), a Russian aside ('which question fits the answer'), and question 1 asked a SECOND time verbatim (exact repeat) — how does the map hold a drill: one quiz item, one node per question, or per answer? — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "English grammar quiz"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Choose one grammatically correct answer\n\nОбязательный ответ\n\nYou haven't to do that, you know\n\nYou didn't have to do that, you know\n\nYou didn't must do that, you know",
+   "assistant": "You didn't have to do that, you know.",
+   "then": [
+    {
+     "nodeMatching": "didn't have to|grammar|quiz|correct"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "Choose one grammatically correct answer\n\nОбязательный ответ\n\nWhen are you going to go out?\n\nWhen going out are we?\n\nWhen do we go out?",
+   "assistant": "When are you going to go out?",
+   "then": [
+    {
+     "nodeMatching": "going to go out|grammar|correct"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "Choose one grammatically correct answer\n\nОбязательный ответ\n\nI work tomorrow\n\nI don't working tomorrow\n\nI'm working tomorrow",
+   "assistant": "I'm working tomorrow.",
+   "then": [
+    {
+     "nodeMatching": "working tomorrow|grammar|correct"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    }
+   ]
+  },
+  {
+   "user": "Choose one grammatically correct answer\n\nОбязательный ответ\n\nI am usually having some coffee and toast for my breakfast\n\nI am used to have some coffee and toast for my breakfast\n\nI usually have some coffee and toast for my breakfast",
+   "assistant": "I usually have some coffee and toast for my breakfast.",
+   "then": [
+    {
+     "nodeMatching": "usually have|coffee|grammar|correct"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  }
+ ]
+}

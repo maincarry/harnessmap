@@ -307,6 +307,7 @@ export class Translator {
       alterations = this.guardScope(alterations, writeScope, map, params);
       alterations = this.guardCorrectionTwin(alterations, map);
       alterations = this.guardCorrectionRetire(alterations, map, params);
+      alterations = this.guardResolutionClose(alterations, map, params);
       if (process.env.HARNESSMAP_GUARD_REJECTION === '1') alterations = this.guardUserRejection(alterations, map, params); // M358: OFF by default until its live proof lands (M358c) — two runs missed the target (ff2 skipped touched nodes; ff3 hit the tool's name in three detail nodes instead of the URL nodes)
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
@@ -409,6 +410,29 @@ export class Translator {
       n++;
     }
     return out;
+  }
+
+  // M361 (save-image-path en, stance re-score): "ok it works thanks" filed NOTHING and the item the previous round had just corrected
+  // stayed provisional — a resolution in the user's own words did not close anything. Guard: a short user turn that is a bare
+  // resolution ("it works", "works now", "that fixed it", "解决了", "可以了", "好了", "成功了" — no question mark, no new ask) and a
+  // round whose alterations set nothing to done/resolved: the top-most node the PREVIOUS round touched is marked done, once.
+  private guardResolutionClose(alterations: any[], map: { nodes: MapNode[] }, params: { chatId: string; userText?: string }): any[] {
+    const ut = (params.userText ?? '').trim();
+    if (!ut || ut.length > 120 || /[?？]/.test(ut)) return alterations;
+    const RES = /(^|[^\p{L}])((it|that|this|the (code|script|fix|change)) (now )?works( now)?|works (now|fine|great|perfectly)|that (fixed|solved|did) it|problem solved|(is )?fixed now|all good now|已经?(解决|可以|成功|好)了|解决了|可以了|好了|成功了|搞定了|没问题了)([^\p{L}]|$)/iu;
+    if (!RES.test(ut)) return alterations;
+    if (alterations.some((a) => a?.op === 'update_node' && /^(done|resolved|decided|accepted)$/.test(String(a.status ?? '')))) return alterations;
+    const prev = this.store.lastRoundAlterations(params.chatId);
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    const touched = prev.map((a: any) => a?.id).filter((x: unknown): x is string => typeof x === 'string');
+    const created = new Set(prev.filter((a: any) => a.op === 'create_node').map((a: any) => a.id as string));
+    const depth = (n: MapNode) => { let d = 0; for (let c: MapNode | undefined = n; c && c.parentId; c = byId.get(c.parentId)) d++; return d; };
+    const cands = [...new Set(touched)].map((id) => byId.get(id)).filter((n): n is MapNode => !!n && n.status !== 'removed' && n.parentId !== null && !created.has(n.parentId ?? '') && !/^(done|resolved|decided|parked|superseded)$/.test(n.status) && n.author !== 'system');
+    if (!cands.length) return alterations;
+    cands.sort((a, b) => depth(a) - depth(b));
+    const target = cands[0];
+    this.store.audit('guard_resolution_close', { id: target.id.slice(0, 8), title: (target.title || target.content).slice(0, 40), was: target.status, said: ut.slice(0, 40) });
+    return [...alterations, { op: 'update_node', id: target.id, status: 'done' }];
   }
 
   private guardCorrectionTwin(alterations: any[], map: { nodes: MapNode[] }): any[] {
