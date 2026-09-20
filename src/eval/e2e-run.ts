@@ -10,7 +10,7 @@
 //   · {noAudit: kind} · {statusOf: regex, is: status} · {countUnder: key, max: n} · {topLevelMatching: regex}
 //   · {undoNext: regex} · {do: 'undo'|'focus'|'light'|'dim'|'release'|'pin', key?, depth?}
 import { rmSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync, symlinkSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, dirname } from 'node:path';
 
 const file = process.argv[2]; if (!file) { console.error('usage: e2e-run.ts <scenario.json>'); process.exit(2); }
 const sc = JSON.parse(readFileSync(file, 'utf8'));
@@ -251,6 +251,9 @@ let speed = ''; try { const inf = (await audit('inference')).filter((r: any) => 
 const line = `${new Date().toISOString().slice(0, 16)} · ${sc.name} · [${ENSEMBLE}] ${pass} passed, ${fail} failed · ≈${Math.round(tokens / 1000)}k tokens${speed ? ' · ' + speed : ''}${notes.length ? ' · ' + notes.join(' ; ').slice(0, 400) : ''}`;
 console.log(`\n================ ${line} ================`);
 try { appendFileSync('docs/E2E-LEDGER.md', `- ${line}\n`); } catch {}
+// M355 (Jacob 2026-09-20): every finished run leaves its map as a .map bundle — the transcript a founder can open and read
+// in their own HarnessMap. E2E_MAP_OUT names the file; else it lands beside the scenario. Audit rides along (the guard story).
+try { const st = await state(); const r = await fetch(`${BASE}/api/projects/${st.projectId}/export?audit=1`); if (r.ok) { const out = process.env.E2E_MAP_OUT ?? file.replace(/\.json$/, '') + '.map'; const b = await r.json(); b.project.name = basename(out).replace(/\.map$/, ''); b.scenario = sc.name; mkdirSync(dirname(out), { recursive: true }); writeFileSync(out, JSON.stringify(b)); console.log(`map saved: ${out}`); } else console.log(`map save failed: ${r.status}`); } catch (err) { console.log(`map save failed: ${String(err).slice(0, 100)}`); }
 server.kill();
 if (!process.argv.includes('--keep')) { try { rmSync(TMP, { recursive: true, force: true }); } catch {} }
 process.exit(fail ? 1 : 0);

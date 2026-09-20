@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 38638, 12 of 12, Chinese): nginx reverse proxy for a POST login API on 106.75.13.27:7002 — 'where is the file to edit', 'all on one machine but still a CORS error', 'but it still cross-origins: front end on 80, request to 7002' (pushback on the assistant's wrong 'same machine = same origin' claim), 'the backend sees /login not /api/login — why', an amis /pages/site.json 404, 'proxy only /api/ paths', 'point one folder at another' (symlink), 'symlink under nginx html gives 403', 'configured that, still 403', 'how to delete the symlink', and the assistant's dangerous 'sudo rm /usr/share/nginx/html' answer — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "nginx 反向代理"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "我的后端接口是post方式的106.75.13.27:7002/api/login，如何利用nginx进行反向代理，解决前端请求跨域请求错误问题",
+   "assistant": "在 nginx 的配置文件中加入以下代码：\n\n```\nserver {\n    listen       80;\n    server_name  your.domain.com;\n\n    location /api/ {\n        proxy_pass http://106.75.13.27:7002/;\n        proxy_set_header Host $host;\n    }\n}\n```\n\n这样就可以将前端请求的 /api/login 的地址反向代理到 106.75.13.27:7002/api/login 。此时前端可以直接请求本地的 /api/login，nginx 会将请求转发到实际的后端接口上，并将响应返回给前端，解决了跨域问题。",
+   "then": [
+    {
+     "nodeMatching": "nginx|反向代理|proxy_pass|跨域|/api/"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "要修改的这个文件在哪里",
+   "assistant": "nginx 的配置文件通常位于 /etc/nginx/nginx.conf 或者 /usr/local/nginx/conf/nginx.conf，具体路径还要看你的 nginx 安装在哪个目录下。可以通过以下命令来查看 nginx 的配置文件路径：\n\n```\nnginx -t\n```\n\n该命令会检查 nginx 的配置文件语法是否正确，并输出配置文件路径。",
+   "then": [
+    {
+     "nodeMatching": "nginx\\.conf|配置文件|/etc/nginx|nginx -t"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "我的nginx、前端和后端都部署在同一台机器上的106.75.13.27，但是前端请求出现了跨域错误，我想通过nginx反向代理的方式解决跨域问题，应该如何解决呢",
+   "assistant": "既然前端、nginx、后端都部署在同一台机器上的 106.75.13.27，就不存在跨域问题，因为同源策略不会对同一台机器上的不同端口号的服务进行限制。\n\n你可以直接在前端代码中请求后端接口，例如：\n\n```\nfetch('http://106.75.13.27:7002/api/login', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify({\n    ...\n  })\n}).then(response => {\n  ...\n}).catch(error => {\n  ...\n})\n```\n\n当然，如果你想使用反向代理的方式，也可以在 nginx 的配置文件中加入以下代码：\n\n```\nserver {\n  listen       80;\n  server_name  106.75.13.27;\n\n  location /api/ {\n    proxy_pass http://127.0.0.1:7002/;\n    proxy_set_header Host $host;\n  }\n}\n```\n\n这会将前端请求的 /api/login 的地址反向代理到 127.0.0.1:7002/api/login，实现跨域请求。但是由于所有服务都在同一台机器上，因此使用反向代理的方式并不能提高性能，建议直接请求后端接口。",
+   "then": [
+    {
+     "nodeMatching": "同源|跨域|同一台|端口"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    }
+   ]
+  },
+  {
+   "user": "但是还是出现了跨域问题了啊，前端直接请求的是106.75.13.27:7002端口，而前端部署在80端口",
+   "assistant": "如果你的前端代码直接请求 106.75.13.27:7002 端口，那么在浏览器中就会跨域，因为从 80 端口访问 7002 端口是跨域行为。如果想避免跨域，可以将前端请求的地址改成相对路径，例如：\n\n```\n// 在前端代码中请求 api/login 接口\nfetch('/api/login', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify({\n    ...\n  })\n}).then(response => {\n  ...\n}).catch(error => {\n  ...\n})\n```\n\n这样请求就会发送到当前域名的 80 端口，nginx 配置文件中也应该将反向代理的地址改成相对路径，例如：\n\n```\nserver {\n  listen       80;\n  server_name  106.75.13.27;\n\n  location /api/ {\n    proxy_pass http://127.0.0.1:7002/;\n    proxy_set_header Host $host;\n  }\n}\n```\n\n这样前端请求的 /api/login 的地址就会反向代理到本机的 7002 端口，从而避免了 CORS 错误。",
+   "then": [
+    {
+     "nodeMatching": "跨域|80|7002|相对路径|/api/login"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  }
+ ]
+}

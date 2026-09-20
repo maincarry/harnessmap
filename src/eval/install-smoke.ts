@@ -9,7 +9,7 @@
 //
 // Run: env -u ANTHROPIC_API_KEY -u HARNESSMAP_INFERENCE bun run src/eval/install-smoke.ts
 
-import { rmSync, mkdirSync, existsSync } from 'node:fs';
+import { rmSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -18,6 +18,7 @@ const HOME = join(TMP, 'dot-harnessmap');
 const PROJ = join(TMP, 'my-fresh-project');
 const PORT = 8797;
 const BASE = `http://127.0.0.1:${PORT}`;
+const VERSION_EXPECTED = JSON.parse(readFileSync('package.json', 'utf8')).version as string; // M355: the bundle names the version that wrote it
 rmSync(TMP, { recursive: true, force: true });
 mkdirSync(PROJ, { recursive: true });
 
@@ -717,6 +718,34 @@ printf '{"title":"shimmed %s"}' "ok" > "$out"
   await runHook('session-start.ts', { session_id: 'codex-1', cwd: PROJ, source: 'compact' });
   const cf = await (await fetch(`${BASE}/api/harness/context?session_id=codex-1`)).json();
   check("SessionStart source='compact' re-anchors to a FULL injection", cf.kind === 'full');
+}
+
+console.log('\n== 6s. a map travels as a .map file: save, open as a new map, the text importer refuses it (M355) ==');
+{
+  const st = await (await fetch(`${BASE}/api/state`)).json();
+  const ex = await fetch(`${BASE}/api/projects/${st.projectId}/export?audit=1`);
+  check('save answers with a .map attachment', ex.status === 200 && /attachment; filename=.*\.map/.test(ex.headers.get('content-disposition') ?? ''));
+  const bundle = await ex.json();
+  const live = (a: any[]) => (a ?? []).filter((n: any) => n.status !== 'removed');
+  check('the bundle carries the signature, the project, its nodes, history, transcript and audit', bundle.harnessmap_map === 1 && !!bundle.project?.name && Array.isArray(bundle.tables?.nodes) && bundle.tables.nodes.length >= live(st.nodes).length && Array.isArray(bundle.tables.map_events) && bundle.tables.map_events.length > 0 && Array.isArray(bundle.tables.turns) && Array.isArray(bundle.audit) && bundle.version === VERSION_EXPECTED);
+  const refused = await fetch(`${BASE}/api/import/preview`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'text', text: JSON.stringify(bundle) }) });
+  check('the text importer refuses a .map and names the right door', refused.status === 400 && /open a \.map/.test(JSON.stringify(await refused.json().catch(() => ({})))));
+  const im = await fetch(`${BASE}/api/import/map`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(bundle) });
+  const imj = await im.json();
+  check('opening the .map makes a NEW map (fresh id, same name)', im.status === 200 && imj.ok === true && !!imj.projectId && imj.projectId !== st.projectId && imj.name === bundle.project.name, JSON.stringify(imj).slice(0, 120));
+  const st2 = await (await fetch(`${BASE}/api/state`)).json();
+  const shape = (a: any[]) => live(a).map((n: any) => `${n.title ?? ''}|${n.content}|${n.status}`).sort().join('\n');
+  check('the page follows the opened map and it holds the same nodes under fresh ids', st2.projectId === imj.projectId && shape(st2.nodes) === shape(st.nodes) && live(st2.nodes).every((n: any) => !live(st.nodes).some((o: any) => o.id === n.id)), `${live(st2.nodes).length} vs ${live(st.nodes).length}`);
+  const turns2 = await (await fetch(`${BASE}/api/chats/${st2.mainChatId}/turns`)).json();
+  const expectTurns = bundle.tables.turns.filter((t: any) => t.chat_id === bundle.mainChatId).length;
+  check('the transcript came along (turns on the opened map’s view)', Array.isArray(turns2) && turns2.length === expectTurns, `${Array.isArray(turns2) ? turns2.length : '?'} vs ${expectTurns}`);
+  const im2 = await fetch(`${BASE}/api/import/map`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(bundle) });
+  const imj2 = await im2.json();
+  const st3 = await (await fetch(`${BASE}/api/state`)).json();
+  check('opening the same file twice makes two separate maps (no id collision)', im2.status === 200 && imj2.projectId !== imj.projectId && shape(st3.nodes) === shape(st.nodes));
+  const bad = await fetch(`${BASE}/api/import/map`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hello: 1 }) });
+  check('a body that is not a .map is refused', bad.status === 400);
+  await fetch(`${BASE}/api/projects/${st.projectId}/activate`, { method: 'POST' });
 }
 
 console.log('\n== 8. tunnel guard: a foreign server is never adopted (M176) ==');

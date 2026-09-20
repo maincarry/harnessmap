@@ -476,6 +476,8 @@
           <button id="other-more-btn" title="map housekeeping: tidy, bulk lighting, import, preferences">＋ more…<span class="nudge-dot" hidden>●</span></button>
           <div id="other-more" hidden>
           <button id="enrich-btn" title="the map too coarse? the machinery reads this map's own conversation record, finds thin nodes that were discussed at length, and proposes the depth under them — you approve">✚ enrich map</button>
+          <button id="map-save-btn" title="save this whole map as one .map file — nodes, history, transcript and memory; only HarnessMap opens it (＋ more… → open a .map)">⤓ save as .map</button>
+          <button id="map-open-btn" title="open a .map file saved from a HarnessMap — it becomes its own separate map here, read-through; nothing is merged">⤒ open a .map</button>
           <button id="map-check" title="review the whole map now — anything needing a restructure lands in the ⟳ to tidy folder, or you get a clean bill (the map also reviews itself every 10 rounds)">⟳ tidy map</button>
           <div style="display:flex;gap:4px"><button id="tidy-top" style="flex:1" title="tidy what you are looking at — the whole map, or the zoomed branch — the tidy agent proposes regrouping, renames and merges, containers at any level; you approve">⟳ tidy this view</button><button class="justdo" data-do="tidy-top" title="just do it: tidy this view now and apply the proposal without review (one ↩ undo)">⚡</button></div>
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
@@ -1131,6 +1133,8 @@ function openDrawer() {
     ${act('add-root', '＋', 'add node')}
     ${act('undo-btn', '↩', 'undo last action')}
     ${act('import-btn', '⇪', 'import notes, documents, or past sessions')}
+    ${act('map-save-btn', '⤓', 'save as .map file')}
+    ${act('map-open-btn', '⤒', 'open a .map file')}
     ${act('sessions-btn', '▦', 'all sessions: pin, close, jump')}
     ${act('font-btn', '🔠', 'text size')}
     ${act('agent-view-btn', '👁', 'what the agent sees')}
@@ -1787,6 +1791,8 @@ const CONTROLS = [
     ['auto-rename', '✎', 'auto-rename', 'short display names for long-named nodes; applies directly'],
     ['enrich-btn', '✚', 'enrich map', 'deepen thin nodes from this map’s own conversation record'],
     ['import-btn', '⇪', 'import', 'notes, documents, or past sessions — one proposal you approve'],
+    ['map-save-btn', '⤓', 'save as .map', 'this whole map as one file — nodes, history, transcript, memory'],
+    ['map-open-btn', '⤒', 'open a .map', 'a saved map becomes its own separate map here; nothing merged'],
     ['undo-btn', '↩', 'undo', 'take back the last change'],
   ] },
   { g: 'The map’s mind', sub: 'the brain, its governors, and how the agents are told to behave', items: [
@@ -2498,6 +2504,29 @@ for (const b of document.querySelectorAll('.justdo')) b.onclick = async (e) => {
 
 // On-demand map check (Jacob): demand suggestions — or get the clean bill.
 $('tidy-top').onclick = () => { $('other-menu').hidden = true; openReorganize(zoomId ?? null, zoomId ? disp(node(zoomId)) : 'the whole map'); }; // M278: one tidy, over the current view
+// M355 (Jacob): a map travels as ONE file. Save = the export route as a download; open = read the file here, post the
+// bundle, and follow the new map. The server never merges an opened map into an existing one.
+$('map-save-btn').onclick = () => {
+  $('other-menu').hidden = true;
+  const a = document.createElement('a'); a.href = `/api/projects/${S.projectId}/export?audit=1`; a.download = ''; document.body.appendChild(a); a.click(); a.remove();
+  $('round-line').textContent = '⤓ saving this map as a .map file (your browser downloads it)';
+};
+$('map-open-btn').onclick = () => {
+  $('other-menu').hidden = true;
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.map,application/x-harnessmap-map+json,application/json';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0]; if (!f) return;
+    $('round-line').textContent = `⤒ opening “${f.name}”…`;
+    try {
+      let b; try { b = JSON.parse(await f.text()); } catch { throw new Error('not a HarnessMap .map file'); }
+      if (!b || b.harnessmap_map !== 1) throw new Error('not a HarnessMap .map file');
+      const r = await post('/api/import/map', b);
+      S.turns = []; setZoom(null); loadTurns();
+      $('round-line').textContent = `⤒ opened “${r.name}” as its own map — ${r.nodes} nodes, ${r.events} history events; nothing merged into your other maps`;
+    } catch (err) { $('round-line').textContent = `open .map failed: ${err.message}`; }
+  };
+  inp.click();
+};
 $('enrich-btn').onclick = async () => {
   $('other-menu').hidden = true;
   $('round-line').textContent = '✚ reading the conversation record for depth…';

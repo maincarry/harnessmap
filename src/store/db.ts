@@ -552,6 +552,103 @@ export class Store {
     tx();
   }
 
+  // M355 (Jacob 2026-09-20: "store these finalized test transcripts as maps one can open and read… a special format
+  // called map that can only be opened and imported to our map"): the .map bundle. One JSON document with a HarnessMap
+  // signature that carries the WHOLE project — nodes, links, chats, the transcript (turns, rounds), the event history,
+  // memory, relations, favorites, filings, provenance — so a map can leave this machine and open, read-through, on
+  // another. Plain JSON inside; the signature is what makes it ours: the text importer refuses it and only
+  // importProject() opens it. Tables are copied column-for-column (PRAGMA table_info), so ALTERed columns ride along.
+  exportProject(projectId: string, opts: { audit?: boolean } = {}): Record<string, any> {
+    const proj = this.db.prepare('SELECT id, name, created_at FROM projects WHERE id = ?').get(projectId) as any;
+    if (!proj) throw new Error('unknown project');
+    const all = (sql: string, ...args: any[]) => this.db.prepare(sql).all(...args) as any[];
+    const nodes = all('SELECT * FROM nodes WHERE project_id = ?', projectId);
+    const nodeIds = nodes.map((n) => n.id);
+    const q = (ids: string[]) => ids.map(() => '?').join(',') || "''";
+    const chunked = (sql: (ph: string) => string, ids: string[]): any[] => { const out: any[] = []; for (let i = 0; i < ids.length; i += 400) { const part = ids.slice(i, i + 400); out.push(...all(sql(q(part)), ...part)); } return out; };
+    const chats = all('SELECT * FROM chats WHERE project_id = ?', projectId);
+    const chatIds = chats.map((c) => c.id);
+    const turns = chunked((ph) => `SELECT * FROM turns WHERE chat_id IN (${ph}) ORDER BY chat_id, idx`, chatIds);
+    const rounds = chunked((ph) => `SELECT * FROM rounds WHERE chat_id IN (${ph}) ORDER BY created_at`, chatIds);
+    const roundIds = rounds.map((r) => r.id);
+    const tables: Record<string, any[]> = {
+      nodes,
+      links: chunked((ph) => `SELECT * FROM links WHERE from_item_id IN (${ph})`, nodeIds),
+      chats,
+      lit: chunked((ph) => `SELECT * FROM lit WHERE chat_id IN (${ph})`, chatIds),
+      turns,
+      rounds,
+      map_events: all('SELECT * FROM map_events WHERE project_id = ? ORDER BY seq', projectId),
+      node_memory: chunked((ph) => `SELECT * FROM node_memory WHERE node_id IN (${ph})`, nodeIds),
+      memory_details: chunked((ph) => `SELECT * FROM memory_details WHERE node_id IN (${ph}) ORDER BY id`, nodeIds),
+      relations: chunked((ph) => `SELECT * FROM relations WHERE node_id IN (${ph})`, nodeIds),
+      conversation_summary: chunked((ph) => `SELECT * FROM conversation_summary WHERE chat_id IN (${ph})`, chatIds),
+      favorites: chunked((ph) => `SELECT * FROM favorites WHERE node_id IN (${ph})`, nodeIds),
+      filings: chunked((ph) => `SELECT * FROM filings WHERE chat_id IN (${ph})`, chatIds),
+      provenance: chunked((ph) => `SELECT * FROM provenance WHERE round_id IN (${ph})`, roundIds),
+    };
+    const bundle: Record<string, any> = {
+      harnessmap_map: 1,
+      format: 'harnessmap/map',
+      exportedAt: new Date().toISOString(),
+      project: { id: proj.id, name: proj.name, createdAt: proj.created_at },
+      mainChatId: this.getSetting(`active_chat:${projectId}`) ?? (chats.find((c) => c.status === 'active')?.id ?? chats[0]?.id ?? null),
+      counts: Object.fromEntries(Object.entries(tables).map(([k, v]) => [k, v.length])),
+      tables,
+    };
+    // the audit log is machine-wide (no project column); it rides along only on request — the e2e runner asks for it so a
+    // test transcript keeps the guard and auto-mode story that explains its map. Rows since the project was born.
+    if (opts.audit) bundle.audit = all('SELECT ts, kind, detail FROM audit_log WHERE ts >= ? ORDER BY id', proj.created_at);
+    return bundle;
+  }
+
+  // Opens a .map bundle as a NEW project — never merged into an existing one. Every id is minted fresh (a map opened
+  // twice, or opened where its ids already live, must not collide), and the same renaming is applied inside the JSON
+  // columns (alterations, provenance) so the event history still points at the right nodes. Returns the new ids.
+  importProject(bundle: any, opts: { name?: string } = {}): { projectId: string; chatId: string | null; nodes: number; events: number } {
+    if (!bundle || bundle.harnessmap_map !== 1 || !bundle.tables || !Array.isArray(bundle.tables.nodes) || typeof bundle.project?.name !== 'string') throw new Error('not a HarnessMap .map file');
+    const t = bundle.tables as Record<string, any[]>;
+    const idMap = new Map<string, string>();
+    const fresh = (old: unknown) => { if (typeof old !== 'string' || !old) return old as any; let n = idMap.get(old); if (!n) { n = randomUUID(); idMap.set(old, n); } return n; };
+    for (const n of t.nodes ?? []) fresh(n.id);
+    for (const c of t.chats ?? []) fresh(c.id);
+    for (const r of t.turns ?? []) fresh(r.id);
+    for (const r of t.rounds ?? []) fresh(r.id);
+    for (const l of t.links ?? []) fresh(l.id);
+    for (const e of t.map_events ?? []) fresh(e.id);
+    fresh(bundle.project.id);
+    const olds = [...idMap.keys()].sort((a, b) => b.length - a.length);
+    const rxAll = olds.length ? new RegExp(olds.map((o) => o.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g') : null;
+    const rewrite = (v: unknown): unknown => (typeof v === 'string' && rxAll ? v.replace(rxAll, (m) => idMap.get(m) ?? m) : v);
+    const projectId = idMap.get(bundle.project.id)!;
+    const name = (opts.name ?? bundle.project.name).trim().slice(0, 60) || 'imported map';
+    const cols = (table: string) => new Set((this.db.prepare(`PRAGMA table_info(${table})`).all() as any[]).map((r) => r.name));
+    const skipCol: Record<string, Set<string>> = { map_events: new Set(['seq']), memory_details: new Set(['id']) };
+    const insertRows = (table: string, rows: any[]) => {
+      if (!rows?.length) return;
+      const have = cols(table);
+      for (const row of rows) {
+        const keys = Object.keys(row).filter((k) => have.has(k) && !(skipCol[table]?.has(k)));
+        if (!keys.length) continue;
+        const vals = keys.map((k) => { const v = row[k]; if (v === null || v === undefined) return null; if (typeof v === 'object') return rewrite(JSON.stringify(v)); return rewrite(v); });
+        try { this.db.prepare(`INSERT OR IGNORE INTO ${table} (${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')})`).run(...(vals as any[])); } catch (err) { this.audit('map_import_row_skipped', { table, error: String(err).slice(0, 120) }); }
+      }
+    };
+    let chatId: string | null = null;
+    const tx = this.db.transaction(() => {
+      this.db.prepare('INSERT INTO projects (id, name, created_at) VALUES (?, ?, ?)').run(projectId, name, bundle.project.createdAt ?? new Date().toISOString().slice(0, 19).replace('T', ' '));
+      const order = ['nodes', 'links', 'chats', 'lit', 'turns', 'rounds', 'map_events', 'node_memory', 'memory_details', 'relations', 'conversation_summary', 'favorites', 'filings', 'provenance'];
+      for (const table of order) insertRows(table, t[table] ?? []);
+      const main = typeof bundle.mainChatId === 'string' ? idMap.get(bundle.mainChatId) : null;
+      const chats = (t.chats ?? []).map((c) => idMap.get(c.id)).filter(Boolean) as string[];
+      chatId = main ?? chats[0] ?? null;
+      if (chatId) this.setSetting(`active_chat:${projectId}`, chatId);
+    });
+    tx();
+    this.audit('map_imported', { project: projectId.slice(0, 8), name: name.slice(0, 40), nodes: (t.nodes ?? []).length, events: (t.map_events ?? []).length, from: String(bundle.exportedAt ?? '').slice(0, 19) });
+    return { projectId, chatId, nodes: (t.nodes ?? []).length, events: (t.map_events ?? []).length };
+  }
+
   // M136: undo stack — inverse operations with pre-images, capped at 20 per
   // project. History is never rewritten; undo APPENDS inverse alterations.
   pushUndo(projectId: string, label: string, inverse: unknown, meta: unknown = null): void {

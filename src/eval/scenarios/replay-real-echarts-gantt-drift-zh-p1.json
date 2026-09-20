@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 38769, 8 of 8, Chinese): an ECharts Gantt sample that drifts — 'Twitter URL?', 'sites to look at pictures', 'git: avoid typing the password every time', 'I use https not ssh' (correction), 'Linux CLI only — how to view an image', 'yum install feh: no package — wrong name?', 'compiling is too much trouble, any other way' (constraint) — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "ECharts 甘特图"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "请用echarts写一个实现甘特图的简单样例，代码短一点",
+   "assistant": "html代码：\n\n```html\n<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"utf-8\">\n    <title>甘特图简单样例</title>\n    <!-- 引入echarts库 -->\n    <script src=\"https://cdn.jsdelivr.net/npm/echarts@4.9.0/dist/echarts.min.js\"></script>\n    <style type=\"text/css\">\n        /* 让echarts容器自适应屏幕 */\n        .chart-container {\n            width: 100%;\n            height: 500px;\n        }\n    </style>\n</head>\n<body>\n<!-- 甘特图echarts容器 -->\n<div id=\"chart-container\" class=\"chart-container\"></div>\n\n<!-- 甘特图数据 -->\n<script>\n    var data = [\n        {\n            \"name\": \"任务1\",\n            \"start\": \"2022-05-01\",\n            \"end\": \"2022-06-01\"\n        },\n        {\n            \"name\": \"任务2\",\n            \"start\": \"2022-06-01\",\n            \"end\": \"2022-07-01\"\n        },\n        {\n            \"name\": \"任务3\",\n            \"start\": \"2022-07-01\",\n            \"end\": \"2022-08-01\"\n        }\n    ];\n\n    // 渲染甘特图\n    var chart = echarts.init(document.getElementById('chart-container'));\n    chart.title = '甘特图简单样例';\n    chart.option = {\n        tooltip: {\n            formatter: function (params) {\n                return params.name + ' : ' + params.value[0] + '-' + params.value[1];\n            }\n        },\n        grid: {\n            height: '50%',\n            width: '80%',\n            left: '10%',\n            top: '20%'\n        },\n        xAxis: {\n            type: 'time'\n        },\n        yAxis: {\n            data: ['任务1', '任务2', '任务3']\n        },\n        series: [{\n            type: 'custom',\n            renderItem: function (params, api) {\n                var duration = api.value(1) - api.value(0);\n                var rectShape = echarts.graphic.clipRectByRect({\n                    x: api.coord(params.value[0])[0],\n                    y: api.coord(params.value[1])[1] - 0.3,\n                    width: api.size([duration, 0])[0],\n                    height: 0.6\n                }, {\n                    x: api.coord([0, 0])[0],\n                    y: api.coord([0, 1])[1] - 0.6,\n                    width: api.size([24 * 60 * 60 * 1000, 0])[0],\n                    height: api.size([0, 1])[1] + 0.6\n                });\n\n                return rectShape && {\n                    type: 'rect',\n                    shape: rectShape,\n                    style: api.style()\n                };\n            },\n            itemStyle: {\n                normal: {\n                    color: '#2f4554'\n                }\n            },\n            encode: {\n                x: [1, 2],\n                y: 0,\n                tooltip: [1, 2]\n            },\n            data: data\n        }]\n    };\n    chart.setOption(chart.option);\n</script>\n</body>\n</html>\n```\n\n效果图：\n\n![Gantt Chart](https://i.imgur.com/3EwMs0V.png)",
+   "then": [
+    {
+     "nodeMatching": "echarts|甘特图|Gantt|样例"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "推特网址是啥",
+   "assistant": "推特的网址是 https://twitter.com/ 。",
+   "then": [
+    {
+     "nodeMatching": "推特|Twitter|twitter\\.com"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "看图片的网站有哪些",
+   "assistant": "看图片的网站有很多，以下是一些常用的网站：\n\n1. Google图片搜索：https://images.google.com/\n2. Pinterest：https://www.pinterest.com/\n3. Unsplash：https://unsplash.com/\n4. Shutterstock：https://www.shutterstock.com/\n5. Getty Images：https://www.gettyimages.com/\n6. Flickr：https://www.flickr.com/\n7. Pixabay：https://pixabay.com/\n8. Pexels：https://www.pexels.com/\n9. FreeImages：https://www.freeimages.com/\n10. StockSnap：https://stocksnap.io/\n\n注意，使用这些图片时需要注意版权问题，有些网站提供的图片需要进行授权或付费。",
+   "then": [
+    {
+     "nodeMatching": "图片|网站|Pinterest|Unsplash|Google"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    }
+   ]
+  },
+  {
+   "user": "git 怎么避免每次输入密码",
+   "assistant": "为了避免每次git操作时输入账号及密码，我们可以使用SSH Key来连接Git服务器。\n以下是具体操作步骤：\n\n1. 在本地生成SSH公钥和私钥：\n\n```shell\nssh-keygen -t rsa -C \"your_email@example.com\"\n```\n\n2. 按照提示，选择保存路径和输入密码等操作完成SSH Key的生成。\n3. 添加SSH Key到Git服务器：\n\n   1. 复制公钥内容：打开`~/.ssh/id_rsa.pub`文件，将其中内容复制。\n   2. 登录GitHub / GitLab 等Git服务器，找到“SSH Keys”并添加一条新的SSH Key，将公钥内容粘贴即可。\n4. 配置git：\n\n   1. 若是执行pull操作时需要输入用户名和有权限的密码，则输入以下命令：\n\n   ```shell\n   git config --global user.name \"your_username\"\n   git config --global user.password \"your_password\"\n   ```\n\n   2. 修改远程仓库地址，在”your_username”换为自己的GitHub的用户名，地址为ssh协议的地址：\n\n   ```shell\n   git remote set-url origin git@github.com:your_username/your_repository.git\n   ```\n\n最后，执行git pull / git push 等操作时将不再需要输入密码。",
+   "then": [
+    {
+     "nodeMatching": "git|密码|SSH|ssh-keygen"
+    },
+    {
+     "countUnder": "proj",
+     "max": 13
+    }
+   ]
+  }
+ ]
+}

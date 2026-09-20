@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 38769, 8 of 8, Chinese): an ECharts Gantt sample that drifts — 'Twitter URL?', 'sites to look at pictures', 'git: avoid typing the password every time', 'I use https not ssh' (correction), 'Linux CLI only — how to view an image', 'yum install feh: no package — wrong name?', 'compiling is too much trouble, any other way' (constraint) — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "ECharts 甘特图"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "我用的https 没用ssh",
+   "assistant": "如果你使用的是HTTPS协议，可以使用`git credential`来缓存用户名和密码，以便每次Git操作时无需输入用户名和密码。\n\n1. 通过以下命令创建缓存记录：\n\n   ```shell\n   git config --global credential.helper cache\n   ```\n\n   执行后，Git会在默认路径(~/.git-credential)下创建一个文件，并将你的输入记录在这个文件中。\n\n2. 然后，Git会在内存中存储 `credential.helper cache` 参数值指定的缓存时间。\n\n   默认情况下，缓存时间设置为15分钟。我们可以通过增加缓存时间来避免每次Git操作都输入用户名和密码，比如将其设置为一天的时间。\n\n   ```shell\n   git config --global credential.helper 'cache --timeout=86400'\n   ```\n\n这样就能够在一段时间内缓存你的用户名和密码，避免每次Git操作时输入密码了。当然了，这样也可能会增加风险，因为即使你的电脑被别人篡改，别人也可以自由地执行Git操作。更安全的方法是启用双因素认证（2FA）来加强账户的安全性。",
+   "then": [
+    {
+     "nodeMatching": "https|credential|密码|缓存"
+    },
+    {
+     "countUnder": "proj",
+     "max": 15
+    }
+   ]
+  },
+  {
+   "user": "linux 只有命令行界面，怎么查看图片内容",
+   "assistant": "在Linux命令行界面下查看图片内容？我们可以使用一些命令行工具来实现，比如：`feh`、`ristretto`、`sxiv` 等。这里以`feh`工具为例：\n\n1. 安装`feh`：\n\n   对于Debian / Ubuntu系统，可以在命令行通过以下命令安装：\n\n   ```shell\n   sudo apt-get install feh\n   ```\n\n2. 显示图片：\n\n   在终端中，输入`feh`加上图片路径。例如:\n\n   ```shell\n   feh /path/to/image.jpg\n   ```\n\n   如果要一次查看目录下的所有图片，可以使用如下命令：\n\n   ```shell\n   feh *\n   ```\n\n   如果是多张图片，可以在终端中使用左右箭头键来切换图片。\n\n除了`feh`，其他工具也差不多，只是命令略有不同。例如，`ristretto`命令需要在Ubuntu / Debian系统上通过以下命令安装：\n\n```shell\nsudo apt-get install ristretto\n```\n\n然后使用以下命令来查看图片：\n\n```shell\nristretto /path/to/image.jpg\n```\n\n`sxiv`工具也类似，可以使用以下命令在Ubuntu / Debian系统上安装：\n\n```shell\nsudo apt-get install sxiv\n```\n\n使用以下命令查看图片：\n\n```shell\nsxiv /path/to/image.jpg\n```\n\n这些工具都很方便，使用起来也很容易上手，基本上只需要安装一下然后输入命令就可以查看图片了。",
+   "then": [
+    {
+     "nodeMatching": "命令行|图片|feh|sxiv|查看"
+    },
+    {
+     "countUnder": "proj",
+     "max": 17
+    }
+   ]
+  },
+  {
+   "user": "yum install feh  没有可用软件包 feh  是不是名字搞错了",
+   "assistant": "`feh`包通常在Debian / Ubuntu上使用`apt-get`安装，而在CentOS / RHEL / Fedora等系统上使用`yum`安装，但是并不是所有的Linux系统的默认软件包库都包含了`feh`命令。\n\n如果你的系统中没有`feh`命令，可以尝试从源代码中编译安装。推荐使用以下步骤进行编译安装：\n\n1. 安装编译需要的工具：\n\n   对于Debian / Ubuntu系统，可以使用以下命令安装：\n\n   ```shell\n   sudo apt-get install build-essential\n   ```\n\n   对于CentOS / RHEL系统，可以使用以下命令安装：\n\n   ```shell\n   sudo yum groupinstall \"Development Tools\"\n   ```\n\n2. 下载`feh`源代码：\n\n   官方网站：https://feh.finalrewind.org/download/\n\n3. 编译与安装：\n\n   在终端中进入源代码所在目录，然后输入以下命令：\n\n   ```shell\n   make\n   sudo make install\n   ```\n\n   这样就安装好了`feh`命令。输入`feh` 加上图片路径，就可以查看图片了。\n\n如果你以上述方式安装`feh`命令，但仍然提示`feh: command not found`，可能需要添加`/usr/local/bin`到$PATH中。\n\n```shell\nexport PATH=/usr/local/bin:$PATH\n```\n\n这样就可以执行`feh`命令了。",
+   "then": [
+    {
+     "nodeMatching": "feh|yum|软件包|没有|源码|编译"
+    },
+    {
+     "countUnder": "proj",
+     "max": 19
+    }
+   ]
+  },
+  {
+   "user": "编译安装太麻烦，有么有其他能查看图片的方法",
+   "assistant": "是的，如果你不想编译安装，还有其他一些命令行工具可以用来查看图片，比如`imlib2`工具。以下是在CentOS / RHEL / Fedora等系统上安装`imlib2`工具的方法：\n\n1. 安装`imlib2-utils`软件包：\n\n```shell\nsudo yum install imlib2-utils\n```\n\n2. 查看图片：\n\n使用以下命令来查看图片：\n\n```shell\ndisplay /path/to/image.jpg\n```\n\n如果要一次查看目录下的所有图片，可以使用如下命令：\n\n```shell\ndisplay *\n```\n\n然后，你可以使用键盘上的箭头键来浏览图片。\n\nPS：`imlib2-utils`包还含有其他一些命令行工具，比如`import`工具用来截图等。如果您已安装了imlib2，可以使用以下命令来查看所有可用的工具：\n\n```shell\nls /usr/bin/*imlib*\n```",
+   "then": [
+    {
+     "nodeMatching": "编译|麻烦|imlib2|display|其他"
+    },
+    {
+     "countUnder": "proj",
+     "max": 21
+    }
+   ]
+  }
+ ]
+}

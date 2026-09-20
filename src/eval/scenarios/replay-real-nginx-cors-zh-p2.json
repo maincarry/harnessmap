@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 38638, 12 of 12, Chinese): nginx reverse proxy for a POST login API on 106.75.13.27:7002 — 'where is the file to edit', 'all on one machine but still a CORS error', 'but it still cross-origins: front end on 80, request to 7002' (pushback on the assistant's wrong 'same machine = same origin' claim), 'the backend sees /login not /api/login — why', an amis /pages/site.json 404, 'proxy only /api/ paths', 'point one folder at another' (symlink), 'symlink under nginx html gives 403', 'configured that, still 403', 'how to delete the symlink', and the assistant's dangerous 'sudo rm /usr/share/nginx/html' answer — piece 2",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "nginx 反向代理"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "我按照这样配置了，结果在后端看到的是，前端请求的是/login，而不是/api/login，这是为什么",
+   "assistant": "如果前端请求的地址是 /login，而不是 /api/login，可能是因为 nginx 的配置有问题。你需要检查一下 nginx 的配置文件中的以下几个问题：\n\n1. 是否有定义 server_name，如 `server_name your.domain.com;`？如果没有定义，可能会导致请求的是默认的服务器，从而出现地址错误。你可以在 server {...} 中加入 server_name。\n\n2. 是否有正确定义 location，如 `location /api/ { ... }`？如果 location 配置不正确，可能会导致反向代理失败，从而出现地址错误。\n\n3. 是否将反向代理的地址配置正确，如 `proxy_pass http://127.0.0.1:7002/;`？如果 proxy_pass 配置错误，可能会导致反向代理的地址不正确，从而出现地址错误。\n\n你可以检查一下 nginx 的配置文件是否正确，看看是不是漏掉了以上的某一项配置，从而导致地址错误。同时，你也可以尝试在前端代码中修改请求的地址为正确的 /api/login，例如：\n\n```\nfetch('/api/login', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify({\n    ...\n  })\n}).then(response => {\n  ...\n}).catch(error => {\n  ...\n})\n```\n\n这样即使 nginx 配置有问题，前端请求的地址也是正确的。",
+   "then": [
+    {
+     "nodeMatching": "/login|/api/login|location|proxy_pass"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    }
+   ]
+  },
+  {
+   "user": "amis访问，提示/pages/site.json没有找到，404，怎么办",
+   "assistant": "如果在 AMIS 中访问 /pages/site.json 出现了 404 错误，可能是因为 AMIS 的路由配置文件 pages.json 中配置有误。你可以检查一下 pages.json 文件是否存在，并且是否正确配置了路由。\n\n首先，检查一下 pages.json 文件是否存在，路径一般为 public/pages.json，如果不存在，可以尝试重新创建。注意，AMIS 的路由文件必须存在，并且配置正确，才能正确访问 AMIS 页面。\n\n其次，检查一下 pages.json 是否正确配置了路由。例如，下面的 pages.json 文件中定义了两个路由，分别映射到 Index 和 Login 页面：\n\n```json\n{\n  \"type\": \"page\",\n  \"body\": [\n    {\n      \"type\": \"tpl\",\n      \"tpl\": \"AMIS 开发页面\"\n    },\n    {\n      \"type\": \"nav\",\n      \"links\": [\n        {\n          \"label\": \"首页\",\n          \"icon\": \"fa fa-home\",\n          \"to\": \"/\"\n        },\n        {\n          \"label\": \"登录\",\n          \"icon\": \"fa fa-sign-in\",\n          \"to\": \"/login\"\n        }\n      ]\n    },\n    {\n      \"type\": \"route\",\n      \"name\": \"index\",\n      \"path\": \"/\",\n      \"static\": false,\n      \"url\": \"./pages/index.json\"\n    },\n    {\n      \"type\": \"route\",\n      \"name\": \"login\",\n      \"path\": \"/login\",\n      \"static\": false,\n      \"url\": \"./pages/login.json\"\n    }\n  ]\n}\n```\n\n在路由配置文件中，url 指定了页面的 json 配置文件路径，例如上面的 Index 页面的 json 配置文件路径为 ./pages/index.json。如果 pages.json 配置正确，但是访问 /pages/site.json 出现了 404 错误，可能是因为你访问的路由配置文件 json 配置有误或者不存在。你可以检查一下访问的路由配置文件路径是否正确，确保 json 配置文件存在，并且路由配置正确。",
+   "then": [
+    {
+     "nodeMatching": "amis|site\\.json|404|pages"
+    },
+    {
+     "countUnder": "proj",
+     "max": 16
+    }
+   ]
+  },
+  {
+   "user": "nginx反向代理，只转发带有/api/链接的地址应该怎么设置",
+   "assistant": "如果你想将请求中带有 /api/ 的链接反向代理到实际的后端接口上，可以使用 nginx 的 location 块来实现。你可以在 nginx 配置文件中添加以下代码：\n\n```\nserver {\n    listen       80;\n    server_name  your.domain.com;\n\n    location /api/ {\n        proxy_pass http://backend.server.com/api/;\n        proxy_set_header Host $host;\n    }\n}\n```\n\n这样，当请求中的 URL 包含 /api/ 字符串时，nginx 就会将请求转发到后端服务器的 /api/ 目录下。\n\n请注意：该配置可能会有安全风险，因为请求者可以通过手工构造 URL 模拟请求来访问你的接口。如果你的后端没有相应的安全措施，可能会导致一些安全问题。因此，建议你在后端接口中实现相应的权限控制，以确保请求的合法性。",
+   "then": [
+    {
+     "nodeMatching": "/api/|location|proxy_pass|转发"
+    },
+    {
+     "countUnder": "proj",
+     "max": 18
+    }
+   ]
+  },
+  {
+   "user": "linux如何设置一个文件夹指向另外一个文件夹内容",
+   "assistant": "在 Linux 系统中，可以使用软链接 symbolic link（也称为符号链接）来实现一个文件夹指向另一个文件夹内容的效果。\n\n假设你要将 /data/old_folder 文件夹的内容指向 /data/new_folder 文件夹，则可以使用以下命令创建软链接：\n\n```shell\nln -s /data/new_folder /data/old_folder\n```\n\n其中：\n\n- -s 表示创建软链接\n- /data/new_folder 是你要指向的目标文件夹，也就是你想要访问的那个文件夹\n- /data/old_folder 是你要进行链接的原文件夹，也就是你要替换/覆盖的那个文件夹\n\n执行完上述命令之后，/data/old_folder 这个文件夹就会指向 /data/new_folder 文件夹中的内容，也就是说，当你在 /data/old_folder 中创建或修改文件时，实际上是在 /data/new_folder 中创建或修改的。同时，你也可以通过访问 /data/old_folder 来访问 /data/new_folder 中的内容。\n\n需要注意的是，软链接只是在文件系统上创建了一个文件名，指向实际的目录或文件。因此，删除软链接不会删除目标文件或目录。如果你想要删除软链接以及目标文件或目录，可以使用下面的命令：\n\n```shell\nrm -rf /data/old_folder\nrm -rf /data/new_folder\n```\n\n以上命令会删除 /data/old_folder 和 /data/new_folder 两个文件夹和它们的内容。",
+   "then": [
+    {
+     "nodeMatching": "软链接|ln -s|符号链接|symbolic"
+    },
+    {
+     "countUnder": "proj",
+     "max": 20
+    }
+   ]
+  }
+ ]
+}

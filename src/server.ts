@@ -1997,6 +1997,33 @@ const server = Bun.serve({
       store.audit('project_created', { id: pid.slice(0, 8), name: name.trim().slice(0, 40) });
       return json({ ok: true, projectId: pid, chatId });
     }
+    // M355: the .map bundle — a whole project as one signed JSON file (see Store.exportProject). ?audit=1 adds the
+    // machine audit rows since the project was born (the e2e runner keeps the guard story with the transcript).
+    const projExportMatch = path.match(/^\/api\/projects\/([\w-]+)\/export$/);
+    if (projExportMatch && req.method === 'GET') {
+      const p = store.listProjects().find((x) => x.id === projExportMatch[1]);
+      if (!p) return json({ error: 'unknown project' }, 404);
+      const bundle = store.exportProject(p.id, { audit: url.searchParams.get('audit') === '1' });
+      bundle.version = VERSION;
+      const fname = (p.name.replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'map') + '.map';
+      store.audit('map_exported', { project: p.id.slice(0, 8), nodes: bundle.counts?.nodes ?? 0, audit: !!bundle.audit });
+      return new Response(JSON.stringify(bundle), { status: 200, headers: { 'content-type': 'application/x-harnessmap-map+json', 'content-disposition': `attachment; filename="${encodeURIComponent(fname)}"; filename*=UTF-8''${encodeURIComponent(fname)}` } });
+    }
+    // Opening a .map: the body is the bundle itself (the page reads the file) or {path} to a file on this machine. Always a
+    // NEW project, never a merge; the page then follows it as the active map.
+    if (path === '/api/import/map' && req.method === 'POST') {
+      let bundle: any = await req.json().catch(() => null);
+      if (bundle && typeof bundle.path === 'string' && bundle.harnessmap_map === undefined) {
+        try { bundle = JSON.parse(readFileSync(bundle.path, 'utf8')); } catch (err) { return json({ error: `cannot read ${bundle.path}: ${String(err).slice(0, 80)}` }, 400); }
+      }
+      if (!bundle || bundle.harnessmap_map !== 1) return json({ error: 'not a HarnessMap .map file' }, 400);
+      let r: { projectId: string; chatId: string | null; nodes: number; events: number };
+      try { r = store.importProject(bundle, { name: typeof bundle.name === 'string' ? bundle.name : undefined }); } catch (err) { return json({ error: String((err as Error).message ?? err).slice(0, 160) }, 400); }
+      const pid = r.projectId;
+      const chatId = r.chatId ?? bootstrapProject(pid);
+      setActive(pid, chatId);
+      return json({ ok: true, projectId: pid, chatId, name: store.listProjects().find((x) => x.id === pid)?.name ?? '', nodes: r.nodes, events: r.events });
+    }
     const projActMatch = path.match(/^\/api\/projects\/([\w-]+)\/activate$/);
     if (projActMatch && req.method === 'POST') {
       if (!store.listProjects().some((x) => x.id === projActMatch[1])) return json({ error: 'unknown project' }, 404);
@@ -2907,6 +2934,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         text = extractTranscript(raw);
         label = `past session: ${base.slice(0, 12)}…`;
       }
+      if (b.kind === 'text' && /^\s*\{[\s\S]{0,200}"harnessmap_map"\s*:\s*1/.test(text)) return json({ error: 'this is a HarnessMap .map file — open it with “open a .map” (＋ more…), not the text importer' }, 400); // M355
       if (!text || text.length < 20) return json({ error: 'nothing to import — the source is empty' }, 400);
       const jobId = randomUUID();
       importJobs.set(jobId, { status: 'running', label, startedAt: Date.now() });
@@ -2997,6 +3025,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         text = extractTranscript(raw);
         label = `past session: ${base.slice(0, 12)}…`;
       }
+      if (b.kind === 'text' && /^\s*\{[\s\S]{0,200}"harnessmap_map"\s*:\s*1/.test(text)) return json({ error: 'this is a HarnessMap .map file — open it with “open a .map” (＋ more…), not the text importer' }, 400); // M355
       if (!text || text.length < 20) return json({ error: 'nothing to import — the source is empty' }, 400);
       const p = await proposeImport(store, projectId, label, text, b.feedback, b.priorSummary);
       if ('error' in p) return json({ error: p.error }, 502);
