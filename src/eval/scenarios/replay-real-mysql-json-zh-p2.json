@@ -1,0 +1,68 @@
+{
+  "name": "replay (real, WildChat 43648, 10 of 10, Chinese): a MySQL JSON drill — JSON query support → more examples → can they use indexes → virtual-column index (asked twice, turns 6 & 8) → index a JSON column directly → function index across another table → the user catches an error (the orders table has no email column, turn 14) and the assistant corrects with a JOIN → does Couchbase support function indexes → explain the code — piece 2",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 300,
+  "rounds": [
+    {
+      "user": "那虚拟列索引呢",
+      "assistant": "在MySQL中，虚拟列索引是一种特殊类型的虚拟列，它不存储实际数据，而是计算存储在表中的某些列的值并将其暴露为虚拟列。虚拟列可以像普通列一样使用，并且可以在其上创建索引，这对于性能优化非常有帮助。\n\n以下是创建虚拟列索引的示例：\n\n```\nALTER TABLE my_table ADD COLUMN full_name VARCHAR(255) AS (CONCAT(first_name,' ',last_name)) VIRTUAL;\nCREATE INDEX ix_my_table_full_name ON my_table(full_name);\n```\n\n在上面的例子中，创建了一个名为`full_name`的虚拟列，并在其上创建了一个索引。该虚拟列的值是通过连接`first_name`和`last_name`两个列计算而来的。我们在计算之后立即将其标记为虚拟列，因为它不需要在存储中占用额外的空间。\n\n虚拟列计算是在查询过程时进行的，因此虚拟列索引适用于具有高查询频率但更新频率较低的列。虚拟列索引让我们避免在每次查询时动态计算虚拟列，同时又提高了查询性能。需要注意的是，虚拟列索引不支持外键约束和触发器。",
+      "then": [
+        {
+          "nodeMatching": "虚拟|virtual|列索引"
+        },
+        {
+          "atMostTitles": "虚拟|virtual",
+          "max": 3
+        }
+      ]
+    },
+    {
+      "user": "我能直接给json文档中的某列建索引吗",
+      "assistant": "MySQL支持在JSON文档中的某列上创建索引，但是需要为JSON提供特定的函数。在这个例子中，我们将在名为`my_table`且包含名为`info`列的表中为`info`中的`email`属性建立索引。\n\n首先，我们需要在`info`列上创建一个函数索引：\n\n```\nALTER TABLE my_table ADD INDEX idx_gist_info_email ((info->>'$.email'));\n```\n\n然后，我们可以在查询时使用该索引：\n\n```\nSELECT * FROM my_table WHERE (info->>'$.email') = 'example@example.com';\n```\n\n这将使用函数索引查询JSON文档中的'`email`'属性，以查找具有指定电子邮件的记录。\n\n值得注意的是，只有当我们对JSON列的属性进行查询时，使用函数索引才有意义。如果我们要查询整个JSON字段，那么该索引就不会被使用。越是在较大JSON文档中查询小的属性，函数索引的优势就越突出。",
+      "then": [
+        {
+          "nodeMatching": "json|列|函数索引|function|index"
+        },
+        {
+          "countUnder": "proj",
+          "max": 23
+        }
+      ]
+    },
+    {
+      "user": "函数索引可以关联另外一张表建立吗",
+      "assistant": "函数索引本身不能关联另一个表建立索引，因为函数索引是在现有列的基础上计算的，而不能连接到另一个表上。但是，我们可以使用外键和联接等机制将两个表联系起来，然后在联接后的结果上创建函数索引。\n\n以下是一个简单的例子：\n\n```\nCREATE TABLE users (\n  id INT PRIMARY KEY,\n  info JSON\n);\n \nCREATE TABLE orders (\n  id INT PRIMARY KEY,\n  user_id INT NOT NULL,\n  details JSON,\n  FOREIGN KEY (user_id) REFERENCES users(id)\n);\n \nCREATE INDEX idx_orders_user_email\n  ON orders ((SELECT details->>\"$.email\" FROM users WHERE users.id = orders.user_id));\n```\n\n在上述示例中，我们创建了两个表，`users`和`orders`。 `users`表包含`id`和`info`列，而`orders`表包含`id`，`user_id`和`details`列。我们将`user_id`列作为外键，将`users`表中的`id`列与`orders`表中的`user_id`列进行关联。\n\n接下来，我们创建了一个名为`idx_orders_user_email`的函数索引，它将查询`users`表中与`orders`表中的`user_id`关联的数据，并从中提取电子邮件做索引。 该索引可以用于查询中，以提高性能。\n\n需要注意的是，这里只是提供了一个简单的示例来说明如何在联接的结果上创建函数索引。在实际情况中，你需要根据具体问题来选择正确的关系建模和索引方式。",
+      "then": [
+        {
+          "nodeMatching": "函数索引|function index|关联|另.*表|join|联接"
+        },
+        {
+          "countUnder": "proj",
+          "max": 26
+        }
+      ]
+    },
+    {
+      "user": "有问题，orders表都没有email这一列，虽然有索引，但怎么查询呢",
+      "assistant": "非常抱歉，我的回答有误。确实，如果在`orders`表中没有`email`列，我们不能直接在该列上查询。在这种情况下，我们需要使用联接（JOIN）将两个表合并起来，然后在合并后的结果上进行查询。\n\n以下是一个示例，展示了如何使用联接和函数索引查询包含在另一个JSON列中的数据：\n\n```\nCREATE TABLE users (\n  id INT PRIMARY KEY,\n  info JSON\n);\n\nCREATE TABLE orders (\n  id INT PRIMARY KEY,\n  user_id INT NOT NULL,\n  details JSON,\n  FOREIGN KEY (user_id) REFERENCES users(id)\n);\n\n-- 创建联接查询并在查询结果上使用函数索引\nCREATE INDEX idx_orders_email\n  ON orders ((JSON_EXTRACT(details, '$.email')));\n  \nSELECT o.*\nFROM orders o\nJOIN users u ON u.id = o.user_id\nWHERE JSON_EXTRACT(u.info, '$.email') = \"example@example.com\";\n```\n\n在上面的示例中，我们创建了一个联接查询，使用`users`表和`orders`表中的信息合并数据。在该查询结果上，我们可以使用函数索引`idx_orders_email`，从`details`列中提取`email`信息。使用`WHERE`子句筛选出一个指定电子邮件的订单。\n\n需要注意的是，这种查询是相对昂贵的，因为我们需要对两个表进行联接，然后再从联接结果中提取数据。因此，建议仅在必要时使用此查询方法。",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "did the user point out a mistake? one line"
+        },
+        {
+          "nodeMatching": "email|orders|错误|join|联接|没有"
+        },
+        {
+          "mentions": "email|orders|错误|join|联接|没有",
+          "must": "没有|错误|有误|join|联接|合并|修正|correct|抱歉"
+        },
+        {
+          "brainMust": "yes|mistake|error|no email|没有|错误|orders|join"
+        }
+      ]
+    }
+  ]
+}

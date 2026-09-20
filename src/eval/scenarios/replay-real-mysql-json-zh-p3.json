@@ -1,0 +1,39 @@
+{
+  "name": "replay (real, WildChat 43648, 10 of 10, Chinese): a MySQL JSON drill — JSON query support → more examples → can they use indexes → virtual-column index (asked twice, turns 6 & 8) → index a JSON column directly → function index across another table → the user catches an error (the orders table has no email column, turn 14) and the assistant corrects with a JOIN → does Couchbase support function indexes → explain the code — piece 3",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 300,
+  "rounds": [
+    {
+      "user": "couchbase支持函数索引吗",
+      "assistant": "是的，Couchbase支持函数索引。与MySQL类似，Couchbase函数索引是一种特殊类型的索引，它允许我们在指定的表达式、值和映射函数上创建索引。\n\n以下是创建函数索引的示例：\n\n```\nCREATE INDEX idx_email\nON my_bucket (DISTINCT ARRAY email_item FOR email_item IN emails END);\n```\n\n在上面的示例中，我们为`my_bucket`中名为`emails`的JSON数组中的每个项都创建了一个函数索引。对于这种类型的索引，我们需要使用`DISTINCT`和`ARRAY`关键字来对索引键进行变换。\n\n索引的值存储在一个独立的B+树中，用于加速查询想要使用的值。可以使用N1QL查询语言中的`USE INDEX`子句来指定要使用的特定索引。\n\n需要注意的是，函数索引在Couchbase中是一个相对较新的功能，需要基于实际需求建模。因此，我们需要仔细考虑索引情况和数据结构，以确保索引可以提高查询性能，而不是减慢数据库的响应速度。",
+      "then": [
+        {
+          "nodeMatching": "couchbase"
+        },
+        {
+          "atMostTitles": "couchbase",
+          "max": 1
+        },
+        {
+          "countUnder": "proj",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "user": "你能翻译代码吗",
+      "assistant": "当然可以，以下是上面提到的Couchbase函数索引的代码的解释：\n\n```\nCREATE INDEX idx_email\nON my_bucket (DISTINCT ARRAY email_item FOR email_item IN emails END);\n```\n\n这段代码创建了一个名为`idx_email`函数索引，索引位于名为`my_bucket`的存储桶中的`emails`属性。索引会迭代数组中每个子项里的`email_item`进行建立。 `ARRAY`关键字用于指定要在索引中处理的项。`DISTINCT`关键字用于确保索引中的任何重复值都只计算一次。\n\n如果执行此索引后，我们在查询时指定了该索引，则Couchbase将使用该索引来加速查询，并返回匹配的结果。\n\n需要注意的是，这只是一个简单的示例，仅说明了如何在Couchbase中创建函数索引。在实际情况中，我们需要确保索引针对实际的数据结构进行最佳化，并仔细考虑所需的访问模式。对于复杂的数据结构和查询，可以使用N1QL等查询语言进行更复杂的索引，以提高性能。",
+      "then": [
+        {
+          "nodeMatching": "couchbase|翻译|解释|explain|代码"
+        },
+        {
+          "countUnder": "proj",
+          "max": 33
+        }
+      ]
+    }
+  ]
+}

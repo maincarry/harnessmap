@@ -1,0 +1,72 @@
+{
+  "name": "replay (real, WildChat 43648, 10 of 10, Chinese): a MySQL JSON drill — JSON query support → more examples → can they use indexes → virtual-column index (asked twice, turns 6 & 8) → index a JSON column directly → function index across another table → the user catches an error (the orders table has no email column, turn 14) and the assistant corrects with a JOIN → does Couchbase support function indexes → explain the code — piece 1",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 300,
+  "rounds": [
+    {
+      "user": "请讲一下mysql json查询的支持吗",
+      "assistant": "MySQL从5.7版本开始支持JSON数据类型和相关的JSON函数，其中包括对JSON文档的查询、修改和更新的支持。\n\n使用JSON查询，你可以通过访问JSON对象的属性和元素来从JSON文档中检索数据。 MySQL提供了一系列的JSON函数来支持这些操作，包括JSON_EXTRACT、JSON_SET、JSON_REPLACE和JSON_REMOVE等。\n\n例如，以下查询检索\"employee\"数组中所有\"firstName\"为\"John\"的对象：\n\n```\nSELECT * FROM employees WHERE JSON_CONTAINS(JSON_EXTRACT(info,'$[*].firstName'), '\"John\"');\n```\n\n使用这些函数可以简化复杂的JSON查询，帮助你更快速地从JSON文档中检索数据。",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "what is the topic? one line"
+        },
+        {
+          "nodeMatching": "json|mysql|查询"
+        },
+        {
+          "countUnder": "proj",
+          "max": 8
+        },
+        {
+          "brainMust": "json|mysql"
+        }
+      ]
+    },
+    {
+      "user": "还能举更多的例子啊",
+      "assistant": "当然。以下是更多的例子：\n\n1. 查询JSON数组中是否包含某个元素\n\n```\nSELECT * FROM table WHERE JSON_CONTAINS(json_array, '[\"value\"]');\n\n```\n\n2. 对JSON数组进行排序\n\n```\nSELECT id, name, JSON_ARRAYAGG(phone ORDER BY phone) AS phones FROM customers GROUP BY id, name;\n\n```\n\n3. 从JSON文档中提取多个属性\n\n```\nSELECT JSON_EXTRACT(data, '$.firstName') AS firstName, JSON_EXTRACT(data, '$.lastName') AS lastName FROM users;\n\n```\n\n4. 替换JSON文档中的值\n\n```\nUPDATE contacts SET info = JSON_REPLACE(info, '$.email', 'new_email@example.com') WHERE id = 1;\n\n```\n\n5. 从JSON文档中删除一个元素\n\n```\nUPDATE table SET json_array = JSON_REMOVE(json_array, '$[1]') WHERE id = 2;\n\n```\n\n这些例子只是MySQL JSON查询的冰山一角，还有很多其他的函数和操作可以使用。通过这些新特性，开发人员可以更轻松地处理和查询JSON数据。",
+      "then": [
+        {
+          "nodeMatching": "json|例子|example|contains|extract|函数"
+        },
+        {
+          "countUnder": "proj",
+          "max": 12
+        }
+      ]
+    },
+    {
+      "user": "这些查询能用到索引吗",
+      "assistant": "MySQL从5.7.3版本开始就支持在JSON数据类型的列上创建索引了。MySQL提供了三种不同类型的JSON索引类型：普通索引、全文索引和虚拟列索引。\n\n普通索引可用于提高基于JSON对象属性的查询性能。例如，以下代码创建一个基于JSON对象属性的索引：\n\n```\nALTER TABLE my_table ADD INDEX idx_gist_info_email ((info->>'$.email'));\n```\n\n全文索引可用于在JSON文本的所有属性上进行全文搜索。以下代码创建基于JSON文本的全文索引：\n\n```\nALTER TABLE my_table ADD FULLTEXT INDEX idx_fulltext_info (info);\n```\n\n虚拟列索引是一种特殊类型的索引，它基于计算的列而不是存储在表中的列。虚拟列索引可用于查询的方便性和性能。以下代码创建一个基于虚拟列的索引：\n\n```\nALTER TABLE my_table ADD COLUMN info_email varchar(255) AS (info->>'$.email') STORED;\nALTER TABLE my_table ADD INDEX idx_gist_info_email (info_email);\n```\n\n请注意，创建大量的JSON索引可能会对性能产生影响，因此需要根据实际需求进行权衡和优化。",
+      "then": [
+        {
+          "nodeMatching": "索引|index"
+        },
+        {
+          "mentions": "索引|index",
+          "must": "5.7|支持|普通|全文|虚拟|支持索引|可以|create|创建"
+        },
+        {
+          "countUnder": "proj",
+          "max": 15
+        }
+      ]
+    },
+    {
+      "user": "再举个虚拟索引的例子吧",
+      "assistant": "当你需要在JSON的属性上查询和排序时，虚拟列索引是很有用的。例如，下面这个例子中，我们创建一个虚拟列索引，它将JSON文档中的某个属性值提取出来作为虚拟列存储，并在该索引上进行查询和排序：\n\n```\nALTER TABLE my_table ADD COLUMN email VARCHAR(255) AS (JSON_UNQUOTE(JSON_EXTRACT(info, '$.email'))) STORED;\nCREATE INDEX idx_email ON my_table(email);\n\n-- 查询以email属性排序的记录\nSELECT * FROM my_table ORDER BY email ASC;\n```\n\n在上面的例子中，我们将`email`属性的值提取出来，并将其存储在一个名为`email`的虚拟列中，然后在该虚拟列上创建了一个索引。这样，我们就可以按照`email`属性进行排序，而不需要在每个查询中都进行解析。\n\n需要注意的是，当我们在虚拟列上进行查询时，MySQL实际上是在JSON文档中查询和解析数据，因此需要根据实际情况进行权衡，决定是否使用虚拟列索引。虚拟列索引只有在查询频率比更新频率高时才会带来优势。",
+      "then": [
+        {
+          "nodeMatching": "虚拟|virtual|列索引"
+        },
+        {
+          "countUnder": "proj",
+          "max": 18
+        }
+      ]
+    }
+  ]
+}
