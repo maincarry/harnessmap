@@ -17,14 +17,14 @@
    "assistant": "Alright, I'll make sure to only send the modified code in the future. Let me know if you need any further assistance.",
    "then": [
     {
-     "nodeMatching": "only changes|changes only|mistaken|not all files"
+     "nodeMatching": "only changes|changes only|mistaken|not all files|only the modified|modified code|changed files"
     },
     {
      "countUnder": "proj",
      "max": 21
     },
     {
-     "statusOf": "only changes|only the changes|changes.*not all|send.*changes",
+     "statusOf": "only changes|only the changes|changes.*not all|send.*changes|only the modified code|modified code",
      "is": "active|accepted|decided|noted|live"
     },
     {

@@ -1,0 +1,117 @@
+{
+  "name": "replay (real, WildChat 42929, 7 of 7, Chinese): a WoW Classic macro, then a VBS drift — 'a VBS that opens d:\\dj.txt every 1 min 40 s, writes 123, saves' → 'add a line: clear the file first' (refinement of the same script), 'what does this VBS do' (paste), 'OpenTextFile mode 2 vs 8', 'write the smallest possible data to disk every 40 s', 'is that really the smallest write?' (challenge) — piece 1 — PERTURBED (user moves every round)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "脚本小工具"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "写个魔兽世界怀旧服的宏，如果对方没有断筋就上断筋，战斗中战斗怒吼",
+      "assistant": "以下是一个简单的魔兽世界怀旧服宏：\n\n#showtooltip\n/cast [@target,noexists][@target,dead] Shadow Bolt; [@target,harm,nodead] Immolate\n/run local d = 18-sqrt(UnitDistanceSquared(\"player\", \"target\"))/2; if d > 0.01 then CommandLine(\"/cast Shoot\"); end;\n/cast [nostance:1] Battle Stance; [stance:1] Hamstring; [@focus,exists] Hamstring; Hamstring\n\n这个宏做了下面几种事情：\n\n- 如果你的目标不存在或已经死亡，则施放暗影箭；否则，如果目标是敌对而活着的，则施放献祭。\n- 如果目标与你之间的距离小于 9 米，则使用弓箭攻击。\n- 如果你当前不在战斗姿态，则进入战斗姿态；否则，如果你的焦点存在，则对焦点使用断筋；否则，对目标使用断筋。\n\n请注意，这个宏假定你已经设置了一个焦点并将其命名为“断筋”。此外，它还假定你已经在战斗姿态下，并且可以使用弓箭攻击（即你有一个远程武器和箭）。你可以根据需要进行调整。",
+      "then": [
+        {
+          "do": "bind",
+          "key": "n1"
+        },
+        {
+          "do": "favorite",
+          "key": "n1"
+        },
+        {
+          "do": "wait",
+          "ms": 500
+        },
+        {
+          "nodeMatching": "宏|断筋|战斗怒吼|魔兽"
+        },
+        {
+          "countUnder": "proj",
+          "max": 6
+        }
+      ]
+    },
+    {
+      "user": "写一个vbs程序，要求每隔一分四十秒打开d盘根目录下的dj.txt文件输入字符串“123”然后存盘退出",
+      "assistant": "下面是一个简单的 VBScript 程序，它可以每隔一分四十秒打开 D 盘根目录下的 dj.txt 文件，将字符串 \"123\" 写入文件，保存并退出：\n\n```\nSet objFSO = CreateObject(\"Scripting.FileSystemObject\")\nSet objFile = objFSO.OpenTextFile(\"D:\\dj.txt\", 8, True)\n\nDo While True\n    objFile.WriteLine(\"123\")\n    objFile.Close\n    Wscript.Sleep(1000 * 60 * 40 + 1000 * 4)\n    Set objFile = objFSO.OpenTextFile(\"D:\\dj.txt\", 8, True)\nLoop\n```\n\n程序首先创建了一个 FileSystemObject 对象和一个文件对象，打开 D 盘根目录下的 dj.txt 文件并准备在其中写入内容。\n\n然后程序进入一个无限循环，每次循环都会将字符串 \"123\" 写入文件，然后关闭该文件。接着程序使用 Wscript.Sleep() 方法暂停一分四十秒后再次打开文件以进行下一次循环。\n\n如果你需要终止程序，可以按下 Ctrl + C。",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "what have we decided so far? one line"
+        },
+        {
+          "do": "wait",
+          "ms": 300
+        },
+        {
+          "nodeMatching": "vbs|VBS|dj\\.txt|123|定时"
+        },
+        {
+          "countUnder": "proj",
+          "max": 8
+        }
+      ]
+    },
+    {
+      "user": "加入一行，打开txt文件后先清空文件内容再输入",
+      "assistant": "```\nSet objFSO = CreateObject(\"Scripting.FileSystemObject\")\nSet objFile = objFSO.OpenTextFile(\"D:\\dj.txt\", 8, True)\n\nDo While True\n    ' 先清空文件内容\n    objFile.DeleteAll 0\n    ' 输入新内容\n    objFile.WriteLine(\"123\")\n    ' 保存并关闭文件\n    objFile.Close\n    Wscript.Sleep(1000 * 60 * 40 + 1000 * 4)\n    ' 重新打开文件\n    Set objFile = objFSO.OpenTextFile(\"D:\\dj.txt\", 8, True)\nLoop\n```\n\n在上面的程序中，我们添加了一行代码以清空文件内容：\n\n```\nobjFile.DeleteAll 0\n```\n\n这个代码行使用了文件对象的 DeleteAll() 方法来清空文件内容。它的参数是 0，表示要删除整个文件并立即重建一个新文件。\n\n在清空了文件内容后，我们使用了原程序中的代码来写入新的内容并保存文件。\n\n这样每次运行时都会先清空文件内容再写入新的字符串。",
+      "then": [
+        {
+          "do": "bind",
+          "key": "n2"
+        },
+        {
+          "do": "zoom",
+          "key": "n2",
+          "focus": false
+        },
+        {
+          "do": "wait",
+          "ms": 500
+        },
+        {
+          "do": "zoom",
+          "key": "proj",
+          "focus": false
+        },
+        {
+          "nodeMatching": "清空|先清空|覆盖|ForWriting|2,"
+        },
+        {
+          "countUnder": "proj",
+          "max": 10
+        },
+        {
+          "atMostTitles": "vbs|VBS|定时写入",
+          "max": 3
+        }
+      ]
+    },
+    {
+      "user": "下面的vbs程序 干了什么事情：a=0\nWhile 1=1\ndim fso, f, q\nset fso = CreateObject(\"Scripting.FileSystemObject\")\nset q = fso.OpenTextFile(\"q:\\qq.txt\", 2, false) \nset f = fso.OpenTextFile(\"f:\\ff.txt\", 2, false) \nf.Write(a)\nf.Close()\nset f = nothing\nwscript.sleep 17500\nq.Write(a)\nq.Close()\nif a=9 Then\na=0\nelse\na=a+1\nend If\nset q = nothing\nwscript.sleep 17500\nset fso = nothing\nWend\n",
+      "assistant": "这个 VBScript 程序的功能如下：\n\n- 初始化变量 a 的值为 0；\n- 进入一个无限循环；\n- 在每一次循环中，程序首先使用 FileSystemObject 创建两个文件对象，分别打开 F 盘根目录下的 ff.txt 和 Q 盘根目录下的 qq.txt；\n- 然后程序在文件 ff.txt 中写入变量 a 的当前值，关闭文件对象；\n- 接着程序在文件 qq.txt 中写入变量 a 的当前值，也关闭文件对象；\n- 然后程序根据当前变量 a 的值将其加 1，如果加 1 后变成 9 就将其重置为 0；\n- 最后程序使用 Wscript.Sleep() 方法暂停 17.5 秒后再次进入下一次循环。\n\n因为程序只是在不停写入变量 a 的值到文件中，而没有对这些文件进行读取、显示或者其他操作，所以具体的逻辑和意义需要根据程序运行的背景和目的来理解和解释。",
+      "then": [
+        {
+          "do": "rename",
+          "name": "renamed mid-thread"
+        },
+        {
+          "chatName": "renamed mid-thread"
+        },
+        {
+          "nodeMatching": "fso|While|循环|作用|OpenTextFile"
+        },
+        {
+          "countUnder": "proj",
+          "max": 12
+        }
+      ]
+    }
+  ]
+}
