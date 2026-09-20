@@ -563,7 +563,13 @@ export class Translator {
       // M348 (codex-native maths replay): "Distinct graph labels ⟂" — the codex filer leaves stray symbols at the end of titles (⟂, ─, a lone
       // dash or colon). Trailing symbols and dangling punctuation go; a closing ")" "]" quote, "?" or "!" stays, as does any letter or digit.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
-        const t0 = anyA.title.replace(/\s*<\/?[a-z][a-z0-9-]*\s*$/i, '').replace(/(?:\s+|[\p{S}\p{No}\p{Pd}\p{Pc}:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '') // M348e: "炎性肉芽肿主题初识<table" — an unclosed HTML tag fragment glued to a name goes first.replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ???" — a run of ?/! is noise; a single "?" is a question
+        let t0 = anyA.title.replace(/\s*<\/?[a-z][a-z0-9-]*\s*$/i, '') // M348e: "炎性肉芽肿主题初识<table" — an unclosed HTML tag fragment glued to a name goes first
+          .replace(/(?:\s+|[\p{S}\p{No}\p{Pd}\p{Pc}:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '')
+          .replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ??" — a doubled mark goes (M360 restored this step: an M348e comment had swallowed it)
+        // M360 (node-xlsx zh): the codex filer leaked its JSON closers into a name — "导出前清理空格（trim）}]}". Closers are Pe, not in the
+        // class above, and a balanced ")" or "]" must stay ("[Draft]"), so only UNBALANCED trailing closers go, one at a time.
+        const more = (o: string, c: string) => t0.split(c).length > t0.split(o).length;
+        while (/[\]\})）]$/u.test(t0) && ((t0.endsWith(']') && more('[', ']')) || (t0.endsWith('}') && more('{', '}')) || (t0.endsWith(')') && more('(', ')')) || (t0.endsWith('）') && more('（', '）')))) t0 = t0.slice(0, -1).replace(/[\s\p{S}\p{Pd}:;,·•|/\\~*^_+=<>#&@：；，、]+$/u, '').trim();
         const t = t0.split(/\s+/).length >= 3 ? t0.replace(/\s+(?:of|for|to|and|or|with|in|on|by|the|a|an|at|from)$/i, '').trim() : t0; // M348c: "Face classification task of" — a dangling preposition after a stripped tail goes too ("Log in" stays: two words)
         if (t !== anyA.title && t.length >= 3) { this.store.audit('guard_title_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-12) }); anyA.title = t; }
       }
