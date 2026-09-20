@@ -1,0 +1,64 @@
+{
+  "name": "replay (real, WildChat 44552, 7 of 7, Chinese): the SAME request restated seven times — 'write MATLAB code to mouse-select an Excel file / a data range and read it into a variable named data' — each a minor rephrase ('不对，再写一个' = wrong, write another; add 'open the file'; add 'select specific data'). Tests whether the map keeps ONE requirement node with refinements/attempts, or spawns seven twins. — piece 2",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 1500,
+  "rounds": [
+    {
+      "user": "给我写一段matlab代码，能够用鼠标选择指定的excel文件，并用鼠标选择此excel文件中指定的数据，将读取的数据命名为data；",
+      "assistant": "以下是一段 MATLAB 代码，它可以使用鼠标选择指定的 Excel 文件，然后通过鼠标选择文件中要读取的数据，并将读取的数据命名为 `data` 变量：\n\n```matlab\n% 让用户选择 Excel 文件\n[filename, pathname] = uigetfile('*.xlsx', 'Select Excel File');\nfullfilename = fullfile(pathname, filename);\n\n% 显示 Excel 文件中的所有表格，并等待用户选择要读取的表格\n[~, sheetnames] = xlsfinfo(fullfilename);\nfor i = 1:numel(sheetnames)\n    sheets{i} = sprintf('%d. %s', i, sheetnames{i});\nend\nchoice = listdlg('PromptString', 'Select Excel Sheet to Read:', 'ListString', sheets);\nsheetname = sheetnames{choice};\n\n% 读取 Excel 文件中指定的数据\ndata = xlsread(fullfilename, sheetname);\n\n% 显示 Excel 数据并等待用户指定数据范围\nfigure;\nimagesc(data);\ntitle('Click and drag to select Excel data range');\n\n[x,y,button] = ginput(2);\nx1 = min(x);\nx2 = max(x);\ny1 = min(y);\ny2 = max(y);\n\n% 读取指定范围内的 Excel 数据\ndata = data(y1:y2, x1:x2);\n```\n\n这段代码首先使用 `uigetfile` 函数让用户选择 Excel 文件，并用 `xlsfinfo` 函数获取文件中包含的所有表格的名称。然后，将表格名称显示为列表，并使用 `listdlg` 函数让用户选择要读取的表格。接着使用 `xlsread` 函数读取 Excel 文件中指定的数据，并显示在图形界面中。通过 `ginput` 函数获取用户指定的数据范围，并存储在 `x1`、`x2`、`y1` 和 `y2` 变量中。最后，使用选择的范围从 `data` 变量中提取数据，并将它们存储在同一变量 `data` 中。\n\n请注意，这段代码中所使用的图形界面是基于 MATLAB 的默认颜色映射绘制的，如果您希望更改图形界面的颜色和样式，可以使用 MATLAB 画图函数从头开始绘制自定义图形。",
+      "then": [
+        {
+          "nodeMatching": "uigetfile|文件|选择|excel"
+        },
+        {
+          "atMostTitles": "matlab|excel|读取|data|鼠标|读入",
+          "max": 5
+        },
+        {
+          "countUnder": "proj",
+          "max": 20
+        }
+      ]
+    },
+    {
+      "user": "给我写一段matlab代码，能够用鼠标选择指定的excel文件，打开excel文件，在excel文件中用鼠标选择此excel文件中指定的数据，将读取的数据命名为data；",
+      "assistant": "以下是一段 MATLAB 代码，它可以使用鼠标选择指定的 Excel 文件，然后在 Excel 文件中通过鼠标选择要读取的数据，并将读取的数据命名为 `data` 变量：\n\n```matlab\n% 让用户选择 Excel 文件\n[filename, pathname] = uigetfile('*.xlsx', 'Select Excel File');\nfullfilename = fullfile(pathname, filename);\n\n% 打开 Excel 文件\nexcel = actxserver('Excel.Application');\nworkbook = excel.Workbooks.Open(fullfilename);\n\n% 显示 Excel 文件中的所有表格，并等待用户选择要读取的表格\n[~, sheetnames] = xlsfinfo(fullfilename);\nfor i = 1:numel(sheetnames)\n    sheets{i} = sprintf('%d. %s', i, sheetnames{i});\nend\nchoice = listdlg('PromptString', 'Select Excel Sheet to Read:', 'ListString', sheets);\nsheetname = sheetnames{choice};\n\n% 计算 Excel 表格中的数据范围\nsheet = excel.ActiveWorkbook.ActiveSheet;\n[~, ncol] = sheet.UsedRange.Columns.Count;\n[~, nrow] = sheet.UsedRange.Rows.Count;\ndataRange = [1 1 nrow ncol];\n\n% 显示 Excel 数据并等待用户指定数据范围\nsheet.Activate();\nsheet.Range('A1').Activate();\nexcel.Visible = 1;\n[~, ~, ~, ~, rect] = implay(zeros(dataRange(3:4)), 1);\nrect = round(rect);\n\nif rect(1) < 1\n    rect(1) = 1;\nend\n\nif rect(2) < 1\n    rect(2) = 1;\nend\n\nif rect(1) + rect(3) - 1 > ncol\n    rect(3) = ncol - rect(1) + 1;\nend\n\nif rect(2) + rect(4) - 1 > nrow\n    rect(4) = nrow - rect(2) + 1;\nend\n\n% 读取指定的 Excel 数据\ndata = sheet.Range(sheet.Cells(rect(2), rect(1)), sheet.Cells(rect(2)+rect(4)-1, rect(1)+rect(3)-1)).Value;\ndata = cell2mat(data);\n\n% 关闭 Excel 文件，释放 COM 对象\nworkbook.Close();\nexcel.Quit();\ndelete(excel);\n```\n\n这段代码首先使用 `uigetfile` 函数让用户选择 Excel 文件。然后使用 ActiveX COM 对象打开 Excel 文件。接下来，使用 `xlsfinfo` 函数获取文件中包含的所有表格的名称，并使用 `listdlg` 函数让用户选择要读取的表格。然后计算 Excel 表格中的数据范围，并在 MATLAB 中显示 Excel 数据。通过 `implay` 函数允许用户通过鼠标选择要读取的数据范围，并将选择的数据范围存储在变量 `rect` 中。最后，使用选择的范围从 Excel 文件中读取数据，并将它们存储在变量 `data` 中。\n\n请注意，使用 COM 对象连接到 Excel 可能需要一定的时间，并且关闭 Excel 文件后，需要释放 COM 对象。另外，在使用 ActiveX COM 对象时，应始终注意缺少引用可能导致的问题。",
+      "then": [
+        {
+          "nodeMatching": "打开|open|excel|文件"
+        },
+        {
+          "atMostTitles": "matlab|excel|读取|data|鼠标|读入",
+          "max": 5
+        },
+        {
+          "countUnder": "proj",
+          "max": 23
+        }
+      ]
+    },
+    {
+      "user": "给我写一段matlab代码，能够用鼠标选择指定的excel文件，打开excel文件，在excel文件中择此excel文件中指定的数据，将读取的数据命名为data；",
+      "assistant": "以下是一段使用 `uigetfile` 和 `xlsread` 函数读取鼠标指定的Excel数据，并将其存储到名为 `data` 的 MATLAB 变量中的例子：\n\n```matlab\n% 打开文件选择窗口，让用户选择要打开的 Excel 文件\n[filename, pathname] = uigetfile('*.xlsx', 'Select Excel File');\n\n% 如果用户取消选择 Excel 文件，则退出程序\nif isequal(filename,0)\n    disp('Excel file selection canceled.')\n    return\nend\n\n% 将文件路径和文件名组合成完整的文件名\nfullfilename = fullfile(pathname, filename);\n\n% 使用 xlsread 函数读取指定的 Excel 数据\n% 可使用输入参数 sheet 和 range 来指定要读取的工作表和数据范围\n% 例如：data = xlsread(fullfilename, 'Sheet1', 'A1:C10');\ndata = xlsread(fullfilename);\n\n% 在 MATLAB 中显示 Excel 数据\nfigure;\nimagesc(data);\ntitle('Excel Data');\n\n% 通过鼠标选择要读取的 Excel 数据的范围\nrect = getrect();\n\n% 从指定的范围中提取 Excel 数据，并将其存储到 MATLAB 变量中\nx1 = round(rect(1));\ny1 = round(rect(2));\nx2 = round(rect(1) + rect(3));\ny2 = round(rect(2) + rect(4));\ndata = data(y1:y2, x1:x2);\n```\n\n这段代码首先使用 `uigetfile` 函数让用户选择要打开的 Excel 文件。接下来使用 `xlsread` 函数读取整个 Excel 文件，并用 `imagesc` 函数在 MATLAB 中显示 Excel 数据。然后使用 `getrect` 函数可以在 MATLAB 的图形窗口中使用鼠标选择要读取的 Excel 数据范围，将范围限制为整数 x 和 y 坐标值。最后，使用从指定的范围提取出来的数据，并将其存储在名为 `data` 的 MATLAB 变量中。\n\n请注意，Excel 文件的读取取决于其格式和大小，读取大型 Excel 文件可能需要很长时间。另外，此处的示例假定 Excel 数据是数值矩阵。如果 Excel 文件中包含尚未处理或转换的非数值数据，则必须采用相应的方法进行处理或转换以便在 MATLAB 中使用。",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "how many distinct requirements are on this map? one line"
+        },
+        {
+          "nodeMatching": "matlab|excel|data|读取"
+        },
+        {
+          "atMostTitles": "matlab|excel|读取|data|鼠标|读入",
+          "max": 5
+        },
+        {
+          "countUnder": "proj",
+          "max": 26
+        }
+      ]
+    }
+  ]
+}
