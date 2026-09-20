@@ -1,0 +1,52 @@
+{
+  "name": "replay (real, ShareGPT 9772, 6 of 17, English): a persistent Angular/Azure build-number-injection debug — show the build number in an Angular Azure static web app → inject it during build via YAML → concept Q (is_cm_build) → the --env flag errors → --environment=BUILD_NUMBER errors → still 'Unknown argument: env.BUILD_NUMBER'. Tests the injection failure as ONE open problem across a SERIES of failed flag attempts (not twinned), plus fix-watches: M365 (map must NOT invent a working flag the assistant never gave) + M364 (brain knows injection still fails). — piece 1",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 2500,
+  "rounds": [
+    {
+      "user": "How can i show the buildnumber in an Angular application deployed as an Azure static web application?",
+      "assistant": "One way to show the build number in an Angular application deployed as an Azure static web application is to use environment variables and configure your deployment pipeline to inject the build number into your application during the build process.\n\nHere are the steps to accomplish this:\n\n1. Set up an environment variable for the build number in your Azure Static Web App configuration. You can do this by navigating to your Static Web App in the Azure portal, selecting Configuration > Application settings, and adding a new application setting with a key of \"BUILD\\_NUMBER\" and a value of your build number.\n2. In your Angular application, create a new file called `environment.prod.ts` in the `src/environments` folder. This file will contain the environment variables for your production environment.\n3. Define a variable to hold the build number in `environment.prod.ts`, like this:\n\n\n```javascript\nexport const environment = {\n production: true,\n buildNumber: process.env.BUILD\\_NUMBER\n};\n```\n4. In your Angular application, create a new component to display the build number. For example, you could create a component called `BuildNumberComponent`:\n\n\n```python\nimport { Component } from '@angular/core';\nimport { environment } from '../environments/environment';\n\n@Component({\n selector: 'app-build-number',\n template: 'Build Number: {{ buildNumber }}'\n})\nexport class BuildNumberComponent {\n buildNumber = environment.buildNumber;\n}\n```\n5. Add the `BuildNumberComponent` to your app's template where you want to display the build number.\n6. Finally, when you build your Angular application, pass the build number to the build process as an environment variable. For example, if you're using the Angular CLI, you could run:\n\n\n```css\nng build --prod --env=BUILD_NUMBER=<your build number>\n```\nThis will build your Angular application with the `BUILD_NUMBER` environment variable set to your build number, which will be available to your application at runtime.\n\nOnce you've deployed your application to Azure Static Web Apps, the build number should be displayed wherever you added the `BuildNumberComponent` to your app's template.\n\n",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "what is the user trying to do? one line"
+        },
+        {
+          "nodeMatching": "build number|angular|azure|buildnumber|display"
+        },
+        {
+          "countUnder": "proj",
+          "max": 9
+        }
+      ]
+    },
+    {
+      "user": "An how do inject the build number into my application during the build process in a yaml-file?",
+      "assistant": "To inject the build number into your Angular application during the build process using a YAML file, you can modify your Azure Static Web App's build pipeline to pass the build number as an environment variable to the `ng build` command.\n\nHere's an example YAML file that demonstrates how to accomplish this:\n\n\n```yaml\n# azure-pipelines.yml\n\ntrigger:\n- main\n\nvariables:\n buildNumber: '$(Build.BuildNumber)'\n\njobs:\n- job: build\\_and\\_deploy\n pool:\n vmImage: 'ubuntu-latest'\n steps:\n - task: NodeTool@0\n inputs:\n versionSpec: '16.x'\n displayName: 'Install Node.js'\n - script: |\n npm install -g @angular/cli\n npm install\n displayName: 'Install dependencies'\n - script: |\n ng build --configuration production --env BUILD\\_NUMBER=$(buildNumber)\n displayName: 'Build application'\n - task: AzureStaticWebApp@0\n inputs:\n app\\_location: '.'\n api\\_location: null\n output\\_location: '$(System.DefaultWorkingDirectory)/dist'\n sku: 'Free'\n is\\_cm\\_build: false\n app\\_artifact\\_location: '$(System.DefaultWorkingDirectory)/dist'\n displayName: 'Deploy to Azure Static Web Apps'\n```\nIn this YAML file, we define a variable `buildNumber` that gets its value from the `$(Build.BuildNumber)` system variable provided by Azure DevOps. We then pass this variable to the `ng build` command as an environment variable using the `--env` flag.\n\nThe `ng build` command builds the Angular application in production mode and injects the `BUILD_NUMBER` environment variable into the application. The value of `$(buildNumber)` is replaced by the actual build number at runtime.\n\nAfter the build is complete, the application is deployed to Azure Static Web Apps using the `AzureStaticWebApp` task.\n\nNote that in this example, we assume that you're using Azure DevOps as your build and deployment platform. If you're using a different platform, the syntax and configuration options may be slightly different.\n\n",
+      "then": [
+        {
+          "nodeMatching": "inject|yaml|build process|pipeline|environment"
+        },
+        {
+          "countUnder": "proj",
+          "max": 13
+        }
+      ]
+    },
+    {
+      "user": "What does is_cm_build mean?",
+      "assistant": "The `is_cm_build` option is a configuration option for the Azure Static Web Apps deployment task in Azure Pipelines. This option specifies whether the deployment is a continuous deployment (CD) or a manual deployment.\n\nWhen `is_cm_build` is set to `true`, it indicates that the deployment is a CD build triggered by a commit to the main branch of the repository. In this case, Azure Static Web Apps deploys the latest version of the application automatically, without any manual intervention.\n\nWhen `is_cm_build` is set to `false`, it indicates that the deployment is a manual deployment triggered by a user. In this case, Azure Static Web Apps prompts the user to confirm the deployment before proceeding.\n\nBy default, `is_cm_build` is set to `true`, meaning that Azure Static Web Apps assumes that the deployment is a CD build triggered by a commit to the main branch. If you're deploying your application manually, you should set `is_cm_build` to `false` to ensure that the deployment doesn't proceed automatically without your confirmation.\n\nIn summary, `is_cm_build` is an optional configuration option for the Azure Static Web Apps deployment task that allows you to control whether the deployment is automatic or manual.\n\n",
+      "then": [
+        {
+          "nodeMatching": "is_cm_build|cm_build|config|option"
+        },
+        {
+          "countUnder": "proj",
+          "max": 16
+        }
+      ]
+    }
+  ]
+}
