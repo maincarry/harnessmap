@@ -337,6 +337,8 @@ export class Store {
     const ph = exceptTurnIds.map(() => '?').join(',');
     return this.db.prepare(`UPDATE filings SET status = 'failed', last_error = 'interrupted by a server restart', next_retry_at = datetime('now'), updated_at = datetime('now') WHERE status = 'pending'${ph ? ` AND turn_id NOT IN (${ph})` : ''}`).run(...exceptTurnIds).changes;
   }
+  // M356: the previous round's alterations for a chat — what the filer did one turn ago (the correction-retire guard reads it).
+  lastRoundAlterations(chatId: string): Alteration[] { const r = this.db.prepare('SELECT alterations FROM rounds WHERE chat_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1').get(chatId) as any; try { return r ? (JSON.parse(r.alterations) as Alteration[]) : []; } catch { return []; } }
   roundForTurn(turnId: string): { id: string } | undefined { return this.db.prepare('SELECT id FROM rounds WHERE turn_id = ? ORDER BY created_at DESC LIMIT 1').get(turnId) as any; }
   /** M342 backfill: user turns (with an assistant turn after them) that never got a round and have no ledger row — the
    *  exchanges lost to a failed filing before the ledger existed. Recent ones only, capped, live chats only. */

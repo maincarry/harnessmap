@@ -8,6 +8,7 @@
 //   {focusUnder: key} · {focusIs: key} · {nodeMatching: regex, under?: key, notUnder?: key} · {noNodeMatching: regex}
 //   · {inToSort: regex} · {notInToSort: regex} · {lit: key} · {dark: key} · {audit: kind, matching?: regex}
 //   · {noAudit: kind} · {statusOf: regex, is: status} · {countUnder: key, max: n} · {topLevelMatching: regex}
+//   stance (M356+): {notStatus: regex, statuses: 'a|b'} · {underKey: regex, key} · {mentions: regex, must: regex} · {atMostTitles: regex, max} · {brainMust: regex} · {brainMustNot: regex}
 //   · {undoNext: regex} · {do: 'undo'|'focus'|'light'|'dim'|'release'|'pin', key?, depth?}
 import { rmSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync, symlinkSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
@@ -192,6 +193,13 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.focusIs) check(label, f === keys[a.focusIs], `focus=${nameOf(s, f)}`);
       else if (a.nodeMatching) { const hits = (s.nodes ?? []).filter((n: any) => match(s, n, a.nodeMatching)); const idsOf = (x: string): string[] => keys[x] ? [keys[x]] : (s.nodes ?? []).filter((m: any) => m.status !== 'removed' && match(s, m, x)).map((m: any) => m.id); const anyUnder = (id: string, x: string) => idsOf(x).some((p) => under(s, id, p)); const ok = hits.some((n: any) => (!a.under || anyUnder(n.id, a.under)) && (!a.notUnder || !anyUnder(n.id, a.notUnder))); check(label, ok, hits.length ? `found under: ${hits.map((n: any) => nameOf(s, n.parentId)).join(' | ')}` : 'no node matched'); }
       else if (a.noNodeMatching) check(label, !(s.nodes ?? []).some((n: any) => match(s, n, a.noNodeMatching)));
+      // M356+: stance checks (Jacob 2026-09-20: keyword checks are a smoke floor; judge what the map DID)
+      else if (a.notStatus) { const hits = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && match(s, n, a.notStatus) && rx(`^(${a.statuses})$`).test(n.status ?? '')); check(label, hits.length === 0, hits.map((n: any) => `${n.status}: ${(n.title || n.content).slice(0, 40)}`).join('; ')); }
+      else if (a.underKey) { const byId = new Map((s.nodes ?? []).map((n: any) => [n.id, n])); const par = (n: any) => n.parentId ?? n.parent_id ?? null; const under = (n: any) => { for (let c = n; c; c = par(c) ? byId.get(par(c)) : null) if (c.id === keys[a.key]) return true; return false; }; const hits = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && match(s, n, a.underKey)); check(label, hits.length > 0 && hits.every(under), hits.map((n: any) => `${(n.title || n.content).slice(0, 30)} parent=${(byId.get(par(n)) as any)?.title ?? par(n) ?? 'TOP'}`).join('; ') || 'no node'); }
+      else if (a.mentions) { const hits = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && match(s, n, a.mentions)); check(label, hits.some((n: any) => match(s, n, a.must)), hits.slice(0, 2).map((n: any) => (n.title || n.content).slice(0, 50)).join('; ') || 'no node'); }
+      else if (a.atMostTitles) { const hits = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && rx(a.atMostTitles).test(n.title || n.content.slice(0, 60))); check(label, hits.length <= a.max, `${hits.length}: ${hits.slice(0, 4).map((n: any) => (n.title || n.content).slice(0, 25)).join(' | ')}`); }
+      else if (a.brainMust) { const said = String(lastAsk?.reply ?? lastAsk?.text ?? ''); check(label, rx(a.brainMust).test(said), said.slice(0, 120)); }
+      else if (a.brainMustNot) { const said = String(lastAsk?.reply ?? lastAsk?.text ?? ''); check(label, said.length > 0 && !rx(a.brainMustNot).test(said), said.slice(0, 120)); }
       else if (a.inToSort) check(label, !!ts && (s.nodes ?? []).some((n: any) => match(s, n, a.inToSort) && under(s, n.id, ts.id)), 'not in to sort');
       else if (a.notInToSort) check(label, !ts || !(s.nodes ?? []).some((n: any) => match(s, n, a.notInToSort) && under(s, n.id, ts.id)));
       else if (a.lit) check(label, chatOf(s).lit.includes(keys[a.lit]));

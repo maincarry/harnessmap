@@ -686,6 +686,21 @@ export async function brainChat(store: Store, projectId: string, text: string): 
     try { const c = await brainCycle(store, projectId); store.audit('brain_understanding_on_demand', { assessed: c.assessed, synthesized: c.synthesized }); } catch (err) { store.audit('brain_understanding_on_demand', { error: String(err instanceof Error ? err.message : err).slice(0, 200) }); }
     u = getUnderstanding(store, projectId);
   }
+  // M357 (Jacob 2026-09-20, the stance re-score): the brain still recommended join() six rounds after the user had ruled it out — its
+  // understanding is rewritten by the rhythm every ten filed rounds (M195), so between refreshes it answers from notes it took before
+  // the latest turns. A brain asked after five or more rounds it has not read re-reads first (one cycle), then answers.
+  if (u) {
+    try {
+      const written = Object.values(u.sections).map((x) => x.ts).filter(Boolean).sort().at(-1) ?? '';
+      const db = (store as any).db;
+      const since = written ? Number((db.prepare('SELECT count(*) n FROM rounds r JOIN chats c ON c.id = r.chat_id WHERE c.project_id = ? AND r.created_at > ?').get(projectId, written.slice(0, 19).replace('T', ' ')) as any)?.n ?? 0) : 0;
+      if (since >= 5) {
+        const c = await brainCycle(store, projectId);
+        store.audit('brain_understanding_refreshed_on_ask', { since, assessed: c.assessed, synthesized: c.synthesized });
+        u = getUnderstanding(store, projectId) ?? u;
+      }
+    } catch (err) { store.audit('brain_understanding_refreshed_on_ask', { error: String(err).slice(0, 120) }); }
+  }
   const status = getMapStatus(store, projectId);
   const tuning = store.getSetting(`braintuning:${projectId}`) ?? '';
   try {

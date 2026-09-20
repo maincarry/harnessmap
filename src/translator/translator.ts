@@ -306,6 +306,8 @@ export class Translator {
       // + an auto placement note), updates/moves to dim nodes are dropped.
       alterations = this.guardScope(alterations, writeScope, map, params);
       alterations = this.guardCorrectionTwin(alterations, map);
+      alterations = this.guardCorrectionRetire(alterations, map, params);
+      if (process.env.HARNESSMAP_GUARD_REJECTION === '1') alterations = this.guardUserRejection(alterations, map, params); // M358: OFF by default until its live proof lands (M358c) — two runs missed the target (ff2 skipped touched nodes; ff3 hit the tool's name in three detail nodes instead of the URL nodes)
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
       const prior = this.store.roundForTurn(params.turnId);
@@ -329,6 +331,86 @@ export class Translator {
   // M253 (finding 10 of Mark's Codex test): a correction that rewrote node X used to ALSO file a "decision" restating
   // the fact (the old rebuke rule). Prompts guide, guards enforce: a create_node typed decision/constraint in the same
   // round as an update_node that rewrote content, sharing two or more rare words with the rewritten statement, is dropped.
+  // M356 (Jacob 2026-09-20, "debug, you are in a loop"): the stance re-score found misread branches left standing — the assistant
+  // answered a question the user did not ask (GUI *development* tools for "other GUI tools?"), the filer built the card, the user's
+  // next turn said "I mean GUI tools for packaging", the filer answered THAT elsewhere and the misread card stayed answered. Guard:
+  // when the user's turn is an explicit correction of the question ("I mean…", "not what I asked", "我说的是…", "我问的是…") and this
+  // round touched nothing in a card the PREVIOUS round created, that card is parked — it answered a misreading. Cards this round
+  // updated or extended are left alone (a correction of a detail, not of the question). Prompts guide, guards enforce.
+  private guardCorrectionRetire(alterations: any[], map: { nodes: MapNode[] }, params: { chatId: string; userText?: string }): any[] {
+    const ut = (params.userText ?? '').trim();
+    if (!ut || ut.length > 400) return alterations;
+    const CORR = /(^|[^\p{L}])(no[,.!]?\s+)?i\s+mean[t]?\b|not what i (asked|meant|said|want(ed)?)|i (was|am|'m|’m) (asking|talking) about|that'?s not (what|the question) i|我说的是|我是说|我的意思是|我指的是|我问的是|我要的是|不是问你|我不是问/iu;
+    if (!CORR.test(ut)) return alterations;
+    const prev = this.store.lastRoundAlterations(params.chatId);
+    const created = new Set(prev.filter((a: any) => a.op === 'create_node' && typeof a.id === 'string').map((a: any) => a.id as string));
+    if (!created.size) return alterations;
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    const tops = [...created].filter((id) => { const n = byId.get(id); return !!n && n.status !== 'removed' && !created.has(n.parentId ?? '') && n.parentId !== null; });
+    if (!tops.length) return alterations;
+    const under = (id: string, root: string) => { for (let c: MapNode | undefined = byId.get(id); c; c = c.parentId ? byId.get(c.parentId) : undefined) if (c.id === root) return true; return false; };
+    const touchedIds = alterations.map((a) => a?.id).filter((x): x is string => typeof x === 'string');
+    const out = [...alterations];
+    for (const root of tops) {
+      if (touchedIds.some((id) => under(id, root)) || alterations.some((a) => a?.op === 'create_node' && typeof a.parentId === 'string' && under(a.parentId, root))) continue;
+      const n = byId.get(root)!;
+      if (/^(parked|removed|superseded|decided|accepted)$/.test(n.status)) continue;
+      out.push({ op: 'update_node', id: root, status: 'parked' });
+      this.store.audit('guard_correction_retire', { id: root.slice(0, 8), title: (n.title || n.content).slice(0, 40), was: n.status });
+    }
+    return out;
+  }
+
+  // M358 (Jacob 2026-09-20, stance re-score "user rejection not honoured"): scene-detect zh — the user said "ffmpeg-scene-change-detector
+  // 这个网址不存在" and the map kept the tool node with its dead URL as a noted fact; book-links took three pieces to notice the links
+  // were dead. Guard: when a short user turn names a URL or an identifier that a live node carries AND says it does not exist / is
+  // invalid / cannot be opened / 404 / not found, and this round did not touch that node, the node is reopened (status open) — the
+  // user's report stands until the filer or the person settles it; audit guard_user_rejection. At most three nodes a round.
+  private guardUserRejection(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const ut = (params.userText ?? '').trim();
+    if (!ut || ut.length > 500) return alterations;
+    const NEG = /不存在|无效|失效|打不开|访问不了|无法访问|没有这个|没有该|没有此|不是真的|404|does not exist|doesn'?t exist|no such|not found|dead link|doesn'?t work|does not work|is invalid|isn'?t valid|is broken|is fake|made (that )?up|hallucinat/iu;
+    if (!NEG.test(ut)) return alterations;
+    const tokens = new Set<string>();
+    for (const m of ut.matchAll(/https?:\/\/[^\s"'）)>]+/g)) tokens.add(m[0].replace(/[.,;:!?。，；：！？]+$/, ''));
+    for (const m of ut.matchAll(/[A-Za-z][A-Za-z0-9]*(?:[-_.][A-Za-z0-9]+)+|[A-Z][A-Za-z0-9]{5,}|[a-z]+[A-Z][A-Za-z0-9]{3,}/g)) if (m[0].length >= 6) tokens.add(m[0]);
+    for (const t of [...tokens]) if (/^[a-z0-9-]+\.(com|org|net|io|cn|dev)$/i.test(t) || /^(github|gitlab|google|twitter|stackoverflow)\b/i.test(t)) tokens.delete(t); // a bare domain names nothing
+    if (!tokens.size) return alterations;
+    // M358b (scene-detect re-run): the filer had TOUCHED the URL nodes that round — re-asserting the dead address as fact,
+    // following the assistant — so a "skip what the filer touched" rule skipped exactly the nodes the user was rejecting.
+    // Now: a touched node is left alone only when the filer's own alteration already carries the rejection (status open /
+    // rejected / …, or a negation in its new statement); otherwise its status is overridden to open. A node the filer creates
+    // this round that carries the rejected token without the negation is born open.
+    const byId = new Map<string, any[]>();
+    for (const a of alterations) if (typeof a?.id === 'string') (byId.get(a.id) ?? byId.set(a.id, []).get(a.id)!).push(a);
+    const settled = (a: any) => /^(open|rejected|retracted|parked|superseded|removed)$/.test(String(a?.status ?? '')) || (typeof a?.content === 'string' && NEG.test(a.content));
+    const carries = (text: string) => { const hay = text.toLowerCase(); return [...tokens].find((t) => hay.includes(t.toLowerCase())); };
+    const out = [...alterations];
+    let n = 0;
+    for (const a of out) { // what the filer creates this round with the rejected thing in it, and no rejection of its own
+      if (n >= 3) break;
+      if (a?.op !== 'create_node' || typeof a.content !== 'string' || settled(a)) continue;
+      const hit = carries(`${a.title ?? ''}\n${a.content}`);
+      if (!hit) continue;
+      a.status = 'open';
+      this.store.audit('guard_user_rejection', { id: String(a.id ?? '').slice(0, 8), token: hit.slice(0, 60), was: 'new', title: String(a.title || a.content).slice(0, 40) });
+      n++;
+    }
+    for (const node of map.nodes) {
+      if (n >= 3) break;
+      if (node.status === 'removed' || /^(open|rejected|retracted|parked|superseded|removed)$/.test(node.status)) continue;
+      const own = byId.get(node.id) ?? [];
+      const hit = carries(`${node.title ?? ''}\n${node.content}\n${own.map((a) => `${a.title ?? ''}\n${a.content ?? ''}`).join('\n')}`);
+      if (!hit) continue;
+      if (own.some(settled)) continue;
+      const upd = own.find((a) => a.op === 'update_node');
+      if (upd) upd.status = 'open'; else out.push({ op: 'update_node', id: node.id, status: 'open' });
+      this.store.audit('guard_user_rejection', { id: node.id.slice(0, 8), token: hit.slice(0, 60), was: node.status, title: (node.title || node.content).slice(0, 40), overrode: !!upd });
+      n++;
+    }
+    return out;
+  }
+
   private guardCorrectionTwin(alterations: any[], map: { nodes: MapNode[] }): any[] {
     return dropCorrectionTwins(alterations, map.nodes, (d) => this.store.audit('guard_correction_twin', d));
   }
@@ -505,7 +587,7 @@ export class Translator {
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && anyA.title) {
         const seen = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`;
         const stray = SCRIPTS.filter(([, re]) => re.test(anyA.title) && !re.test(seen)).map(([name]) => name);
-        if (stray.length) { this.store.audit('guard_title_script', { id: String(anyA.id ?? '').slice(0, 8), title: anyA.title.slice(0, 40), stray }); anyA.title = ''; }
+        if (stray.length) { this.store.audit('guard_title_script', { id: String(anyA.id ?? '').slice(0, 8), title: anyA.title.slice(0, 40), stray, kept: a.op === 'update_node' }); if (a.op === 'update_node') delete anyA.title; else anyA.title = ''; } // M359: on an update the node's existing title stays; only a new node is blanked for the healer
       }
       // M330 (perturbed imnodes replay): the filer wrote the status into the statement — "RETRACTED — The original evidence…".
       // The status is a field; a leading label in the text is meta. The label goes; if the op carries no status, the label becomes it.
