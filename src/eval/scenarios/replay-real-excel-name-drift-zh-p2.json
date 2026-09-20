@@ -1,0 +1,59 @@
+{
+  "name": "replay (real, WildChat 45241, 7 of 7, Chinese): an Excel thread with a CORRECTION then a DRIFT — batch cell naming (drag-fill) → name cells myGird1..10 → CORRECTION 'I mean Range.Name, not filling cell content' (assistant switches to a VBA macro) → C# Interop Range.set_Value → then drifts to unrelated English-translation trivia (shoulder-length hair / bangs / lively). Tests whether the fill-content approach is corrected to range-naming, and whether disjoint subjects (Excel / C# / English translations) stay distinct with the brain counting them. — piece 2",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 1500,
+  "rounds": [
+    {
+      "user": "头发长度刚好到肩部的发型，通常用英文怎么说？",
+      "assistant": "头发长度刚好到肩部的发型可以用英文表达为 \"shoulder-length hair\"。",
+      "then": [
+        {
+          "nodeMatching": "hair|shoulder|发型|肩|shoulder-length"
+        },
+        {
+          "countUnder": "proj",
+          "max": 22
+        }
+      ]
+    },
+    {
+      "user": "齐刘海，通常用英文怎么说？",
+      "assistant": "齐刘海的英文表达为 \"bangs\"，也有人称之为 \"fringe\"。",
+      "then": [
+        {
+          "nodeMatching": "bangs|fringe|刘海"
+        },
+        {
+          "atMostTitles": "英文|翻译|表达|english|translation",
+          "max": 3
+        },
+        {
+          "countUnder": "proj",
+          "max": 25
+        }
+      ]
+    },
+    {
+      "user": "活泼的人，通常用英文怎么说？",
+      "assistant": "形容活泼的人可以用英文 \"lively\"，\"ebullient\"，\"vivacious\"，\"bubbly\"，\"energetic\" 等来表达。",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "how many separate topics are on this map? one line"
+        },
+        {
+          "nodeMatching": "lively|活泼|vivacious"
+        },
+        {
+          "brainMust": "excel|c#|english|翻译|translation|3|three|三"
+        },
+        {
+          "countUnder": "proj",
+          "max": 28
+        }
+      ]
+    }
+  ]
+}
