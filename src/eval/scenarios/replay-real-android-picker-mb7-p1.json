@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 42584, 11 of 11, English): an Android photo-picker app — the user pastes four project files one by one ('That is all'), asks for chosen photos to be drawn, sets a rule 'always send me the whole code' then REVERSES it ('I was mistaken, send only changes'), then rejects twice ('it draws a placeholder, not the real images', 'it still doesn't show photos') — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Android photo picker app"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "Hi. You are creating a mobile android app. In next messages I'll give you a files, that you already wrote. You have to end development of this app by completing my task.\nUntill a stop-phrase \"That is all\" I'll give you a files. Answer \"Yes\" if you understood.",
+   "assistant": "Yes.",
+   "then": [
+    {
+     "nodeMatching": "android|app|files|Kotlin|MainActivity"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "app\\src\\main\\java\\com\\example\\mb7\\presentation\\main\\MainActivity.kt\npackage com.example.mb7.presentation.main\n\nimport android.content.Intent\nimport android.net.Uri\nimport android.os.Bundle\nimport android.provider.MediaStore\nimport android.widget.Button\nimport androidx.appcompat.app.AppCompatActivity\nimport androidx.recyclerview.widget.LinearLayoutManager\nimport androidx.recyclerview.widget.RecyclerView\nimport com.example.mb7.R\nimport java.io.File\n\nclass MainActivity : AppCompatActivity() {\n\n    private lateinit var recyclerView: RecyclerView\n    private lateinit var adapter: PhotoAdapter\n    private lateinit var photoList: MutableList<File>\n\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        setContentView(R.layout.activity_main)\n\n        // Initialize recyclerview and adapter\n        recyclerView = findViewById(R.id.photo_list)\n        photoList = mutableListOf()\n        adapter = PhotoAdapter(photoList)\n\n        // Set adapter and layout manager\n        recyclerView.adapter = adapter\n        recyclerView.layoutManager = LinearLayoutManager(this)\n\n        // Handle click on Select Photos button\n        findViewById<Button>(R.id.select_photos_button).setOnClickListener {\n            val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)\n            intent.type = \"image/\"\n            startActivityForResult(intent, REQUEST_CODE_GALLERY)\n        }\n\n    }\n\n    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {\n        super.onActivityResult(requestCode, resultCode, data)\n\n        if (resultCode == RESULT_OK && requestCode == REQUEST_CODE_GALLERY) {\n            data?.data?.let { uri ->\n                val photoFile = File(getRealPathFromURI(uri))\n                photoList.add(photoFile)\n                adapter.notifyItemInserted(photoList.lastIndex)\n            }\n        }\n    }\n\n    private fun getRealPathFromURI(uri: Uri): String {\n        val projection = arrayOf(MediaStore.Images.Media.DATA)\n        val cursor = contentResolver.query(uri, projection, null, null, null)\n        cursor?.moveToFirst()\n        val columnIndex = cursor?.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)\n        val filePath = cursor?.getString(columnIndex ?: 0)\n        cursor?.close()\n        return filePath ?: \"\"\n    }\n\n    companion object {\n        private const val REQUEST_CODE_GALLERY = 1\n    }\n}\n",
+   "assistant": "Got it.",
+   "then": [
+    {
+     "nodeMatching": "MainActivity|Kotlin|activity"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "app\\src\\main\\java\\com\\example\\mb7\\presentation\\main\\PhotoAdapter.java\npackage com.example.mb7.presentation.main;\n\nimport android.net.Uri;\nimport android.view.LayoutInflater;\nimport android.view.View;\nimport android.view.ViewGroup;\nimport android.widget.CheckBox;\nimport android.widget.ImageView;\nimport android.widget.TextView;\n\nimport androidx.annotation.NonNull;\nimport androidx.recyclerview.widget.RecyclerView;\n\nimport com.example.mb7.R;\n\nimport java.io.File;\nimport java.util.List;\n\npublic class PhotoAdapter extends RecyclerView.Adapter<PhotoAdapter.PhotoViewHolder> {\n\n    private final List<File> mPhotoList;\n\n    public PhotoAdapter(List<File> photoList) {\n        mPhotoList = photoList;\n    }\n\n    public static class PhotoViewHolder extends RecyclerView.ViewHolder {\n        public ImageView photoImageView;\n        public TextView photoFilenameTextView;\n        public CheckBox photoCheckbox;\n\n        public PhotoViewHolder(@NonNull View itemView) {\n            super(itemView);\n\n            photoImageView = itemView.findViewById(R.id.photo_image_view);\n            photoFilenameTextView = itemView.findViewById(R.id.photo_filename_text_view);\n            photoCheckbox = itemView.findViewById(R.id.photo_checkbox);\n        }\n    }\n\n    @NonNull\n    @Override\n    public PhotoViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {\n        View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_photo, parent, false);\n        return new PhotoViewHolder(itemView);\n    }\n\n    @Override\n    public void onBindViewHolder(@NonNull PhotoViewHolder holder, int position) {\n        File photoFile = mPhotoList.get(position);\n        holder.photoImageView.setImageURI(Uri.fromFile(photoFile));\n        holder.photoFilenameTextView.setText(photoFile.getName());\n        holder.photoCheckbox.setChecked(false); // or true based on item selection\n    }\n\n    @Override\n    public int getItemCount() {\n        return mPhotoList.size();\n    }\n}",
+   "assistant": "Got it.",
+   "then": [
+    {
+     "nodeMatching": "PhotoAdapter|adapter|RecyclerView"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    }
+   ]
+  },
+  {
+   "user": "app\\src\\main\\res\\layout\\activity_main.xml\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<androidx.constraintlayout.widget.ConstraintLayout\n    xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    xmlns:app=\"http://schemas.android.com/apk/res-auto\"\n    xmlns:tools=\"http://schemas.android.com/tools\"\n    android:layout_width=\"match_parent\"\n    android:layout_height=\"match_parent\"\n    tools:context=\".presentation.main.MainActivity\">\n\n    <!-- Textview for the header -->\n    <TextView\n        android:id=\"@+id/header\"\n        android:layout_width=\"wrap_content\"\n        android:layout_height=\"wrap_content\"\n        android:text=\"Choose Photos\"\n        android:textSize=\"24sp\"\n        android:textStyle=\"bold\"\n        android:layout_marginTop=\"16dp\"\n        app:layout_constraintStart_toStartOf=\"parent\"\n        app:layout_constraintTop_toTopOf=\"parent\"/>\n\n    <!-- Container for the chosen photos -->\n    <androidx.recyclerview.widget.RecyclerView\n        android:id=\"@+id/photo_list\"\n        android:layout_width=\"0dp\"\n        android:layout_height=\"0dp\"\n        android:layout_margin=\"16dp\"\n        app:layout_constraintStart_toStartOf=\"parent\"\n        app:layout_constraintTop_toBottomOf=\"@+id/header\"\n        app:layout_constraintEnd_toEndOf=\"parent\"\n        app:layout_constraintBottom_toTopOf=\"@+id/select_photos_button\"/>\n\n    <!-- Button for selecting photos from the gallery -->\n    <Button\n        android:id=\"@+id/select_photos_button\"\n        android:layout_width=\"0dp\"\n        android:layout_height=\"wrap_content\"\n        android:text=\"Select Photos\"\n        android:textColor=\"@android:color/white\"\n        android:background=\"@color/white\"\n        android:layout_margin=\"16dp\"\n        app:layout_constraintStart_toStartOf=\"parent\"\n        app:layout_constraintTop_toBottomOf=\"@+id/photo_list\"\n        app:layout_constraintEnd_toEndOf=\"parent\"\n        app:layout_constraintBottom_toBottomOf=\"parent\"/>\n\n</androidx.constraintlayout.widget.ConstraintLayout>\n",
+   "assistant": "Got it.",
+   "then": [
+    {
+     "nodeMatching": "activity_main|layout|xml"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  }
+ ]
+}

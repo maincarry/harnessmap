@@ -655,6 +655,18 @@ export class Translator {
         const twin = map.nodes.find((n) => n.status !== 'removed' && n.author !== 'system' && n.content.length >= 40 && normC(n.content) === mine);
         if (twin) { this.store.audit('guard_create_twin', { id: String(anyA.id ?? '').slice(0, 8), twin: twin.id.slice(0, 8), content: anyA.content.slice(0, 60) }); continue; }
       }
+      // M363 (sqlsugar-rollback zh replay): the user re-pasted the original ask and the filer created "手动事务控制" beside the
+      // existing "手动控制事务" — the same characters in another order. A CREATE whose title, as a sorted character multiset
+      // (letters and digits only, ≥ 4 of them), equals a live SIBLING's title is a twin — dropped, like M338.
+      if (a.op === 'create_node' && typeof anyA.title === 'string' && anyA.title.trim()) {
+        const bag = (t: string) => [...t.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')].sort().join('');
+        const mine = bag(anyA.title);
+        if (mine.length >= 4) {
+          const parent = anyA.parentId ?? null;
+          const twin = map.nodes.find((n) => n.status !== 'removed' && n.author !== 'system' && (n.parentId ?? null) === parent && typeof n.title === 'string' && n.title !== anyA.title && bag(n.title) === mine);
+          if (twin) { this.store.audit('guard_create_twin', { id: String(anyA.id ?? '').slice(0, 8), twin: twin.id.slice(0, 8), title: anyA.title.slice(0, 40), of: String(twin.title).slice(0, 40), kind: 'title-anagram' }); continue; }
+        }
+      }
       if (a.op === 'create_node') {
         // M286 (loop find): a CREATE whose statement enumerates three or more items "(1) … (2) … (3)" or "1. … 2. … 3." is split
         // mechanically into a parent (the lead-in) and one option child per item — the shape the prompt asks for, enforced.
