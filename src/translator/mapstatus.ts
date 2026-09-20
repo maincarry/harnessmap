@@ -668,7 +668,7 @@ export async function verifyImport(store: Store, projectId: string): Promise<Imp
 // understanding, and the exchange is distilled into standing guidance that
 // rides every future synthesis — the user's spoken tuning, second only to
 // their edits.
-const BRAIN_CHAT_SYSTEM = `You are the map status agent — the one mind that holds the coherent understanding of this goal map, whose report and advice all the working agents consult. The USER is speaking to you directly, to tune you: correct your judgments, tell you what to watch, what to stop flagging, how to weigh things. Answer them plainly and briefly (this is a conversation, not a report), grounded in your actual current understanding — and when they correct you, say what you will do differently, never defend a mistake. You change nothing on the map and propose nothing here; you only explain yourself and take tuning.
+const BRAIN_CHAT_SYSTEM = `You are the map status agent — the one mind that holds the coherent understanding of this goal map, whose report and advice all the working agents consult. The USER is speaking to you directly, to tune you: correct your judgments, tell you what to watch, what to stop flagging, how to weigh things. Answer them plainly and briefly (this is a conversation, not a report), grounded in your actual current understanding — and when they correct you, say what you will do differently, never defend a mistake. You change nothing on the map and propose nothing here; you only explain yourself and take tuning. When the user asks a FACTUAL question about the map — how many topics or nodes there are, what STATUS something is in, what has been decided/chosen/rejected/left open, or what rule or preference THEY have set — answer from YOUR MAP RIGHT NOW (the live nodes given below), never from your prose understanding or YOUR STANDING GUIDANCE; your own guidance and role are never the answer to “what did the user set”. Exclude the getting-started tutorial when counting topics.
 
 Then rewrite YOUR STANDING GUIDANCE: the durable instructions you carry from everything this user has ever told you directly, updated with this exchange — integrate, don't append; drop what they have retracted; keep it under ~200 words of plain imperatives. This guidance rides into every future synthesis you write.`;
 
@@ -703,6 +703,16 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   }
   const status = getMapStatus(store, projectId);
   const tuning = store.getSetting(`braintuning:${projectId}`) ?? '';
+  // M364 (Jacob 2026-09-20, ruled a bug): brainChat answered count/status/decision/rule questions from its prose
+  // understanding and its own standing guidance — the live nodes were never in front of it — so it undercounted
+  // topics, missed just-made decisions, reported a pre-drift language, and once recited its own guidance as "the
+  // user's rule". Give it the live map as ground truth and (in the system prompt) tell it to read the nodes for
+  // any factual/status/rule question.
+  const liveMap = loadMap(store, projectId);
+  const roster = renderTree(liveMap, { ids: false }).slice(0, 12_000);
+  const isTutorial = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) || /getting started \(tutorial\)/i.test(String(n.content ?? ''));
+  const topics = liveMap.nodes.filter((n) => n.parentId === null && n.status !== 'removed' && !isTutorial(n) && String(n.title ?? n.content).trim() !== 'to sort');
+  const topicLine = `TOP-LEVEL TOPICS (${topics.length}, excluding the getting-started tutorial): ${topics.map((n) => String(n.title ?? n.content).slice(0, 60)).join(' | ') || '(none yet)'}`;
   try {
     const parsed = await call({
       task: 'brain',
@@ -710,6 +720,7 @@ export async function brainChat(store: Store, projectId: string, text: string): 
       audit: (k, d) => store.audit(k, d),
       user: [
         u ? `YOUR CURRENT UNDERSTANDING:\n${Object.entries(u.sections).map(([k, v]) => `${k}: ${v.text.slice(0, 2000)}`).join('\n\n')}` : 'YOUR CURRENT UNDERSTANDING: none written yet.',
+        `YOUR MAP RIGHT NOW — the live nodes, ground truth. Use THIS (not your summary or your standing guidance) to answer anything about how many topics/nodes exist, what STATUS something is in, what was decided/chosen/rejected/left open, or any rule or preference the USER set:\n${topicLine}\n\n${roster}`,
         status ? `YOUR STRUCTURE REPORT: ${status.health} ${status.opinion}` : '',
         tuning ? `YOUR STANDING GUIDANCE (as it stands):\n${tuning}` : 'YOUR STANDING GUIDANCE: none yet.',
         `THE USER SAYS:\n${text.slice(0, 4000)}`,
