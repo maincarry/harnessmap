@@ -1,0 +1,72 @@
+{
+  "name": "replay (real, WildChat 43509, 8 of 14, English): the chicken-nugget puzzle (get exactly 61 from boxes of 7 and 10; it IS possible: 3×7+4×10=61). The assistant flip-flops — wrong sums, then declares it IMPOSSIBLE (turn 7), then REVERSES to possible (turn 9) after 'Are you sure?', apologising repeatedly. Tests whether the map tracks a self-reversal cleanly (one answer node, impossible→possible) rather than keeping contradictory claims. — piece 1",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 300,
+  "rounds": [
+    {
+      "user": "Imagine there is a company which sells chicken nuggets in boxes of 7 and 10. How can I get 61 chicken nuggets from the store?",
+      "assistant": "You can buy six boxes of 10 chicken nuggets and one box of 7 chicken nuggets to get a total of 67 chicken nuggets. Then, you can eat 6 nuggets and have 61 remaining.",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "what is the question? one line"
+        },
+        {
+          "nodeMatching": "nugget|61|box|7|10"
+        },
+        {
+          "countUnder": "proj",
+          "max": 8
+        },
+        {
+          "brainMust": "61|nugget|7|10|box"
+        }
+      ]
+    },
+    {
+      "user": "I want to buy 61 nuggets without eating any.",
+      "assistant": "To buy exactly 61 chicken nuggets, you can buy 5 boxes of 10 chicken nuggets, which gives you 50 chicken nuggets, and then buy 1 box of 7 chicken nuggets, which will give you a total of 57 chicken nuggets. Finally, you can buy an additional 4 chicken nuggets to have a total of 61.",
+      "then": [
+        {
+          "nodeMatching": "eat|without|61|exact"
+        },
+        {
+          "countUnder": "proj",
+          "max": 11
+        }
+      ]
+    },
+    {
+      "user": "Only boxes of 7 and 10 are available at the store.",
+      "assistant": "In this case, you can buy 6 boxes of 7 chicken nuggets, which gives you 42 chicken nuggets in total, and then buy 1 box of 10 chicken nuggets to get a total of 52 chicken nuggets. Finally, you can buy an additional 9 chicken nuggets to have a total of 61.",
+      "then": [
+        {
+          "nodeMatching": "7|10|box|only|available"
+        },
+        {
+          "countUnder": "proj",
+          "max": 13
+        }
+      ]
+    },
+    {
+      "user": "Only boxes of 7 and 10 are available at the store.",
+      "assistant": "In this situation, getting exactly 61 nuggets is not possible using only boxes of 7 and 10. \n\nOne way to prove this is by using simple algebra. Let's assume we can buy x boxes of 7 chicken nuggets and y boxes of 10 chicken nuggets to get 61 chicken nuggets:\n\n7x + 10y = 61\n\nHowever, it can be shown that there is no possible integer solution for this equation. \n\nThe closest possible solution would involve buying 8 boxes of 7 (56 nuggets) and 1 box of 10 (10 nuggets), giving a total of 66 nuggets. This would leave 5 nuggets leftover, which is not possible to get using only boxes of 7 and 10. \n\nTherefore, you would need to either settle for 66 nuggets or find a different store that also sells individual chicken nuggets.",
+      "then": [
+        {
+          "nodeMatching": "7|10|box|only"
+        },
+        {
+          "atMostTitles": "box|only|7 and 10|available",
+          "max": 3
+        },
+        {
+          "countUnder": "proj",
+          "max": 15
+        }
+      ]
+    }
+  ]
+}

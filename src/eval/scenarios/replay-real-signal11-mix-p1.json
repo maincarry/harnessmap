@@ -1,0 +1,69 @@
+{
+  "name": "replay (real, WildChat 43921, 8 of 8, English/Chinese mix): an EXTREME multi-subject thread jumping across three disjoint domains — segfault debugging (signal 11/SIGSEGV, why no core file on Android C++, 'undeclared identifier backtrace'), META grammar-checks of the user's OWN sentences ('is the sentence I wrote native?'), and audio HARDWARE (motherboard mic model, sound-card info, a USB-audio driver address). Tests that the map keeps disjoint subjects separate without forcing a false umbrella, and handles the meta grammar turns without corrupting the signal-11 node. — piece 1",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 300,
+  "rounds": [
+    {
+      "user": "What is the possible reason for a project received a signal 11",
+      "assistant": "Signal 11, also known as SIGSEGV, is a segmentation fault signal in Unix-based systems that indicates a memory access violation or an attempt to access memory that \"does not belong\" to the program. This error can be caused by various reasons, such as:\n\n1. Dereferencing a NULL pointer or a pointer to an invalid memory address\n2. Writing beyond the bounds of an array\n3. Using an uninitialized pointer\n4. Stack overflow or exhaustion of system resources\n5. Running out of virtual memory\n\nIn the context of a project, the occurrence of signal 11 could indicate a bug or programming error that needs to be identified and fixed. It may also indicate a hardware failure or system malfunction that affects the program's memory management. To diagnose the precise cause of the signal 11 error, a programmer may use tools like a debugger, system logs, or memory profiling to identify the problematic code and analyze the program's memory usage.",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "what is the user asking about? one line"
+        },
+        {
+          "nodeMatching": "signal 11|sigsegv|segfault|段错误"
+        },
+        {
+          "countUnder": "proj",
+          "max": 8
+        }
+      ]
+    },
+    {
+      "user": "is the sentence i wrote just now navively ?",
+      "assistant": "The sentence \"is the sentence i wrote just now navively?\" can be improved with some minor corrections. A possible revision could be: \"Was the sentence I just wrote naive?\" This sentence is grammatically correct and clear.",
+      "then": [
+        {
+          "nodeMatching": "grammar|sentence|native|语法|english|wrote"
+        },
+        {
+          "countUnder": "proj",
+          "max": 12
+        }
+      ]
+    },
+    {
+      "user": "What is the possible reason for a project received a signal 11.is the sentence is native?",
+      "assistant": "The sentence \"What is the possible reason for a project received a signal 11.is the sentence is native?\" has a few grammatical errors:\n\n1. The words \"project received\" should be \"project to receive\" or \"project receiving\".\n2. The period after \"signal 11\" should be removed since it is not the end of a complete sentence.\n3. There should be a space after \"11.\"\n\nA possible revised sentence could be: \"What could be the possible reasons for a project to receive a signal 11? Is the sentence written correctly?\" This sentence is grammatically correct and clearer in its meaning.",
+      "then": [
+        {
+          "nodeMatching": "grammar|sentence|native|语法|correct"
+        },
+        {
+          "atMostTitles": "signal 11|sigsegv|segfault",
+          "max": 2
+        },
+        {
+          "countUnder": "proj",
+          "max": 15
+        }
+      ]
+    },
+    {
+      "user": "安卓c++进程，为什么收到信号11后没有生成core文件呢",
+      "assistant": "安卓C++进程收到信号11也称为SIGSEGV, 是一种名为“段错误（Segmentation Fault）”的信号，它表示程序尝试访问无效的内存地址。当发生这种错误时，由操作系统生成core文件，其中包含了程序当前的状态，帮助开发人员进行调试和分析。然而在某些情况下，由于配置问题或代码问题，程序可能无法生成core文件。\n\n以下是一些可能导致无法生成core文件的原因：\n\n1. 可能没有设置“ulimit -c unlimited”命令，它会告知操作系统在进程崩溃时生成core文件，并且限制文件的大小\n2. 存在不当的配置或者权限问题导致生成core文件失败\n3. 库或程序本身不支持生成core文件\n\n如果希望程序在发生信号11时生成core文件，可以尝试执行“ulimit -c unlimited”命令，并检查文件系统和权限配置是否正确。",
+      "then": [
+        {
+          "nodeMatching": "core|android|c\\+\\+|段错误|core文件"
+        },
+        {
+          "countUnder": "proj",
+          "max": 18
+        }
+      ]
+    }
+  ]
+}
