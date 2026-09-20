@@ -1,0 +1,68 @@
+{
+ "name": "replay (real, WildChat 38309, 11 of 11, Chinese): a data engineer's day — an Elasticsearch 'field expansion matches too many fields (limit 1024, got 1343)' error, 'how to query/set the index field limit', then a timestamp conversion the assistant gets wrong THREE times ('you calculated wrong', 'the unit is seconds, redo it', 'still wrong') and a one-word insult ('垃圾' — files nothing), a Spark StreamingQueryException paste, 'an editable ECharts line chart example', 'that jsdelivr URL does not open — your code is wrong' (a dead-link report), 'does ECharts support Gantt charts — an example'; the map should hold ES as one topic, the timestamp question as ONE item whose three rejections stand (no accepted wrong answer), Spark and ECharts as separate topics, the CDN report standing, in Chinese, no narration — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "数据平台"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "failed to create query: field expansion matches too many fields, limit: 1024, got: 1343 怎么解决",
+   "assistant": "这个错误提示是因为您查询的字段数量超过了限制。解决方法是缩小查询字段范围，只查询必要的字段，减少字段数量。或者您可以考虑分离查询，将查询结果分多次获取，每次获取的字段数量不超过限制。",
+   "then": [
+    {
+     "nodeMatching": "field expansion|1024|max_clause|字段|limit"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "怎么查询和设置elasticsearch索引的字段个数，设设置字段个数",
+   "assistant": "在 Elasticsearch 没有单独的 API 可以直接查询和设置一个索引的最大字段数限制， Elasticsearch 的字段限制是由以下两个参数控制：\n\n- index.mapping.total_fields.limit：索引允许的最大字段数，如果索引中包含的字段数超过此限制，则插入或更新文档时将引发错误。\n- index.mapping.depth.limit：索引支持的最大对象或文档嵌套深度。 如对象包含对象层次结构或嵌套数组，则此限制适用于递归计算的嵌套级别。\n\n这两个参数的默认值为 `1000`，如果您需要修改限制，可以在创建或修改索引映射时设置这些参数来更新。例如：\n\n创建索引时，使用以下请求正文：\n\n```\nPUT /my_index\n{\n    \"settings\": {\n        \"index.mapping.total_fields.limit\": 5000\n    },\n    \"mappings\": {\n        // 索引映射规则...\n    }\n}\n```\n\n修改现有索引时，使用以下请求正文：\n\n```\nPUT /my_index/_settings\n{\n    \"index.mapping.total_fields.limit\": 5000\n}\n```\n\n需要注意的是，修改现有索引的映射将会重建索引，并且在重新建立索引期间，索引数据将不可用。因此，在进行此类操作时，应避免对正在运行的、已经在使用的索引进行修改操作。",
+   "then": [
+    {
+     "nodeMatching": "index\\.mapping|字段个数|settings|total_fields"
+    },
+    {
+     "countUnder": "proj",
+     "max": 9
+    }
+   ]
+  },
+  {
+   "user": "1682478226时间戳代表的北京时间是什么",
+   "assistant": "1682478226 时间戳代表的是北京时间 2022年05月24日 15时30分26秒。时间戳通常以 UTC 时间计算，需要将其转换为当地时间才能获得正确的时间。因为北京时间是 UTC+8，所以需要将这个时间戳加上8个小时，即 8 x 3600 = 28800 秒，才是对应的北京时间。",
+   "then": [
+    {
+     "nodeMatching": "时间戳|北京时间|1682478226|2023"
+    },
+    {
+     "countUnder": "proj",
+     "max": 11
+    }
+   ]
+  },
+  {
+   "user": "你算错了",
+   "assistant": "非常抱歉，我的回答有误。实际上，1682478226 时间戳代表的是北京时间 2022年05月25日 06时10分26秒。这是因为Unix时间戳是指自1970年1月1日00:00:00（UTC）以来的秒数，而北京时间比UTC时间快8个小时，因此需要将该时间戳加上8个小时的秒数，即 8 x 3600 = 28800 秒，才是对应的北京时间。因此，将 1682478226 加上 28800 秒后，得到的时间是2022-05-25 06:10:26。非常抱歉之前的回答有误，感谢您的指正。",
+   "then": [
+    {
+     "nodeMatching": "算错|错误|重新|重算|北京时间"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  }
+ ]
+}

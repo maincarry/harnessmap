@@ -1,0 +1,81 @@
+{
+ "name": "replay (real, WildChat 38534, 10 of 10, Chinese): Android JNI from an oboe audio callback — 'AttachCurrentThread on every onAudioReady call hurts performance — how to avoid', 'if not on this thread, how to destroy on another', 'how to destroy this thread's JNIEnv from another thread', a JNI error paste ('DeleteGlobalRef'), 'how to use JavaVM->GetEnv', a second JNI error ('invalid global reference … deleted at index 387'), 'there is no IsValidObject() method' (pushback on a made-up API), 'how to call a Kotlin method from onAudioReady in oboe', 'onAudioReady is a C++ method' (a correction), 'when is gJavaObj released'; the map should hold the JNI thread/env problem as one topic with the errors as facts, the made-up IsValidObject marked wrong after the pushback, the oboe→Kotlin callback as a sibling item with the correction standing, in Chinese, no narration — piece 1",
+ "seed": [
+  {
+   "key": "proj",
+   "content": "Android 音频"
+  }
+ ],
+ "focus": "proj",
+ "auto": {
+  "on": true
+ },
+ "settleMs": 5000,
+ "rounds": [
+  {
+   "user": "在安卓的C++中有一个onAudioReady方法，这个方法会在其他线程频繁的调用，在这个方法里面会回调java层，如果不断使用javaVm->AttachCurrentThread()会影响性能，如何解决这个问题",
+   "assistant": "可以考虑使用JavaVM的GetEnv方法来获取当前线程是否已经附着到JavaVM上，如果已经附着，则直接获取JNIEnv指针，否则使用AttachCurrentThread方法附着到JavaVM上，并缓存JNIEnv指针，以便下次重用。可以使用线程局部存储（Thread-Local Storage）来存储JNIEnv指针，确保每个线程都有自己的JNIEnv指针。这样可以避免频繁调用AttachCurrentThread方法带来的性能损失。",
+   "then": [
+    {
+     "nodeMatching": "AttachCurrentThread|JNIEnv|onAudioReady|性能"
+    },
+    {
+     "countUnder": "proj",
+     "max": 6
+    }
+   ]
+  },
+  {
+   "user": "那如果不在当前线程调用销毁，那么在其他线程怎么销毁",
+   "assistant": "在其他线程销毁JavaVM，可以先使用JNIEnv指针获取JavaVM指针，然后在其他线程中调用JavaVM的DestroyJavaVM方法。但需要注意的是，在JavaVM销毁前必须确保所有与JavaVM相关的线程都已经退出，并且所有对象都已经被合理地销毁。否则，在销毁JavaVM时可能会出现崩溃或者内存泄露等问题。在多线程环境下销毁JavaVM是一个挑战性较高的问题，需要仔细设计和正确实现。",
+   "then": [
+    {
+     "nodeMatching": "DetachCurrentThread|销毁|线程"
+    },
+    {
+     "countUnder": "proj",
+     "max": 8
+    }
+   ]
+  },
+  {
+   "user": "那如何在其他线程销毁当前线程的JNIEnv指针",
+   "assistant": "在其他线程销毁当前线程的JNIEnv指针，可以使用DetachCurrentThread方法将当前线程从Java虚拟机上分离，从而使得JNIEnv指针失效。DetachCurrentThread方法会将当前线程与Java虚拟机的绑定解除，并释放与JNIEnv指针相关的一些资源，因此必须确保在DetachCurrentThread方法调用前，当前线程已经完成了所有与Java虚拟机相关的操作并且没有正在被调用的Java方法。否则，释放资源时可能会导致崩溃或者内存泄漏等问题。\n\n需要注意的是，DetachCurrentThread方法并不会销毁JNIEnv指针，只是让其失效。如果需要在其他线程中使用JNIEnv指针，必须重新附着到Java虚拟机上，可以使用AttachCurrentThread方法来实现。",
+   "then": [
+    {
+     "nodeMatching": "JNIEnv|线程|销毁|Detach"
+    },
+    {
+     "countUnder": "proj",
+     "max": 10
+    }
+   ]
+  },
+  {
+   "user": "jni报错：“JNI DETECTED ERROR IN APPLICATION: in call to DeleteGlobalRef” ",
+   "assistant": "JNI DETECTED ERROR IN APPLICATION: in call to DeleteGlobalRef 报错通常是由于以下原因造成的：\n\n1. 对已经释放的全局引用或局部引用调用DeleteGlobalRef方法或DeleteLocalRef方法；\n2. 在不同的线程中使用相同的全局引用或局部引用；\n3. 对已经释放的全局引用或局部引用进行使用。\n\n解决方法：\n\n1. 避免在已经释放的全局引用或局部引用上面调用DeleteGlobalRef方法或DeleteLocalRef方法；\n\n2. 避免在不同的线程中使用相同的全局引用或局部引用；\n\n3. 当不再使用全局引用或局部引用时，及时调用DeleteGlobalRef方法或DeleteLocalRef方法进行释放，避免多次使用相同的全局引用或局部引用。\n\n在JNI中，需要始终确保引用的正确释放，避免出现类似的内存错误。",
+   "then": [
+    {
+     "nodeMatching": "DeleteGlobalRef|JNI DETECTED ERROR|全局引用"
+    },
+    {
+     "countUnder": "proj",
+     "max": 12
+    }
+   ]
+  },
+  {
+   "user": "JavaVM->GetEnv()如何使用",
+   "assistant": "JavaVM->GetEnv()方法可以用来获取当前线程的JNIEnv指针。JavaVM是在JNI_OnLoad方法中传入的，可以通过把JavaVM指针存储到全局变量中，从而在任何线程中访问。\n\nGetEnv方法有两个参数，一个是JNIEnv指针指针的地址，另一个是JNI版本号。JNI版本号可以设置为JNI_VERSION_1_4或者JNI_VERSION_1_6等。在调用GetEnv方法前，需要先判断当前线程是否已经附着到Java虚拟机上。如果没有附着，则需要使用AttachCurrentThread方法进行附着，否则调用GetEnv方法将会返回错误。\n\n例如，以下是在C++中使用JavaVM->GetEnv()方法获取JNIEnv指针的示例代码：\n\n```c++\nJavaVM* gJvm; // 全局变量，存储JavaVM指针\n\nJNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {\n    gJvm = vm; // 将JavaVM指针存储到全局变量中\n    JNIEnv* env;\n    if (vm->GetEnv((void**)&env, JNI_VERSION_1_6) != JNI_OK) {\n        // 如果当前线程没有附着到虚拟机上，则附着到虚拟机\n        vm->AttachCurrentThread(&env, NULL);\n    }\n    return JNI_VERSION_1_6;\n}\n\nvoid example() {\n    JNIEnv* env;\n    gJvm->GetEnv((void**)&env, JNI_VERSION_1_6); // 获取JNIEnv指针\n    // 使用JNIEnv指针进行相关操作\n}\n```",
+   "then": [
+    {
+     "nodeMatching": "GetEnv|JavaVM|JNI_OK|JNI_EDETACHED"
+    },
+    {
+     "countUnder": "proj",
+     "max": 14
+    }
+   ]
+  }
+ ]
+}
