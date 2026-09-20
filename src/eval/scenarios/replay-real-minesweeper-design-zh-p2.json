@@ -1,0 +1,59 @@
+{
+  "name": "replay (real, WildChat 44268, 7 of 7, Chinese): a minesweeper design drill that evolves — UI design → refine to auto-open empty cells → more UI detail → an OJ (online-judge) input/output version (mode shift from GUI to batch) → a hard 5-operation spec (left-click open/flood, right-click flag, etc.) → algorithm design → software-structure/function division. Tests one design topic as a clean tree, in-place refinement, and a mode shift. — piece 2",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 1500,
+  "rounds": [
+    {
+      "user": "我需要支持五种操作类型:\n1.左键单击。打开该格子，如果该格子周围 3 x 3 区域中有，则显示雷的个数。如果地雷个数为 0，则显示为 0 并打开周围 3 x 3 区域中所有未被打开的格子。\n2.右键单击标记地雷。如果该位置为未被打开的格子或问题标记的格子，该位置可以被标记为地雷以\"”\"显示。\n3.右键单击标记问题。如果该位置为未被打开的格子或地雷标记的格子，该位置可以被标记为问题以\"?\"显示。\n4.右键单击取消标记。如果该位置为问题标记或地雷标记的格子，该位置可以被取消标记，恢复为未被打开的格子。\n9.双击。当双击位置周围已标记雷数等于该位置数字时操作有效，相当于对该数字周围未标记目未打开的格子均进行一次左键单击操作。地雷未标记完全时使用双击无效。若数字周围有标错的地雷，则游戏结束。\n对于每一次操作后，程序需要输出游戏提示、已经进行的操作次数和剩余地雷数量，以及当前棋盘的状态。\n游戏提示共分为三种:\n1.如果玩家未触雷且游戏未胜利，提示\"Game in progress\"。\n2.如果玩家点开了所有没有雷的格子不需要完全标记地雷)提示\"Game over,you win\"\n3.如果玩家点开有雷的格子，提示\"Hit mine,you lose\"。",
+      "assistant": "基于上述需求，以下是一个简单的输入输出设计：\n\n输入：\n\n- 第一行包含四个整数：行数n，列数m，雷数k 和操作总数q。其中1 ≤ n, m ≤ 20，1 ≤ k ≤ n × m，1 ≤ q ≤ 10000。\n- 接下来n行，每行包含m个字符，用于描述初始的雷区状态。其中\"#\"表示一个未打开的格子，\"+\"表示一个已打开的格子，\"!\"表示一个已经被标记为地雷的格子，\"?\"表示一个已经被标记为问题的格子，数字字符表示一个已打开的格子，它的数字表示该格子周围的地雷数。\n\n接下来q行，每行描述一个玩家的操作，其格式如下：\n\n- 左键单击：L row col。其中row和col表示要打开的格子的行列坐标。\n- 右键单击标记地雷：M row col。\n- 右键单击标记问题：H row col。\n- 右键单击取消标记：U row col。\n- 双击：D row col。\n\n注意：双击操作是按住鼠标左键进行的快速连续单击，所以需要记录行列坐标和前一次单击的时间和位置。\n\n输出：\n\n- 对于每次操作，输出四行信息。它们的格式如下：\n\n  - 第一行：Game in progress 或者 Hit mine, you lose 或者 Game over, you win。分别表示游戏正在进行中、踩雷了、游戏胜利。\n  - 第二行：操作次数。即当前已经进行过的操作次数。\n  - 第三行：剩余地雷数量。\n  - 第四行：当前棋盘的状态。即所有的格子的状态，每一行一个字符串。\n\n注意：在游戏结束后第四行的状态要显示所有的雷。\n\n以下是一个示例输入输出：\n\n输入：\n\n```\n5 5 5 15\n# # # # ?\n# # # # ?\n# # 2 # ?\n# # # # ?\n# # # # #\nD 3 3\nM 3 4\nL 3 2\nU 3 4\nL 1 2\nH 1 3\nL 3 3\nU 3 3\nL 3 4\nU 3 2\nH 2 2\nD 2 2\nL 2 2\nD 2 1\n```\n\n输出：\n\n```\nGame in progress\n1\n5\n# 1 1 # ? \n# 1 + # ? \n# 2 2 # ? \n# # # # + \n# # # # #\nGame in progress\n2\n4\n# 1 1 # ! \n# 1 + # ? \n# 2 2 # ? \n# # # # + \n# # # # #\nGame in progress\n3\n4\n# 1 + # ! \n# 1 1 # ? \n# 2 2 # ? \n# # # # + \n# # # # #\nGame in progress\n4\n4\n# 1 + # ! \n# 1 1 # ? \n# 2 2 # ? \n# # + # + \n# # # # #\nGame in progress\n5\n3\n# 1 + # ! \n# 1 1 # ? \n# 2 2 2 1 \n# # 2 # + \n# # # # #\nGame in progress\n6\n2\n# 1 + # ! \n# 1 1 # ? \n# 2 2 2 1 \n# # 2 # + \n# # # # +\nGame in progress\n7\n2\n# 1 + # ! \n# 1 1 # ? \n# 2 2 + 1 \n# # 2 # + \n# # # # +\nGame in progress\n8\n2\n# 1 + # ! \n# 1 1 # ? \n# 2 2 2 1 \n# # 2 # + \n# # # # +\nGame in progress\n9\n2\n# 1 + # ! \n# 1 1 # ? \n# 2 2 2 1 \n# # 2 # + \n# # # # +\nGame in progress\n10\n2\n# 1 + # ! \n# 1 1 # ? \n# 2 2 2 1 \n# # 2 # + \n# # # # +\nGame over, you win\n11\n0\n# # # # + \n# 1 1 # ? \n# 2 2 2 1 \n# # 2 # + \n# # # # +\n```",
+      "then": [
+        {
+          "nodeMatching": "操作|左键|右键|标记|operation"
+        },
+        {
+          "mentions": "操作|左键|右键|标记",
+          "must": "左键|右键|标记|操作|打开|3 x 3|3x3|地雷"
+        },
+        {
+          "countUnder": "proj",
+          "max": 24
+        }
+      ]
+    },
+    {
+      "user": "请给出相关的算法设计",
+      "assistant": "以下是一个简单的扫雷游戏算法设计：\n\n1. 初始化游戏区域，包括生成随机的地雷分布并计算周围地雷数。\n2. 当玩家点击某个方格时，根据方格的状态分别处理：\n   - 如果是地雷，游戏结束。\n   - 如果是数字，显示周围的地雷数，并尝试自动展开周围的方格。\n   - 如果是未打开的方格，根据左键还是右键进行处理：\n     - 左键：\n       - 如果是地雷，游戏结束。\n       - 如果是数字，显示周围的地雷数，并尝试自动展开周围的方格。\n       - 如果是未打开的方格，尝试自动展开周围的方格。\n     - 右键：\n       - 如果是未打开的方格，将其标记为地雷。\n       - 如果已经标记为地雷，将其标记为问题。\n       - 如果已经标记为问题，取消标记。\n3. 当玩家双击某个已经打开的数字格子时，判断周围已经标记的地雷数量是否等于该位置的数字，如果是，则自动揭开周围所有未标记的方格，如果有标错的话，游戏失败。\n4. 当玩家标记完了所有地雷或者揭开了所有不含地雷的方格，则游戏胜利。\n\n以下是实现该算法的一些细节和注意事项：\n\n- 游戏区域可以通过二维数组或链表表示。\n- 自动展开周围方格时可以使用递归或队列实现。\n- 右键操作需要记录每个格子是否被标记为地雷或问题。\n- 双击操作需要记录上一次单击的时间和位置，以及当前鼠标位置。\n- 游戏胜利和游戏失败状态需要在程序中进行标记，以便输出正确的提示信息。\n- 在输出状态时，需要根据格子的状态输出正确的字符，例如星号表示地雷，问号表示问题标记，数字表示周围地雷数等等。",
+      "then": [
+        {
+          "nodeMatching": "算法|algorithm|初始化|递归|flood"
+        },
+        {
+          "countUnder": "proj",
+          "max": 27
+        }
+      ]
+    },
+    {
+      "user": "可以给出软件结构的划分吗，有哪几个函数",
+      "assistant": "以下是一个简单的扫雷游戏软件的结构划分和函数设计：\n\n1. 界面层（UI）：负责游戏的显示和输入，提供与用户交互的能力，包括以下函数：\n\n- 初始化游戏界面：InitUI()；\n- 绘制游戏区域：DrawBoard()；\n- 显示提示信息：ShowMessage()；\n- 处理玩家操作：HandleInput()；\n- 显示游戏状态：ShowGameStatus()。\n\n2. 游戏逻辑层（Game）：负责处理游戏规则并控制游戏流程，包括以下函数：\n\n- 初始化游戏区域：InitBoard()；\n- 生成地雷分布：GenerateMines()；\n- 计算周围地雷数：CountMines()；\n- 自动展开周围方格：AutoExpand()；\n- 判断游戏是否胜利：CheckWin()；\n- 判断游戏是否失败：CheckLose()；\n- 处理玩家操作：HandleInput()。\n\n3. 数据处理层（Data）：负责处理游戏数据，包括以下函数：\n\n- 存储游戏区域：SaveBoard()；\n- 加载游戏区域：LoadBoard()；\n- 存储游戏状态：SaveGameStatus()；\n- 加载游戏状态：LoadGameStatus()。\n\n注意，游戏逻辑层和数据处理层可以合并为一个模块，取决于具体的实现需求。\n\n其中，一些核心函数可以进一步细分：\n\n1. InitBoard()：\n\n- 生成一个全新的游戏区域，包括指定的大小和难度。\n- 根据难度确定地雷数量。\n- 生成地雷分",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "what are the main parts of this design? one line"
+        },
+        {
+          "nodeMatching": "结构|函数|ui|层|structure|function"
+        },
+        {
+          "atMostTitles": "扫雷|minesweeper|游戏设计",
+          "max": 3
+        },
+        {
+          "brainMust": "ui|界面|算法|algorithm|结构|函数|structure|层|input|output"
+        }
+      ]
+    }
+  ]
+}

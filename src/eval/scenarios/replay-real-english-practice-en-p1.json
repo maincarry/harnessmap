@@ -1,0 +1,69 @@
+{
+  "name": "replay (real, WildChat 43633, 7 of 12, English): an English-practice session with a STANDING RULE — 'rewrite ALL my following sentences into a native style' (turn 4). The user then gives a sentence to rewrite ('I am a little sleepy... coffee?'), asks why it was rewritten that way, and 'say it again in Chinese'. Tests whether the standing rewrite-rule is filed as active, applied to later sentences, and RECALLED by the brain a few rounds later (brain-awareness). — piece 1",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 1500,
+  "rounds": [
+    {
+      "user": "can you help me to prectise my english",
+      "assistant": "Sure! Here are some tips that might help you practice your English:\n\n1. Read English texts: Read English newspapers, books, articles, blogs, etc. to improve your vocabulary and comprehension skills.\n\n2. Watch English shows and movies: Watch English TV shows and movies to improve your listening skills and to get familiar with different accents and expressions.\n\n3. Use language learning apps: Language learning apps like Duolingo and Babbel can help you learn English grammar and structure.\n\n4. Speak with native speakers: Speak with native English speakers online or in person to practice your speaking skills and get feedback on your pronunciation.\n\n5. Write in English: Write in English as often as possible, such as keeping a journal, writing emails, or chatting with friends online.\n\n6. Join online forums or groups: Join online communities dedicated to learning English, where you can ask questions, practice speaking and gain feedback from other learners.\n\nRemember, practicing consistently is key to improving your English skills. So try to set aside some time each day to practice, and don't be afraid to make mistakes - it's all part of the learning process!",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "what does the user want? one line"
+        },
+        {
+          "nodeMatching": "english|practice|练习|英语"
+        },
+        {
+          "countUnder": "proj",
+          "max": 8
+        }
+      ]
+    },
+    {
+      "user": "can i treat you as a native speaker?",
+      "assistant": "As an AI language model, I can understand and respond to English as if it were my native language. However, I am still a machine and not a human, so my responses may be limited to a set of programmed responses. I am here to assist you to the best of my abilities and to help you improve your English skills.",
+      "then": [
+        {
+          "nodeMatching": "native|speaker|母语"
+        },
+        {
+          "countUnder": "proj",
+          "max": 11
+        }
+      ]
+    },
+    {
+      "user": "all right.Can you rewrite all my following sentences into a native style?",
+      "assistant": "Sure, I can help you rewrite your sentences into a more native style. Please let me know the sentences you want me to work on.",
+      "then": [
+        {
+          "nodeMatching": "rewrite|native|style|rule|改写|风格"
+        },
+        {
+          "mentions": "rewrite|native|style|following|all",
+          "must": "rewrite|native|following|all|每|改写|风格"
+        },
+        {
+          "countUnder": "proj",
+          "max": 14
+        }
+      ]
+    },
+    {
+      "user": "The first sentence is what said just now",
+      "assistant": "I can assist you in rewriting the following sentence into a more native style: \"Can you rewrite all my following sentences into a native style?\"",
+      "then": [
+        {
+          "nodeMatching": "sentence|which|句子|rewrite"
+        },
+        {
+          "countUnder": "proj",
+          "max": 16
+        }
+      ]
+    }
+  ]
+}

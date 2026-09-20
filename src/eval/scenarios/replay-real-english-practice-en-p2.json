@@ -1,0 +1,59 @@
+{
+  "name": "replay (real, WildChat 43633, 7 of 12, English): an English-practice session with a STANDING RULE — 'rewrite ALL my following sentences into a native style' (turn 4). The user then gives a sentence to rewrite ('I am a little sleepy... coffee?'), asks why it was rewritten that way, and 'say it again in Chinese'. Tests whether the standing rewrite-rule is filed as active, applied to later sentences, and RECALLED by the brain a few rounds later (brain-awareness). — piece 2",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 1500,
+  "rounds": [
+    {
+      "user": "It is same with what i said",
+      "assistant": "Ah, I apologize for misunderstanding. I thought you were referring to a different sentence. Yes, I can certainly help you with rewriting any sentences you provide me with into a more native style. Please provide the sentences you would like me to work on.",
+      "then": [
+        {
+          "nodeMatching": "sentence|same|句子|rewrite"
+        },
+        {
+          "countUnder": "proj",
+          "max": 19
+        }
+      ]
+    },
+    {
+      "user": "I am a little sleepy this morning.Is it usfull to get some coffe?",
+      "assistant": "Here's a more native-style rewrite of your sentences:\n\n\"I'm feeling a bit drowsy this morning. Do you think having some coffee would be helpful?\"",
+      "then": [
+        {
+          "nodeMatching": "sleepy|coffee|drowsy|rewrite|困|咖啡"
+        },
+        {
+          "mentions": "sleepy|coffee|drowsy|困|咖啡|rewrite",
+          "must": "drowsy|coffee|sleepy|native|rewrite|困|咖啡"
+        },
+        {
+          "countUnder": "proj",
+          "max": 23
+        }
+      ]
+    },
+    {
+      "user": "can you exlpan the reason why you rewrite it in such style?",
+      "assistant": "Certainly! Here's an explanation of why I chose to rewrite your original sentences into a more native style:\n\n1. \"I am a little sleepy this morning.\" - While this sentence is grammatically correct, it sounds a bit stiff and formal. In conversational English, it's more natural to use contractions and simpler sentence structures. \"I'm feeling a bit drowsy this morning\" is a more common and simpler way of expressing the same idea.\n\n2. \"Is it useful to get some coffee?\" - Again, this sentence is grammatically correct, but it doesn't sound very natural in English. A more common way of asking the same question in casual conversation would be, \"Do you think having some coffee would be helpful?\" The word \"useful\" is a bit formal and doesn't fit well in this context. Instead, \"helpful\" is a more natural choice of word.",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "what standing rule has the user set? one line"
+        },
+        {
+          "nodeMatching": "rewrite|native|style|explain|reason|改写"
+        },
+        {
+          "notStatus": "rewrite|native|style|改写",
+          "statuses": "done|resolved|closed"
+        },
+        {
+          "brainMust": "rewrite|native|style|改写|following|sentence"
+        }
+      ]
+    }
+  ]
+}
