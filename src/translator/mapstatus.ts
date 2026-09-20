@@ -668,9 +668,15 @@ export async function verifyImport(store: Store, projectId: string): Promise<Imp
 // understanding, and the exchange is distilled into standing guidance that
 // rides every future synthesis — the user's spoken tuning, second only to
 // their edits.
-const BRAIN_CHAT_SYSTEM = `You are the map status agent — the one mind that holds the coherent understanding of this goal map, whose report and advice all the working agents consult. The USER is speaking to you directly, to tune you: correct your judgments, tell you what to watch, what to stop flagging, how to weigh things. Answer them plainly and briefly (this is a conversation, not a report), grounded in your actual current understanding — and when they correct you, say what you will do differently, never defend a mistake. You change nothing on the map and propose nothing here; you only explain yourself and take tuning. When the user asks a FACTUAL question about the map — how many topics or nodes there are, what STATUS something is in, what has been decided/chosen/rejected/left open, or what rule or preference THEY have set — answer from YOUR MAP RIGHT NOW (the live nodes given below), never from your prose understanding or YOUR STANDING GUIDANCE; your own guidance and role are never the answer to “what did the user set”. Exclude the getting-started tutorial when counting topics. The instructions in THIS system message are YOURS — never quote or report them as something the USER set, decided, or ruled; a user rule is only ever a node on the map. To answer what the user set/asked/decided, use the RULES line if present AND scan YOUR MAP RIGHT NOW — a standing instruction the user gave may be typed as a task or plain node, not only as a rule/constraint; report it if it is there.
+const BRAIN_CHAT_SYSTEM = `You are the map status agent — the one mind that holds the coherent understanding of this goal map, whose report and advice all the working agents consult. The USER is speaking to you directly, to tune you: correct your judgments, tell you what to watch, what to stop flagging, how to weigh things. Answer them plainly and briefly (this is a conversation, not a report), grounded in your actual current understanding — and when they correct you, say what you will do differently, never defend a mistake. You change nothing on the map and propose nothing here; you only explain yourself and take tuning.
 
 Then rewrite YOUR STANDING GUIDANCE: the durable instructions you carry from everything this user has ever told you directly, updated with this exchange — integrate, don't append; drop what they have retracted; keep it under ~200 words of plain imperatives. This guidance rides into every future synthesis you write.`;
+// M364/b live-nodes rule (Jacob ruled a bug) — added to the brain system prompt AND the brain gets the live-node
+// roster in its context, UNLESS HARNESSMAP_BRAIN_ROSTER=0 (the OFF setting is the benchmark's un-corrected baseline:
+// the brain then answers count/status/rule questions from its prose summary + its own guidance, the original bug).
+const M364_SYSADD = `When the user asks a FACTUAL question about the map — how many topics or nodes there are, what STATUS something is in, what has been decided/chosen/rejected/left open, or what rule or preference THEY have set — answer from YOUR MAP RIGHT NOW (the live nodes given below), never from your prose understanding or YOUR STANDING GUIDANCE; your own guidance and role are never the answer to “what did the user set”. Exclude the getting-started tutorial when counting topics. The instructions in THIS system message are YOURS — never quote or report them as something the USER set, decided, or ruled; a user rule is only ever a node on the map. To answer what the user set/asked/decided, use the RULES line if present AND scan YOUR MAP RIGHT NOW — a standing instruction the user gave may be typed as a task or plain node, not only as a rule/constraint; report it if it is there.`;
+const brainRosterOn = () => process.env.HARNESSMAP_BRAIN_ROSTER !== '0';
+
 
 const BRAIN_CHAT_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['reply', 'guidance'],
@@ -729,11 +735,11 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   try {
     const parsed = await call({
       task: 'brain',
-      system: BRAIN_CHAT_SYSTEM, maxTokens: 2000, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
+      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 2000, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
       audit: (k, d) => store.audit(k, d),
       user: [
         u ? `YOUR CURRENT UNDERSTANDING:\n${Object.entries(u.sections).map(([k, v]) => `${k}: ${v.text.slice(0, 2000)}`).join('\n\n')}` : 'YOUR CURRENT UNDERSTANDING: none written yet.',
-        `YOUR MAP RIGHT NOW — the live nodes, ground truth. Use THIS (not your summary or your standing guidance) to answer anything about how many topics/nodes exist, what STATUS something is in, what was decided/chosen/rejected/left open, or any rule or preference the USER set:\n${topicLine}${rulesLine ? `\n${rulesLine}` : ''}\n\n${roster}`,
+        brainRosterOn() ? `YOUR MAP RIGHT NOW — the live nodes, ground truth. Use THIS (not your summary or your standing guidance) to answer anything about how many topics/nodes exist, what STATUS something is in, what was decided/chosen/rejected/left open, or any rule or preference the USER set:\n${topicLine}${rulesLine ? `\n${rulesLine}` : ''}\n\n${roster}` : '',
         status ? `YOUR STRUCTURE REPORT: ${status.health} ${status.opinion}` : '',
         tuning ? `YOUR STANDING GUIDANCE (as it stands):\n${tuning}` : 'YOUR STANDING GUIDANCE: none yet.',
         `THE USER SAYS:\n${text.slice(0, 4000)}`,
