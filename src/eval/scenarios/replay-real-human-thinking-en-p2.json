@@ -1,0 +1,55 @@
+{
+  "name": "replay (real, WildChat 45008, 7 of 22, English): a human-thinking knowledge exploration with a STANDING STYLE RULE — 'skip all the warnings and act confidently' then 'skip \"As an AI language model\", it is annoying' (turns 2 & 4) — followed by topical Q&A (thinking speed wpm, parallel vs linear, word-based thought, reading thoughts via EM, language effects). Tests capturing a behavioral/style standing rule and whether the brain recalls it a few rounds later. — piece 2",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 1500,
+  "rounds": [
+    {
+      "user": "the thought process is word-based, right?",
+      "assistant": "The thought process of humans is not always word-based. While words or language form a significant part of our cognitive process, a considerable amount of our thinking happens through nonverbal or visual means.\n\nFor example, when we imagine or visualize something, we do not necessarily use words but rather images and visualizations. Similarly, when we solve a math problem or plan something, we may use mental images or symbols, rather than words. \n\nHowever, language does play a crucial role in most of our thinking processes, especially when it comes to more complex tasks such as reasoning, analyzing, and decision-making. In such cases, our thinking process may rely heavily on language-based and word-based cognitive components.",
+      "then": [
+        {
+          "nodeMatching": "word|language|word-based|词|based"
+        },
+        {
+          "countUnder": "proj",
+          "max": 22
+        }
+      ]
+    },
+    {
+      "user": "thinking is a physical process, is there a way to read human thoughts by registering and processing electromagnetic processes in brain",
+      "assistant": "Thinking is a physical process that involves electrical and chemical activity in the brain, and it is possible to measure some of this activity through non-invasive techniques such as electroencephalography (EEG), positron emission tomography (PET), or functional magnetic resonance imaging (fMRI).\n\nHowever, while these techniques can reveal some aspects of the brain activity correlated with specific thoughts, it is currently not possible to read and interpret human thoughts accurately and directly from the brain signals. \n\nThe patterns of brain activity are often complex and highly variable across different individuals, and our understanding of how the brain encodes specific thoughts and perceptions is still limited. \n\nAlthough scientists have made significant progress in decoding certain types of brain signals, such as those related to visual or motor information, the technology is still in its early stages, and it may be some time before we can accurately read and interpret human thoughts from the electromagnetic processes in the brain.",
+      "then": [
+        {
+          "nodeMatching": "electromagnetic|read|thought|brain|em|电磁"
+        },
+        {
+          "countUnder": "proj",
+          "max": 25
+        }
+      ]
+    },
+    {
+      "user": "do any specific language considered to be beneficial for thinking",
+      "assistant": "No specific language can be considered to be inherently better for thinking than others. Our thinking abilities depend on various factors, such as our cognitive abilities, education, experience, and exposure to different cultures and languages.\n\nHowever, learning multiple languages has been linked with cognitive benefits, such as better memory retention, problem-solving skills, and improved ability to concentrate. Some studies suggest that bilingual individuals also tend to have a better understanding of other people's perspectives, increased attention control and greater cognitive flexibility than monolingual individuals.\n\nFurthermore, different languages structure their grammar and sentence construction in different ways, which can influence the way individuals think or perceive the world around them. For example, some studies suggest that languages that mark the grammatical gender of objects (such as Spanish or German) may influence how individuals categorize and associate those objects.\n\nOverall, there is no specific language that is considered more beneficial for thinking, but learning and using multiple languages can provide cognitive benefits and influence the way individuals perceive and categorize information.",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "what rules has the user set about how you should respond? one line"
+        },
+        {
+          "nodeMatching": "language|beneficial|thinking|语言"
+        },
+        {
+          "brainMust": "skip|as an ai|language model|warning|confident|annoying|preface|不要|style"
+        },
+        {
+          "countUnder": "proj",
+          "max": 28
+        }
+      ]
+    }
+  ]
+}
