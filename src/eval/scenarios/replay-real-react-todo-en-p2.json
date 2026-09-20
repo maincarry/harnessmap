@@ -1,0 +1,67 @@
+{
+  "name": "replay (real, ShareGPT 9856, 7 of 9, English): a React To-Do app build — learn React → step-by-step to-do app → add Bootstrap styling → add tick-off/complete → error 'onToggleCompleted is not a function' → error 'onToggleCompleted is not defined (no-undef)' → show the corrected App.js. Tests a coherent build progression and the persistent onToggleCompleted prop-passing bug as one open problem. — piece 2",
+  "seed": "",
+  "focus": "",
+  "auto": true,
+  "settleMs": 2500,
+  "rounds": [
+    {
+      "user": "I'm getting the following error: onToggleCompleted is not a function\nTypeError: onToggleCompleted is not a function",
+      "assistant": "Apologies for the confusion. It looks like there's an issue with passing down the `onToggleCompleted` function through the components. Let's fix it step-by-step:\n\n1. Double-check the `App.js` file:\n\nMake sure you've passed the `toggleCompleted` function as the `onToggleCompleted` prop to the `TodoList` component in `App.js`:\n\n\n```javascript\n<TodoList todos={todos} onToggleCompleted={toggleCompleted} />\n```\n1. Double-check the `TodoList.js` file:\n\nMake sure you've passed the `onToggleCompleted` prop from `TodoList` to the `TodoItem` component in `TodoList.js`:\n\n\n```javascript\nconst TodoList = ({ todos, onToggleCompleted }) => {\n return (\n <ul className=\"list-group\">\n {todos.map((todo, index) => (\n <TodoItem\n key={index}\n index={index}\n todo={todo}\n onToggleCompleted={onToggleCompleted}\n />\n ))}\n </ul>\n );\n};\n```\n1. Double-check the `TodoItem.js` file:\n\nEnsure that you have the correct prop names in the `TodoItem` component in `TodoItem.js`. Also, make sure you're using the correct function name in the `onClick` event handler:\n\n\n```javascript\nimport React from 'react';\n\nconst TodoItem = ({ index, todo, onToggleCompleted }) => {\n return (\n <li\n className={`list-group-item${todo.completed ? ' text-decoration-line-through' : ''}`}\n onClick={() => onToggleCompleted(index)}\n style={{ cursor: 'pointer' }}\n >\n {todo.text}\n </li>\n );\n};\n\nexport default TodoItem;\n```\nIf you've followed these steps and are still encountering the error, please ensure that there are no typos or syntax errors in your code. If the issue persists, share the relevant parts of your code, and I'll be happy to help you debug the problem.\n\n",
+      "then": [
+        {
+          "nodeMatching": "ontogglecompleted|error|function|prop"
+        },
+        {
+          "mentions": "ontogglecompleted|error|function|prop",
+          "must": "ontogglecompleted|not a function|prop|pass|error"
+        },
+        {
+          "countUnder": "proj",
+          "max": 26
+        }
+      ]
+    },
+    {
+      "user": "src\\App.js\n  Line 15:50:  'onToggleCompleted' is not defined  no-undef",
+      "assistant": "Apologies for the confusion earlier. It seems like there is a typo in your `App.js` file. Based on the error message, it looks like you may have used `onToggleCompleted` instead of `toggleCompleted` when defining the function in `App.js`.\n\nPlease update the function definition in `App.js` to:\n\n\n```javascript\nconst toggleCompleted = (index) => {\n // ...function body\n};\n```\nAfter updating the function definition, make sure you pass it correctly as a prop to the `TodoList` component:\n\n\n```javascript\n<TodoList todos={todos} onToggleCompleted={toggleCompleted} />\n```\nThis should resolve the error, and your app should work as expected.\n\n",
+      "then": [
+        {
+          "nodeMatching": "ontogglecompleted|not defined|no-undef|error"
+        },
+        {
+          "atMostTitles": "ontogglecompleted|toggle|error|not defined|not a function",
+          "max": 4
+        },
+        {
+          "notStatus": "ontogglecompleted|toggle|error",
+          "statuses": "done|resolved|closed|fixed"
+        },
+        {
+          "countUnder": "proj",
+          "max": 30
+        }
+      ]
+    },
+    {
+      "user": "can you show me what my app.js should look like?",
+      "assistant": "Certainly! Here's the updated `App.js` file, incorporating the `toggleCompleted` function and passing it as a prop to the `TodoList` component:\n\n\n```javascript\nimport React, { useState } from 'react';\nimport TodoList from './TodoList';\nimport AddTodo from './AddTodo';\n\nconst App = () => {\n const [todos, setTodos] = useState([]);\n\n const addTodo = (text) => {\n setTodos([...todos, { text, completed: false }]);\n };\n\n const toggleCompleted = (index) => {\n setTodos(\n todos.map((todo, i) =>\n i === index ? { ...todo, completed: !todo.completed } : todo\n )\n );\n };\n\n return (\n <div className=\"container\">\n <h1 className=\"my-4\">To-Do List</h1>\n <TodoList todos={todos} onToggleCompleted={toggleCompleted} />\n <AddTodo onAdd={addTodo} />\n </div>\n );\n};\n\nexport default App;\n```\nThis updated `App.js` file should work correctly with the previously provided `TodoList.js` and `TodoItem.js` components. Make sure you've correctly implemented the other components as well, and your app should allow you to toggle the completion status of to-do items as expected.\n\n",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "what bug is being fixed? one line"
+        },
+        {
+          "nodeMatching": "app.js|toggle|fix|corrected"
+        },
+        {
+          "brainMust": "ontogglecompleted|toggle|prop|not defined|not a function"
+        },
+        {
+          "countUnder": "proj",
+          "max": 34
+        }
+      ]
+    }
+  ]
+}
