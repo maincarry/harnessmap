@@ -550,7 +550,7 @@ export class Translator {
       // ZWJ goes unless it joins two pictographs (a family emoji keeps its joiner).
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
         const pic = (cp: number | undefined) => cp !== undefined && /\p{Extended_Pictographic}/u.test(String.fromCodePoint(cp));
-        const tz = anyA.title.replace(/[\u200B\u200C\u200E\u200F\u2060-\u2064\u206A-\u206F\uFEFF\u00AD\u061C\u180E]/g, '')
+        const tz = anyA.title.replace(/[\u200B\u200C\u200E\u200F\u2060-\u2064\u206A-\u206F\uFEFF\u00AD\u061C\u180E\u0000-\u001F\u007F-\u009F]/g, '') // M350b (autohotkey replay): a U+001F control inside a name — C0/C1 controls go with the format characters
           .replace(/\u200D/g, (m: string, off: number, str: string) => (pic(str.codePointAt(off - 2) ?? str.codePointAt(off - 1)) && pic(str.codePointAt(off + 1)) ? m : '')); // a lookbehind cannot see an astral pictograph (surrogate pair), so the flanks are read by hand
         if (tz !== anyA.title) { this.store.audit('guard_title_invisible', { id: String(anyA.id ?? '').slice(0, 8), codes: [...anyA.title].filter((ch) => !tz.includes(ch) || /\p{Cf}/u.test(ch)).map((ch) => ch.codePointAt(0)!.toString(16)).slice(0, 4) }); anyA.title = tz.trim(); }
       }
@@ -592,9 +592,22 @@ export class Translator {
       // M348 (codex-native maths replay): "Distinct graph labels ⟂" — the codex filer leaves stray symbols at the end of titles (⟂, ─, a lone
       // dash or colon). Trailing symbols and dangling punctuation go; a closing ")" "]" quote, "?" or "!" stays, as does any letter or digit.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
-        let t0 = anyA.title.replace(/\s*<\/?[a-z][a-z0-9-]*\s*$/i, '') // M348e: "炎性肉芽肿主题初识<table" — an unclosed HTML tag fragment glued to a name goes first
-          .replace(/(?:\s+|[\p{S}\p{No}\p{Pd}\p{Pc}:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '')
-          .replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ??" — a doubled mark goes (M360 restored this step: an M348e comment had swallowed it)
+        // M348f (minimal-linux replay): "QEMU 串口选项向导说明（asked answered）" — status words in a trailing parenthetical are not part of a name.
+        {
+          const STAT = '(?:asked|answered|open|done|noted|accepted|decided|floated|parked|todo|doing|live|provisional|rejected|resolved|superseded|retracted|dropped|chosen)';
+          const m = anyA.title.match(new RegExp(`\\s*[（(]\\s*${STAT}(?:[\\s,/|·]+${STAT})*\\s*[)）]\\s*$`, 'i'));
+          if (m && anyA.title.length - m[0].length >= 3) { this.store.audit('guard_title_status_paren', { id: String(anyA.id ?? '').slice(0, 8), dropped: m[0].trim().slice(0, 30) }); anyA.title = anyA.title.slice(0, anyA.title.length - m[0].length).trim(); }
+        }
+        // M360b (minimal-linux replay): "核对 root 标识代码>???" — the symbol strip ran before the "???" strip, so the ">" that became
+        // trailing afterwards survived. The three strips now repeat until the title stops changing.
+        let t0 = anyA.title;
+        for (let pass = 0; pass < 4; pass++) {
+          const before = t0;
+          t0 = t0.replace(/\s*<\/?[a-z][a-z0-9-]*\s*$/i, '') // M348e: "炎性肉芽肿主题初识<table" — an unclosed HTML tag fragment glued to a name goes first
+            .replace(/(?:\s+|[\p{S}\p{No}\p{Pd}\p{Pc}:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '')
+            .replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ??" — a doubled mark goes (M360 restored this step: an M348e comment had swallowed it)
+          if (t0 === before) break;
+        }
         // M360 (node-xlsx zh): the codex filer leaked its JSON closers into a name — "导出前清理空格（trim）}]}". Closers are Pe, not in the
         // class above, and a balanced ")" or "]" must stay ("[Draft]"), so only UNBALANCED trailing closers go, one at a time.
         const more = (o: string, c: string) => t0.split(c).length > t0.split(o).length;
