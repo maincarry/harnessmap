@@ -118,7 +118,7 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
       // with the radius so the off-center hand-drawn wobble stays visible at big radii (a fixed ~44px
       // jitter is invisible at r~4000, which made the rings read as mechanical circles). Clearance
       // spacing keeps them from crossing.
-      ...body, orbit: makeOrbitShape(pickBy(WOBBLY_KINDS, h), orbitR, h, Math.min(orbitR * 0.035, 80), 0.6),
+      ...body, orbit: makeOrbitShape(pickBy(WOBBLY_KINDS, h), orbitR, h, Math.min(orbitR * 0.025, 60), 0.4),
       period: 315 * Math.pow(orbitR / 445, 1.35), startAngle: (h % 628) / 100,
       dash: `${30 + (h % 18)} ${20 + ((h >> 4) % 12)}`, ringWidth: 9 + (h % 4), ringOpacity: 0.72 + ((h % 20) / 100),
       moons,
