@@ -10,8 +10,9 @@ import { PLANET_SPRITES, MOON_SPRITES, SUN_SPRITES } from "./spritePool";
 import type { SystemConfig, GeneratedPlanet, GeneratedMoon } from "./systemGenerator";
 
 const TAU = Math.PI * 2;
-// gently hand-drawn: moderate shapes only (drop the near-circular "ring" AND the exaggerated "egg"/"wobble").
-const WOBBLY_KINDS = ORBIT_SHAPE_KINDS.filter((k) => k === "bean" || k === "peanut" || k === "tilt");
+// keep the FULL hand-drawn shape variety (egg/bean/peanut/tilt/wobble; drop only the near-circular "ring");
+// the wobble INTENSITY is dialed via the amp multiplier below, not by dropping shapes.
+const WOBBLY_KINDS = ORBIT_SHAPE_KINDS.filter((k) => k !== "ring");
 const SUN_SIZE = 720;
 const MARGIN = 120;        // clear space between a body's edge (incl. its moons) and the next ring
 const MOON_GAP = 26;       // space between a planet's edge and its first moon, and between moons
@@ -117,7 +118,7 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
       // with the radius so the off-center hand-drawn wobble stays visible at big radii (a fixed ~44px
       // jitter is invisible at r~4000, which made the rings read as mechanical circles). Clearance
       // spacing keeps them from crossing.
-      ...body, orbit: makeOrbitShape(pickBy(WOBBLY_KINDS, h), orbitR, h, Math.min(orbitR * 0.03, 70)),
+      ...body, orbit: makeOrbitShape(pickBy(WOBBLY_KINDS, h), orbitR, h, Math.min(orbitR * 0.035, 80), 0.6),
       period: 315 * Math.pow(orbitR / 445, 1.35), startAngle: (h % 628) / 100,
       dash: `${30 + (h % 18)} ${20 + ((h >> 4) % 12)}`, ringWidth: 9 + (h % 4), ringOpacity: 0.72 + ((h % 20) / 100),
       moons,

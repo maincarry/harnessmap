@@ -45,6 +45,8 @@ export function makeOrbitShape(
   seed: number,
   /** Max center offset in px — small for moon rings, loose for planet rings. */
   jitter = 44,
+  /** Wobble intensity multiplier (1 = full hand-drawn wobble; <1 dials it down, keeping the shape variety). */
+  amp = 1,
 ): OrbitShape {
   const rand = mulberry32(seed);
   const ox = (rand() - 0.5) * jitter;
@@ -60,10 +62,10 @@ export function makeOrbitShape(
       const w = 2 + Math.floor(rand() * 3);
       const wp = rand() * TAU;
       pointAt = (a) => {
-        const rr = r * (1 + e * Math.cos(a + p) + 0.015 * Math.sin(w * a + wp));
+        const rr = r * (1 + amp * (e * Math.cos(a + p) + 0.015 * Math.sin(w * a + wp)));
         return { x: ox + rr * Math.cos(a), y: oy + rr * Math.sin(a) };
       };
-      maxR = r * (1 + e + 0.015) + jitter / 2;
+      maxR = r * (1 + amp * (e + 0.015)) + jitter / 2;
       break;
     }
     case "bean": {
@@ -73,10 +75,10 @@ export function makeOrbitShape(
       const p1 = rand() * TAU;
       const p2 = rand() * TAU;
       pointAt = (a) => {
-        const rr = r * (1 + a1 * Math.cos(a + p1) + b1 * Math.sin(2 * a + p2));
+        const rr = r * (1 + amp * (a1 * Math.cos(a + p1) + b1 * Math.sin(2 * a + p2)));
         return { x: ox + rr * Math.cos(a), y: oy + rr * Math.sin(a) };
       };
-      maxR = r * (1 + a1 + b1) + jitter / 2;
+      maxR = r * (1 + amp * (a1 + b1)) + jitter / 2;
       break;
     }
     case "peanut": {
@@ -84,17 +86,17 @@ export function makeOrbitShape(
       const e = 0.09 + rand() * 0.07;
       const p = rand() * TAU;
       pointAt = (a) => {
-        const rr = r * (1 + e * Math.cos(2 * a + p));
+        const rr = r * (1 + amp * (e * Math.cos(2 * a + p)));
         return { x: ox + rr * Math.cos(a), y: oy + rr * Math.sin(a) };
       };
-      maxR = r * (1 + e) + jitter / 2;
+      maxR = r * (1 + amp * e) + jitter / 2;
       break;
     }
     case "tilt": {
       // True ellipse, rotated to a jaunty angle.
       const e = 0.08 + rand() * 0.1;
-      const A = r * (1 + e);
-      const B = r * (1 - e);
+      const A = r * (1 + amp * e);
+      const B = r * (1 - amp * e);
       const rot = rand() * TAU;
       const cosR = Math.cos(rot);
       const sinR = Math.sin(rot);
@@ -115,10 +117,10 @@ export function makeOrbitShape(
       const a1 = 0.05 + rand() * 0.04;
       const a2 = 0.03 + rand() * 0.03;
       pointAt = (a) => {
-        const rr = r * (1 + a1 * Math.sin(w1 * a + p1) + a2 * Math.cos(w2 * a + p2));
+        const rr = r * (1 + amp * (a1 * Math.sin(w1 * a + p1) + a2 * Math.cos(w2 * a + p2)));
         return { x: ox + rr * Math.cos(a), y: oy + rr * Math.sin(a) };
       };
-      maxR = r * (1 + a1 + a2) + jitter / 2;
+      maxR = r * (1 + amp * (a1 + a2)) + jitter / 2;
       break;
     }
     default: {
@@ -128,10 +130,10 @@ export function makeOrbitShape(
       const p1 = rand() * TAU;
       const p2 = rand() * TAU;
       pointAt = (a) => {
-        const rr = r * (1 + 0.012 * Math.sin(w1 * a + p1) + 0.007 * Math.cos(w2 * a + p2));
+        const rr = r * (1 + amp * (0.012 * Math.sin(w1 * a + p1) + 0.007 * Math.cos(w2 * a + p2)));
         return { x: ox + rr * Math.cos(a), y: oy + rr * Math.sin(a) };
       };
-      maxR = r * 1.02 + jitter / 2;
+      maxR = r * (1 + amp * 0.02) + jitter / 2;
     }
   }
 
