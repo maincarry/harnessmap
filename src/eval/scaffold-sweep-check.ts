@@ -77,6 +77,19 @@ store.applyAlterations(pid, undo!.inverse, { kind: 'user_edit' });
 ok('undo restores full map', live().length === 1 + 1 + plugins.length);
 ok('undo restores the parent live', live().some((n) => n.title === 'Available plugins'));
 
+// --- reversibility must survive a restart: a fresh Store (its in-memory guard reset) must NOT re-sweep
+//     after the user undid the tidy, or the undo wouldn't stick. Only the persistent settings flag guards
+//     this — this is the "undo puts them back" promise (Jacob 2026-09-21). ---
+{
+  const restarted = new Store(dbPath);
+  const before = restarted.getNodes(pid).filter((n) => n.status !== 'removed').length;
+  const r = restarted.sweepLegacyScaffold(pid, deps, {});
+  const after = restarted.getNodes(pid).filter((n) => n.status !== 'removed').length;
+  ok('restart after undo: sweep is a no-op via the persistent flag', r.alreadyDone && r.removed.length === 0);
+  ok('restart after undo: the restored nodes stay (undo sticks across restart)', after === before && after === 1 + 1 + plugins.length);
+  (restarted as any).close?.();
+}
+
 // --- a map with NO scaffold is untouched ---
 const pid2 = store.ensureProject('clean-map');
 store.applyAlterations(pid2, [{ op: 'create_node', id: 'c1', parentId: null, content: 'Just real work', title: 'Real', status: 'live', author: 'user' }], { kind: 'round' });
