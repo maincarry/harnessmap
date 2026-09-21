@@ -20,14 +20,16 @@ function buildMap() {
   const alts: any[] = [];
   const root = randomUUID();
   alts.push({ op: 'create_node', id: root, parentId: null, content: 'Big Ops Map', title: 'Big Ops Map', status: 'live', author: 'user' });
-  const topics = ['Auth', 'Caching', 'Schema', 'Rendering', 'Filer', 'Codex', 'Sync', 'Import', 'Billing', 'Search', 'Onboarding', 'Perf', 'Security', 'Mobile', 'Testing', 'Deploy', 'Logging', 'Metrics', 'Backups', 'Staging'];
+  // Fewer topics (=> cheaper brainCycle, ~1 assess per topic) but VERBOSE ~280-char nodes, so the tree
+  // exceeds the 12k roster cap and the fact (in the LAST topic) lands beyond the cutoff (depth-first order).
+  const topics = ['Auth', 'Caching', 'Schema', 'Rendering', 'Filer', 'Staging'];
+  const filler = (t: string, k: number) => `${t} detail ${k}: the team worked through this at length across several review rounds, weighing latency against clarity and cost, and settled on an approach after considering the edge cases, the migration path, and how it interacts with the rest of the ${t.toLowerCase()} subsystem in production.`;
   topics.forEach((t, ti) => {
     const tid = randomUUID();
-    alts.push({ op: 'create_node', id: tid, parentId: root, content: `${t}: decisions and notes for the ${t.toLowerCase()} area of the system, discussed over several rounds.`, title: t, type: 'decision', status: 'decided', author: 'agent' });
-    for (let k = 0; k < 4; k++) {
-      // put the FACT in a child of the LAST topic (Staging) — depth-first, this lands late in the tree
-      const isFact = ti === topics.length - 1 && k === 2;
-      alts.push({ op: 'create_node', id: randomUUID(), parentId: tid, content: isFact ? FACT : `${t} detail ${k}: worked through and settled after review.`, title: isFact ? 'Staging seed' : `${t} ${k}`, status: 'live', author: 'agent' });
+    alts.push({ op: 'create_node', id: tid, parentId: root, content: `${t}: decisions, constraints and open questions for the ${t.toLowerCase()} area, discussed over many rounds with several stakeholders and revisited as the design evolved.`, title: t, type: 'decision', status: 'decided', author: 'agent' });
+    for (let k = 0; k < 10; k++) {
+      const isFact = ti === topics.length - 1 && k === 5; // late child of the last topic
+      alts.push({ op: 'create_node', id: randomUUID(), parentId: tid, content: isFact ? FACT : filler(t, k), title: isFact ? 'Staging seed' : `${t} ${k}`, status: 'live', author: 'agent' });
     }
   });
   store.applyAlterations(pid, alts, { kind: 'system' });
