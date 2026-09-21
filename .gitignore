@@ -26,7 +26,5 @@ src/eval/*segment*.json
 *.sqlite-wal
 *.sqlite-shm
 
-# galaxy island build artifacts (reproduce with: cd web/galaxy && bun install && bun build.mjs)
-public/vendor/galaxy.js
-public/vendor/galaxy.css
-public/vendor/ga-*
+# galaxy island: built artifacts ARE committed (harnessmap self-updates by pulling, it does not build).
+# Reproduce with: cd web/galaxy && bun install && bun build.mjs
