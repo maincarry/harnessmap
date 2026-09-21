@@ -28,16 +28,37 @@ export interface RoundSlice {
 export function isCodexRollout(lines: any[]): boolean {
   return lines.length > 0 && lines.slice(0, 3).some((m) => m && typeof m === 'object' && 'payload' in m && (m.type === 'session_meta' || m.type === 'response_item' || m.type === 'event_msg' || m.type === 'turn_context'));
 }
-// Injected scaffolding Codex records as user messages — never the user's words.
-const CODEX_SCAFFOLD = /^\s*<(environment_context|user_instructions|permissions|turn_aborted|hook_context|system_context|instructions|recommended_plugins)/i;
-// M259 (Jacob's Mac: the mirror showed <recommended_plugins>… and <environment_context>… as his message): a host may
-// prepend any number of <tag>…</tag> blocks to the user's prompt. Strip every leading block (any tag name), keep the words.
+// M366 (Jacob, live: "fix this misunderstanding permanently"): the host injects context as "user"
+// messages — plugin lists, environment/permission/instruction blocks — wrapped in XML-ish tags. The
+// old defence was a NAMED denylist (recommended_plugins, environment_context, …), so every new tag the
+// app invents slips through and gets filed as the user's words. Recognise scaffold STRUCTURALLY instead:
+// a tag whose name is snake_case (foo_bar) or reads like host scaffold. Real user prose does not start
+// with a <snake_case> tag, so this is safe and permanent — it catches formats we have never seen.
+const SCAFFOLD_WORD = /(plugin|app|apps|context|instruction|environment|recommended|permission|tool|skill|memor|command|hook|turn_aborted|preamble|system)/i;
+function isScaffoldTag(name: string): boolean {
+  const n = String(name).toLowerCase();
+  return /_/.test(n) || SCAFFOLD_WORD.test(n);   // snake_case OR a scaffold-ish word
+}
+// A user turn that, after stripping, is empty OR still opens with a scaffold tag is pure host scaffold.
+export function looksLikeScaffold(text: string): boolean {
+  const t = String(text ?? '').trim();
+  if (!t) return true;
+  const m = t.match(/^<([a-z][a-z0-9_-]*)(?:\s[^>]*)?>/i);
+  return !!m && isScaffoldTag(m[1]!);
+}
+// Backwards-compatible alias (was a named-denylist regex; now structural).
+const CODEX_SCAFFOLD = { test: (s: string) => looksLikeScaffold(s) };
+// M259 + M366: a host may prepend any number of <tag>…</tag> blocks to the user's prompt. Strip every
+// leading block, keep the words. Also strip a leading UNCLOSED scaffold block (a <scaffold_tag> with no
+// matching close) to end — the case a plain closed-tag strip misses.
 export function stripHostScaffold(text: string): string {
-  let t = String(text ?? '');
-  for (let i = 0; i < 8; i++) {
-    const m = t.match(/^\s*<([a-z][a-z0-9_-]*)(?:\s[^>]*)?>[\s\S]*?<\/\1>\s*/i);
-    if (!m) break;
-    t = t.slice(m[0].length);
+  let t = String(text ?? '').trim();
+  for (let i = 0; i < 12; i++) {
+    const closed = t.match(/^\s*<([a-z][a-z0-9_-]*)(?:\s[^>]*)?>[\s\S]*?<\/\1>\s*/i);
+    if (closed) { t = t.slice(closed[0].length).trim(); continue; }
+    const open = t.match(/^\s*<([a-z][a-z0-9_-]*)(?:\s[^>]*)?>/i);
+    if (open && isScaffoldTag(open[1]!) && !new RegExp(`</${open[1]}>`, 'i').test(t)) { t = ''; break; }
+    break;
   }
   return t.trim();
 }

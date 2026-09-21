@@ -57,5 +57,25 @@ const ENVCTX = '<environment_context>\n  <cwd>/x</cwd>\n</environment_context>';
   ok('Codex: a scaffold-only turn yields empty userText', r.userText === '');
 }
 
+
+// ---- stripHostScaffold / looksLikeScaffold, structural (M366) ----
+{
+  const { stripHostScaffold, looksLikeScaffold } = await import('../agent/harness-adapter.js');
+  // the exact current GPT-app format (closed)
+  ok('closed recommended_plugins is stripped whole', stripHostScaffold('<recommended_plugins>\n- Slack (slack@openai-curated-remote)\n</recommended_plugins>') === '');
+  // an UNCLOSED scaffold block (no </tag>) — the case a closed-only strip misses
+  ok('unclosed scaffold block is dropped to end', stripHostScaffold('<recommended_plugins>\n- Slack\n- Notion (this never closes') === '');
+  // a NOVEL tag we have never named, snake_case → recognised structurally
+  ok('novel snake_case scaffold tag is stripped', stripHostScaffold('<available_apps>\n- Figma\n</available_apps>\nship it') === 'ship it');
+  ok('novel snake_case tag, unclosed, is dropped', stripHostScaffold('<mcp_server_list>\n- foo\n- bar') === '');
+  // real user prose is NEVER eaten
+  ok('plain prose untouched', stripHostScaffold('we chose blue because it is calmer') === 'we chose blue because it is calmer');
+  ok('prose starting with a NON-scaffold closed tag keeps following words', stripHostScaffold('<b>note</b> keep this') === 'keep this');
+  ok('prose starting with an unclosed NON-scaffold tag is NOT eaten', stripHostScaffold('<html> is broken, help me fix it') === '<html> is broken, help me fix it');
+  ok('looksLikeScaffold: recommended_plugins yes', looksLikeScaffold('<recommended_plugins>x') === true);
+  ok('looksLikeScaffold: plain prose no', looksLikeScaffold('we decided X') === false);
+  ok('looksLikeScaffold: <html> no (not scaffold-ish)', looksLikeScaffold('<html>hi') === false);
+}
+
 console.log(`scaffold-slice: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
