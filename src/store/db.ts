@@ -672,6 +672,99 @@ export class Store {
       .map((r) => ({ id: r.id, label: r.label, createdAt: r.created_at }));
   }
 
+  // M368 (Jacob 2026-09-21, "still wrong in actual practice"): a one-time,
+  // REVERSIBLE sweep of legacy host-scaffold subtrees that were mis-filed
+  // BEFORE M366 stripped them (e.g. the 46-node "Available plugins" tree the
+  // GPT app's <recommended_plugins> turn produced on his real map). M366 stops
+  // NEW ones; this cleans the ones already sitting in a map.
+  //
+  // DETECTION is round-based and reuses the PROVEN M366 stripper — never a
+  // title/content guess. A round is "scaffold-dominant" when its filing's raw
+  // user turn was almost entirely host scaffold: stripHostScaffold removed ≥90%
+  // of it and the real residual is ≤40 chars (a bare UI command like "open
+  // map"). Every node created in such a round came from the scaffold, so the
+  // whole subtree of each is swept — EXCEPT any node a human has since edited
+  // (a map_event with source_kind 'user_edit'), which is left in place (it pops
+  // up to its parent when its scaffold parent is removed — the updateNode
+  // safety). Removal is soft (status 'removed', the same reversible delete the
+  // ✕ button uses) and pushes ONE undo entry restoring every node's parent and
+  // status. Idempotent per project via a settings flag. strip/looks are
+  // injected so the store keeps no dependency on the agent adapter.
+  sweepLegacyScaffold(
+    projectId: string,
+    deps: { strip: (s: string) => string; looks: (s: string) => boolean },
+    opts: { dryRun?: boolean; force?: boolean } = {},
+  ): { swept: boolean; alreadyDone: boolean; rounds: number; removed: { id: string; title: string | null; status: string }[] } {
+    const FLAG = `scaffold_swept_v1:${projectId}`;
+    if (!opts.force && !opts.dryRun && this.getSetting(FLAG)) return { swept: false, alreadyDone: true, rounds: 0, removed: [] };
+
+    // 1) scaffold-dominant rounds, via the M366 stripper on each filing's raw turn.
+    const fil = this.db.prepare('SELECT round_id, user_text FROM filings WHERE round_id IS NOT NULL AND user_text IS NOT NULL').all() as any[];
+    const scaffoldRounds: string[] = [];
+    for (const f of fil) {
+      const orig = String(f.user_text);
+      if (!orig) continue;
+      const residual = deps.strip(orig).trim();
+      const removedChars = orig.length - residual.length;
+      if (deps.looks(orig.trimStart()) && removedChars >= orig.length * 0.9 && residual.length <= 40) scaffoldRounds.push(String(f.round_id));
+    }
+    if (!scaffoldRounds.length) {
+      if (!opts.dryRun) this.setSetting(FLAG, new Date().toISOString());
+      return { swept: false, alreadyDone: false, rounds: 0, removed: [] };
+    }
+
+    // 2) node ids created in those rounds (scoped to this project).
+    const seeds = new Set<string>();
+    const ph = scaffoldRounds.map(() => '?').join(',');
+    const evs = this.db.prepare(`SELECT alteration FROM map_events WHERE project_id = ? AND round_id IN (${ph}) AND alteration LIKE '%create_node%'`).all(projectId, ...scaffoldRounds) as any[];
+    for (const e of evs) { try { const a = JSON.parse(e.alteration); if (a.op === 'create_node' && a.id) seeds.add(String(a.id)); } catch { /* skip */ } }
+
+    // 3) expand to subtrees over the CURRENT tree.
+    const nodes = this.getNodes(projectId);
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const kids = new Map<string, string[]>();
+    for (const n of nodes) if (n.parentId) (kids.get(n.parentId) ?? kids.set(n.parentId, []).get(n.parentId)!).push(n.id);
+    const target = new Set<string>();
+    const stack = [...seeds];
+    while (stack.length) {
+      const id = stack.pop()!;
+      if (target.has(id) || !byId.has(id)) continue;
+      target.add(id);
+      for (const c of (kids.get(id) ?? [])) stack.push(c);
+    }
+
+    // 4) never sweep a node a human has edited (explicit user_edit event).
+    const humanEdited = (id: string): boolean => {
+      const rows = this.db.prepare("SELECT alteration, source_kind FROM map_events WHERE source_kind = 'user_edit' AND alteration LIKE ?").all(`%"id":"${id}"%`) as any[];
+      for (const r of rows) { try { const a = JSON.parse(r.alteration); if (a.id === id && (a.op === 'update_node' || a.op === 'move_node')) return true; } catch { /* skip */ } }
+      return false;
+    };
+    const removeNodes = [...target]
+      .map((id) => byId.get(id)!)
+      .filter((n) => n.status !== 'removed' && !humanEdited(n.id));
+
+    if (opts.dryRun) {
+      return { swept: false, alreadyDone: false, rounds: scaffoldRounds.length, removed: removeNodes.map((n) => ({ id: n.id, title: n.title ?? null, status: n.status })) };
+    }
+    if (!removeNodes.length) {
+      this.setSetting(FLAG, new Date().toISOString());
+      return { swept: false, alreadyDone: false, rounds: scaffoldRounds.length, removed: [] };
+    }
+
+    // 5) undo inverse restores each node's parent then status; record before mutating.
+    const inverse = removeNodes.flatMap((n) => [
+      { op: 'move_node', id: n.id, parentId: n.parentId ?? null },
+      { op: 'update_node', id: n.id, status: n.status },
+    ]);
+    // Remove deepest-first so scaffold children don't transiently pop up.
+    const depth = (n: MapNode): number => { let d = 0; for (let p = n.parentId ? byId.get(n.parentId) : undefined; p; p = p.parentId ? byId.get(p.parentId) : undefined) { d++; if (d > 64) break; } return d; };
+    for (const n of removeNodes.slice().sort((a, b) => depth(b) - depth(a))) this.updateNode(n.id, { status: 'removed' });
+    this.pushUndo(projectId, `tidied ${removeNodes.length} host-scaffold node${removeNodes.length === 1 ? '' : 's'}`, inverse, { kind: 'scaffold_sweep' });
+    this.setSetting(FLAG, new Date().toISOString());
+    this.audit('scaffold_sweep', { rounds: scaffoldRounds.length, removed: removeNodes.length });
+    return { swept: true, alreadyDone: false, rounds: scaffoldRounds.length, removed: removeNodes.map((n) => ({ id: n.id, title: n.title ?? null, status: n.status })) };
+  }
+
   // M159b: local feedback log — what the user chose to report (never sent
   // anywhere by us; the GitHub issue is theirs to submit).
   addFeedback(text: string, source: string): void {

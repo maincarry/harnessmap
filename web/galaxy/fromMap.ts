@@ -26,7 +26,15 @@ export interface GalaxyBody extends BodyDef { dimmed?: boolean; nodeId?: string;
 
 // Only genuinely DORMANT nodes sleep — most content stays awake so the map feels alive. (Not
 // done/decided/answered/accepted: those are normal, active content.)
-const SLEEPY = new Set(["parked", "rejected", "dropped", "mooted", "retracted", "reversed", "lifted"]);
+// A star sleeps (dim, "z z z") when its topic is at rest: either CONCLUDED (finished, no further
+// work expected) or SET ASIDE / OVERTURNED. In-progress statuses (live, open, floated, proposed,
+// provisional, todo, doing, exploratory, noted, accepted, chosen) stay awake and colorful so the
+// map is alive by default. Widened from dormant-only (v3) because on real maps NO node ever carried
+// a dormant status — the feature never fired (Jacob: "fading works in mysterious manners", 2026-09-21).
+const SLEEPY = new Set([
+  "done", "answered", "decided", "resolved", "closed", "completed", "mooted",
+  "parked", "rejected", "dropped", "retracted", "reversed", "lifted", "superseded",
+]);
 function hash(s: string): number { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; }
 const pickBy = <T,>(arr: readonly T[], seed: number): T => arr[seed % arr.length]!;
 const isTutorial = (n: MapNodeLite) => n.author === "system" || /getting started/i.test(String(n.title ?? "")) || /getting started \(tutorial\)/i.test(String(n.content ?? ""));

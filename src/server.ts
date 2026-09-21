@@ -30,7 +30,7 @@ import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots, outlineWithIds } from './translator/importer.js';
 import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, backendName, backendSource, setBackend, type Backend } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
-import { sliceRound, codexSessionMeta, stripHostScaffold, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
+import { sliceRound, codexSessionMeta, stripHostScaffold, looksLikeScaffold, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync, openSync, readSync, closeSync } from 'node:fs';
 import { basename } from 'node:path';
 import { authUser, authEnabled, unauthorized } from './auth.js';
@@ -1700,8 +1700,24 @@ function applyReorganize(applyPid: string, alterations: any[], o: { chatId?: str
   broadcast({ type: 'map', ...state() });
 }
 
+// M368: one-time, reversible tidy of legacy pre-M366 host-scaffold subtrees
+// (e.g. the "Available plugins" tree a <recommended_plugins> turn mis-filed).
+// At most once per project: an in-memory guard skips repeat calls, the store's
+// own settings flag makes it permanent. Precise (round-based, reuses the M366
+// stripper), reversible (soft-remove + one undo entry). Never throws into state.
+const scaffoldSweepChecked = new Set<string>();
+function maybeSweepScaffold(pid: string): void {
+  if (scaffoldSweepChecked.has(pid)) return;
+  scaffoldSweepChecked.add(pid);
+  try {
+    const res = store.sweepLegacyScaffold(pid, { strip: stripHostScaffold, looks: looksLikeScaffold });
+    if (res.swept) console.log(`[scaffold-sweep] tidied ${res.removed.length} legacy host-scaffold node(s) on ${pid.slice(0, 8)} — reversible via undo ("${'tidied'}")`);
+  } catch (e) { console.log('[scaffold-sweep] skipped:', (e as Error).message); }
+}
+
 function state() {
   ensureValidFocus();
+  maybeSweepScaffold(projectId);
   const map = loadMap(store, projectId);
   return {
     projectId,

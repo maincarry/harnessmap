@@ -90,6 +90,20 @@ const ENVCTX = '<environment_context>\n  <cwd>/x</cwd>\n</environment_context>';
   ok('a scaffold tag mid-message does NOT eat the leading user words', stripHostScaffold('please read <environment_context><cwd>/x</cwd></environment_context>') === 'please read <environment_context><cwd>/x</cwd></environment_context>');
   ok('looksLikeScaffold: tag with attributes', looksLikeScaffold('<recommended_plugins version="2">x') === true);
   ok('looksLikeScaffold: uppercase', looksLikeScaffold('<TURN_ABORTED>') === true);
+  // GROUNDED: the EXACT real o.map turn shape (tagged, real "available but not installed" phrasing,
+  // @openai-curated-remote suffixes) — the pre-M366 instance that filed the 46-node "Available plugins"
+  // subtree on Jacob's map. This is the case my "M366 prevents new ones" claim to Jacob rests on.
+  {
+    const real = '<recommended_plugins>\nHere is a list of plugins that are available but not installed.\n'
+      + ['Airtable (airtable@openai-curated-remote)','Spotify (spotify@openai-curated-remote)','Slack (slack@openai-curated-remote)'].map((x) => '- ' + x).join('\n')
+      + '\n</recommended_plugins>\nopen map';
+    ok('GROUNDED: real o.map recommended_plugins turn strips to just the user ask', stripHostScaffold(real) === 'open map');
+  }
+  // FALSIFICATION / OPEN GAP: the same plugin list UNTAGGED (plain text) is NOT stripped. o.map's instance was
+  // tagged (so caught), but if the Codex app ever emits this list without a wrapper, M366 misses it — a new
+  // "Available plugins" node could still be filed. Catching it needs a content heuristic (§10 proposal, not a
+  // silent fix). This ok() asserts the CURRENT behaviour so the guard flags the day that behaviour changes.
+  ok('OPEN GAP (documented): untagged plugin list with @openai-curated-remote suffixes is NOT stripped', stripHostScaffold('Here is a list of plugins that are available but not installed.\n- Airtable (airtable@openai-curated-remote)\n- Slack (slack@openai-curated-remote)').includes('openai-curated-remote'));
   // KNOWN BOUNDARY (documented, not a failure): a PLAIN-TEXT plugin list with no tag is NOT caught by the
   // structural stripper — catching it would need a content heuristic that risks eating real user prose.
   ok('BOUNDARY: plain-text plugin list is NOT stripped (kept as-is)', stripHostScaffold('Here is a list of plugins:\n- Slack\n- Notion') === 'Here is a list of plugins:\n- Slack\n- Notion');
