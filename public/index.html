@@ -1143,6 +1143,7 @@ function openDrawer() {
     ${act('influence-btn', '⏻', 'close / reopen map influence')}
     ${act('round-line', '≡', 'what changed')}
     <div class="dr-h">view</div>
+    ${act('galaxy-btn', '🪐', 'galaxy view')}
     ${act('home-btn', '⌂', 'home')}
     ${act('zoom-out', '↑', 'zoom out')}
     ${act('search-btn', '🔍', 'search')}
@@ -1774,6 +1775,9 @@ $('other-btn').onclick = (e) => { e.stopPropagation(); $('other-menu').hidden = 
 // reorganize them properly." Every tile proxies to the existing (hidden) button, so every handler, permission
 // and nudge stays exactly as it was; the board only changes how they are found. Grouped by the job they do.
 const CONTROLS = [
+  { g: 'See the map', sub: 'view the whole map', items: [
+    ['galaxy-btn', '🪐', 'galaxy view', 'the whole map as a solar system — planets are top-level topics, moons their children; drag to wander, scroll to zoom, click a body to fly to it'],
+  ] },
   { g: 'Aim the agent', sub: 'what the chat agent sees and works on', items: [
     ['auto-focus', '▶', 'auto-focus', 'the map proposes where the conversation should aim; you approve'],
     ['auto-lit', '☀', 'auto-light', 'the map proposes the background for the current focus; you approve'],
