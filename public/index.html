@@ -468,6 +468,7 @@
           <div style="display:flex;gap:4px"><button id="auto-zoom" style="flex:1" title="the zoom agent suggests which branch to view alone — you confirm">◱ auto-zoom</button><button class="justdo" data-do="zoom" title="just do it: zoom to the branch the zoom agent picks, no proposal (view only)">⚡</button></div>
           <button id="dim-outside" title="dim every node outside the zoomed subtree — the chat agent stops seeing them (zoom in first to give 'outside' a meaning)">◐ dim all outside</button>
           <button id="mapstatus-btn" title="the map's own standing judgment — the overall map status report, per-area content report, structural review, and the direct line to tune the map status agent">🩺 map status</button>
+          <button id="galaxy-btn" title="galaxy view: see the whole map as a solar system — planets are top-level topics, moons are their children; drag to wander, scroll to zoom, click a body to fly to it. Sleeping (dim) bodies are settled or unlit. Click again in here to exit.">🪐 galaxy view</button>
           <button id="ctx-refresh-btn" title="hand every host session (Claude Code or Codex) on this map a fresh full view of the map on its next message — use after big lighting or focus changes, or a long conversation">⟲ refresh agent context</button>
           <button id="import-btn" title="bring outside material onto the map — paste notes, pick a project document, or a past session (Claude Code or Codex); the import agent proposes an organized subtree you approve">⇪ import</button>
           <button id="undo-btn" title="undo the last destructive action — delete, merge, tidy, or move (Ctrl/Cmd+Z works too)">↩ undo</button>
@@ -4141,5 +4142,53 @@ checkMobile();
 }
 window.TOUR = TOUR; window.tourShow = tourShow; window.tourStop = tourStop; window.__state = () => S; window.__refresh = refresh; window.__md = md2html; window.__setZoom = setZoom; window.__msgHtml = msgHtml; // test hooks (ui-smoke)
 </script>
+
+<!-- Galaxy mode (2026-09-21): the whole map as a solar system, lazy-loaded island -->
+<div id="galaxy-overlay" hidden style="position:fixed;inset:0;z-index:9999;background:#241247">
+  <div id="galaxy-mount" style="position:absolute;inset:0"></div>
+  <button id="galaxy-close" title="exit galaxy view" style="position:absolute;top:12px;right:14px;z-index:10001;width:40px;height:40px;border-radius:9999px;border:2px solid rgba(255,255,255,.35);background:rgba(20,12,54,.6);color:#fff;font-size:20px;cursor:pointer;font-family:system-ui">✕</button>
+</div>
+<script>
+(function(){
+  var jsLoaded=false, mounted=false;
+  function addCss(){ if(document.getElementById('galaxy-css')) return; var l=document.createElement('link'); l.rel='stylesheet'; l.href='/vendor/galaxy.css'; l.id='galaxy-css'; document.head.appendChild(l); }
+  function removeCss(){ var c=document.getElementById('galaxy-css'); if(c) c.remove(); }
+  function loadJs(){
+    if(jsLoaded) return Promise.resolve();
+    return new Promise(function(res,rej){ var sc=document.createElement('script'); sc.src='/vendor/galaxy.js'; sc.onload=function(){jsLoaded=true;res();}; sc.onerror=rej; document.body.appendChild(sc); });
+  }
+  async function openGalaxy(){
+    var ov=document.getElementById('galaxy-overlay');
+    document.getElementById('other-menu') && (document.getElementById('other-menu').hidden=true);
+    ov.hidden=false;
+    try{
+      addCss();
+      await loadJs();
+      var st=await (await fetch('/api/state')).json();
+      var pname=(st.projects||[]).filter(function(p){return p.id===st.projectId;}).map(function(p){return p.name;})[0] || 'Map';
+      var main=(st.chats||[]).filter(function(c){return c.id===st.mainChatId;})[0];
+      var lit=[]; if(main){ lit=(main.lit||[]).concat(main.userLit||[]); }
+      if(mounted && window.HarnessGalaxy){ window.HarnessGalaxy.unmount(); mounted=false; }
+      window.HarnessGalaxy.mount(document.getElementById('galaxy-mount'), {
+        nodes: st.nodes||[], projectName: pname, litIds: lit,
+        onFocusNode: function(id){ /* future: sync focus back to the map */ }
+      });
+      mounted=true;
+    }catch(e){ console.error('[galaxy] open failed', e); var m=document.getElementById('galaxy-mount'); if(m) m.innerHTML='<div style="color:#fff;padding:40px;font-family:system-ui">Galaxy failed to load: '+(e&&e.message||e)+'</div>'; }
+  }
+  function closeGalaxy(){
+    var ov=document.getElementById('galaxy-overlay'); ov.hidden=true;
+    if(mounted && window.HarnessGalaxy){ window.HarnessGalaxy.unmount(); mounted=false; }
+    removeCss();
+  }
+  document.addEventListener('click', function(e){
+    var t=e.target;
+    if(t && (t.id==='galaxy-btn' || (t.closest && t.closest('#galaxy-btn')))){ e.preventDefault(); openGalaxy(); }
+    else if(t && (t.id==='galaxy-close' || (t.closest && t.closest('#galaxy-close')))){ e.preventDefault(); closeGalaxy(); }
+  });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && !document.getElementById('galaxy-overlay').hidden) closeGalaxy(); });
+})();
+</script>
+
 </body>
 </html>

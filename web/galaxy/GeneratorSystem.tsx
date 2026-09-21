@@ -147,7 +147,8 @@ const countMoons = (ms: GeneratedMoon[]): number =>
  * world from the sprite pool — a random sun, random planets on asymmetric
  * hand-drawn orbits, 0–2 moons each, and a few drifting friends.
  */
-export function GeneratorSystem() {
+export interface GalaxyProps { initialConfig?: import("./systemGenerator").SystemConfig; mapMode?: boolean; onFocusNode?: (id: string) => void; }
+export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyProps = {}) {
   const [activeId, setActiveId] = useState<string | null>(null);
   /** Body the camera is currently locked onto (navigator "you are here"). */
   const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -261,7 +262,7 @@ export function GeneratorSystem() {
   /** The sky strip container — the chat camera frames inside it. */
   const stripRef = useRef<HTMLDivElement>(null);
 
-  const baseConfig = useMemo(() => generateSystem(seed, planetCount), [seed, planetCount]);
+  const baseConfig = useMemo(() => initialConfig ?? generateSystem(seed, planetCount), [initialConfig, seed, planetCount]);
 
   // Warm every sprite and sky in the background right after mount, so a later
   // "New system" warp or palette switch never waits on image loads.
@@ -2127,7 +2128,7 @@ export function GeneratorSystem() {
             <header className="pointer-events-none fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(1rem,env(safe-area-inset-top))] flex items-center gap-2">
               <Sparkle className="h-5 w-5 text-star" aria-hidden />
               <span className="font-display text-base font-semibold tracking-wide text-star sm:text-xl">
-                Galaxy Generator
+                {mapMode ? "Galaxy" : "Galaxy Generator"}
               </span>
             </header>
 
@@ -2194,6 +2195,7 @@ export function GeneratorSystem() {
               >
                 <MessagesSquare className="h-5 w-5" />
               </button>
+              {!mapMode && (
               <Link
                 to="/"
                 aria-label="Back to the classic solar system"
@@ -2202,9 +2204,11 @@ export function GeneratorSystem() {
               >
                 <Home className="h-5 w-5" />
               </Link>
+              )}
             </div>
 
             {/* Generator controls */}
+            {!mapMode && (
             <div
               className={`fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-[max(1rem,env(safe-area-inset-left))] flex flex-col gap-2 transition-opacity duration-300 ${
                 chatActive ? "pointer-events-none opacity-0" : "opacity-100"
@@ -2229,6 +2233,7 @@ export function GeneratorSystem() {
                 seed #{seed}
               </p>
             </div>
+            )}
 
 
             {/*

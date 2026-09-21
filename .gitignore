@@ -25,3 +25,8 @@ src/eval/*segment*.json
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+
+# galaxy island build artifacts (reproduce with: cd web/galaxy && bun install && bun build.mjs)
+public/vendor/galaxy.js
+public/vendor/galaxy.css
+public/vendor/ga-*

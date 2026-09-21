@@ -1,0 +1,634 @@
+@import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Amatic+SC:wght@400;700&display=swap");
+@import "tailwindcss" source(none);
+@source "./**/*.tsx";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-space: var(--space);
+  --color-space-deep: var(--space-deep);
+  --color-star: var(--star);
+  --color-orbit-label: var(--orbit-label);
+  --font-display: "Fredoka", ui-rounded, "Comic Sans MS", system-ui, sans-serif;
+  --font-hand: "Amatic SC", "Fredoka", ui-rounded, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.695);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --primary: oklch(0.208 0.042 265.755);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.04 256.788);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --space: oklch(0.25 0.072 298);
+  --space-deep: oklch(0.19 0.055 298);
+  --star: oklch(0.9 0.16 95);
+  --orbit-label: oklch(0.84 0.12 195);
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-space-deep);
+    color: var(--color-foreground);
+    overscroll-behavior: none;
+  }
+}
+
+@keyframes planet-bounce {
+  0% {
+    transform: scale(1, 1);
+  }
+  30% {
+    transform: scale(1.18, 0.82);
+  }
+  55% {
+    transform: scale(0.88, 1.12);
+  }
+  75% {
+    transform: scale(1.06, 0.94);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+.planet-bounce {
+  animation: planet-bounce 0.65s cubic-bezier(0.36, 0, 0.66, 1);
+}
+
+@keyframes planet-breathe {
+  0%,
+  100% {
+    transform: scale(1) rotate(-1.2deg);
+  }
+  50% {
+    transform: scale(1.035) rotate(1.4deg);
+  }
+}
+
+@keyframes bubble-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.speech-bubble {
+  animation: bubble-pop 0.25s ease-out;
+}
+
+.speech-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -7px;
+  border: 7px solid transparent;
+  border-top-color: var(--color-card);
+}
+
+@keyframes sun-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@utility animate-pop-in {
+  animation: pop-in 0.25s ease-out;
+}
+
+/* Info panel slides in from the right edge with a soft overshoot. */
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(28px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@utility animate-panel-in {
+  animation: panel-in 0.3s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+/* On phones the info panel is a bottom sheet: it rises from the bottom edge. */
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@utility animate-sheet-in {
+  animation: sheet-in 0.32s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+/* Single joyful hop with squash-and-stretch, for navigator "find me". */
+@keyframes planet-jump {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  22% {
+    transform: translateY(1.5%) scale(1.08, 0.9);
+  }
+  48% {
+    transform: translateY(-9%) scale(0.93, 1.1);
+  }
+  68% {
+    transform: translateY(0) scale(1.05, 0.94);
+  }
+  84% {
+    transform: translateY(-3%) scale(0.98, 1.03);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
+.planet-jump {
+  animation: planet-jump 0.8s cubic-bezier(0.36, 0, 0.66, 1) 1;
+}
+
+/* A body being born (generator "add a body" bubble): pops out of nothing
+   with a little spin and an overshoot bounce. */
+@keyframes planet-birth {
+  0% {
+    transform: scale(0) rotate(-32deg);
+  }
+  55% {
+    transform: scale(1.18) rotate(7deg);
+  }
+  75% {
+    transform: scale(0.94) rotate(-2.5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.planet-birth {
+  animation: planet-birth 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+}
+
+/* Golden hand-drawn ring that spins and pulses around a body found via
+   the navigator — golden (not orbit-white) so it can't be confused with
+   an orbit line. */
+@keyframes navigator-ring {
+  0% {
+    opacity: 0;
+    transform: rotate(0deg) scale(0.7);
+  }
+  12% {
+    opacity: 1;
+    transform: rotate(20deg) scale(1.07);
+  }
+  26% {
+    transform: rotate(42deg) scale(0.97);
+  }
+  40% {
+    transform: rotate(64deg) scale(1.05);
+  }
+  54% {
+    transform: rotate(86deg) scale(1);
+  }
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(150deg) scale(1.08);
+  }
+}
+
+.navigator-ring {
+  animation: navigator-ring 2.8s ease-out both;
+  transform-origin: center;
+  filter: drop-shadow(0 0 6px rgba(255, 217, 77, 0.55));
+}
+
+/* Twinkle of the little finder sparkles riding the highlight ring. */
+@keyframes navigator-sparkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.navigator-sparkle {
+  animation: navigator-sparkle 0.7s ease-in-out infinite;
+}
+
+/* Persistent golden ring — same hand-drawn ring as the navigator flash,
+   but it stays on and keeps turning. Marks the rocket's drag-hover target
+   and its inbound destination. */
+@keyframes navigator-ring-steady {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.04);
+  }
+  to {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.navigator-ring-steady {
+  animation: navigator-ring-steady 6s linear infinite;
+  transform-origin: center;
+  filter: drop-shadow(0 0 6px rgba(255, 217, 77, 0.55));
+}
+
+/* Flicker of the hero rocket's gouache flame. */
+@keyframes rocket-flame-flicker {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  30% {
+    transform: scale(1.12, 0.9);
+  }
+  55% {
+    transform: scale(0.9, 1.1);
+  }
+  80% {
+    transform: scale(1.06, 0.95);
+  }
+}
+
+.rocket-flame {
+  animation: rocket-flame-flicker 0.22s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+/* Parked rocket: gentle idle sway (reuses the planet breathe). */
+.rocket-parked {
+  animation: planet-breathe 4.8s ease-in-out infinite;
+}
+
+/* Touchdown squash-and-settle — the landing moment. */
+@keyframes rocket-land {
+  0% {
+    transform: scale(1, 1);
+  }
+  28% {
+    transform: scale(1.16, 0.78);
+  }
+  52% {
+    transform: scale(0.93, 1.09);
+  }
+  74% {
+    transform: scale(1.04, 0.95);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+.rocket-land {
+  animation: rocket-land 0.55s ease-out 1;
+}
+
+/* Crawling golden tether from the dragged rocket to its target body. */
+@keyframes rocket-tether-crawl {
+  to {
+    stroke-dashoffset: -46;
+  }
+}
+
+.rocket-tether {
+  animation: rocket-tether-crawl 0.9s linear infinite;
+}
+
+/* ---- System transition animations (generator) ---- */
+
+/* Whole world arriving after a regenerate: a soft storybook "warp in" —
+   fades up from slightly smaller with a whisper of rotation and a gentle
+   overshoot settle. */
+@keyframes system-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) rotate(-1.4deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.012) rotate(0.35deg);
+  }
+  80% {
+    transform: scale(0.997) rotate(-0.1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.system-enter {
+  animation: system-enter 0.8s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+
+/* Old world warping away just before the new one arrives. */
+@keyframes system-exit {
+  from {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.07) rotate(0.9deg);
+  }
+}
+
+.system-exit {
+  animation: system-exit 0.36s cubic-bezier(0.5, 0, 0.75, 0.4) both;
+}
+
+/* Orbit ring appearing for a newborn body: fades up while growing out
+   from the ring's own centre with a soft overshoot — like someone
+   quickly sketching the circle in. transform-box keeps the scale
+   anchored to the ring, not the whole sky. */
+@keyframes orbit-ring-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.orbit-ring-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: orbit-ring-in 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+/* Ring melting away while its body spins off into the sky — timed to
+   finish just before the body leaves the world. Opacity only, so it
+   never fights the positioning transform on moon rings. */
+@keyframes orbit-ring-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.orbit-ring-out {
+  animation: orbit-ring-out 0.5s ease-in both;
+}
+
+/* A body saying goodbye: a little hopeful hop, then it spins away upward
+   and shrinks into the sky. Applied inline via Planet's departing prop. */
+@keyframes body-goodbye {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  22% {
+    opacity: 1;
+    transform: translateY(-4%) scale(1.08) rotate(-7deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16%) scale(0.04) rotate(46deg);
+  }
+}
+
+/* Sparkle crosses that burst outward around a newborn body. Distance and
+   direction come from the --dx/--dy custom properties set inline. */
+@keyframes birth-sparkle {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2) rotate(0deg);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(1.15) rotate(95deg);
+  }
+}
+
+.birth-sparkle {
+  animation: birth-sparkle 0.95s cubic-bezier(0.22, 0.9, 0.36, 1) both;
+}
+
+/* Navigator entries cascading in one after another (menu generation). */
+@keyframes nav-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.nav-item-in {
+  animation: nav-item-in 0.42s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+/* Navigator folding away into its round list button. */
+@keyframes nav-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9) translateY(-6px);
+  }
+}
+
+.nav-out {
+  animation: nav-out 0.22s cubic-bezier(0.5, 0, 0.75, 0.4) both;
+  transform-origin: top left;
+}
+
+/* Dice tumble when a new system is rolled. */
+@keyframes dice-roll {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  30% {
+    transform: rotate(150deg) scale(1.3);
+  }
+  60% {
+    transform: rotate(270deg) scale(0.88);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-dice-roll {
+  animation: dice-roll 0.62s cubic-bezier(0.34, 1.3, 0.64, 1) 1;
+}
+
+/* Playful wiggle when hovering a dice button (pure CSS, replays on hover). */
+@keyframes dice-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-20deg) scale(1.08);
+  }
+  70% {
+    transform: rotate(16deg) scale(1.08);
+  }
+}
