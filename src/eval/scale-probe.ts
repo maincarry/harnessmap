@@ -67,7 +67,7 @@ for (const N of SIZES) {
   let dbKB = 0; try { dbKB = Math.round(parseInt(execSync(`stat -c %s ${dbPath}`).toString().trim(), 10) / 1024); } catch {}
 
   console.log([N, buildMs.toFixed(0), g.ms.toFixed(1), l.ms.toFixed(1), r.ms.toFixed(1), treeChars, tt.ms.toFixed(1), tieredChars, rosterChars, dbKB, rss()].join('\t'));
-  store.close?.();
+  (store as any).close?.();
   try { rmSync(dbPath, { force: true }); rmSync(dbPath + '-wal', { force: true }); rmSync(dbPath + '-shm', { force: true }); } catch {}
 }
 console.log(`\nfinal RSS ${rss()} MB`);
