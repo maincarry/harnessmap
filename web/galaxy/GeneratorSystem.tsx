@@ -281,15 +281,21 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
   useEffect(() => {
     if (window.innerWidth >= 640) return;
     setRocketShrink(0.72);
-    const s = Math.max(0.12, Math.min(0.36, (window.innerWidth / WORLD) * 1.02));
+    const s = Math.max(0.12, Math.min(0.36, (window.innerWidth / worldSize) * 1.02));
     setTransformRef.current?.(
-      (window.innerWidth - WORLD * s) / 2,
-      (window.innerHeight - WORLD * s) / 2,
+      (window.innerWidth - worldSize * s) / 2,
+      (window.innerHeight - worldSize * s) / 2,
       s,
       0,
     );
   }, [seed, planetCount]);
   const config = extras ?? baseConfig;
+  // Grow the world to CONTAIN the actual orbits so nothing exceeds the world box and gets clipped by the
+  // orbit SVG (which clips to its own size) — the real cause of the cut-off outer rings. Classic toy keeps
+  // the fixed WORLD. (2026-09-21)
+  const maxOrbitR = mapMode && config.planets.length ? Math.max(...config.planets.map((pp) => pp.orbit.maxR + pp.size / 2)) : 0;
+  const worldSize = mapMode ? Math.max(WORLD, 2 * (maxOrbitR + 500)) : WORLD;
+  const center = worldSize / 2;
 
   // Flight recorder: keep the last-known world state in the heartbeat, so a
   // killed phone tab still tells us which system it was showing.
@@ -512,12 +518,12 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
   const planetPos = new Map<string, { x: number; y: number }>();
   for (const p of config.planets) {
     const q = p.orbit.pointAt(p.startAngle + (t * TAU) / p.period);
-    planetPos.set(p.id, { x: CENTER + q.x, y: CENTER + q.y });
+    planetPos.set(p.id, { x: center + q.x, y: center + q.y });
   }
   const drifterPos = new Map<string, { x: number; y: number }>();
   for (const d of config.drifters) {
     const q = d.orbit.pointAt(d.startAngle + (d.dir * t * TAU) / d.period);
-    drifterPos.set(d.id, { x: CENTER + q.x, y: CENTER + q.y });
+    drifterPos.set(d.id, { x: center + q.x, y: center + q.y });
   }
 
   /** Navigator entries: the sun, then every planet with its moon tree. */
@@ -558,7 +564,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
 
   /** Current world position of any navigator-listed body. */
   const bodyPos = (id: string): { x: number; y: number } | null => {
-    if (id === config.sun.id) return { x: CENTER, y: CENTER };
+    if (id === config.sun.id) return { x: center, y: center };
     const pq = planetPos.get(id);
     if (pq) return pq;
     // Moons (and their own mini-moons) ride on their parent's position.
@@ -767,7 +773,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     const p = fid ? config.planets.find((pp) => pp.id === fid) : undefined;
     const m = fid && !p ? findMoonById(config.planets, fid) : null;
     if (p) {
-      const anchor = planetPos.get(p.id) ?? { x: CENTER, y: CENTER };
+      const anchor = planetPos.get(p.id) ?? { x: center, y: center };
       subject = {
         info: { id: p.id, name: p.name, img: p.img, line: p.line, kindLabel: "Planet" },
         layout: computeChatLayout(
@@ -780,7 +786,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
         ),
       };
     } else if (m) {
-      const anchor = bodyPos(m.id) ?? { x: CENTER, y: CENTER };
+      const anchor = bodyPos(m.id) ?? { x: center, y: center };
       const parent = findMoonParent(config.planets, m.id);
       const parentIsPlanet =
         parent != null && config.planets.some((pp) => pp.id === parent.id);
@@ -813,7 +819,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
         },
         layout: computeChatLayout(
           config.sun.id,
-          { x: CENTER, y: CENTER },
+          { x: center, y: center },
           config.sun.size,
           config.planets.map((pp) => ({ id: pp.id, size: pp.size, name: pp.name })),
           stripSize().w,
@@ -882,7 +888,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
       if (inFan && p.id === fanSubj.layout.parentId) {
         r = chatAdjustSubject(p.id, q.x, q.y, p.size);
       } else if (inFan) {
-        r = chatRide(p.id, CENTER, CENTER, a, p.orbit.pointAt, p.size);
+        r = chatRide(p.id, center, center, a, p.orbit.pointAt, p.size);
       } else if (wasSubject) {
         const live = { x: q.x, y: q.y, size: p.size };
         const c = chaseChatTarget(chatRenderRef.current, p.id, live, live, t);
@@ -897,8 +903,8 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
         const x = rideChatOrbitExit(
           chatRideRef.current,
           p.id,
-          CENTER,
-          CENTER,
+          center,
+          center,
           a,
           p.orbit.pointAt,
           p.size,
@@ -945,12 +951,12 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
    * a planet gets its outermost moon ring (or just its own disc when
    * it has no moons), a moon its own disc.
    */
-  // A ring is centered on the sun (world CENTER). Draw/keep it only when its FULL circle is inside the
+  // A ring is centered on the sun (world center). Draw/keep it only when its FULL circle is inside the
   // visible content area at the current pan+zoom — right of the navigator, above the bottom hint — so it
   // never slices the screen as a cut-off arc. Robust to panning, not just the opening frame.
   const ringFullyVisible = (maxR: number): boolean => {
     const st = stateRef.current; if (!st) return true;
-    const sx = st.positionX + CENTER * st.scale, sy = st.positionY + CENTER * st.scale;
+    const sx = st.positionX + center * st.scale, sy = st.positionY + center * st.scale;
     const rpx = maxR * st.scale;
     const navX = window.innerWidth >= 640 ? 296 : 0;
     const botY = window.innerHeight - 110;
@@ -1122,7 +1128,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
       const apply = setTransformRef.current; const ps = config.planets;
       if (!apply) return;
       didOpenRef.current = true;
-      const c = bodyPos(config.sun.id) ?? { x: CENTER, y: CENTER };
+      const c = bodyPos(config.sun.id) ?? { x: center, y: center };
       const navX = window.innerWidth >= 640 ? 296 : 0;
       const areaW = window.innerWidth - navX, areaH = window.innerHeight - 110;
       let s = 0.36;
@@ -1801,8 +1807,8 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     handleNavigate(id);
   };
 
-  let rocketX = CENTER;
-  let rocketY = CENTER;
+  let rocketX = center;
+  let rocketY = center;
   let rocketRot = PARK_ROT;
   let rocketFlame = 0;
   if (dragNow) {
@@ -1815,7 +1821,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
   } else if (flight) {
     const p = Math.min(1, (performance.now() - flight.startAt) / flight.dur);
     const e = easeInOutCubicFn(p);
-    const end = parkPos(flight.toId) ?? { x: CENTER, y: CENTER };
+    const end = parkPos(flight.toId) ?? { x: center, y: center };
     const u = 1 - e;
     rocketX = u * u * flight.fx + 2 * u * e * flight.cx + e * e * end.x;
     rocketY = u * u * flight.fy + 2 * u * e * flight.cy + e * e * end.y;
@@ -1996,18 +2002,18 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
             <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
               <div
                 className={`relative ${warping ? "system-exit" : "system-enter"}`}
-                style={{ width: WORLD, height: WORLD }}
+                style={{ width: worldSize, height: worldSize }}
               >
                 {/* Twinkling stars and comets — dimmed in chat mode so the
                     family strip stays the star of the show. */}
-                <Starfield size={WORLD} chatMix={chatMix} />
+                <Starfield size={worldSize} chatMix={chatMix} />
 
                 {/* Hand-drawn orbit rings — every planet's ring is a
                     different asymmetric closed curve */}
                 <svg
-                  width={WORLD}
-                  height={WORLD}
-                  viewBox={`0 0 ${WORLD} ${WORLD}`}
+                  width={worldSize}
+                  height={worldSize}
+                  viewBox={`0 0 ${worldSize} ${worldSize}`}
                   className="pointer-events-none absolute inset-0"
                   aria-hidden
                 >
@@ -2021,7 +2027,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                     return (
                       <g
                         key={p.id}
-                        transform={`translate(${CENTER} ${CENTER}) scale(${s})`}
+                        transform={`translate(${center} ${center}) scale(${s})`}
                       >
                         <path
                           d={p.orbit.d}
@@ -2062,8 +2068,8 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                 <div
                   className="pointer-events-none absolute rounded-full"
                   style={{
-                    left: CENTER,
-                    top: CENTER,
+                    left: center,
+                    top: center,
                     width: config.sun.size * 1.8,
                     height: config.sun.size * 1.8,
                     transform: "translate(-50%, -50%)",
@@ -2079,8 +2085,8 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
 
                 <Planet
                   def={config.sun}
-                  x={CENTER}
-                  y={CENTER}
+                  x={center}
+                  y={center}
                   active={activeId === config.sun.id}
                   jumping={jumpId === config.sun.id}
                   newborn={newbornId === config.sun.id}
@@ -2148,9 +2154,9 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                 {/* Golden tether from the dragged rocket to its target */}
                 {dragNow?.hover && dragHoverPos && (
                   <svg
-                    width={WORLD}
-                    height={WORLD}
-                    viewBox={`0 0 ${WORLD} ${WORLD}`}
+                    width={worldSize}
+                    height={worldSize}
+                    viewBox={`0 0 ${worldSize} ${worldSize}`}
                     className="pointer-events-none absolute inset-0 z-[35]"
                     aria-hidden
                   >
