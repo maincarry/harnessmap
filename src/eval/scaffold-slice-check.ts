@@ -77,5 +77,23 @@ const ENVCTX = '<environment_context>\n  <cwd>/x</cwd>\n</environment_context>';
   ok('looksLikeScaffold: <html> no (not scaffold-ish)', looksLikeScaffold('<html>hi') === false);
 }
 
+
+// ---- M366 structural stripper: plausible host-format VARIANTS (standing watch) ----
+{
+  const { stripHostScaffold, looksLikeScaffold } = await import('../agent/harness-adapter.js');
+  // variant hardening
+  ok('tag WITH ATTRIBUTES is stripped', stripHostScaffold('<recommended_plugins version="2" source="curated">\n- Slack\n</recommended_plugins>\ngo') === 'go');
+  ok('UPPERCASE scaffold tag is stripped', stripHostScaffold('<ENVIRONMENT_CONTEXT>\n<cwd>/x</cwd>\n</ENVIRONMENT_CONTEXT>\nkeep') === 'keep');
+  ok('several stacked scaffold blocks all stripped', stripHostScaffold('<recommended_plugins>\n- A\n</recommended_plugins>\n<environment_context><cwd>/x</cwd></environment_context>\n<user_instructions>be nice</user_instructions>\nthe real ask') === 'the real ask');
+  ok('mixed: scaffold then a multi-line user message', stripHostScaffold('<recommended_plugins>\n- A\n</recommended_plugins>\nline one\nline two') === 'line one\nline two');
+  ok('novel tool_definitions manifest (unclosed) dropped', stripHostScaffold('<tool_definitions>\n- search(query)\n- read(path)') === '');
+  ok('a scaffold tag mid-message does NOT eat the leading user words', stripHostScaffold('please read <environment_context><cwd>/x</cwd></environment_context>') === 'please read <environment_context><cwd>/x</cwd></environment_context>');
+  ok('looksLikeScaffold: tag with attributes', looksLikeScaffold('<recommended_plugins version="2">x') === true);
+  ok('looksLikeScaffold: uppercase', looksLikeScaffold('<TURN_ABORTED>') === true);
+  // KNOWN BOUNDARY (documented, not a failure): a PLAIN-TEXT plugin list with no tag is NOT caught by the
+  // structural stripper — catching it would need a content heuristic that risks eating real user prose.
+  ok('BOUNDARY: plain-text plugin list is NOT stripped (kept as-is)', stripHostScaffold('Here is a list of plugins:\n- Slack\n- Notion') === 'Here is a list of plugins:\n- Slack\n- Notion');
+}
+
 console.log(`scaffold-slice: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
