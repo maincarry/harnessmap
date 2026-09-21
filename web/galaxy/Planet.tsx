@@ -40,6 +40,8 @@ interface PlanetProps {
   /** Chat mode: scale the name label up so it stays readable while the
       camera zooms the family column out. */
   labelBoost?: number;
+  /** Node is unlit / settled — render "asleep": dim, desaturated, not breathing, with a soft z z z. */
+  dimmed?: boolean;
 }
 
 /**
@@ -57,7 +59,7 @@ export function planetLabelSize(size: number, name: string): number {
  * A celestial body floating in the world: sprite, name label, tap
  * reaction. Position comes from the parent's orbit math.
  */
-export function Planet({ def, x, y, active, bouncing = false, newborn = false, departing = false, onTap, spin, jumping, highlighted, highlightMode = "flash", labelBoost = 1 }: PlanetProps) {
+export function Planet({ def, x, y, active, bouncing = false, newborn = false, departing = false, onTap, spin, jumping, highlighted, highlightMode = "flash", labelBoost = 1, dimmed = false }: PlanetProps) {
   const downAt = useRef<{ x: number; y: number; t: number } | null>(null);
   const longName = def.name.length > 16;
 
@@ -73,6 +75,8 @@ export function Planet({ def, x, y, active, bouncing = false, newborn = false, d
       ? `sun-spin 90s linear infinite`
       : `planet-breathe ${def.breathe}s ease-in-out ${def.delay}s infinite`;
   }
+
+  if (dimmed && !departing && !newborn && !jumping) animation = undefined;
 
   const labelSize = planetLabelSize(def.size, def.name);
 
@@ -109,8 +113,15 @@ export function Planet({ def, x, y, active, bouncing = false, newborn = false, d
           height={def.size}
           draggable={false}
           className="h-full w-full object-contain"
-          style={{ animation }}
+          style={{ animation, filter: dimmed ? "saturate(0.35) brightness(0.72) opacity(0.5)" : undefined }}
         />
+        {dimmed && (
+          <span aria-hidden className="pointer-events-none absolute font-hand font-bold leading-none" style={{ top: "2%", right: "6%", color: "#cfc3ff", textShadow: "0 1px 4px rgba(0,0,0,.4)" }}>
+            <span style={{ fontSize: def.size * 0.16, opacity: 0.9 }}>z</span>
+            <span style={{ fontSize: def.size * 0.21, opacity: 0.72, marginLeft: 2 }}>z</span>
+            <span style={{ fontSize: def.size * 0.28, opacity: 0.55, marginLeft: 2 }}>z</span>
+          </span>
+        )}
         {/* Newborn celebration: sparkle crosses bursting outward. */}
         {newborn &&
           [0, 60, 120, 180, 240, 300].map((a) => {

@@ -1899,6 +1899,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
             highlightMode={highlightId === m.id ? "flash" : "steady"}
             newborn={newbornId === m.id}
             departing={departingIds.includes(m.id)}
+            dimmed={(m as any).dimmed}
             onTap={handleBodyTap}
           />
           {renderMoonTree(m.moons, r.x, r.y, m.id)}
@@ -2071,6 +2072,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                         highlightMode={
                           highlightId === p.id ? "flash" : "steady"
                         }
+                        dimmed={(p as any).dimmed}
                         onTap={handleBodyTap}
                       />
                     );
