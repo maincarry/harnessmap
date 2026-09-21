@@ -290,11 +290,11 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     );
   }, [seed, planetCount]);
   const config = extras ?? baseConfig;
-  // Grow the world to CONTAIN the actual orbits so nothing exceeds the world box and gets clipped by the
-  // orbit SVG (which clips to its own size) — the real cause of the cut-off outer rings. Classic toy keeps
-  // the fixed WORLD. (2026-09-21)
-  const maxOrbitR = mapMode && config.planets.length ? Math.max(...config.planets.map((pp) => pp.orbit.maxR + pp.size / 2)) : 0;
-  const worldSize = mapMode ? Math.max(WORLD, 2 * (maxOrbitR + 500)) : WORLD;
+  // Keep the world (and thus the Starfield canvas) at a bounded size — growing it to contain big orbits
+  // would make an enormous canvas (memory bomb). Instead the orbit SVGs use overflow:visible so rings can
+  // draw BEYOND the world box without being clipped (the real cause of the cut-off outer rings). Bodies live
+  // in a div that doesn't clip. (2026-09-21)
+  const worldSize = WORLD;
   const center = worldSize / 2;
 
   // Flight recorder: keep the last-known world state in the heartbeat, so a
@@ -2015,6 +2015,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                   height={worldSize}
                   viewBox={`0 0 ${worldSize} ${worldSize}`}
                   className="pointer-events-none absolute inset-0"
+                  style={{ overflow: "visible" }}
                   aria-hidden
                 >
                   {config.planets.map((p) => {
@@ -2157,6 +2158,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                     width={worldSize}
                     height={worldSize}
                     viewBox={`0 0 ${worldSize} ${worldSize}`}
+                    style={{ overflow: "visible" }}
                     className="pointer-events-none absolute inset-0 z-[35]"
                     aria-hidden
                   >
