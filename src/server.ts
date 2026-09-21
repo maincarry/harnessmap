@@ -1798,8 +1798,14 @@ const server = Bun.serve({
     const termWs = path === '/term' ? url.searchParams.get('id') : null;
     if (termWs && (srv as any).upgrade(req, { data: { term: termWs } })) return undefined as any;
     if (path.startsWith('/vendor/')) {
-      const f = Bun.file(join(here, '..', 'public', 'vendor', path.slice('/vendor/'.length).replace(/[^\w.\-]/g, '')));
-      return new Response(f);
+      const name = path.slice('/vendor/'.length).replace(/[^\w.\-]/g, '');
+      const f = Bun.file(join(here, '..', 'public', 'vendor', name));
+      // M367 (Jacob, live: "you clearly didn't fix it" — he was seeing a STALE galaxy). galaxy.js/.css
+      // have fixed names, so without a cache header the browser heuristically caches the old bundle and
+      // never picks up an update. Serve those no-cache so an updated app always loads the fresh bundle.
+      // (ga-*.png sprites carry a content hash in the name, so they stay cacheable.)
+      const headers = /^galaxy\.(js|css)$/.test(name) ? { 'cache-control': 'no-cache' } : undefined;
+      return new Response(f, headers ? { headers } : undefined);
     }
     if (path === '/' || path === '/index.html') {
       // M177b: the page must never be served stale from browser cache — a
