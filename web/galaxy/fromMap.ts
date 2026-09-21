@@ -89,20 +89,20 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
     return { moons: out, span: ringR };
   };
 
-  // Lay planets out on EVENLY-SPREAD rings within the world (inner..outer), and SIZE them to the
-  // per-ring budget so they never overlap however many there are: few topics → big, well-spread
-  // planets (toy feel); many → smaller, denser, still clear. Moons are hidden at the top level (LOD),
-  // so they never affect ring spacing — they appear, full size, only when a planet is focused.
+  // Keep planets BIG and characterful (toy-sized); grow the WORLD with the map instead of shrinking
+  // bodies. Rings are placed with clearance so they never overlap; the view opens at the toy's zoom
+  // (big inner planets) and you pan / zoom / navigate outward. Moons are FOLDED into their planet and
+  // unfold by ZOOM (rendered only when big enough on screen — see GeneratorSystem), so they neither
+  // clutter the overview nor affect ring spacing.
   const N = planetNodes.length;
-  const inner = 560, outer = 1620;
-  const perRing = N > 1 ? (outer - inner) / (N - 1) : 0;
-  const planets: GeneratedPlanet[] = planetNodes.map((n, i): GeneratedPlanet => {
+  const RING_MARGIN = 105;
+  let prevEdge = SUN_SIZE / 2;
+  const planets: GeneratedPlanet[] = planetNodes.map((n): GeneratedPlanet => {
     const h = hash(n.id); const desc = (kids.get(n.id) ?? []).length;
-    const base = desc >= 4 ? 250 + (h % 60) : desc >= 1 ? 170 + (h % 60) : 110 + (h % 45);
-    // cap size to ~85% of the ring gap so adjacent rings never touch (min 60 so it stays tappable)
-    const size = N > 1 ? Math.max(60, Math.min(base, perRing * 0.85)) : base;
+    const size = desc >= 4 ? 250 + (h % 60) : desc >= 1 ? 175 + (h % 60) : 120 + (h % 50);
     const { moons } = buildMoons(n, size, 1);
-    const orbitR = N > 1 ? inner + perRing * i : inner + 380;
+    const orbitR = prevEdge + RING_MARGIN + size / 2;   // clearance → never overlap, world grows with count
+    prevEdge = orbitR + size / 2;
     const body: GalaxyBody = {
       id: n.id, name: nameOf(n), img: pickBy(PLANET_SPRITES, h).img, size,
       line: lineOf(n), breathe: 3 + ((h % 24) / 10), delay: (h % 16) / 10,

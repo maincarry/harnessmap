@@ -945,22 +945,6 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
    * a planet gets its outermost moon ring (or just its own disc when
    * it has no moons), a moon its own disc.
    */
-  // LOD (map mode): at the top level show only the planets (topics); a planet's moons appear
-  // when that planet — or something inside it — is focused. Keeps big maps legible instead of
-  // dumping every node on screen at once. (In the classic toy, mapMode is off → always show.)
-  const planetDescendants = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    const collect = (moons: any[], into: Set<string>) => { for (const m of moons) { into.add(m.id); if (m.moons?.length) collect(m.moons, into); } };
-    for (const p of config.planets) { const s = new Set<string>(); collect(p.moons, s); map.set(p.id, s); }
-    return map;
-  }, [config]);
-  const moonsRevealed = (planetId: string): boolean => {
-    if (!mapMode) return true;
-    const f = focusedId ?? chatTalkId;
-    if (!f) return false;
-    return f === planetId || (planetDescendants.get(planetId)?.has(f) ?? false);
-  };
-
   const frameRadius = (id: string): number => {
     if (id === config.sun.id) {
       // Every planet may have been waved goodbye — frame just the sun.
@@ -1116,14 +1100,27 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     }
   }, [config, rocketHostId]);
 
-  // Map mode opens framing the WHOLE system (the field grows with the map, so the fixed
-  // initial scale would only show the sun). Fit to the sun's frame radius once on mount.
-  const didFitRef = useRef(false);
+  // Map mode opens centered on the sun, framing the INNER few planets big (not the whole system,
+  // which would shrink everything to a speck). You pan / zoom / use the navigator to reach the rest;
+  // moons unfold as you zoom in. One-shot on mount.
+  const didOpenRef = useRef(false);
   useEffect(() => {
-    if (!mapMode || didFitRef.current) return;
-    const t = setTimeout(() => { if (setTransformRef.current) { didFitRef.current = true; focusCamera(config.sun.id); } }, 120);
+    if (!mapMode || didOpenRef.current) return;
+    const t = setTimeout(() => {
+      const apply = setTransformRef.current; const ps = config.planets;
+      if (!apply) return;
+      didOpenRef.current = true;
+      const c = bodyPos(config.sun.id) ?? { x: CENTER, y: CENTER };
+      let s = 0.36;
+      if (ps.length) {
+        const k = Math.min(3, ps.length - 1);
+        const framR = ps[k]!.orbit.maxR + ps[k]!.size / 2 + 140;
+        s = Math.min(Math.max((Math.min(window.innerWidth, window.innerHeight) * 0.9) / (2 * framR), 0.06), 0.6);
+      }
+      apply(window.innerWidth / 2 - c.x * s, window.innerHeight / 2 - c.y * s, s, 350);
+    }, 150);
     return () => clearTimeout(t);
-  });
+  }, [mapMode, config]);
 
   /** Glide the camera so the body and everything orbiting it fits. */
   const focusCamera = (id: string) => {
@@ -1904,6 +1901,11 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     parentId = "",
   ): ReactNode =>
     moons.map((m) => {
+      // Zoom folding (map mode): a moon renders only when it is big enough on screen to read
+      // (size x current zoom). Zoomed out, moons stay folded into their planet; zoom in and they
+      // unfold, then mini-moons unfold deeper still. Focused/active bodies always show.
+      const camScale = stateRef.current?.scale ?? 0.36;
+      if (mapMode && m.size * camScale < 20 && focusedId !== m.id && activeId !== m.id && chatTalkId !== m.id) return null;
       const a = m.startAngle + (t * TAU) / m.period;
       const r = chatPoseMoon(m, px, py, a, parentId);
       const chatSized = Math.abs(r.size - m.size) > 0.5;
@@ -2104,7 +2106,6 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                   })}
 
                 {config.planets.map((p) => {
-                  if (!moonsRevealed(p.id)) return null;
                   const q = planetPos.get(p.id)!;
                   return (
                     <Fragment key={p.id}>
