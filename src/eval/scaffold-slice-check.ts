@@ -70,7 +70,7 @@ const ENVCTX = '<environment_context>\n  <cwd>/x</cwd>\n</environment_context>';
   ok('novel snake_case tag, unclosed, is dropped', stripHostScaffold('<mcp_server_list>\n- foo\n- bar') === '');
   // real user prose is NEVER eaten
   ok('plain prose untouched', stripHostScaffold('we chose blue because it is calmer') === 'we chose blue because it is calmer');
-  ok('prose starting with a NON-scaffold closed tag keeps following words', stripHostScaffold('<b>note</b> keep this') === 'keep this');
+  ok('a NON-scaffold leading tag block is KEPT, not stripped (only host vocab strips)', stripHostScaffold('<b>note</b> keep this') === '<b>note</b> keep this');
   ok('prose starting with an unclosed NON-scaffold tag is NOT eaten', stripHostScaffold('<html> is broken, help me fix it') === '<html> is broken, help me fix it');
   ok('looksLikeScaffold: recommended_plugins yes', looksLikeScaffold('<recommended_plugins>x') === true);
   ok('looksLikeScaffold: plain prose no', looksLikeScaffold('we decided X') === false);
@@ -93,6 +93,19 @@ const ENVCTX = '<environment_context>\n  <cwd>/x</cwd>\n</environment_context>';
   // KNOWN BOUNDARY (documented, not a failure): a PLAIN-TEXT plugin list with no tag is NOT caught by the
   // structural stripper — catching it would need a content heuristic that risks eating real user prose.
   ok('BOUNDARY: plain-text plugin list is NOT stripped (kept as-is)', stripHostScaffold('Here is a list of plugins:\n- Slack\n- Notion') === 'Here is a list of plugins:\n- Slack\n- Notion');
+}
+
+
+// ---- M366 refinement: host-vocab match only (no bare snake_case) — over-strip boundary ----
+{
+  const { stripHostScaffold } = await import('../agent/harness-adapter.js');
+  // host manifests still stripped (contain host vocab)
+  ok('mcp_server_list (host manifest) stripped', stripHostScaffold('<mcp_server_list>\n- s1\n</mcp_server_list>\nok') === 'ok');
+  ok('tool_definitions stripped', stripHostScaffold('<tool_definitions>\n- t\n</tool_definitions>\ngo') === 'go');
+  // USER content that happens to start with a snake_case tag is KEPT (the over-strip regression this guards)
+  ok('user config <database_config> is KEPT (not host vocab)', stripHostScaffold('<database_config>\n  host: localhost\n</database_config>\nwhat is wrong here?').startsWith('<database_config>'));
+  ok('user <my_data> block is KEPT', stripHostScaffold('<my_data>1,2,3</my_data> please parse') === '<my_data>1,2,3</my_data> please parse');
+  ok('all known host tags still recognized', ['recommended_plugins','environment_context','user_instructions','permissions','turn_aborted','hook_context','system_context','skills_instructions'].every((t) => stripHostScaffold(`<${t}>x</${t}>\nkeep`) === 'keep'));
 }
 
 console.log(`scaffold-slice: ${pass} passed, ${fail} failed`);

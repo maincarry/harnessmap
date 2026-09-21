@@ -34,10 +34,14 @@ export function isCodexRollout(lines: any[]): boolean {
 // app invents slips through and gets filed as the user's words. Recognise scaffold STRUCTURALLY instead:
 // a tag whose name is snake_case (foo_bar) or reads like host scaffold. Real user prose does not start
 // with a <snake_case> tag, so this is safe and permanent — it catches formats we have never seen.
-const SCAFFOLD_WORD = /(plugin|app|apps|context|instruction|environment|recommended|permission|tool|skill|memor|command|hook|turn_aborted|preamble|system)/i;
+// Host-scaffold vocabulary — every observed injected tag (recommended_plugins, environment_context,
+// user_instructions, permissions, turn_aborted, hook_context, system_context, skills_instructions, …)
+// contains one of these, and likely-new host manifests (tool/apps/mcp/server/memory/command lists) do too.
+const SCAFFOLD_WORD = /(plugin|apps?|context|instruction|environment|recommended|permission|tool|skill|memor|command|hook|turn_aborted|preamble|system|server|mcp|manifest|available|definition|agent)/i;
 function isScaffoldTag(name: string): boolean {
-  const n = String(name).toLowerCase();
-  return /_/.test(n) || SCAFFOLD_WORD.test(n);   // snake_case OR a scaffold-ish word
+  // Match host vocabulary ONLY — NOT "any snake_case". A user message can legitimately begin with a
+  // snake_case tag (pasted config/XML like <database_config>…), and stripping that would drop their words.
+  return SCAFFOLD_WORD.test(String(name).toLowerCase());
 }
 // A user turn that, after stripping, is empty OR still opens with a scaffold tag is pure host scaffold.
 export function looksLikeScaffold(text: string): boolean {
@@ -54,8 +58,11 @@ const CODEX_SCAFFOLD = { test: (s: string) => looksLikeScaffold(s) };
 export function stripHostScaffold(text: string): string {
   let t = String(text ?? '').trim();
   for (let i = 0; i < 12; i++) {
+    // Only strip leading blocks whose tag is HOST-scaffold vocabulary — a user message can legitimately
+    // begin with a closed tag block (pasted <database_config>…</database_config>, XML, HTML) and eating
+    // that would drop their words. Host preambles are always vocab tags, so this still strips them all.
     const closed = t.match(/^\s*<([a-z][a-z0-9_-]*)(?:\s[^>]*)?>[\s\S]*?<\/\1>\s*/i);
-    if (closed) { t = t.slice(closed[0].length).trim(); continue; }
+    if (closed && isScaffoldTag(closed[1]!)) { t = t.slice(closed[0].length).trim(); continue; }
     const open = t.match(/^\s*<([a-z][a-z0-9_-]*)(?:\s[^>]*)?>/i);
     if (open && isScaffoldTag(open[1]!) && !new RegExp(`</${open[1]}>`, 'i').test(t)) { t = ''; break; }
     break;
