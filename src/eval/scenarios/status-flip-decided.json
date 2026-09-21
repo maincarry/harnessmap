@@ -41,7 +41,7 @@
       "assistant": "Decision recorded: the new site is built on Astro; the lighter build outweighed familiarity.",
       "then": [
         {
-          "statusOf": "option: Astro|Astro — lighter",
+          "statusOf":"astro",
           "is": "chosen|decided|accepted"
         },
         {
