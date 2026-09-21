@@ -945,6 +945,22 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
    * a planet gets its outermost moon ring (or just its own disc when
    * it has no moons), a moon its own disc.
    */
+  // LOD (map mode): at the top level show only the planets (topics); a planet's moons appear
+  // when that planet — or something inside it — is focused. Keeps big maps legible instead of
+  // dumping every node on screen at once. (In the classic toy, mapMode is off → always show.)
+  const planetDescendants = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    const collect = (moons: any[], into: Set<string>) => { for (const m of moons) { into.add(m.id); if (m.moons?.length) collect(m.moons, into); } };
+    for (const p of config.planets) { const s = new Set<string>(); collect(p.moons, s); map.set(p.id, s); }
+    return map;
+  }, [config]);
+  const moonsRevealed = (planetId: string): boolean => {
+    if (!mapMode) return true;
+    const f = focusedId ?? chatTalkId;
+    if (!f) return false;
+    return f === planetId || (planetDescendants.get(planetId)?.has(f) ?? false);
+  };
+
   const frameRadius = (id: string): number => {
     if (id === config.sun.id) {
       // Every planet may have been waved goodbye — frame just the sun.
@@ -1100,6 +1116,15 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     }
   }, [config, rocketHostId]);
 
+  // Map mode opens framing the WHOLE system (the field grows with the map, so the fixed
+  // initial scale would only show the sun). Fit to the sun's frame radius once on mount.
+  const didFitRef = useRef(false);
+  useEffect(() => {
+    if (!mapMode || didFitRef.current) return;
+    const t = setTimeout(() => { if (setTransformRef.current) { didFitRef.current = true; focusCamera(config.sun.id); } }, 120);
+    return () => clearTimeout(t);
+  });
+
   /** Glide the camera so the body and everything orbiting it fits. */
   const focusCamera = (id: string) => {
     const q = bodyPos(id);
@@ -1107,7 +1132,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     const fit =
       (Math.min(window.innerWidth, window.innerHeight) * 0.82) /
       (2 * frameRadius(id));
-    const s = Math.min(Math.max(fit, 0.16), 1.35);
+    const s = Math.min(Math.max(fit, id === config.sun.id ? 0.03 : 0.16), 1.35);
     const st = stateRef.current;
     followRef.current = {
       id,
@@ -2079,6 +2104,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                   })}
 
                 {config.planets.map((p) => {
+                  if (!moonsRevealed(p.id)) return null;
                   const q = planetPos.get(p.id)!;
                   return (
                     <Fragment key={p.id}>
