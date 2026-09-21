@@ -143,3 +143,12 @@ export function makeOrbitShape(
   }
   return { kind, d: `${d} Z`, pointAt, maxR };
 }
+
+// A PERFECT circle centered on the origin (rendered under translate(CENTER,CENTER) → centered on the sun).
+// Map mode uses this so rings nest cleanly and never cross — the wobbly/jittered shapes tangle once many
+// rings sit close together. (2026-09-21)
+export function makeRingCircle(r: number): OrbitShape {
+  const N = 72; const pts: string[] = [];
+  for (let i = 0; i <= N; i++) { const a = (i / N) * TAU; pts.push(`${i === 0 ? "M" : "L"} ${(Math.cos(a) * r).toFixed(1)} ${(Math.sin(a) * r).toFixed(1)}`); }
+  return { kind: "ring", d: pts.join(" ") + " Z", pointAt: (a: number) => ({ x: Math.cos(a) * r, y: Math.sin(a) * r }), maxR: r };
+}

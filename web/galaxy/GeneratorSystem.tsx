@@ -1927,6 +1927,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
             newborn={newbornId === m.id}
             departing={departingIds.includes(m.id)}
             dimmed={(m as any).dimmed}
+            showLabel={!mapMode || m.size * camScale >= 42 || activeId === m.id || focusedId === m.id}
             onTap={handleBodyTap}
           />
           {renderMoonTree(m.moons, r.x, r.y, m.id)}
@@ -2080,6 +2081,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                       chatRenderRef.current.get(p.id) ??
                       chatRideRef.current.get(p.id);
                     const chatSized = cr != null && Math.abs(cr.size - p.size) > 0.5;
+                    const camScaleP = stateRef.current?.scale ?? 0.36;
                     return (
                       <Planet
                         key={p.id}
@@ -2100,6 +2102,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                           highlightId === p.id ? "flash" : "steady"
                         }
                         dimmed={(p as any).dimmed}
+                        showLabel={!mapMode || p.size * camScaleP >= 42 || activeId === p.id || focusedId === p.id}
                         onTap={handleBodyTap}
                       />
                     );

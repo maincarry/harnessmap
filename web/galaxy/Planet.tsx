@@ -42,6 +42,8 @@ interface PlanetProps {
   labelBoost?: number;
   /** Node is unlit / settled — render "asleep": dim, desaturated, not breathing, with a soft z z z. */
   dimmed?: boolean;
+  /** Hide the name label (map mode declutter: only bodies big enough on screen show a label). */
+  showLabel?: boolean;
 }
 
 /**
@@ -59,7 +61,7 @@ export function planetLabelSize(size: number, name: string): number {
  * A celestial body floating in the world: sprite, name label, tap
  * reaction. Position comes from the parent's orbit math.
  */
-export function Planet({ def, x, y, active, bouncing = false, newborn = false, departing = false, onTap, spin, jumping, highlighted, highlightMode = "flash", labelBoost = 1, dimmed = false }: PlanetProps) {
+export function Planet({ def, x, y, active, bouncing = false, newborn = false, departing = false, onTap, spin, jumping, highlighted, highlightMode = "flash", labelBoost = 1, dimmed = false, showLabel = true }: PlanetProps) {
   const downAt = useRef<{ x: number; y: number; t: number } | null>(null);
   const longName = def.name.length > 16;
 
@@ -193,6 +195,7 @@ export function Planet({ def, x, y, active, bouncing = false, newborn = false, d
           </span>
         )}
       </button>
+      {showLabel && (
       <span
         className={`pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 font-hand font-bold uppercase tracking-[0.2em] text-orbit-label transition-opacity duration-500 ${
           departing ? "opacity-0" : ""
@@ -201,11 +204,12 @@ export function Planet({ def, x, y, active, bouncing = false, newborn = false, d
         }`}
         style={{
           fontSize: labelSize * labelBoost,
-          textShadow: "0 2px 10px rgba(10, 6, 30, 0.9)",
+          textShadow: "0 0 3px #1a0f3a, 0 0 3px #1a0f3a, 0 2px 8px rgba(10,6,30,0.95)",
         }}
       >
         {def.name}
       </span>
+      )}
       {active && <SpeechBubble text={def.line} />}
     </div>
   );

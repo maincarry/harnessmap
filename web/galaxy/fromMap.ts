@@ -5,7 +5,7 @@
 // summing each body's diameter + its moon span + a margin, so the field GROWS with the map instead of
 // cramming it into a fixed budget (the crowding Jacob caught). Status drives lit/dim (asleep = dimmed).
 import type { BodyDef } from "./planets";
-import { makeOrbitShape, ORBIT_SHAPE_KINDS } from "./orbitShapes";
+import { makeOrbitShape, makeRingCircle } from "./orbitShapes";
 import { PLANET_SPRITES, MOON_SPRITES, SUN_SPRITES } from "./spritePool";
 import type { SystemConfig, GeneratedPlanet, GeneratedMoon } from "./systemGenerator";
 
@@ -21,11 +21,13 @@ export interface MapNodeLite {
 export interface MapToSystemOpts { projectName?: string; litIds?: Set<string> | null; }
 export interface GalaxyBody extends BodyDef { dimmed?: boolean; nodeId?: string; nodeStatus?: string; }
 
-const SLEEPY = new Set(["removed", "parked", "rejected", "dropped", "mooted", "retracted", "reversed", "lifted", "done", "answered", "accepted", "decided", "chosen", "cited"]);
+// Only genuinely DORMANT nodes sleep — most content stays awake so the map feels alive. (Not
+// done/decided/answered/accepted: those are normal, active content.)
+const SLEEPY = new Set(["parked", "rejected", "dropped", "mooted", "retracted", "reversed", "lifted"]);
 function hash(s: string): number { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; }
 const pickBy = <T,>(arr: readonly T[], seed: number): T => arr[seed % arr.length]!;
 const isTutorial = (n: MapNodeLite) => n.author === "system" || /getting started/i.test(String(n.title ?? "")) || /getting started \(tutorial\)/i.test(String(n.content ?? ""));
-function bodyDim(n: MapNodeLite, o: MapToSystemOpts): boolean { return o.litIds ? !o.litIds.has(n.id) : SLEEPY.has(n.status); }
+function bodyDim(n: MapNodeLite, _o: MapToSystemOpts): boolean { return SLEEPY.has(n.status); }
 function nameOf(n: MapNodeLite): string { const t = String(n.title ?? "").trim(); if (t) return t.slice(0, 40); return String(n.content ?? "node").trim().split(/\s+/).slice(0, 5).join(" ").slice(0, 40) || "node"; }
 function lineOf(n: MapNodeLite): string { return String(n.content ?? "").trim().slice(0, 240); }
 
@@ -82,7 +84,7 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
         line: lineOf(c), breathe: 2.8 + ((h % 12) / 10), delay: (h % 15) / 10,
         dimmed: bodyDim(c, opts), nodeId: c.id, nodeStatus: c.status,
         orbitR: mOrbitR, period: 120 + (h % 90), startAngle: ((h >> 5) % 628) / 100,
-        ringD: makeOrbitShape("ring", mOrbitR, h, 10).d, moons: sub.moons,
+        ringD: makeRingCircle(mOrbitR).d, moons: sub.moons,
       } as GeneratedMoon & GalaxyBody);
       ringR = mOrbitR + size / 2 + reach;                       // advance past this moon (and its own moons)
     }
@@ -109,9 +111,9 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
       dimmed: bodyDim(n, opts), nodeId: n.id, nodeStatus: n.status,
     };
     return {
-      // many topics → clean near-circular rings (the wobbly egg/bean shapes tangle past ~8);
-      // few topics → keep the hand-drawn variety for charm.
-      ...body, orbit: N > 8 ? makeOrbitShape("ring", orbitR, h, 8) : makeOrbitShape(pickBy(ORBIT_SHAPE_KINDS, h), orbitR, h),
+      // clean, perfectly concentric rings so they never cross (the wobbly/jittered shapes tangle
+      // once rings sit close together — the map has many more rings than the 9-planet toy).
+      ...body, orbit: makeRingCircle(orbitR),
       period: 315 * Math.pow(orbitR / 445, 1.35), startAngle: (h % 628) / 100,
       dash: `${30 + (h % 18)} ${20 + ((h >> 4) % 12)}`, ringWidth: 9 + (h % 4), ringOpacity: 0.72 + ((h % 20) / 100),
       moons,
