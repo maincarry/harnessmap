@@ -945,6 +945,18 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
    * a planet gets its outermost moon ring (or just its own disc when
    * it has no moons), a moon its own disc.
    */
+  // A ring is centered on the sun (world CENTER). Draw/keep it only when its FULL circle is inside the
+  // visible content area at the current pan+zoom — right of the navigator, above the bottom hint — so it
+  // never slices the screen as a cut-off arc. Robust to panning, not just the opening frame.
+  const ringFullyVisible = (maxR: number): boolean => {
+    const st = stateRef.current; if (!st) return true;
+    const sx = st.positionX + CENTER * st.scale, sy = st.positionY + CENTER * st.scale;
+    const rpx = maxR * st.scale;
+    const navX = window.innerWidth >= 640 ? 296 : 0;
+    const botY = window.innerHeight - 110;
+    return sx - rpx >= navX + 10 && sx + rpx <= window.innerWidth - 10 && sy - rpx >= 10 && sy + rpx <= botY - 10;
+  };
+
   const frameRadius = (id: string): number => {
     if (id === config.sun.id) {
       // Every planet may have been waved goodbye — frame just the sun.
@@ -1111,13 +1123,16 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
       if (!apply) return;
       didOpenRef.current = true;
       const c = bodyPos(config.sun.id) ?? { x: CENTER, y: CENTER };
+      const navX = window.innerWidth >= 640 ? 296 : 0;
+      const areaW = window.innerWidth - navX, areaH = window.innerHeight - 110;
       let s = 0.36;
       if (ps.length) {
-        const k = Math.min(6, ps.length - 1);
+        const k = Math.min(3, ps.length - 1);
         const framR = ps[k]!.orbit.maxR + ps[k]!.size / 2 + 140;
-        s = Math.min(Math.max((Math.min(window.innerWidth, window.innerHeight) * 0.9) / (2 * framR), 0.06), 0.6);
+        s = Math.min(Math.max((Math.min(areaW, areaH) * 0.92) / (2 * framR), 0.06), 0.6);
       }
-      apply(window.innerWidth / 2 - c.x * s, window.innerHeight / 2 - c.y * s, s, 350);
+      // center the sun in the visible content area (right of the navigator, above the bottom hint)
+      apply(navX + areaW / 2 - c.x * s, areaH / 2 - c.y * s, s, 350);
     }, 150);
     return () => clearTimeout(t);
   }, [mapMode, config]);
@@ -1855,9 +1870,10 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     depth = 0,
   ): ReactNode =>
     moons.map((m) => {
-      // Match the body's zoom-fold: a folded (hidden) moon shows no orbit ring either.
+      // Match the body's fold: gen-2 rings (depth 0) always show with the planet; gen-3+ (depth >= 1)
+      // fold by zoom, exactly like the moon bodies.
       const camScale = stateRef.current?.scale ?? 0.36;
-      if (mapMode && m.size * camScale < 20 && focusedId !== m.id && activeId !== m.id && chatTalkId !== m.id) return null;
+      if (mapMode && depth >= 1 && m.size * camScale < 20 && focusedId !== m.id && activeId !== m.id && chatTalkId !== m.id) return null;
       const a = m.startAngle + (t * TAU) / m.period;
       // The moon's rendered pose (frame-guarded, agrees with the moon
       // bodies) so nested rings center on where it actually is — and
@@ -1902,13 +1918,13 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     px: number,
     py: number,
     parentId = "",
+    depth = 1,
   ): ReactNode =>
     moons.map((m) => {
-      // Zoom folding (map mode): a moon renders only when it is big enough on screen to read
-      // (size x current zoom). Zoomed out, moons stay folded into their planet; zoom in and they
-      // unfold, then mini-moons unfold deeper still. Focused/active bodies always show.
+      // Show TWO generations by default: planets + their moons (depth 1) always render with the planet.
+      // Deeper generations (mini-moons, depth >= 2) fold by zoom — they appear only when big enough to read.
       const camScale = stateRef.current?.scale ?? 0.36;
-      if (mapMode && m.size * camScale < 20 && focusedId !== m.id && activeId !== m.id && chatTalkId !== m.id) return null;
+      if (mapMode && depth >= 2 && m.size * camScale < 20 && focusedId !== m.id && activeId !== m.id && chatTalkId !== m.id) return null;
       const a = m.startAngle + (t * TAU) / m.period;
       const r = chatPoseMoon(m, px, py, a, parentId);
       const chatSized = Math.abs(r.size - m.size) > 0.5;
@@ -1933,7 +1949,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
             showLabel={!mapMode || m.size * camScale >= 42 || activeId === m.id || focusedId === m.id}
             onTap={handleBodyTap}
           />
-          {renderMoonTree(m.moons, r.x, r.y, m.id)}
+          {renderMoonTree(m.moons, r.x, r.y, m.id, depth + 1)}
         </Fragment>
       );
     });
@@ -1998,8 +2014,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                   {config.planets.map((p) => {
                     // Don't draw a ring that is too big for the view — otherwise it slices across the
                     // screen as a cut-off arc. As you zoom out, bigger rings come to fit and appear.
-                    const camScaleR = stateRef.current?.scale ?? 0.36;
-                    if (mapMode && 2 * p.orbit.maxR * camScaleR > Math.min(window.innerWidth, window.innerHeight) * 0.98) return null;
+                    if (mapMode && !ringFullyVisible(p.orbit.maxR)) return null;
                     // In chat mode each ring breathes toward its fan-arc
                     // radius, carrying its planet along with it.
                     const s = ringScaleRef.current.get(p.id) ?? 1;
@@ -2033,6 +2048,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                   {/* Moon rings follow their parent body — planets, and
                       moons with mini-moons of their own */}
                   {config.planets.map((p) => {
+                    if (mapMode && !ringFullyVisible(p.orbit.maxR) && focusedId !== p.id && activeId !== p.id) return null;
                     const q = planetPos.get(p.id)!;
                     return (
                       <Fragment key={p.id}>
@@ -2092,7 +2108,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                     // Fold the planet together with its orbit (star <-> orbit): if the ring is too big
                     // for the view it isn't drawn, so don't draw a ringless planet either. Zoom out and
                     // both come to fit and appear together. Focused/active always shows.
-                    if (mapMode && 2 * p.orbit.maxR * camScaleP > Math.min(window.innerWidth, window.innerHeight) * 0.98 && focusedId !== p.id && activeId !== p.id) return null;
+                    if (mapMode && !ringFullyVisible(p.orbit.maxR) && focusedId !== p.id && activeId !== p.id) return null;
                     return (
                       <Planet
                         key={p.id}
@@ -2120,10 +2136,11 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                   })}
 
                 {config.planets.map((p) => {
+                  if (mapMode && !ringFullyVisible(p.orbit.maxR) && focusedId !== p.id && activeId !== p.id) return null;
                   const q = planetPos.get(p.id)!;
                   return (
                     <Fragment key={p.id}>
-                      {renderMoonTree(p.moons, q.x, q.y, p.id)}
+                      {renderMoonTree(p.moons, q.x, q.y, p.id, 1)}
                     </Fragment>
                   );
                 })}
