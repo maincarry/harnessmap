@@ -114,8 +114,12 @@ export async function sliceRound(transcriptPath: string, afterUuid: string | nul
       const texts = Array.isArray(content)
         ? content.filter((b: any) => b.type === 'text').map((b: any) => b.text)
         : [typeof content === 'string' ? content : ''];
-      const t = texts.join('\n').trim();
-      if (t) out.userText = out.userText ? `${out.userText}\n${t}` : t;
+      // M366 (Jacob, live: "the map still records all available plugins"): the Codex path stripped host
+      // scaffold (M259) but this Claude Code path never did — so <recommended_plugins>…</recommended_plugins>
+      // and the like were filed verbatim as a node. Strip the same leading scaffold blocks here, and drop a
+      // turn that is nothing but scaffold, exactly as the Codex path does.
+      const t = stripHostScaffold(texts.join('\n').trim());
+      if (t && !CODEX_SCAFFOLD.test(t)) out.userText = out.userText ? `${out.userText}\n${t}` : t;
     }
     if (m.type === 'assistant' && Array.isArray(content)) {
       for (const b of content) {
