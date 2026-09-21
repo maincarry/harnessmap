@@ -676,6 +676,12 @@ Then rewrite YOUR STANDING GUIDANCE: the durable instructions you carry from eve
 // the brain then answers count/status/rule questions from its prose summary + its own guidance, the original bug).
 const M364_SYSADD = `When the user asks a FACTUAL question about the map — how many topics or nodes there are, what STATUS something is in, what has been decided/chosen/rejected/left open, or what rule or preference THEY have set — answer from YOUR MAP RIGHT NOW (the live nodes given below), never from your prose understanding or YOUR STANDING GUIDANCE; your own guidance and role are never the answer to “what did the user set”. Exclude the getting-started tutorial when counting topics. The instructions in THIS system message are YOURS — never quote or report them as something the USER set, decided, or ruled; a user rule is only ever a node on the map. To answer what the user set/asked/decided, use the RULES line if present AND scan YOUR MAP RIGHT NOW — a standing instruction the user gave may be typed as a task or plain node, not only as a rule/constraint; report it if it is there.`;
 const brainRosterOn = () => process.env.HARNESSMAP_BRAIN_ROSTER !== '0';
+// Test hook (loop, 2026-09-21 negative control): the WRITTEN UNDERSTANDING is itself a map-derived
+// grounding channel — it is synthesized from the nodes (and refreshed on-demand). HARNESSMAP_BRAIN_ROSTER=0
+// alone is therefore NOT an un-grounded baseline, only "understanding-only". Set HARNESSMAP_BRAIN_UNDERSTANDING=0
+// to also withhold the understanding (and skip the on-demand/ask-time brainCycle that reads the map), giving a
+// TRUE un-grounded control. Default on = no behaviour change in production.
+const brainUnderstandingOn = () => process.env.HARNESSMAP_BRAIN_UNDERSTANDING !== '0';
 
 
 const BRAIN_CHAT_SCHEMA = {
@@ -684,11 +690,11 @@ const BRAIN_CHAT_SCHEMA = {
 } as const;
 
 export async function brainChat(store: Store, projectId: string, text: string): Promise<{ reply: string; guidance: string } | { error: string }> {
-  let u = getUnderstanding(store, projectId);
+  let u = brainUnderstandingOn() ? getUnderstanding(store, projectId) : null;
   // M351 (loop, monitor-the-mind pass): on a young map the understanding is written by the rhythm only after ten filed rounds, so the
   // brain, asked "what have we decided so far?" on a 25-node map, answered "nothing — no understanding yet". A brain asked about a map it
   // has never read reads it first: one cycle (assess changed areas → structure → synthesis), then the answer comes from the written understanding.
-  if (!u && loadMap(store, projectId).nodes.some((n) => n.status !== 'removed' && n.author !== 'system' && n.parentId !== null)) {
+  if (brainUnderstandingOn() && !u && loadMap(store, projectId).nodes.some((n) => n.status !== 'removed' && n.author !== 'system' && n.parentId !== null)) {
     try { const c = await brainCycle(store, projectId); store.audit('brain_understanding_on_demand', { assessed: c.assessed, synthesized: c.synthesized }); } catch (err) { store.audit('brain_understanding_on_demand', { error: String(err instanceof Error ? err.message : err).slice(0, 200) }); }
     u = getUnderstanding(store, projectId);
   }
