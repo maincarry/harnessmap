@@ -1113,7 +1113,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
       const c = bodyPos(config.sun.id) ?? { x: CENTER, y: CENTER };
       let s = 0.36;
       if (ps.length) {
-        const k = Math.min(3, ps.length - 1);
+        const k = Math.min(6, ps.length - 1);
         const framR = ps[k]!.orbit.maxR + ps[k]!.size / 2 + 140;
         s = Math.min(Math.max((Math.min(window.innerWidth, window.innerHeight) * 0.9) / (2 * framR), 0.06), 0.6);
       }
@@ -1855,6 +1855,9 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     depth = 0,
   ): ReactNode =>
     moons.map((m) => {
+      // Match the body's zoom-fold: a folded (hidden) moon shows no orbit ring either.
+      const camScale = stateRef.current?.scale ?? 0.36;
+      if (mapMode && m.size * camScale < 20 && focusedId !== m.id && activeId !== m.id && chatTalkId !== m.id) return null;
       const a = m.startAngle + (t * TAU) / m.period;
       // The moon's rendered pose (frame-guarded, agrees with the moon
       // bodies) so nested rings center on where it actually is — and
@@ -1993,6 +1996,10 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                   aria-hidden
                 >
                   {config.planets.map((p) => {
+                    // Don't draw a ring that is too big for the view — otherwise it slices across the
+                    // screen as a cut-off arc. As you zoom out, bigger rings come to fit and appear.
+                    const camScaleR = stateRef.current?.scale ?? 0.36;
+                    if (mapMode && 2 * p.orbit.maxR * camScaleR > Math.min(window.innerWidth, window.innerHeight) * 0.98) return null;
                     // In chat mode each ring breathes toward its fan-arc
                     // radius, carrying its planet along with it.
                     const s = ringScaleRef.current.get(p.id) ?? 1;
@@ -2082,6 +2089,10 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                       chatRideRef.current.get(p.id);
                     const chatSized = cr != null && Math.abs(cr.size - p.size) > 0.5;
                     const camScaleP = stateRef.current?.scale ?? 0.36;
+                    // Fold the planet together with its orbit (star <-> orbit): if the ring is too big
+                    // for the view it isn't drawn, so don't draw a ringless planet either. Zoom out and
+                    // both come to fit and appear together. Focused/active always shows.
+                    if (mapMode && 2 * p.orbit.maxR * camScaleP > Math.min(window.innerWidth, window.innerHeight) * 0.98 && focusedId !== p.id && activeId !== p.id) return null;
                     return (
                       <Planet
                         key={p.id}

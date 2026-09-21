@@ -5,7 +5,7 @@
 // summing each body's diameter + its moon span + a margin, so the field GROWS with the map instead of
 // cramming it into a fixed budget (the crowding Jacob caught). Status drives lit/dim (asleep = dimmed).
 import type { BodyDef } from "./planets";
-import { makeOrbitShape, makeRingCircle } from "./orbitShapes";
+import { makeOrbitShape, ORBIT_SHAPE_KINDS } from "./orbitShapes";
 import { PLANET_SPRITES, MOON_SPRITES, SUN_SPRITES } from "./spritePool";
 import type { SystemConfig, GeneratedPlanet, GeneratedMoon } from "./systemGenerator";
 
@@ -84,7 +84,7 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
         line: lineOf(c), breathe: 2.8 + ((h % 12) / 10), delay: (h % 15) / 10,
         dimmed: bodyDim(c, opts), nodeId: c.id, nodeStatus: c.status,
         orbitR: mOrbitR, period: 120 + (h % 90), startAngle: ((h >> 5) % 628) / 100,
-        ringD: makeRingCircle(mOrbitR).d, moons: sub.moons,
+        ringD: makeOrbitShape("ring", mOrbitR, h, 10).d, moons: sub.moons,
       } as GeneratedMoon & GalaxyBody);
       ringR = mOrbitR + size / 2 + reach;                       // advance past this moon (and its own moons)
     }
@@ -111,9 +111,9 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
       dimmed: bodyDim(n, opts), nodeId: n.id, nodeStatus: n.status,
     };
     return {
-      // clean, perfectly concentric rings so they never cross (the wobbly/jittered shapes tangle
-      // once rings sit close together — the map has many more rings than the 9-planet toy).
-      ...body, orbit: makeRingCircle(orbitR),
+      // the original hand-drawn orbit curvature (natural, not mechanical circles); clearance spacing
+      // keeps rings far enough apart that the asymmetric shapes don't cross.
+      ...body, orbit: makeOrbitShape(pickBy(ORBIT_SHAPE_KINDS, h), orbitR, h),
       period: 315 * Math.pow(orbitR / 445, 1.35), startAngle: (h % 628) / 100,
       dash: `${30 + (h % 18)} ${20 + ((h >> 4) % 12)}`, ringWidth: 9 + (h % 4), ringOpacity: 0.72 + ((h % 20) / 100),
       moons,
