@@ -83,12 +83,17 @@ for (const k of RESUME ? [] : (sc.lit ?? [])) await post(`/api/chats/${cid()}/li
 if (sc.auto) await post('/api/auto', sc.auto);
 // clear the seed's own undo entries from consideration by remembering the baseline count
 async function filerCount() { return (await audit('inference')).filter((r: any) => JSON.stringify(r.detail).includes('"filer"')).length; }
+// The per-turn MEMORY pass writes node_memory + memory_details AFTER the filer; on slow codex it lands
+// after the filer (which alone can be 30s), so details-layer checks (detailOf/memoryHas) race it. Count
+// memory inference audits so the round wait can also wait for it. Found 2026-09-22: detail-provenance &
+// dated-detail FAILed on codex with 0 memory_details because the memory pass hadn't run when checked.
+async function memoryCount() { return (await audit('inference')).filter((r: any) => JSON.stringify(r.detail).includes('"memory"')).length; }
 let nodesAddedThisRound = 0;
 const roundMs: number[] = [];
 async function round(user: string, assistant: string, session = 'e2e-1', roundHarness: string | undefined = undefined, roundFork: string | undefined = undefined) {
   const t0 = Date.now();
   const nodesBefore = ((await state()).nodes ?? []).length;
-  const before = await filerCount(); const autoBefore = (await audit()).filter((r: any) => /^auto_/.test(r.kind)).length;
+  const before = await filerCount(); const memBefore = await memoryCount(); const autoBefore = (await audit()).filter((r: any) => /^auto_/.test(r.kind)).length;
   const ob = await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness, forked_from: roundFork ?? null });
   const dup = ob.body?.ok === false && /duplicate|not filed|empty/.test(String(ob.body?.reason ?? '')); // M270/M309: nothing will be filed — do not wait for it
   for (let i = 0; i < 40 && !dup; i++) { await sleep(3000); if ((await filerCount()) > before) break; }
@@ -98,6 +103,10 @@ async function round(user: string, assistant: string, session = 'e2e-1', roundHa
   // array-equal-p1 round 4's failing-test nodes landed ~seconds after the first filing and the check missed
   // them, though the final map held them (filer was 30.6s×4 that run).
   for (let i = 0; i < 60 && !dup; i++) { const f: any = await get('/api/filings'); if ((f?.pending ?? 0) === 0) break; await sleep(2000); }
+  // If the round actually filed, the per-turn MEMORY pass follows; wait for it so details-layer checks
+  // (detailOf/memoryHas) don't race it on slow codex. Only wait when something filed (a quiet round runs
+  // no memory pass); capped so it never hangs. (Found 2026-09-22 on detail-provenance/dated-detail.)
+  if (!dup && (await filerCount()) > before) { for (let i = 0; i < 45; i++) { if ((await memoryCount()) > memBefore) break; await sleep(2000); } }
   if (sc.auto?.on) { for (let i = 0; i < 10; i++) { await sleep(3000); if ((await audit()).filter((r: any) => /^auto_/.test(r.kind)).length > autoBefore) break; } } // up to 30 s: with the aim off a quiet round leaves no auto_ audit
   await sleep(sc.settleMs ?? 6000);
   s = await state();
