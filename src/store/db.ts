@@ -641,6 +641,14 @@ export class Store {
       this.db.prepare('INSERT INTO projects (id, name, created_at) VALUES (?, ?, ?)').run(projectId, name, bundle.project.createdAt ?? new Date().toISOString().slice(0, 19).replace('T', ' '));
       const order = ['nodes', 'links', 'chats', 'lit', 'turns', 'rounds', 'map_events', 'node_memory', 'memory_details', 'relations', 'conversation_summary', 'favorites', 'filings', 'provenance'];
       for (const table of order) insertRows(table, t[table] ?? []);
+      // M370 (Mark live, 2026-09-24): an imported map is a read-through SNAPSHOT, never a live host binding.
+      // host_session_id is NOT re-minted by fresh() (session ids are host/thread-specific, not ours to
+      // rewrite), so an imported chat kept the ORIGINAL session id — and when that session row still exists
+      // here (same-instance import) or rode along in an older bundle, the copy ALIASED a live session and the
+      // UI announced "live in Codex — type there; everything said there files here." False for a copy: nothing
+      // typed anywhere reaches it, and harness_sessions is never even exported. Sever the binding on import so
+      // the imported chats are plain read-through logs; a real local host re-attaches later via its own start.
+      this.db.prepare('UPDATE chats SET host_session_id = NULL WHERE project_id = ?').run(projectId);
       const main = typeof bundle.mainChatId === 'string' ? idMap.get(bundle.mainChatId) : null;
       const chats = (t.chats ?? []).map((c) => idMap.get(c.id)).filter(Boolean) as string[];
       chatId = main ?? chats[0] ?? null;
