@@ -132,7 +132,7 @@ let detected: Backend | null = null;
 // M241 (Mark, Windows): probe each way separately — on Windows `sh` is usually
 // absent and one throw used to void the `where` probe too, so codex was never
 // auto-detected there.
-const probe = (argv: string[]): boolean => { try { return Bun.spawnSync(argv, { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0; } catch { return false; } };
+const probe = (argv: string[]): boolean => { try { return Bun.spawnSync(argv, { stdout: 'pipe', stderr: 'ignore', windowsHide: true }).exitCode === 0; } catch { return false; } };
 const onPath = (bin: string): boolean => process.platform === 'win32'
   ? probe(['where', bin]) || probe(['sh', '-c', `command -v ${bin}`])
   : probe(['sh', '-c', `command -v ${bin}`]) || probe(['where', bin]);
@@ -317,7 +317,9 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
       // M271: this codex exec is the MAP's own call — Codex runs the user's hooks for it too; they must exit at once
       // (else the filer's own prompt is filed as a session, its Stop files a round, which calls the filer… — Jacob's 50 rounds).
       env.HARNESSMAP_INNER = '1'; env.HARNESSMAP_SESSION_GATE = 'closed';
-      const p = Bun.spawn(args, { stdin: new Response(prompt), stdout: 'pipe', stderr: 'pipe', env });
+      // M372 (Mark, Windows): hide the codex.exe console window — without this every inference call (filer,
+      // memory, relations, the aim…) flashes a codex.exe window on Windows. No-op off Windows.
+      const p = Bun.spawn(args, { stdin: new Response(prompt), stdout: 'pipe', stderr: 'pipe', env, windowsHide: true });
       const limitMs = opts.timeoutMs ?? 120_000;
       let timedOut = false;
       // M342: on timeout the CLI is killed, but its own children can hold the pipes open (the failure surfaced only when the
