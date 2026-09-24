@@ -191,7 +191,7 @@ function respawnSelf(): void {
   const home = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
   try { mkdirSync(home, { recursive: true }); } catch {}
   const log = Bun.file(join(home, 'server.log'));
-  Bun.spawn([process.execPath, 'run', 'src/server.ts'], { cwd: root, stdout: log, stderr: log, stdin: 'ignore', env: { ...process.env, HARNESSMAP_WAIT_PORT: '1' }, detached: true }).unref();
+  Bun.spawn([process.execPath, 'run', 'src/server.ts'], { cwd: root, stdout: log, stderr: log, stdin: 'ignore', env: { ...process.env, HARNESSMAP_WAIT_PORT: '1' }, detached: true, windowsHide: true }).unref();
   setTimeout(() => process.exit(0), 700);
 }
 // M266b (Jacob: "auto mode: HTTP 404" — the page was new, the process old): the server itself notices when the code on
@@ -372,7 +372,7 @@ function backendChoices(): { id: Backend; label: string; available: boolean; not
 function codexSignIn(ask: boolean): { onPath: boolean; signedIn: boolean | null } {
   const bin = codexBin(); const onPath = !!bin; // M258
   if (!ask || !bin) return { onPath, signedIn: null };
-  try { return { onPath, signedIn: Bun.spawnSync([bin, 'login', 'status'], { stdout: 'pipe', stderr: 'pipe', timeout: 8000 }).exitCode === 0 }; } catch { return { onPath, signedIn: null }; }
+  try { return { onPath, signedIn: Bun.spawnSync([bin, 'login', 'status'], { stdout: 'pipe', stderr: 'pipe', timeout: 8000, windowsHide: true }).exitCode === 0 }; } catch { return { onPath, signedIn: null }; }
 }
 // M245: Codex's past sessions live under ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl;
 // the first line (session_meta) names the cwd. Newest 400 files, first line each.
@@ -3119,6 +3119,76 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       if (res.focusChanged || res.lit + res.dim > 0) announceAuto(projectId, mainChatId, res.label, { undo: true });
       else broadcast({ type: 'map', ...state() });
       return json({ ok: true, ...res });
+    }
+
+    // M371 (Jacob): the ⚡ on the folders themselves — "just sort / tidy everything". Same as the per-action ⚡
+    // (auto-focus/light), applied at once with no propose→review, and BUNDLED into ONE ↩ undo.
+    // ⚡ sort everything: place every "to sort" arrival into the home the placer names — dim homes included,
+    // because this is an explicit ask, not the per-round auto (which waits for the person's light).
+    if (path === '/api/tosort/place-all' && req.method === 'POST') {
+      const toSort = toSortRootOf(projectId);
+      const items = toSort ? store.childrenOf(toSort.id).filter((k: any) => k.status !== 'removed') : [];
+      if (!items.length) return json({ ok: true, placed: 0, label: '"to sort" is already empty' });
+      const isBareRoot = (nid: string) => { const x = store.getNode(nid); return !!x && x.parentId === null && (x.content.trim() === 'untitled' || (x.title || x.content).startsWith('to sort')); };
+      const alts: any[] = []; const placedIds: string[] = []; const placed: string[] = []; let noHome = 0;
+      for (const it of items) {
+        const r = await suggestHomes(store, projectId, it.id);
+        if ('error' in r) { noHome++; continue; }
+        const home = r.candidates.find((c) => c.nodeId !== it.id && c.nodeId !== toSort!.id && !isBareRoot(c.nodeId) && store.getNode(c.nodeId)?.status !== 'removed' && !descendantNodes(store, it.id).includes(c.nodeId));
+        if (!home) { noHome++; continue; }
+        const cleaned = it.content.replace(/\s*\(arrived while focus was:[^)]*\)\s*$/, '');
+        alts.push({ op: 'move_node', id: it.id, parentId: home.nodeId });
+        if (cleaned !== it.content) alts.push({ op: 'update_node', id: it.id, content: cleaned });
+        placedIds.push(it.id); placed.push(`"${nodeName(it)}" → "${home.name}"`);
+      }
+      if (!alts.length) return json({ ok: true, placed: 0, label: `nothing in "to sort" has a home on the map yet (${noHome})` });
+      const label = `⚡ sorted ${placedIds.length} item(s) out of "to sort"`;
+      applyReorganize(projectId, alts, { chatId: mainChatId, containerName: 'to sort', label });
+      for (const sg of store.getOpenSuggestions(projectId)) if (sg.kind === 'relight' && placedIds.includes(sg.nodeId)) store.setSuggestionStatus(sg.id, 'done');
+      store.audit('tosort_place_all', { placed: placedIds.length, noHome });
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true, placed: placedIds.length, noHome, label });
+    }
+    // ⚡ tidy everything: apply every pending item in the ⟳ to-tidy folder at once — placements (relight) AND
+    // restructures — bundled into one ↩ undo. Conflicting restructures (touching a node another already moves)
+    // are left in the folder for a second pass, so the batch stays internally consistent.
+    if (path === '/api/tidy/apply-all' && req.method === 'POST') {
+      const sugs = store.getOpenSuggestions(projectId);
+      if (!sugs.length) return json({ ok: true, applied: 0, label: 'nothing to tidy' });
+      const alts: any[] = []; const memories: Record<string, string> = {}; const doneIds: string[] = [];
+      const touched = new Set<string>(); let placements = 0, restructures = 0, skipped = 0;
+      const idOf = (a: any) => a.id ?? a.nodeId ?? a.containerId;
+      // placements first (deterministic, cheap)
+      for (const sg of sugs) {
+        if (sg.kind !== 'relight') continue;
+        const n = store.getNode(sg.nodeId); if (!n || n.status === 'removed' || touched.has(sg.nodeId)) continue;
+        const homeId = String((sg as any).note ?? (sg as any).text ?? '').match(/\[([0-9a-f]{6,})\]/)?.[1] ?? null;
+        const home = homeId ? store.getNodes(projectId).find((x) => x.id.startsWith(homeId) && x.status !== 'removed') : null;
+        if (!home || home.id === sg.nodeId) { skipped++; continue; }
+        const cleaned = n.content.replace(/\s*\(arrived while focus was:[^)]*\)\s*$/, '');
+        alts.push({ op: 'move_node', id: sg.nodeId, parentId: home.id });
+        if (cleaned !== n.content) alts.push({ op: 'update_node', id: sg.nodeId, content: cleaned });
+        touched.add(sg.nodeId); doneIds.push(sg.id); placements++;
+      }
+      // restructures (one LLM proposal each; concat non-conflicting whole proposals)
+      for (const sg of sugs) {
+        if (sg.kind === 'relight') continue;
+        const scope = sg.nodeId === '__top__' ? null : sg.nodeId;
+        if (scope && !store.getNode(scope)) { skipped++; continue; }
+        const p = await proposeReorganize(store, projectId, scope, (sg as any).note);
+        if (!p || 'error' in p || !p.alterations?.length) { skipped++; continue; }
+        if (p.alterations.some((a: any) => { const id = idOf(a); return id && touched.has(id); })) { skipped++; continue; } // conflicts: leave for a second pass
+        for (const a of p.alterations) { alts.push(a); const id = idOf(a); if (id) touched.add(id); }
+        if ((p as any).memories) Object.assign(memories, (p as any).memories);
+        doneIds.push(sg.id); restructures++;
+      }
+      if (!alts.length) return json({ ok: true, applied: 0, label: 'nothing could be applied (conflicts or empty proposals)' });
+      const label = `⚡ tidied everything — ${placements} placement(s), ${restructures} restructure(s)`;
+      applyReorganize(projectId, alts, { chatId: mainChatId, containerName: 'the map', label, memories: Object.keys(memories).length ? memories : undefined });
+      for (const id of doneIds) store.setSuggestionStatus(id, 'done');
+      store.audit('tidy_apply_all', { placements, restructures, skipped });
+      broadcast({ type: 'map', ...state() });
+      return json({ ok: true, applied: doneIds.length, placements, restructures, skipped, label });
     }
 
     if (path === '/api/dev/purge-inner' && req.method === 'POST') { const r = purgeInnerSessions(); broadcast({ type: 'map', ...state() }); return json({ ok: true, ...r }); } // M271

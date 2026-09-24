@@ -702,6 +702,7 @@ function renderTree() {
       ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
       ${recChip(n.id)}
       <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
+      ${isTray && kids.length ? `<button class="rowbtn justdo" data-sortall="1" title="just do it: sort everything in “to sort” into the homes the map names now, no review (one ↩ undo)">⚡ sort all</button>` : ''}
       <span class="rowops">
         ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes)">◱</button>`}
         <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? (S.focusBy === 'user' ? 'the conversation is focused here — set by you; auto mode holds it until you move it or press ⚡' : 'the conversation is focused here') : 'focus: talk about this (no zoom)'}">▶</button>
@@ -801,6 +802,7 @@ function renderTree() {
       <div class="srow favhead" ${sugRows.length ? 'data-tidyfold="1"' : ''} title="${sugRows.length ? 'every node the map suggests changing — click one to see its before/after; nothing applies without you' : 'nothing to tidy right now — suggestions appear here as you talk (and the map reviews itself every 10 rounds)'}">
         <span class="caret" title="${sugRows.length ? (tidyOpen ? 'close this folder' : 'open this folder') : 'nothing inside yet'}">${sugRows.length ? (tidyOpen ? '▾' : '▸') : '·'}</span><span class="sstar" style="color:${sugRows.length ? 'var(--danger)' : 'var(--muted)'}">⟳</span><b>to tidy</b>
         <span class="fold-count">${sugRows.length ? `${sugRows.length} inside` : 'empty'}</span>
+        ${sugRows.length ? `<button class="justdo" data-tidyall="1" title="just do it: apply everything in ⟳ to tidy now — placements and restructures — no review (one ↩ undo)">⚡ tidy all</button>` : ''}
       </div>`;
       if (tidyOpen && sugRows.length) for (const { n, kind } of sugRows) {
         html += `
@@ -2002,6 +2004,21 @@ $('tree').addEventListener('click', async (e) => {
         return;
       }
     }
+  }
+  // M371 (Jacob): ⚡ on the folders themselves — sort/tidy EVERYTHING at once, no review, one ↩ undo.
+  if (t.closest('[data-sortall]')) {
+    e.stopPropagation();
+    $('round-line').textContent = '⚡ sorting everything out of “to sort”…';
+    try { const r = await post('/api/tosort/place-all', {}); if (r.placed) undoToast(r.label); else $('round-line').textContent = r.label; }
+    catch (err) { $('round-line').textContent = `⚡ sort all failed: ${err.message}`; }
+    return;
+  }
+  if (t.closest('[data-tidyall]')) {
+    e.stopPropagation();
+    $('round-line').textContent = '⚡ tidying everything…';
+    try { const r = await post('/api/tidy/apply-all', {}); if (r.applied) undoToast(r.label); else $('round-line').textContent = r.label; }
+    catch (err) { $('round-line').textContent = `⚡ tidy all failed: ${err.message}`; }
+    return;
   }
   const rowMoreBtn = t.closest('[data-rowmore]');
   if (rowMoreBtn) { rowMoreBtn.closest('.nrow')?.classList.toggle('ops-open'); return; }
