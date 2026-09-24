@@ -95,6 +95,15 @@ const ENVCTX = '<environment_context>\n  <cwd>/x</cwd>\n</environment_context>';
   ok('SAFETY: "## Context:" is NOT auto-stripped (widening is a ruling, not silent)', stripHostScaffold('## Context: here is what happened') === '## Context: here is what happened');
   ok('SAFETY: heading-like text with no colon kept', stripHostScaffold('## My request for feedback is simple') === '## My request for feedback is simple');
   ok('SAFETY: "request" mid-prose untouched', stripHostScaffold('my request is that you keep this text') === 'my request is that you keep this text');
+
+  // ---- M373: Codex <send_user_message_question_reply> wrapper (Mark/elite_mw live, 2026-09-24) ----
+  // GROUNDED (maptest-probe.map): the user's answer to an assistant question came wrapped with the tag,
+  // the echoed question, and a questionItemId/call_ id — all of it leaked into the session view + filing.
+  ok('GROUNDED: question-reply unwraps to just the answer', stripHostScaffold('<send_user_message_question_reply>\n[{"answer":"yeah the new AI model","question":"By “JAV,” do you mean Jev?","questionItemId":"[\\"request_user_input_async\\",\\"call_MZfhPuzYtcYOthn21DpkdjTf\\",0]"}]\n</send_user_message_question_reply>') === 'yeah the new AI model');
+  ok('question-reply: no tag survives', !/send_user_message_question_reply/.test(stripHostScaffold('<send_user_message_question_reply>[{"answer":"hi"}]</send_user_message_question_reply>')));
+  ok('question-reply: no internal ids survive', !/questionItemId|call_/.test(stripHostScaffold('<send_user_message_question_reply>[{"answer":"hi","questionItemId":"[\\"x\\",\\"call_ABC\\",0]"}]</send_user_message_question_reply>')));
+  ok('question-reply: multiple answers joined', stripHostScaffold('<send_user_message_question_reply>[{"answer":"first"},{"answer":"second"}]</send_user_message_question_reply>') === 'first\nsecond');
+  ok('question-reply: malformed JSON drops the wrapper (no leak)', !/send_user_message_question_reply|questionItemId/.test(stripHostScaffold('<send_user_message_question_reply>not json</send_user_message_question_reply>')));
 }
 
 

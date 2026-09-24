@@ -67,8 +67,22 @@ const CODEX_SCAFFOLD = { test: (s: string) => looksLikeScaffold(s) };
 // batched (catch-up) round concatenates several messages, each carrying its OWN "## My request:" label — the
 // grounded o.map leak was the SECOND one surviving when only the leading label was stripped.
 const HOST_HEADING_LINE = /(^|\n)[^\S\n]*#{1,6}[^\S\n]*(?:my request|user request)[^\S\n]*:[^\S\n]*/gi;
+// M373 (Mark/elite_mw live, 2026-09-24): Codex wraps a user's answer to an assistant's question as
+// <send_user_message_question_reply>[{"answer":"…","question":"…","questionItemId":"[…call_…]"}]</…>.
+// The user's real words are the answer(s); the tag, the echoed question and the questionItemId/call_ ids are
+// protocol noise that was showing in the session view AND getting filed. Unwrap to just the answer(s).
+function unwrapQuestionReply(t: string): string {
+  const m = t.match(/<send_user_message_question_reply>\s*([\s\S]*?)\s*<\/send_user_message_question_reply>/i);
+  if (!m) return t;
+  let answers = '';
+  try {
+    const arr = JSON.parse(m[1]!);
+    if (Array.isArray(arr)) answers = arr.map((x: any) => (x && typeof x.answer === 'string' ? x.answer : '')).filter(Boolean).join('\n').trim();
+  } catch { /* fall through: drop the whole wrapper rather than leak tags/ids */ }
+  return (t.slice(0, m.index!) + answers + t.slice(m.index! + m[0].length)).trim();
+}
 export function stripHostScaffold(text: string): string {
-  let t = String(text ?? '').trim();
+  let t = unwrapQuestionReply(String(text ?? '').trim());
   for (let i = 0; i < 12; i++) {
     // Only strip leading blocks whose tag is HOST-scaffold vocabulary — a user message can legitimately
     // begin with a closed tag block (pasted <database_config>…</database_config>, XML, HTML) and eating
