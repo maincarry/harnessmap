@@ -52,9 +52,21 @@ export function looksLikeScaffold(text: string): boolean {
 }
 // Backwards-compatible alias (was a named-denylist regex; now structural).
 const CODEX_SCAFFOLD = { test: (s: string) => looksLikeScaffold(s) };
-// M259 + M366: a host may prepend any number of <tag>…</tag> blocks to the user's prompt. Strip every
-// leading block, keep the words. Also strip a leading UNCLOSED scaffold block (a <scaffold_tag> with no
-// matching close) to end — the case a plain closed-tag strip misses.
+// M369 (Jacob live, 2026-09-24): the ChatGPT-project / Codex host wraps EACH prompt as a markdown
+// heading — "## My request:\n<the user's words>" — not an XML tag, so the M366 tag-stripper left it in
+// and "## My request:" was filed and shown as the user's words. This is the same class as M366 (host
+// preamble filed as user prose) in a different markup. Fix at the same ingestion point: also strip a
+// LEADING host-label heading. The safety gate mirrors M366 — a real user heading ("## My plan:",
+// "## Requirements:") is NEVER eaten because the label must be host-preamble vocabulary AND the line must
+// be JUST that label followed by a colon. Kept deliberately narrow (extend HOST_HEADING as new host
+// wrappers appear); widening to generic words like "context"/"task" trades safety for coverage and is a
+// ruling, not a silent change. Codex processes each user message on its own, so a leading strip per
+// message also covers a round that batched several "## My request:" turns.
+// A host-label markdown heading ("## My request:") at the start of any line. Vocab + colon gated so a real
+// user heading ("## My plan:", "## Requirements:", "## Context:") is never eaten. Global/multiline because a
+// batched (catch-up) round concatenates several messages, each carrying its OWN "## My request:" label — the
+// grounded o.map leak was the SECOND one surviving when only the leading label was stripped.
+const HOST_HEADING_LINE = /(^|\n)[^\S\n]*#{1,6}[^\S\n]*(?:my request|user request)[^\S\n]*:[^\S\n]*/gi;
 export function stripHostScaffold(text: string): string {
   let t = String(text ?? '').trim();
   for (let i = 0; i < 12; i++) {
@@ -67,6 +79,9 @@ export function stripHostScaffold(text: string): string {
     if (open && isScaffoldTag(open[1]!) && !new RegExp(`</${open[1]}>`, 'i').test(t)) { t = ''; break; }
     break;
   }
+  // M369 (Jacob live, 2026-09-24): strip the ChatGPT-project/Codex "## My request:" wrapper — leading AND any
+  // repeated ones mid-text (a batched round carries several). See HOST_HEADING_LINE above for the safety gate.
+  t = t.replace(HOST_HEADING_LINE, '$1').trim();
   return t.trim();
 }
 export function codexTurnOf(m: any): { role: 'user' | 'assistant'; text: string } | null {

@@ -75,6 +75,26 @@ const ENVCTX = '<environment_context>\n  <cwd>/x</cwd>\n</environment_context>';
   ok('looksLikeScaffold: recommended_plugins yes', looksLikeScaffold('<recommended_plugins>x') === true);
   ok('looksLikeScaffold: plain prose no', looksLikeScaffold('we decided X') === false);
   ok('looksLikeScaffold: <html> no (not scaffold-ish)', looksLikeScaffold('<html>hi') === false);
+
+  // ---- M369: markdown "## My request:" host wrapper (ChatGPT-project / Codex live, Jacob 2026-09-24) ----
+  // GROUNDED: the exact shape from Jacob's exported chat — heading on its own line, words on the next.
+  ok('GROUNDED: "## My request:" heading is stripped, words kept', stripHostScaffold('## My request:\nhello lets do a test of the mao') === 'hello lets do a test of the mao');
+  ok('inline "## My request: X" is stripped to X', stripHostScaffold('## My request: lets work on maoism') === 'lets work on maoism');
+  ok('lowercase "## my request:" variant stripped', stripHostScaffold('## my request:\nok lets get back to mao') === 'ok lets get back to mao');
+  ok('"### My request:" (any heading depth) stripped', stripHostScaffold('### My request:\ndo the thing') === 'do the thing');
+  ok('"## User request:" variant stripped', stripHostScaffold('## User request:\nsearch for maoism in india') === 'search for maoism in india');
+  // GROUNDED (o.map): a BATCHED round carries TWO "## My request:" blocks (two messages sent before the
+  // model replied). BOTH labels must go, not just the leading one — this was the real leak (4/5 -> 5/5).
+  ok('batched round: BOTH "## My request:" labels stripped', stripHostScaffold('## My request:\nHow did Maoism convince people?\n## My request:\nAlso can you talk like Elon Musk?') === 'How did Maoism convince people?\n\nAlso can you talk like Elon Musk?');
+  ok('no "## My request" survives a batched round', !/##\s*my request/i.test(stripHostScaffold('## My request:\nfirst thing\n## My request:\nsecond thing')));
+  // combined with the XML preamble, in one pass (real Codex turns carry both at session start)
+  ok('env-context XML then "## My request:" both stripped', stripHostScaffold('<environment_context><cwd>/x</cwd></environment_context>\n## My request:\nopen map') === 'open map');
+  // SAFETY: a genuine user markdown heading is NEVER eaten (label not host vocab, or no colon)
+  ok('SAFETY: real "## My plan:" heading kept', stripHostScaffold('## My plan: ship it on friday') === '## My plan: ship it on friday');
+  ok('SAFETY: real "## Requirements:" heading kept', stripHostScaffold('## Requirements:\n- fast\n- cheap') === '## Requirements:\n- fast\n- cheap');
+  ok('SAFETY: "## Context:" is NOT auto-stripped (widening is a ruling, not silent)', stripHostScaffold('## Context: here is what happened') === '## Context: here is what happened');
+  ok('SAFETY: heading-like text with no colon kept', stripHostScaffold('## My request for feedback is simple') === '## My request for feedback is simple');
+  ok('SAFETY: "request" mid-prose untouched', stripHostScaffold('my request is that you keep this text') === 'my request is that you keep this text');
 }
 
 
