@@ -3,6 +3,7 @@
 // v0.4: the map is nodes all the way down — one kind of thing.
 
 import { randomUUID } from 'node:crypto';
+import { spawnHidden, spawnSyncHidden } from './proc.js';
 import { join, dirname } from 'node:path';
 import { homedir, hostname as osHostname } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -41,7 +42,7 @@ const VERSION = (() => { try { return JSON.parse(readFileSync(join(here, '..', '
 // M236: the build the running server was started from (git short sha; '' when not a checkout). The hooks
 // restart a server whose build differs from the app on disk — a code update without a version bump
 // left Jacob's Mac running stale code for an hour (2026-09-09).
-const BUILD = (() => { try { const r = Bun.spawnSync(['git', '-C', join(here, '..'), 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore', windowsHide: true }); return r.exitCode === 0 ? r.stdout.toString().trim() : ''; } catch { return ''; } })();
+const BUILD = (() => { try { const r = spawnSyncHidden(['git', '-C', join(here, '..'), 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore' }); return r.exitCode === 0 ? r.stdout.toString().trim() : ''; } catch { return ''; } })();
 const PORT = Number(process.env.PORT ?? 8790);
 // M271: the server never needs the hooks' test gate — and must never hand it to a child (a codex exec whose hooks would then treat themselves as opened sessions)
 delete process.env.HARNESSMAP_SESSION_GATE;
@@ -192,7 +193,7 @@ function respawnSelf(): void {
   const home = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
   try { mkdirSync(home, { recursive: true }); } catch {}
   const log = Bun.file(join(home, 'server.log'));
-  Bun.spawn([process.execPath, 'run', 'src/server.ts'], { cwd: root, stdout: log, stderr: log, stdin: 'ignore', env: { ...process.env, HARNESSMAP_WAIT_PORT: '1' }, detached: true, windowsHide: true }).unref();
+  spawnHidden([process.execPath, 'run', 'src/server.ts'], { cwd: root, stdout: log, stderr: log, stdin: 'ignore', env: { ...process.env, HARNESSMAP_WAIT_PORT: '1' }, detached: true }).unref();
   setTimeout(() => process.exit(0), 700);
 }
 // M266b (Jacob: "auto mode: HTTP 404" — the page was new, the process old): the server itself notices when the code on
@@ -202,7 +203,7 @@ function restartIfStale(): void {
   if (!BUILD || !isOurAppFolder() || updating || Date.now() - staleCheckedAt < 30_000) return;
   staleCheckedAt = Date.now();
   try {
-    const r = Bun.spawnSync(['git', '-C', join(here, '..'), 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore', timeout: 5000, windowsHide: true });
+    const r = spawnSyncHidden(['git', '-C', join(here, '..'), 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore', timeout: 5000 });
     const disk = r.exitCode === 0 ? r.stdout.toString().trim() : '';
     if (disk && disk !== BUILD) { store.audit('self_restart_stale', { running: BUILD, disk }); updating = true; respawnSelf(); }
   } catch {}
@@ -214,7 +215,7 @@ async function selfUpdate(): Promise<{ ok: boolean; changed?: boolean; from?: st
   if (updating) return { ok: false, error: 'an update is already running' };
   updating = true;
   try {
-    const git = (args: string[]) => { const r = Bun.spawnSync(['git', '-C', root, ...args], { stdout: 'pipe', stderr: 'pipe', timeout: 90_000, windowsHide: true }); return { code: r.exitCode, out: r.stdout.toString().trim(), err: r.stderr.toString().trim() }; };
+    const git = (args: string[]) => { const r = spawnSyncHidden(['git', '-C', root, ...args], { stdout: 'pipe', stderr: 'pipe', timeout: 90_000 }); return { code: r.exitCode, out: r.stdout.toString().trim(), err: r.stderr.toString().trim() }; };
     const from = BUILD;
     let pull = git(['pull', '-q', '--ff-only']);
     // M266: our own app folder (~/.harnessmap/app) holds no user data — when it cannot fast-forward, reset it to main.
@@ -223,13 +224,13 @@ async function selfUpdate(): Promise<{ ok: boolean; changed?: boolean; from?: st
     if (pull.code !== 0) return { ok: false, from, error: `git pull failed: ${(pull.err || pull.out).slice(-300)}` };
     const to = git(['rev-parse', '--short', 'HEAD']).out;
     if (!to || to === from) return { ok: true, changed: false, from, to: to || from };
-    try { Bun.spawnSync([process.execPath, 'install', '--production'], { cwd: root, stdout: 'ignore', stderr: 'ignore', timeout: 180_000, windowsHide: true }); } catch {}
+    try { spawnSyncHidden([process.execPath, 'install', '--production'], { cwd: root, stdout: 'ignore', stderr: 'ignore', timeout: 180_000 }); } catch {}
     const changedFiles = git(['diff', '--name-only', `${from}..${to}`]).out.split('\n');
     const hooksChanged = changedFiles.some((f) => f === 'hooks/codex-hooks.json' || f === 'hooks/build-codex-hooks.ts' || f === 'hooks/enable-codex.ts');
     // Codex user-level hooks point at absolute paths under this checkout; if their DEFINITIONS changed, re-derive them
     // (Codex then asks the user to trust the new definitions once — nothing here may forge that).
     if (hooksChanged && existsSync(join(process.env.CODEX_HOME ?? join(homedir(), '.codex'), 'hooks.json'))) {
-      try { Bun.spawnSync([process.execPath, 'run', 'hooks/enable-codex.ts', '--force'], { cwd: root, stdout: 'ignore', stderr: 'ignore', timeout: 30_000, windowsHide: true }); } catch {}
+      try { spawnSyncHidden([process.execPath, 'run', 'hooks/enable-codex.ts', '--force'], { cwd: root, stdout: 'ignore', stderr: 'ignore', timeout: 30_000 }); } catch {}
     }
     store.audit('self_update', { from, to, hooksChanged });
     // Respawn on the same environment (home, db, port), then leave; the child waits for the port to free up.
@@ -373,7 +374,7 @@ function backendChoices(): { id: Backend; label: string; available: boolean; not
 function codexSignIn(ask: boolean): { onPath: boolean; signedIn: boolean | null } {
   const bin = codexBin(); const onPath = !!bin; // M258
   if (!ask || !bin) return { onPath, signedIn: null };
-  try { return { onPath, signedIn: Bun.spawnSync([bin, 'login', 'status'], { stdout: 'pipe', stderr: 'pipe', timeout: 8000, windowsHide: true }).exitCode === 0 }; } catch { return { onPath, signedIn: null }; }
+  try { return { onPath, signedIn: spawnSyncHidden([bin, 'login', 'status'], { stdout: 'pipe', stderr: 'pipe', timeout: 8000 }).exitCode === 0 }; } catch { return { onPath, signedIn: null }; }
 }
 // M245: Codex's past sessions live under ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl;
 // the first line (session_meta) names the cwd. Newest 400 files, first line each.
@@ -3345,7 +3346,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const home = process.env.HARNESSMAP_HOME ?? join(homedir(), '.harnessmap');
       let keychain: boolean | null = null;
       if (process.platform === 'darwin') {
-        try { keychain = Bun.spawnSync(['security', 'find-generic-password', '-s', 'Claude Code-credentials'], { stdout: 'ignore', stderr: 'ignore', windowsHide: true }).exitCode === 0; }
+        try { keychain = spawnSyncHidden(['security', 'find-generic-password', '-s', 'Claude Code-credentials'], { stdout: 'ignore', stderr: 'ignore' }).exitCode === 0; }
         catch { keychain = null; }
       }
       return json({

@@ -9,6 +9,7 @@
 // person can take (trust the hooks, sign in). Run by the "doctor" skill, the
 // installers, and by hand:  bun run hooks/doctor.ts [--fix] [--update] [--no-probe]
 import { join } from 'node:path';
+import { spawnSyncHidden } from '../src/proc.js';
 import { homedir, hostname } from 'node:os';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +24,7 @@ const PROBE_MS = Number([...args].find((a) => a.startsWith('--probe-timeout='))?
 type Level = 'OK' | 'FIX' | 'YOU' | 'WARN' | 'FAIL';
 const lines: { level: Level; text: string }[] = [];
 const say = (level: Level, text: string) => lines.push({ level, text });
-const sh = (argv: string[], timeout = 8000) => { try { const r = Bun.spawnSync(argv, { stdout: 'pipe', stderr: 'pipe', timeout, windowsHide: true }); return { code: r.exitCode, out: r.stdout.toString().trim(), err: r.stderr.toString().trim() }; } catch (e) { return { code: -1, out: '', err: String(e) }; } };
+const sh = (argv: string[], timeout = 8000) => { try { const r = spawnSyncHidden(argv, { stdout: 'pipe', stderr: 'pipe', timeout }); return { code: r.exitCode, out: r.stdout.toString().trim(), err: r.stderr.toString().trim() }; } catch (e) { return { code: -1, out: '', err: String(e) }; } };
 const getJ = async (u: string, ms = 4000): Promise<any> => { try { const r = await fetch(BASE + u, { signal: AbortSignal.timeout(ms) }); return r.ok ? await r.json() : null; } catch { return null; } };
 const postJ = async (u: string, body: unknown = {}, ms = 20000): Promise<{ status: number; json: any; error?: string }> => { try { const r = await fetch(BASE + u, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(ms) }); return { status: r.status, json: await r.json().catch(() => null) }; } catch (e) { return { status: 0, json: null, error: String(e).slice(0, 120) }; } };
 const kb = (p: string) => { try { return `${Math.max(1, Math.round(statSync(p).size / 1024))} KB`; } catch { return '?'; } };

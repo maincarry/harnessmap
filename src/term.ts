@@ -10,6 +10,7 @@
 // else the util-linux/BSD `script(1)` wrapper (real PTY, fixed size).
 
 import { existsSync } from 'node:fs';
+import { spawnHidden, spawnSyncHidden } from './proc.js';
 import { codexBin } from './harness-bins.js';
 
 export interface TermSession {
@@ -38,7 +39,7 @@ export const HARNESSES: Harness[] = [
   { id: 'codex', label: 'Codex', cmd: 'codex', resume: 'codex resume', note: 'OpenAI\'s CLI in this tab; the map attaches through its hooks' },
 ];
 const CMD = process.env.HARNESSMAP_TERM_CMD ?? 'claude';
-const onPath = (bin: string): boolean => { try { return Bun.spawnSync(process.platform === 'win32' ? ['where', bin] : ['sh', '-c', `command -v ${bin}`], { stdout: 'pipe', stderr: 'ignore', windowsHide: true }).exitCode === 0; } catch { return false; } };
+const onPath = (bin: string): boolean => { try { return spawnSyncHidden(process.platform === 'win32' ? ['where', bin] : ['sh', '-c', `command -v ${bin}`], { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0; } catch { return false; } };
 let availCache: { at: number; map: Record<string, boolean> } | null = null;
 export function harnessAvailability(): Record<string, boolean> {
   if (availCache && Date.now() - availCache.at < 30_000) return availCache.map;
@@ -117,7 +118,7 @@ export function createTerm(id: string, cwd: string, cols = 120, rows = 32, harne
       const argv = process.platform === 'darwin'
         ? ['script', '-q', '/dev/null', CMD]
         : ['script', '-qfec', CMD, '/dev/null'];
-      const p = Bun.spawn(argv, {
+      const p = spawnHidden(argv, {
         cwd, stdin: 'pipe', stdout: 'pipe', stderr: 'pipe',
         env: { ...process.env, TERM: 'xterm-256color', COLUMNS: String(cols), LINES: String(rows) },
       });

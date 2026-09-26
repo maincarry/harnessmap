@@ -1,6 +1,7 @@
 // Shared plumbing for harnessmap hooks. Hooks must NEVER break the host:
 // every failure path degrades to "do nothing".
 import { join } from 'node:path';
+import { spawnHidden, spawnSyncHidden } from '../src/proc.js';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, openSync, readSync, closeSync, statSync } from 'node:fs';
@@ -140,7 +141,7 @@ function changeLine(): string {
   try { return readFileSync(join(APP_ROOT, 'CHANGELOG-LINE.txt'), 'utf8').trim(); } catch { return ''; }
 }
 
-function currentBuild(): string { try { const r = Bun.spawnSync(['git', '-C', APP_ROOT, 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore', windowsHide: true }); return r.exitCode === 0 ? r.stdout.toString().trim() : ''; } catch { return ''; } }
+function currentBuild(): string { try { const r = spawnSyncHidden(['git', '-C', APP_ROOT, 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore' }); return r.exitCode === 0 ? r.stdout.toString().trim() : ''; } catch { return ''; } }
 
 async function health(): Promise<{ up: boolean; version?: string; build?: string; foreign?: string }> {
   try {
@@ -162,19 +163,19 @@ async function health(): Promise<{ up: boolean; version?: string; build?: string
 function spawnServer(): void {
   // First run in an installed location: dependencies may not exist yet.
   if (!existsSync(join(APP_ROOT, 'node_modules'))) {
-    try { Bun.spawnSync(['bun', 'install', '--production'], { cwd: APP_ROOT, stdout: 'ignore', stderr: 'ignore', windowsHide: true }); } catch {}
+    try { spawnSyncHidden(['bun', 'install', '--production'], { cwd: APP_ROOT, stdout: 'ignore', stderr: 'ignore' }); } catch {}
   }
   try { mkdirSync(HOME, { recursive: true }); } catch {}
   const log = Bun.file(join(HOME, 'server.log'));
   // The hook's own runtime is the bun to use: a GUI app's PATH may carry no bun at all (M235/M236).
-  Bun.spawn([process.execPath, 'run', 'src/server.ts'], {
+  spawnHidden([process.execPath, 'run', 'src/server.ts'], {
     cwd: APP_ROOT, stdout: log, stderr: log, stdin: 'ignore',
     env: {
       ...process.env,
       HARNESSMAP_HOME: HOME,
       HARNESSMAP_DB: process.env.HARNESSMAP_DB ?? join(HOME, 'map.sqlite'),
     },
-    detached: true, windowsHide: true,
+    detached: true,
   }).unref();
 }
 

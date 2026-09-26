@@ -3,6 +3,7 @@
 // the map's own chat stayed visible and ran on Claude, the codex backend never engaged, the harness list was wrong.
 // One resolver for every caller: PATH first, then the app's known locations, then CODEX_CLI_PATH.
 import { existsSync } from 'node:fs';
+import { spawnSyncHidden } from './proc.js';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -10,7 +11,7 @@ let cache: { at: number; codex: string | null } | null = null;
 
 function onPathResolved(bin: string): string | null {
   const tryArgv = (argv: string[]): string | null => {
-    try { const r = Bun.spawnSync(argv, { stdout: 'pipe', stderr: 'ignore', windowsHide: true }); if (r.exitCode !== 0) return null; const out = r.stdout.toString().split(/\r?\n/).map((l) => l.trim()).filter(Boolean)[0]; return out || null; } catch { return null; }
+    try { const r = spawnSyncHidden(argv, { stdout: 'pipe', stderr: 'ignore' }); if (r.exitCode !== 0) return null; const out = r.stdout.toString().split(/\r?\n/).map((l) => l.trim()).filter(Boolean)[0]; return out || null; } catch { return null; }
   };
   return process.platform === 'win32'
     ? (tryArgv(['where', bin]) ?? tryArgv(['sh', '-c', `command -v ${bin}`]))
