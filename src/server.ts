@@ -31,6 +31,7 @@ import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoot
 import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, backendName, backendSource, setBackend, type Backend } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, codexSessionMeta, stripHostScaffold, looksLikeScaffold, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
+import { sessionIsIdle } from './host-liveness.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync, openSync, readSync, closeSync } from 'node:fs';
 import { basename } from 'node:path';
 import { authUser, authEnabled, unauthorized } from './auth.js';
@@ -553,13 +554,23 @@ function hostSessionOf(chat: { id: string; hostSessionId?: string | null }): Rec
   const row = hostRow(chat.hostSessionId); if (!row) return null;
   const harness: string | null = row.harness ?? store.getSetting(`harness:session:${chat.hostSessionId}`) ?? null;
   const first = ((store as any).db.prepare("SELECT content FROM turns WHERE chat_id = ? AND role = 'user' ORDER BY idx LIMIT 1").get(chat.id) as any)?.content as string | undefined;
+  const status: string = row.status ?? 'live';
+  const embedded = !!listTerms().find((t) => (getTerm(t.id) as any)?.chatId === chat.id);
+  // M375: "live" is only true if the session is actually attached now. A harness that dies without a clean
+  // SessionEnd hook leaves status='live' forever, so the strip promised "type there" on a dead session (Mark,
+  // Windows). Truth = an embedded terminal we own, OR a hook fired within the idle window (each turn bumps
+  // last_active). Past that with nothing owned, the session is idle/detached — say so and offer resume. It
+  // self-heals: any new hook activity or a resume flips it back to live at once. Threshold: MIND §10 (founders).
+  const idleMin = Math.max(1, Number(process.env.HARNESSMAP_SESSION_IDLE_MIN ?? 30));
+  const idle = sessionIsIdle(status, embedded, row.last_active, Date.now(), idleMin);
   return {
     sessionId: chat.hostSessionId, harness, label: harness === 'codex' ? 'Codex' : harness === 'claude' ? 'Claude Code' : 'session',
-    status: row.status ?? 'live', reason: row.end_reason ?? null, endedAt: row.ended_at ?? null,
+    status, reason: row.end_reason ?? null, endedAt: row.ended_at ?? null,
+    idle, lastActive: row.last_active ?? null,
     title: (chat as any).name ?? row.title ?? (first ? first.replace(/\s+/g, ' ').slice(0, 60) : null), // M268: a name given on the map wins
     harnessTitle: row.title ?? null,
     resume: harness === 'codex' ? `codex resume ${chat.hostSessionId}` : harness === 'claude' ? `claude --resume ${chat.hostSessionId}` : null,
-    embedded: !!listTerms().find((t) => (getTerm(t.id) as any)?.chatId === chat.id),
+    embedded,
     forkedFrom: store.getSetting(`fork:${chat.hostSessionId}`) ?? null, // M255
   };
 }

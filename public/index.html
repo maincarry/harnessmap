@@ -3499,11 +3499,15 @@ function renderHostStrip() {
   const showTerm = !!chatTerms.get(S.mainChatId);
   if (!h || showTerm || activeTab !== 'session') { strip.hidden = true; $('composer').style.display = showTerm ? 'none' : ''; return; }
   strip.hidden = false;
-  strip.classList.toggle('live', h.status !== 'closed');
+  strip.classList.toggle('live', h.status !== 'closed' && !h.idle);
   $('composer').style.display = 'none';
   const where = h.harness ? esc(h.label) : 'your session';
+  const resumeCopy = h.resume ? `To continue it${h.harness === 'codex' ? ', reopen the thread in the Codex app, or in a terminal run' : ', in a terminal run'} <code>${esc(h.resume)}</code> — ` : 'Resume it in the harness it ran in — ';
   strip.innerHTML = h.status === 'closed'
-    ? `<span class="dot"></span><span>closed${h.harness ? ` in ${esc(h.label)}` : ''}${h.reason ? ` (${esc(h.reason)})` : ''}. ${h.resume ? `To continue it${h.harness === 'codex' ? ', reopen the thread in the Codex app, or in a terminal run' : ', in a terminal run'} <code>${esc(h.resume)}</code> — ` : 'Resume it in the harness it ran in — '}the map re-attaches by itself when it comes back.</span>`
+    // M375: a session that went quiet without a clean close — don't promise "type there"; it may be detached. Self-heals on next activity.
+    ? `<span class="dot"></span><span>closed${h.harness ? ` in ${esc(h.label)}` : ''}${h.reason ? ` (${esc(h.reason)})` : ''}. ${resumeCopy}the map re-attaches by itself when it comes back.</span>`
+    : h.idle
+    ? `<span class="dot"></span><span>${where} session is quiet — it may no longer be attached. ${resumeCopy}the map re-attaches by itself the moment it's active again.</span>`
     : `<span class="dot"></span><span>live in ${where} — type there; everything said there shows up here and files onto the map.</span>`;
 }
 function showSession(chatId) {
