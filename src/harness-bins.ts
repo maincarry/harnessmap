@@ -10,7 +10,7 @@ let cache: { at: number; codex: string | null } | null = null;
 
 function onPathResolved(bin: string): string | null {
   const tryArgv = (argv: string[]): string | null => {
-    try { const r = Bun.spawnSync(argv, { stdout: 'pipe', stderr: 'ignore' }); if (r.exitCode !== 0) return null; const out = r.stdout.toString().split(/\r?\n/).map((l) => l.trim()).filter(Boolean)[0]; return out || null; } catch { return null; }
+    try { const r = Bun.spawnSync(argv, { stdout: 'pipe', stderr: 'ignore', windowsHide: true }); if (r.exitCode !== 0) return null; const out = r.stdout.toString().split(/\r?\n/).map((l) => l.trim()).filter(Boolean)[0]; return out || null; } catch { return null; }
   };
   return process.platform === 'win32'
     ? (tryArgv(['where', bin]) ?? tryArgv(['sh', '-c', `command -v ${bin}`]))

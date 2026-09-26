@@ -38,7 +38,7 @@ export const HARNESSES: Harness[] = [
   { id: 'codex', label: 'Codex', cmd: 'codex', resume: 'codex resume', note: 'OpenAI\'s CLI in this tab; the map attaches through its hooks' },
 ];
 const CMD = process.env.HARNESSMAP_TERM_CMD ?? 'claude';
-const onPath = (bin: string): boolean => { try { return Bun.spawnSync(process.platform === 'win32' ? ['where', bin] : ['sh', '-c', `command -v ${bin}`], { stdout: 'pipe', stderr: 'ignore' }).exitCode === 0; } catch { return false; } };
+const onPath = (bin: string): boolean => { try { return Bun.spawnSync(process.platform === 'win32' ? ['where', bin] : ['sh', '-c', `command -v ${bin}`], { stdout: 'pipe', stderr: 'ignore', windowsHide: true }).exitCode === 0; } catch { return false; } };
 let availCache: { at: number; map: Record<string, boolean> } | null = null;
 export function harnessAvailability(): Record<string, boolean> {
   if (availCache && Date.now() - availCache.at < 30_000) return availCache.map;

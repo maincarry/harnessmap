@@ -140,7 +140,7 @@ function changeLine(): string {
   try { return readFileSync(join(APP_ROOT, 'CHANGELOG-LINE.txt'), 'utf8').trim(); } catch { return ''; }
 }
 
-function currentBuild(): string { try { const r = Bun.spawnSync(['git', '-C', APP_ROOT, 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore' }); return r.exitCode === 0 ? r.stdout.toString().trim() : ''; } catch { return ''; } }
+function currentBuild(): string { try { const r = Bun.spawnSync(['git', '-C', APP_ROOT, 'rev-parse', '--short', 'HEAD'], { stdout: 'pipe', stderr: 'ignore', windowsHide: true }); return r.exitCode === 0 ? r.stdout.toString().trim() : ''; } catch { return ''; } }
 
 async function health(): Promise<{ up: boolean; version?: string; build?: string; foreign?: string }> {
   try {
@@ -162,7 +162,7 @@ async function health(): Promise<{ up: boolean; version?: string; build?: string
 function spawnServer(): void {
   // First run in an installed location: dependencies may not exist yet.
   if (!existsSync(join(APP_ROOT, 'node_modules'))) {
-    try { Bun.spawnSync(['bun', 'install', '--production'], { cwd: APP_ROOT, stdout: 'ignore', stderr: 'ignore' }); } catch {}
+    try { Bun.spawnSync(['bun', 'install', '--production'], { cwd: APP_ROOT, stdout: 'ignore', stderr: 'ignore', windowsHide: true }); } catch {}
   }
   try { mkdirSync(HOME, { recursive: true }); } catch {}
   const log = Bun.file(join(HOME, 'server.log'));
@@ -174,7 +174,7 @@ function spawnServer(): void {
       HARNESSMAP_HOME: HOME,
       HARNESSMAP_DB: process.env.HARNESSMAP_DB ?? join(HOME, 'map.sqlite'),
     },
-    detached: true,
+    detached: true, windowsHide: true,
   }).unref();
 }
 
