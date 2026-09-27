@@ -507,7 +507,7 @@
           <button id="agent-view-btn" title="what the chat agent receives from the map each turn — the context composition, and the exact text if you want it">👁 what the agent sees</button>
           <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
           <button id="authinfo-btn" title="full transparency: how the map's agents sign in, who gets billed, and whether calls are working">🔑 sign-in &amp; billing</button>
-          <button id="update-btn" title="check whether a newer harnessmap exists — updating is one command you run (Claude Code: /plugin update; Codex: the installer), never automatic">⬆ check for updates</button>
+          <button id="update-btn" title="check whether a newer harnessmap exists — updating is one command you run (Claude Code: /plugin update; Codex: the installer), never automatic">⬆ check for updates<span class="nudge-dot" hidden>●</span></button>
           <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
           <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
           </div></div></div>
@@ -1881,9 +1881,17 @@ function renderNudges() {
       $('round-line').textContent = h ? `home — zoomed to “${disp(node(h))}” (view only)` : 'home — showing the whole map (set a node as home on its row)';
     };
   }
+  // M384 (Jacob 2026-09-27): the ⋯ other dot shows ONLY when a real suggestion is
+  // waiting inside, and it bubbles up from EVERY source (focus, light, tidy/reviewer,
+  // an available update…) so the user opens ⋯ and finds the same dot on the exact
+  // function it came from. Extensible: add a source to `innerSources` and give its
+  // button a .nudge-dot. (The old code set ⋯'s dot on rootSug and never cleared it.)
   const rootSug = (S.suggestions || []).find(sg => sg.nodeId === '__top__');
+  const updateReady = !!(S.update && S.update.available);
+  set('update-btn', updateReady, 'a newer harnessmap is available — click to review and update');
+  const innerSources = [!!n.focus, !!n.light, !!rootSug, updateReady];
   const ob = $('other-btn').querySelector('.nudge-dot');
-  if (ob && rootSug) ob.hidden = false;
+  if (ob) ob.hidden = !innerSources.some(Boolean);
   const mb = $('other-more-btn')?.querySelector('.nudge-dot');
   if (mb) mb.hidden = !rootSug;
   const tt = $('tidy-top');
@@ -3007,7 +3015,7 @@ function openMapChat(seed) {
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `
-    <div class="modal" style="width:min(600px,94vw);display:flex;flex-direction:column;max-height:78vh">
+    <div class="modal" style="width:min(860px,96vw);display:flex;flex-direction:column;max-height:88vh"><!-- M385 (Jacob): larger talk-to-map window -->
       <h3 style="display:flex;align-items:center;gap:8px">🗨 talk to the map guide
         <span class="mc-hint">explains this map · proposes changes you approve · records your standing preferences</span>
         <button id="mc-close" class="hbtn" style="margin-left:auto" title="close">✕</button>
