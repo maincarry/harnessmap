@@ -1,5 +1,5 @@
 {
-  "name": "\"let's focus on X\" moves the focus by the person's words even under a hand-set focus hold (M75/M282)",
+  "name": "the host chat is FILED, not OBEYED (M378, Jacob 2026-09-27): a user's \"let's focus on X\" typed to their coding agent is content the map records — it does NOT command the map to move focus (in the CLI world the user talks to the agent; the map only observes; auto mode follows the SUBSTANCE of the work, not a bare 'focus on' phrase). Focus-by-words was an in-app-chat feature, retired here.",
   "seed": [
     { "key": "proj", "content": "Book manuscript: chapters, agent, timeline" },
     { "key": "ch3", "content": "Chapter 3: the river journey", "parent": "proj" },
@@ -11,6 +11,6 @@
     { "user": "Small fix in chapter 3: the ferry crossing happens at dawn, not dusk.", "assistant": "Changed in chapter 3: the ferry crossing is at dawn.",
       "then": [ { "do": "focus", "key": "ch3" }, { "focusIs": "ch3" } ] },
     { "user": "Let's focus on the agent search now. Two queries went out last week; one asked for the full manuscript.", "assistant": "Focusing on the agent search: two queries sent last week, one full-manuscript request.",
-      "then": [ { "focusUnder": "agent" }, { "audit": "auto_mode", "matching": "you asked|focus" } ] }
+      "then": [ { "nodeMatching": "quer(y|ies)|manuscript|agent" }, { "focusIs": "ch3" } ] }
   ]
 }

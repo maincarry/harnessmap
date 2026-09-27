@@ -1,0 +1,112 @@
+// M378 — the User Twin DRIVING a live product (Jacob, 2026-09-27: "Driving"). The twin operates a REAL harnessmap
+// server turn by turn: it works toward a goal by talking to its (role-played) coding agent, each turn is filed by
+// the real map, the twin glances at what actually changed and reacts, and at the end we have a friction report
+// grounded in a session it actually drove — not a described one. Reuses the e2e harness's live-server boot.
+//
+// Usage: HARNESSMAP_INFERENCE=codex CODEX_HOME=~/.codex bun run src/eval/twin-drive.ts [--goal "..."] [--steps 5]
+import { rmSync, mkdirSync, symlinkSync, appendFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { twinStep, type TwinStep } from '../twin.js';
+
+const argv = process.argv.slice(2);
+const flagVal = (n: string, d?: string) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
+const GOAL = flagVal('--goal', 'Get a small command-line tool started with your coding agent: sketch what it should do, then get a first module and a couple of tests going. You want the map to quietly keep track so you can see where you are.')!;
+const STEPS = Number(flagVal('--steps', '5'));
+const engine = process.env.HARNESSMAP_INFERENCE === 'codex' || process.env.E2E_ENGINE === 'codex';
+
+const PORT = Number(process.env.TWIN_PORT ?? 8795); const BASE = `http://127.0.0.1:${PORT}`;
+const TMP = `/tmp/claude-1000/harnessmap-twin-${Date.now().toString(36)}`;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const get = async (p: string) => (await fetch(BASE + p)).json() as Promise<any>;
+const post = async (p: string, b: unknown = {}) => { const r = await fetch(BASE + p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) }); return { status: r.status, body: await r.json().catch(() => ({})) as any }; };
+
+rmSync(TMP, { recursive: true, force: true });
+mkdirSync(join(TMP, 'proj'), { recursive: true }); mkdirSync(join(TMP, 'home', '.claude'), { recursive: true }); mkdirSync(join(TMP, 'home', '.harnessmap'), { recursive: true });
+try { symlinkSync(join(process.env.HOME ?? '', '.claude', '.credentials.json'), join(TMP, 'home', '.claude', '.credentials.json')); } catch {}
+
+const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
+  env: {
+    ...process.env, ANTHROPIC_API_KEY: undefined as any,
+    ...(engine ? { HARNESSMAP_INFERENCE: 'codex', CODEX_HOME: process.env.CODEX_HOME ?? join(process.env.HOME ?? '', '.codex'), HARNESSMAP_INFERENCE_CONCURRENCY: process.env.HARNESSMAP_INFERENCE_CONCURRENCY ?? '1' } : { HARNESSMAP_INFERENCE_CONCURRENCY: '1' }),
+    HARNESSMAP_DB: join(TMP, 'twin.sqlite'), HARNESSMAP_HOME: join(TMP, 'home', '.harnessmap'), PORT: String(PORT),
+    HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home'),
+  },
+  stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
+});
+process.on('exit', () => server.kill());
+const prog = (m: string) => { try { appendFileSync(join(TMP, 'progress.log'), `${new Date().toISOString().slice(11, 19)} ${m}\n`); } catch {} };
+prog('booting server');
+let up = false; for (let i = 0; i < 30; i++) { try { await get('/api/state'); up = true; break; } catch { await sleep(500); } }
+if (!up) { console.error('server never came up — see', join(TMP, 'server.log')); process.exit(1); }
+prog('server up');
+
+// Render the map as a real user would see it at a glance: an indented outline, the focus, and the bottom strip.
+function mapView(s: any): string {
+  const nodes: any[] = s.nodes ?? [];
+  const chat = (s.chats ?? []).find((c: any) => c.id === s.mainChatId) ?? {};
+  const focusId = chat.focusContainerId ?? null;
+  const nm = (n: any) => String(n.title || n.content || '').replace(/\s+/g, ' ').slice(0, 60);
+  const kids = (pid: string | null) => nodes.filter((n) => (n.parentId ?? null) === pid && n.status !== 'removed');
+  const lines: string[] = [];
+  const walk = (pid: string | null, depth: number) => {
+    for (const n of kids(pid)) {
+      const mark = n.id === focusId ? '▶ ' : '';
+      const st = n.status && !['live'].includes(n.status) ? ` (${n.status})` : '';
+      lines.push(`${'  '.repeat(depth)}- ${mark}${nm(n)}${st}`);
+      if (depth < 3) walk(n.id, depth + 1);
+    }
+  };
+  walk(null, 0);
+  const host = chat.host;
+  const strip = !host ? '(no live session strip)'
+    : host.status === 'closed' ? `bottom strip: "closed in ${host.label ?? 'session'} — resume it…"`
+    : host.idle ? `bottom strip: "${host.label ?? 'session'} is quiet — it may no longer be attached…"`
+    : `bottom strip: "live in ${host.label ?? 'your session'} — type there; everything shows up here"`;
+  return `${lines.join('\n') || '(the map is empty)'}\n${strip}`;
+}
+
+console.log(`\n══ USER TWIN DRIVING a live map (${engine ? 'codex' : 'claude'}) ══`);
+console.log(`goal: ${GOAL}\n`);
+
+const steps: TwinStep[] = [];
+const history: string[] = [];
+const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
+
+for (let i = 0; i < STEPS; i++) {
+  const s = await get('/api/state');
+  const view = mapView(s);
+  let step: TwinStep;
+  prog(`step ${i + 1}: calling twinStep`);
+  try { step = await twinStep(GOAL, view, history); }
+  catch (e) { prog(`step ${i + 1}: twinStep FAILED ${String(e).slice(0, 120)}`); console.error(`step ${i + 1} twin call failed:`, String(e).slice(0, 200)); break; }
+  prog(`step ${i + 1}: twinStep returned (${step.severity}, ${step.action.kind})`);
+  steps.push(step);
+  console.log(`── step ${i + 1} ──`);
+  console.log(`map shows:\n${view.split('\n').map((l) => '    ' + l).join('\n')}`);
+  console.log(`${sev(step.severity)} [${step.severity}] felt: ${step.felt}`);
+  if (step.severity !== 'none' && step.mechanism) console.log(`   why: ${step.mechanism}`);
+  if (step.action.kind === 'stop') { console.log(`   → STOP: ${step.action.note ?? ''}\n`); break; }
+  console.log(`   → works: "${step.action.user_text ?? ''}"`);
+  history.push(`you: ${step.action.user_text ?? ''}${step.action.assistant_text ? ` → agent: ${step.action.assistant_text}` : ''}`);
+  // apply the turn to the live product (the map files it), then wait for filing to drain
+  prog(`step ${i + 1}: observing round`);
+  await post('/api/harness/observe', { session_id: 'twin', cwd: join(TMP, 'proj'), user_text: step.action.user_text ?? '', assistant_text: step.action.assistant_text ?? '' });
+  for (let j = 0; j < 25; j++) { const f: any = await get('/api/filings').catch(() => ({ pending: 0 })); if ((f?.pending ?? 0) === 0 && j > 1) break; await sleep(2000); }
+  await sleep(3000);
+  prog(`step ${i + 1}: round filed`);
+  console.log('');
+}
+
+// Compile the friction report from the driven session (each step's reaction is a real moment).
+const bad = steps.filter((x) => x.severity === 'moderate' || x.severity === 'severe');
+const worst = steps.some((x) => x.severity === 'severe') ? 'severe' : bad.length ? 'moderate' : steps.some((x) => x.severity === 'minor') ? 'minor' : 'none';
+const wouldReturn = worst === 'severe' ? 'no' : worst === 'moderate' ? 'maybe' : 'yes';
+console.log(`══ FRICTION FROM THE DRIVEN SESSION ══`);
+if (!bad.length) console.log('no moderate/severe friction — the map kept up quietly.');
+for (const [i, f] of bad.entries()) console.log(`  ${i + 1}. [${f.severity}] ${f.felt}\n     why: ${f.mechanism}`);
+console.log(`\ndrove ${steps.length} step(s) · worst friction: ${worst} · would return: ${wouldReturn}`);
+
+// The spawned server keeps the event loop alive; kill it and exit cleanly so stdout flushes (a SIGTERM at
+// timeout loses piped, block-buffered stdout — that's why early runs looked like they produced nothing).
+server.kill();
+process.exit(0);

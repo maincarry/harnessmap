@@ -1,0 +1,69 @@
+// M378 — run the User Twin (src/twin.ts) over a real session or a described flow, and print its friction report.
+//
+// Usage:
+//   HARNESSMAP_INFERENCE=codex bun run src/eval/twin-run.ts --flow "the experience, in your words"
+//   HARNESSMAP_INFERENCE=codex bun run src/eval/twin-run.ts --flow-file path/to/flow.txt
+//   HARNESSMAP_INFERENCE=codex bun run src/eval/twin-run.ts src/eval/scenarios/<name>.json   (use a scenario as a session)
+//
+// The twin is a synthetic consumer that reacts as a real user (Layer A) and names the behavioral-science mechanism
+// behind any discomfort (Layer B). It finds UX friction the correctness e2e's can't see. See src/twin.ts.
+import { readFileSync } from 'node:fs';
+import { runTwin, type TwinReport } from '../twin.js';
+
+const argv = process.argv.slice(2);
+const flagVal = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
+
+function experienceFromScenario(path: string): string {
+  const sc = JSON.parse(readFileSync(path, 'utf8'));
+  const seed: any[] = sc.seed ?? [];
+  const rounds: any[] = sc.rounds ?? [];
+  const seedLines = seed.map((s) => `  - ${s.content}${s.status && s.status !== 'live' ? ` [${s.status}]` : ''}`).join('\n');
+  const roundLines = rounds.map((r, i) => {
+    const parts = [`  Turn ${i + 1}: you typed to your coding agent — "${r.user}"`];
+    if (r.assistant) parts.push(`           the agent answered — "${r.assistant}"`);
+    parts.push(`           (meanwhile the map panel quietly updates on its own)`);
+    return parts.join('\n');
+  }).join('\n');
+  return [
+    `THE SETUP: You are working in your usual AI coding CLI. Beside it runs "the map" — a companion that silently takes notes on your work and organizes them into a tree you can glance at. You did not ask it questions; you just worked, and it watched. Auto mode is on (it decides on its own what to highlight).`,
+    seed.length ? `WHAT THE MAP ALREADY SHOWED when you started (a small tree):\n${seedLines}` : '',
+    `WHAT YOU DID, step by step:\n${roundLines}`,
+    `You glance at the map now and then between turns — you do not study it.`,
+  ].filter(Boolean).join('\n\n');
+}
+
+const flow = flagVal('--flow');
+const flowFile = flagVal('--flow-file');
+const scenarioPath = argv.find((a) => !a.startsWith('--') && a !== flow && a !== flowFile);
+
+let experience: string;
+let label: string;
+if (flow) { experience = flow; label = 'flow (inline)'; }
+else if (flowFile) { experience = readFileSync(flowFile, 'utf8'); label = `flow-file ${flowFile}`; }
+else if (scenarioPath) { experience = experienceFromScenario(scenarioPath); label = `scenario ${scenarioPath}`; }
+else { console.error('usage: twin-run.ts (--flow "..." | --flow-file <path> | <scenario.json>)'); process.exit(2); }
+
+const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
+
+const t0 = Date.now();
+const r: TwinReport = await runTwin(experience);
+const secs = ((Date.now() - t0) / 1000).toFixed(1);
+
+console.log(`\n══ USER TWIN — ${label} (${secs}s) ══`);
+console.log(`persona: ${r.persona}\n`);
+for (const f of r.walkthrough) {
+  console.log(`${sev(f.severity)} [${f.severity}] ${f.moment}`);
+  console.log(`   felt:  ${f.reaction}`);
+  if (f.severity !== 'none') {
+    console.log(`   why:   ${f.mechanism}`);
+    if (f.fix) console.log(`   fix:   ${f.fix}`);
+  }
+  console.log('');
+}
+if (r.top_frictions?.length) console.log(`TOP FRICTIONS:\n${r.top_frictions.map((t, i) => `  ${i + 1}. ${t}`).join('\n')}\n`);
+console.log(`overall: ${r.overall_feel}`);
+console.log(`would return: ${r.would_return}`);
+console.log(`verdict: ${r.verdict}`);
+
+const worst = r.walkthrough.filter((f) => f.severity === 'moderate' || f.severity === 'severe').length;
+console.log(`\n${worst === 0 ? 'no moderate/severe friction' : `${worst} moderate/severe friction point(s)`} · would return: ${r.would_return}`);
