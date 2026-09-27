@@ -28,6 +28,29 @@ THE RELATIONSHIP BETWEEN THE LAYERS: Layer A is the authority on WHAT is felt; L
 
 You will be given a REAL SESSION: what the user did, and what the product showed, step by step. Walk it as this person. Produce your report as strict JSON only, no prose around it.`;
 
+// PERSONA CALIBRATION (Jacob 2026-09-27: "is the user a normal user or a hypercritical asshole? … we want to see
+// the experience of a NORMAL user"). The dial anchors HOW CRITICAL the twin is and — crucially — what a severity
+// actually MEANS, so a report is never mistaken for the other kind. 'normal' is the default (the real experience);
+// 'critic' is an opt-in stress test. The report's `persona` line always says which ran.
+export type TwinPersona = 'normal' | 'critic';
+export const PERSONA_CALIBRATION: Record<TwinPersona, string> = {
+  normal: `
+YOUR CALIBRATION — a NORMAL USER (this is the default; you are reporting the REAL experience, not auditing):
+- You give the tool the benefit of the doubt. New software is usually a bit rough; you shrug off small things and keep going. You are not looking for problems — you are trying to get your work done.
+- You satisfice hard and you are forgiving: if something basically works, it is FINE and you say so ("none"). Do not escalate a mild "huh" into a documented complaint.
+- Anchor severity to REAL BEHAVIORAL CONSEQUENCE, not theoretical friction:
+  • "severe" ONLY if this would actually make you ABANDON the tool or FAIL your task. Reserve it.
+  • "moderate" if it genuinely annoys or slows you but you continue anyway.
+  • "minor" for a passing "huh?" you forget a second later.
+  • "none" when it is fine — which is MOST of the time. A normal session is mostly "none".
+- You do not think in principles. React as a person ("meh, I'll figure it out later"); Layer B may still name the mechanism, but it must NOT inflate what you actually felt. If you would not mention it to a friend, it is not moderate+.`,
+  critic: `
+YOUR CALIBRATION — a HYPERCRITICAL EXPERT (opt-in STRESS TEST, not the normal experience — the report must say so):
+- You are an exacting UX reviewer hunting every latent friction, even ones a forgiving user would shrug off. Surface them all.
+- You hold the product to a high bar and escalate freely; name the mechanism behind each rough edge thoroughly.
+- This finds the CEILING of possible complaints — deliberately more critical than a real user. Do not pretend this is the typical experience; it is a stress test to expose everything that COULD bother someone.`,
+};
+
 export interface TwinFriction {
   moment: string;      // what happened / what the user saw, in plain terms
   reaction: string;    // Layer A: the in-the-moment felt reaction, first person, non-technical
@@ -130,7 +153,7 @@ export async function twinStep(goal: string, mapView: string, history: string[],
   const out = await call({
     task: 'brain',
     modelOverride: opts.modelOverride,
-    system: TWIN_SYSTEM + DRIVE_ADDENDUM,
+    system: TWIN_SYSTEM + PERSONA_CALIBRATION[opts.persona ?? 'normal'] + DRIVE_ADDENDUM,
     user,
     maxTokens: opts.maxTokens ?? 700,
     timeoutMs: opts.timeoutMs ?? 90_000,
@@ -140,15 +163,16 @@ export async function twinStep(goal: string, mapView: string, history: string[],
   return out as TwinStep;
 }
 
-export interface TwinOpts { modelOverride?: string; maxTokens?: number; timeoutMs?: number; audit?: (k: string, d: Record<string, unknown>) => void }
+export interface TwinOpts { persona?: TwinPersona; modelOverride?: string; maxTokens?: number; timeoutMs?: number; audit?: (k: string, d: Record<string, unknown>) => void }
 
 // Run the twin over a described session/experience and return its structured friction report.
 export async function runTwin(experience: string, opts: TwinOpts = {}): Promise<TwinReport> {
-  const user = `${experience}\n\nNow walk this session as the user twin. React first (Layer A), explain second (Layer B). Include steps where nothing was wrong (severity "none") so the report is honest, not a hunt for problems. Return the JSON report.`;
+  const persona = opts.persona ?? 'normal';
+  const user = `${experience}\n\nNow walk this session as the user twin (${persona} calibration). React first (Layer A), explain second (Layer B). Include steps where nothing was wrong (severity "none") so the report is honest, not a hunt for problems. In the "persona" field, state plainly which calibration you ran (normal user vs hypercritical stress test). Return the JSON report.`;
   const out = await call({
     task: 'brain',
     modelOverride: opts.modelOverride,
-    system: TWIN_SYSTEM,
+    system: TWIN_SYSTEM + PERSONA_CALIBRATION[persona],
     user,
     maxTokens: opts.maxTokens ?? 1600,
     timeoutMs: opts.timeoutMs ?? 120_000,

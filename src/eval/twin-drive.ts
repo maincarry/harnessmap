@@ -12,6 +12,7 @@ const argv = process.argv.slice(2);
 const flagVal = (n: string, d?: string) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
 const GOAL = flagVal('--goal', 'Get a small command-line tool started with your coding agent: sketch what it should do, then get a first module and a couple of tests going. You want the map to quietly keep track so you can see where you are.')!;
 const STEPS = Number(flagVal('--steps', '5'));
+const PERSONA = (flagVal('--persona') as 'normal' | 'critic') ?? 'normal';  // Jacob 2026-09-27: default = NORMAL user; 'critic' = opt-in stress test.
 const engine = process.env.HARNESSMAP_INFERENCE === 'codex' || process.env.E2E_ENGINE === 'codex';
 
 const PORT = Number(process.env.TWIN_PORT ?? 8795); const BASE = `http://127.0.0.1:${PORT}`;
@@ -65,7 +66,7 @@ function mapView(s: any): string {
   return `${lines.join('\n') || '(the map is empty)'}\n${strip}`;
 }
 
-console.log(`\n══ USER TWIN DRIVING a live map (${engine ? 'codex' : 'claude'}) ══`);
+console.log(`\n══ USER TWIN DRIVING a live map [${PERSONA}] (${engine ? 'codex' : 'claude'}) ══`);
 console.log(`goal: ${GOAL}\n`);
 
 const steps: TwinStep[] = [];
@@ -77,7 +78,7 @@ for (let i = 0; i < STEPS; i++) {
   const view = mapView(s);
   let step: TwinStep;
   prog(`step ${i + 1}: calling twinStep`);
-  try { step = await twinStep(GOAL, view, history); }
+  try { step = await twinStep(GOAL, view, history, { persona: PERSONA }); }
   catch (e) { prog(`step ${i + 1}: twinStep FAILED ${String(e).slice(0, 120)}`); console.error(`step ${i + 1} twin call failed:`, String(e).slice(0, 200)); break; }
   prog(`step ${i + 1}: twinStep returned (${step.severity}, ${step.action.kind})`);
   steps.push(step);

@@ -45,11 +45,12 @@ else { console.error('usage: twin-run.ts (--flow "..." | --flow-file <path> | <s
 
 const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
 
+const persona = (flagVal('--persona') as 'normal' | 'critic') ?? 'normal';   // Jacob 2026-09-27: default = the NORMAL user; 'critic' is an opt-in stress test.
 const t0 = Date.now();
-const r: TwinReport = await runTwin(experience);
+const r: TwinReport = await runTwin(experience, { persona });
 const secs = ((Date.now() - t0) / 1000).toFixed(1);
 
-console.log(`\n══ USER TWIN — ${label} (${secs}s) ══`);
+console.log(`\n══ USER TWIN [${persona}] — ${label} (${secs}s) ══`);
 console.log(`persona: ${r.persona}\n`);
 for (const f of r.walkthrough) {
   console.log(`${sev(f.severity)} [${f.severity}] ${f.moment}`);
