@@ -171,14 +171,29 @@ export function suggestedQueries(store: Store, projectId: string, chatId: string
   const idx = statusIndex(nodes);
   const chat = chatId ? store.getChat(chatId) : undefined;
   const focus = chat ? nodes.find((n) => n.id === chat.focusContainerId) : undefined;
-  const out: string[] = [];
+  // GROUNDED — prove the guide knows THIS map (real nodes).
+  const grounded: string[] = [];
   const openq = idx.unsettled[0];
-  if (openq) out.push(`Where does “${nm(openq)}” stand?`);
+  if (openq) grounded.push(`Where does “${nm(openq)}” stand?`);
   const recent = [...nodes].filter((n) => !focus || n.id !== focus.id).sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')))[0];
-  if (recent) out.push(`What changed about “${nm(recent)}”?`);
-  if (focus) out.push(`What’s left on “${nm(focus)}”?`);
-  out.push(idx.unsettled.length ? `What’s still unresolved?` : `What have I decided so far?`);
-  return [...new Set(out.filter(Boolean))].slice(0, Math.max(1, limit));
+  if (recent) grounded.push(`What changed about “${nm(recent)}”?`);
+  grounded.push(idx.unsettled.length ? `What’s still unresolved?` : `What have I decided so far?`);
+  // EDUCATIONAL (Jacob 2026-09-27: "not educational enough") — each teaches a real
+  // capability by asking about it, tied to their map where possible; the guide's
+  // answer reveals how focus / lighting / auto mode / memory work.
+  const learn: string[] = [];
+  if (focus) learn.push(`What does focusing on “${nm(focus)}” actually change?`);
+  else learn.push(`How do I focus the conversation on one topic?`);
+  learn.push(`What has auto mode been doing to this map?`);
+  learn.push(`Why might something here be dimmed, and what does that do?`);
+  learn.push(`What can you change for me — and what do I have to approve?`);
+  learn.push(`How do you remember this map across sessions?`);
+  // Blend: lead grounded (it knows your map), then mostly educational (it teaches).
+  const out: string[] = [];
+  if (grounded[0]) out.push(grounded[0]);
+  out.push(learn[0], learn[1]);
+  out.push(grounded[1] ?? grounded[2] ?? learn[2]);
+  return [...new Set([...out, ...learn.slice(2), ...grounded].filter(Boolean))].slice(0, Math.max(1, limit));
 }
 
 // M219 (Mark: "fix the talk to map feature — future proof, elegant"): the
