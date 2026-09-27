@@ -24,7 +24,11 @@
      html carries the theme bg so any residual gap is never black. */
   html { height: 100%; background: var(--bg); }
   body { margin: 0; font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink);
-         display: grid; grid-template-columns: var(--split, 40%) 6px 1fr; height: 100vh; height: 100dvh; }
+         display: grid; grid-template-columns: var(--split, 40%) 6px 1fr; grid-template-rows: minmax(0, 1fr); height: 100vh; height: 100dvh; }
+  /* M383 (Jacob "the strip is still there"): the grid had columns but no row
+     height, so its single row was content-tall and left a gap below when the
+     panes didn't fill the viewport — the black strip. grid-template-rows:100%
+     makes the row (and the panes in it) fill the height, so there's no gap. */
   #splitter { cursor: col-resize; background: var(--hair); position: relative; }
   #zoom-tools #map-chat, #map-chat {
     display: inline-flex; align-items: center; gap: 7px;
