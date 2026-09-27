@@ -1,0 +1,19 @@
+{
+  "name": "the guide surfaces a SUPERSEDED value from history (isolates the history half of Jacob's report): a node whose CURRENT name is the new value; a single ask for the ORIGINAL value can only be answered by reaching into the node's version history, not the outline",
+  "seed": [
+    { "key": "proj", "content": "Backend choices for the service" }
+  ],
+  "focus": "proj",
+  "auto": { "on": true },
+  "rounds": [
+    { "user": "Decision: the cache layer is Redis.", "assistant": "Recorded: cache layer is Redis.",
+      "then": [ { "nodeMatching": "cache|redis", "under": "proj" } ] },
+    { "user": "Switch the cache to Memcached.", "assistant": "Updated: the cache layer is Memcached.",
+      "then": [ { "nodeMatching": "cache|memcached", "under": "proj" }, { "countUnder": "proj", "max": 2 } ] },
+    { "user": "(opens talk-to-map)", "assistant": "ok",
+      "then": [
+        { "do": "ask", "question": "Which cache did we originally pick, before the current one?" },
+        { "askSays": "redis" }
+      ] }
+  ]
+}
