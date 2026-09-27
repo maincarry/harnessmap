@@ -161,6 +161,26 @@ export function statusIndex(nodes: any[]): { counts: Record<string, number>; uns
   return { counts, unsettled, concluded };
 }
 
+// M382 (Jacob 2026-09-27): grounded, pick-and-send query suggestions for talk-to-map.
+// Named from the user's REAL map — an open question, the most recent change, the focus —
+// so a chip proves the guide already knows THIS map (never generic "ask me anything",
+// which is the noise). Mechanical (no extra model call), so it's instant and always grounded.
+export function suggestedQueries(store: Store, projectId: string, chatId: string | null, limit = 4): string[] {
+  const nodes = (store.getNodes(projectId) as any[]).filter((n) => n.status !== 'removed' && n.author !== 'system' && n.content !== 'to sort' && n.content !== 'untitled');
+  const nm = (n: any) => String(n.title || n.content || '').replace(/\s+/g, ' ').trim().slice(0, 42);
+  const idx = statusIndex(nodes);
+  const chat = chatId ? store.getChat(chatId) : undefined;
+  const focus = chat ? nodes.find((n) => n.id === chat.focusContainerId) : undefined;
+  const out: string[] = [];
+  const openq = idx.unsettled[0];
+  if (openq) out.push(`Where does “${nm(openq)}” stand?`);
+  const recent = [...nodes].filter((n) => !focus || n.id !== focus.id).sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')))[0];
+  if (recent) out.push(`What changed about “${nm(recent)}”?`);
+  if (focus) out.push(`What’s left on “${nm(focus)}”?`);
+  out.push(idx.unsettled.length ? `What’s still unresolved?` : `What have I decided so far?`);
+  return [...new Set(out.filter(Boolean))].slice(0, Math.max(1, limit));
+}
+
 // M219 (Mark: "fix the talk to map feature — future proof, elegant"): the
 // guide no longer skims a 140k-character tree. It sees an outline and asks
 // the map QUESTIONS the server answers mechanically; it answers from those
@@ -240,7 +260,7 @@ export interface MapChatAction {
 export async function answerMapQuestion(
   store: Store, projectId: string, chatId: string, question: string,
   history: { q: string; a: string }[] = [],
-): Promise<{ answer: string; actions?: MapChatAction[] } | { error: string }> {
+): Promise<{ answer: string; actions?: MapChatAction[]; suggested?: string[] } | { error: string }> {
   const map = loadMap(store, projectId);
   const chat = store.getChat(chatId);
   const focus = chat ? store.getNode(chat.focusContainerId) : null;
@@ -408,7 +428,8 @@ export async function answerMapQuestion(
         // now and cannot dim the focus.)
       }
     }
-    return steps.length ? { answer, actions: steps } : { answer };
+    const suggested = suggestedQueries(store, projectId, chatId);   // M382: grounded pick-and-send follow-ups
+    return { answer, ...(steps.length ? { actions: steps } : {}), ...(suggested.length ? { suggested } : {}) };
   } catch (err) {
     console.error('[mapchat] failed:', err);
     return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };

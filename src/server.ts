@@ -19,7 +19,7 @@ import { listMinds, getAreaAdvice } from './translator/governors.js';
 import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit, aimCascade, roundLeftFocus } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
-import { answerMapQuestion } from './translator/mapchat.js';
+import { answerMapQuestion, suggestedQueries } from './translator/mapchat.js';
 import { CAST_GRAPH } from './translator/cast.js';
 import { recordUserWords, learnFromRename, parseGlossaryLine, addGlossary, removeGlossary, glossary, userWords } from './map/vocab.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend, HARNESSES, harnessAvailability } from './term.js';
@@ -2849,6 +2849,11 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // On-demand map check (Jacob): review the whole map now; file red dots
     // for anything that needs restructuring, or report a clean bill.
     // M77 (Jacob): direct line to the map agent — advisory, never edits.
+    // M382: grounded pick-and-send query suggestions for the talk-to-map empty state
+    // (after-answer follow-ups ride along in the /api/map-chat response's `suggested`).
+    if (path === '/api/map-chat/suggestions' && req.method === 'GET') {
+      return json({ suggested: suggestedQueries(store, projectId, mainChatId) });
+    }
     if (path === '/api/map-chat' && req.method === 'POST') {
       store.metric(projectId, 'interaction.guide_ask');
       const body = await req.json() as { question?: string; history?: { q: string; a: string }[] };

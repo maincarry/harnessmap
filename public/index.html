@@ -289,6 +289,11 @@
   .fb-opt:hover { border-color: var(--accent); color: var(--accent); }
   .fb-opt b { user-select: all; }
   .msg-mapchat:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+  /* M382: grounded pick-and-send query chips in talk-to-map */
+  .mc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+  .mc-chip { border: 1px solid var(--hair); background: var(--panel); color: var(--ink); border-radius: 14px;
+             padding: 5px 11px; font-size: 12px; cursor: pointer; text-align: left; line-height: 1.3; }
+  .mc-chip:hover { border-color: var(--accent); color: var(--accent); }
   .modal .actions button.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
   .fold-count { font-size: 11px; color: var(--muted); cursor: pointer; border: 1px solid var(--hair); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
   .fold-count:hover { color: var(--ink); background: var(--hair); }
@@ -3020,6 +3025,21 @@ function openMapChat(seed) {
   };
   for (const h of mapChatLog) { push('you', h.q); push('map', h.a); }
   if (!mapChatLog.length) push('map', 'I keep this map. Ask me anything about it — why something is where it is, what the agent sees, what auto mode did — or ask for a change (“merge those two”, “dim the old stuff”, “focus on the thesis”) and I propose it for your approval. Tell me a standing wish (“never dim my reading list”) and I record it as a map preference every agent follows.');
+  // M382: grounded pick-and-send chips — one row at a time, cleared as the chat moves on.
+  let chipRow = null;
+  const showChips = (list) => {
+    if (chipRow) { chipRow.remove(); chipRow = null; }
+    if (!Array.isArray(list) || !list.length) return;
+    chipRow = document.createElement('div');
+    chipRow.className = 'mc-chips';
+    for (const q of list.slice(0, 4)) {
+      const b = document.createElement('button');
+      b.className = 'mc-chip'; b.type = 'button'; b.textContent = q;
+      b.onclick = () => { showChips([]); ask(q); };
+      chipRow.appendChild(b);
+    }
+    log.appendChild(chipRow); log.scrollTop = log.scrollHeight;
+  };
   const ask = async (q, display) => {
     push('you', display ?? q);
     const wait = push('map', '…thinking');
@@ -3028,8 +3048,11 @@ function openMapChat(seed) {
       wait.textContent = r.answer;
       mapChatLog.push({ q: display ?? q, a: r.answer });
       if (r.actions) renderPlan(r.actions);
+      showChips(r.suggested);
     } catch (err) { wait.textContent = `failed: ${err.message}`; }
   };
+  // empty state: seed grounded starters from the map so the blank box isn't a dead end.
+  if (!mapChatLog.length) { fetch('/api/map-chat/suggestions').then((r) => r.json()).then((d) => showChips(d.suggested)).catch(() => {}); }
   const send = async () => {
     const q = input.value.trim(); if (!q) return;
     input.value = '';
