@@ -18,8 +18,13 @@
             --new0: #7cacf22e; --new1: #7cacf21c; --new2: #7cacf20e; }
   }
   * { box-sizing: border-box; }
+  /* M381 (Jacob 2026-09-27: "black strip below"): 100vh overshoots the visible
+     viewport in the in-app browser (its toolbars aren't subtracted), leaving a
+     gap that shows the host's black backdrop. dvh tracks the real viewport;
+     html carries the theme bg so any residual gap is never black. */
+  html { height: 100%; background: var(--bg); }
   body { margin: 0; font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink);
-         display: grid; grid-template-columns: var(--split, 40%) 6px 1fr; height: 100vh; }
+         display: grid; grid-template-columns: var(--split, 40%) 6px 1fr; height: 100vh; height: 100dvh; }
   #splitter { cursor: col-resize; background: var(--hair); position: relative; }
   #zoom-tools #map-chat, #map-chat {
     display: inline-flex; align-items: center; gap: 7px;
