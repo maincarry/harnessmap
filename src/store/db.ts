@@ -778,6 +778,18 @@ export class Store {
   addFeedback(text: string, source: string): void {
     this.db.prepare('INSERT INTO feedback (text, source) VALUES (?, ?)').run(text.slice(0, 1000), source);
   }
+  // M380: the map-guide conversation, persisted per map+chat so it survives a
+  // reopen (the client-side log was the only copy before — lost on reload).
+  addGuideTurn(projectId: string, chatId: string, q: string, a: string): void {
+    this.db.prepare('INSERT INTO guide_turns (project_id, chat_id, q, a) VALUES (?, ?, ?, ?)').run(projectId, chatId, q.slice(0, 4000), a.slice(0, 8000));
+  }
+  getGuideTurns(projectId: string, chatId: string, limit = 8): { q: string; a: string }[] {
+    return (this.db.prepare('SELECT q, a FROM guide_turns WHERE project_id = ? AND chat_id = ? ORDER BY id DESC LIMIT ?').all(projectId, chatId, limit) as any[])
+      .reverse().map((r) => ({ q: r.q, a: r.a }));
+  }
+  clearGuideTurns(projectId: string, chatId: string): void {
+    this.db.prepare('DELETE FROM guide_turns WHERE project_id = ? AND chat_id = ?').run(projectId, chatId);
+  }
   listFeedback(limit = 50): { id: number; text: string; source: string; createdAt: string }[] {
     return (this.db.prepare('SELECT * FROM feedback ORDER BY id DESC LIMIT ?').all(limit) as any[])
       .map((r) => ({ id: r.id, text: r.text, source: r.source, createdAt: r.created_at }));

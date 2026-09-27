@@ -341,3 +341,18 @@ CREATE TABLE IF NOT EXISTS filings (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_filings_status ON filings(status, next_retry_at);
+
+-- M380 (Jacob 2026-09-27): the talk-to-map (map guide) conversation, persisted
+-- server-side so it survives a reopen/reload of the map tab. The client used to
+-- hold this log in memory only; a reopen wiped it, so a follow-up ("and what
+-- was it before?") lost its referent and the guide looked amnesiac — which read
+-- as both "no chat memory" and "doesn't know history". Keyed per map + chat.
+CREATE TABLE IF NOT EXISTS guide_turns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_id TEXT NOT NULL,
+  chat_id TEXT NOT NULL,
+  q TEXT NOT NULL,
+  a TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_guide_turns ON guide_turns(project_id, chat_id, id);

@@ -2853,8 +2853,14 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       store.metric(projectId, 'interaction.guide_ask');
       const body = await req.json() as { question?: string; history?: { q: string; a: string }[] };
       if (!body.question?.trim()) return json({ error: 'empty question' }, 400);
-      const r = await answerMapQuestion(store, projectId, mainChatId, body.question, body.history ?? []);
+      // M380 (Jacob 2026-09-27): the guide conversation is persisted server-side, so it survives a
+      // reopen/reload of the map tab. Prefer the stored history over what the client sends (the client
+      // log is now just a fallback — e.g. the very first turn before anything is stored).
+      const stored = store.getGuideTurns(projectId, mainChatId, 8);
+      const hist = stored.length ? stored : (body.history ?? []);
+      const r = await answerMapQuestion(store, projectId, mainChatId, body.question, hist);
       if ('error' in r) return json({ error: r.error }, 502);
+      store.addGuideTurn(projectId, mainChatId, body.question, r.answer);
       store.audit('mapchat', { q: body.question.slice(0, 80) });
       return json(r);
     }
