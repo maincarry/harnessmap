@@ -1,0 +1,24 @@
+{
+  "name": "a flip-flop correction (X -> Y -> back to X) stays one node with the latest statement, no twins, no accretion (M256 edge)",
+  "seed": [
+    { "key": "sess", "content": "Conversational session: this session is a conversational chat with no file or command tools; file work needs a terminal." }
+  ],
+  "focus": "sess",
+  "auto": { "on": true },
+  "rounds": [
+    { "user": "The map says this session has no file or command tools. That is wrong — you just ran a command and read a file. This session DOES have file and command tools.",
+      "assistant": "Corrected: this session does have file and command tools; file work does not need a separate terminal.",
+      "then": [
+        { "nodeMatching": "file and command tools", "under": "sess" },
+        { "countUnder": "sess", "max": 1 },
+        { "noNodeMatching": "twin" }
+      ] },
+    { "user": "Actually I misspoke — reverse that. This session does NOT have file or command tools; it is a pure conversational chat and any file or command work needs a separate terminal after all.",
+      "assistant": "Corrected back: this session has no file or command tools; file and command work needs a separate terminal.",
+      "then": [
+        { "countUnder": "sess", "max": 1 },
+        { "noNodeMatching": "twin" },
+        { "nodeMatching": "needs a (separate )?terminal|no file", "under": "sess" }
+      ] }
+  ]
+}
