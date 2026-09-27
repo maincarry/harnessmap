@@ -33,6 +33,9 @@ ok('removed nodes are never a rescue target', rescueTarget('focus on the old ide
 const idx = statusIndex(nodes);
 ok('counts exclude removed', !('removed' in idx.counts) && idx.counts.decided === 3);
 ok('unsettled = pending + open question, not "active" chapters', idx.unsettled.map((n) => n.id).sort().join() === ['dddd4444', '99999999'].sort().join());
+// M377: concluded names the done/decided items (so "what's done?" is answerable from the index, not guessed) —
+// the three `decided` nodes, never the active/live/pending/open/removed ones.
+ok('concluded = the decided items, not active/live/pending', idx.concluded.map((n) => n.id).sort().join() === ['bbbb2222', 'cccc3333', 'ffff6666'].sort().join());
 // M219: the map queries, mechanical, on a temp store
 const store = new Store(join(mkdtempSync(join(tmpdir(), 'guide-')), 'map.sqlite'));
 const pid = store.createProject('q'); const root = randomUUID(), tidy = randomUUID(), amber = randomUUID(), task = randomUUID();

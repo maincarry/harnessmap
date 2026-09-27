@@ -145,12 +145,20 @@ export function rescueTarget(q: string, picked: any, nodes: any[], kind: 'focus'
 // M218: the STATUS INDEX — what the guide can count instead of skim. Unsettled
 // = a status that says the matter is still open, or a question not answered.
 const SETTLED = new Set(['decided', 'completed', 'done', 'answered', 'resolved', 'closed', 'live', 'active', 'standing', 'designed', 'reversed', 'superseded', 'dropped', 'rejected', 'reverted', 'removed', 'constraint', 'noted', 'provisional']);
-export function statusIndex(nodes: any[]): { counts: Record<string, number>; unsettled: any[] } {
+// M377: the genuinely-concluded statuses — what a "what's done?" question means. A subset of SETTLED that
+// excludes carrier statuses (live/active/standing/noted/constraint/provisional) and failed-outcome ones
+// (reversed/superseded/dropped/rejected) — those are settled but not "done".
+const CONCLUDED = new Set(['decided', 'completed', 'done', 'answered', 'resolved', 'closed']);
+export function statusIndex(nodes: any[]): { counts: Record<string, number>; unsettled: any[]; concluded: any[] } {
   const live = nodes.filter((n) => n.status !== 'removed');
   const counts: Record<string, number> = {};
   for (const n of live) counts[n.status] = (counts[n.status] ?? 0) + 1;
   const unsettled = live.filter((n) => !SETTLED.has(n.status) || (n.type === 'question' && !['answered', 'decided', 'resolved', 'closed'].includes(n.status)));
-  return { counts, unsettled };
+  // M377: name the concluded items too, not just count them — otherwise "what's done?" can't be answered from
+  // the index and the guide guesses from the outline (naming a recent noted item as done, missing an untitled
+  // done node). guide-status-index flaked ~50% until this. A question node only counts as concluded once answered.
+  const concluded = live.filter((n) => CONCLUDED.has(n.status));
+  return { counts, unsettled, concluded };
 }
 
 // M219 (Mark: "fix the talk to map feature — future proof, elegant"): the
@@ -271,6 +279,7 @@ export async function answerMapQuestion(
     for (const n of matched) shown.add(n.id);
     const idx = statusIndex(map.nodes);
     for (const n of idx.unsettled.slice(0, 80)) shown.add(n.id);
+    for (const n of idx.concluded.slice(0, 80)) shown.add(n.id);
     const favs = store.getFavorites().map((id) => map.nodes.find((n) => n.id === id)).filter(Boolean) as any[];
     for (const n of favs) shown.add(n.id);
     const litNodes = [...litSet].map((id) => map.nodes.find((n) => n.id === id)).filter(Boolean).slice(0, 40) as any[];
@@ -281,7 +290,7 @@ export async function answerMapQuestion(
           `THE MAP AS AN OUTLINE (ids in [brackets]; deeper levels rolled up as "(+N inside)" — query subtree to see inside; ▶ = focus):\n${outline}`,
           matched.length ? `NODES WHOSE WORDS MATCH THE USER'S SENTENCE (full statements):\n${matched.map((n: any) => `[${n.id.slice(0, 8)}] ${nm(n)} (${n.status}) — ${n.content.slice(0, 200)}`).join('\n')}` : '',
           // M218: mechanical and complete — the guide answers "what is open" from here, never by skimming the tree.
-          `STATUS INDEX (mechanical, complete — answer questions about what is unsolved / open / pending / active FROM THIS, with its true count):\ncounts by status: ${Object.entries(idx.counts).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(' · ')}\nUNSETTLED (${idx.unsettled.length}): ${idx.unsettled.length ? idx.unsettled.slice(0, 80).map((n: any) => `[${n.id.slice(0, 8)}] ${nm(n)} (${n.type ? n.type + ', ' : ''}${n.status})`).join(' · ') + (idx.unsettled.length > 80 ? ` · … ${idx.unsettled.length - 80} more` : '') : '(none)'}\nNote: "active" is a status the import gives chapter headings; it does not mean unsolved.`,
+          `STATUS INDEX (mechanical, complete — answer questions about what is unsolved / open / pending / active OR what is done / decided / resolved FROM THIS, with its true count; never estimate from the tree):\ncounts by status: ${Object.entries(idx.counts).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(' · ')}\nUNSETTLED (${idx.unsettled.length}): ${idx.unsettled.length ? idx.unsettled.slice(0, 80).map((n: any) => `[${n.id.slice(0, 8)}] ${nm(n)} (${n.type ? n.type + ', ' : ''}${n.status})`).join(' · ') + (idx.unsettled.length > 80 ? ` · … ${idx.unsettled.length - 80} more` : '') : '(none)'}\nCONCLUDED — done/decided/resolved (${idx.concluded.length}): ${idx.concluded.length ? idx.concluded.slice(0, 80).map((n: any) => `[${n.id.slice(0, 8)}] ${nm(n)} (${n.status})`).join(' · ') + (idx.concluded.length > 80 ? ` · … ${idx.concluded.length - 80} more` : '') : '(none)'}\nNote: "active" is a status the import gives chapter headings; it means neither unsolved nor done.`,
           focus ? `CURRENT FOCUS: "${focus.title || focus.content}". LIT (${litSet.size}): ${litNames.join(', ') || '(nothing)'}${litSet.size > 40 ? ' …' : ''}` : '',
           `FAVORITES (${favs.length}): ${favs.map((n: any) => `${nm(n)} [${n.id.slice(0, 8)}]`).join(', ') || '(none)'}`,
           dots.length ? `OPEN DOTS:\n${dots.join('\n')}` : 'No open dots.',
