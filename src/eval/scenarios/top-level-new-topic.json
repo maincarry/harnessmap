@@ -19,7 +19,8 @@
       "assistant": "Added: a pilot wave of 30 respondents precedes the main fieldwork.",
       "then": [
         { "nodeMatching": "pilot", "under": "ch1" },
-        { "focusIs": "ch1" }
+        { "focusIs": "ch1" },
+        { "nodeMatching": "400|stratified" }
       ] }
   ]
 }
