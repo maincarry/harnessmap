@@ -121,10 +121,26 @@ body.offline .chip,body.offline .panel{display:none}
 </div>
 
 <script>
-const COMPANION_VER = '0.9.106'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.110'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
+// Reach the map through the app's NATIVE layer (no browser Origin), so the companion
+// always reaches the server regardless of its version. Falls back to a same-origin
+// browser fetch when not running inside the app (e.g. the server-served /widget page).
+async function apiFetch(path, opts = {}) {
+  if (core) {
+    const method = opts.method || 'GET';
+    const body = opts.body != null ? String(opts.body) : null;
+    try {
+      const txt = await core.invoke('api', { method, path, body });
+      return { ok: true, status: 200, json: async () => JSON.parse(txt), text: async () => txt };
+    } catch (e) {
+      return { ok: false, status: 0, json: async () => { throw e; }, text: async () => '' };
+    }
+  }
+  return fetch(API + path, opts);
+}
 let S = null, filingTimer = null, PORT = 8790, API = 'http://127.0.0.1:8790', WSB = 'ws://127.0.0.1:8790';
 
 const disp = (n) => n ? (n.title || n.content || '') : '';
@@ -164,7 +180,7 @@ function render() {
 function offline(msg) { const m = $('offmsg'); if (m) m.textContent = msg; B.classList.add('offline'); }
 async function loadState() {
   try {
-    const r = await fetch(API + '/api/state', { cache: 'no-store' });
+    const r = await apiFetch('/api/state', { cache: 'no-store' });
     // 403 = the server is up but on an old build that blocks the app's origin.
     if (r.status === 403) { offline("map out of date — run “update map”"); return; }
     if (!r.ok) throw 0;
@@ -185,7 +201,7 @@ function connect() {
     else if (m.type === 'turn' || m.type === 'chat_delta') flashFiling();
     else if (m.type === 'round') { flashFiling(); loadState(); }
   };
-  ws.onclose = () => { B.classList.add('offline'); setTimeout(connect, 3000); };
+  ws.onclose = () => { setTimeout(connect, 3000); }; // reconnect; offline state is decided by the proxy poll, not the socket
   ws.onopen = () => loadState();
 }
 
@@ -220,7 +236,7 @@ function announce() { B.classList.remove('appearing'); void document.body.offset
 $('open-map').onclick = () => { invoke('open_map').catch(() => { try { window.open(API + '/', '_blank'); } catch {} }); };
 $('inf-toggle').onclick = async () => {
   B.classList.toggle('infoff'); // optimistic
-  try { await fetch(API + '/api/influence/toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); } catch {}
+  try { await apiFetch('/api/influence/toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); } catch {}
   loadState();
 };
 // talk to the map — a small scrollable log; answers scroll instead of breaking the
@@ -231,7 +247,7 @@ const hist = [];
 // continuous conversation — same guide, same memory (Jacob).
 async function loadHistory() {
   try {
-    const r = await fetch(API + '/api/map-chat/history'); if (!r.ok) return;
+    const r = await apiFetch('/api/map-chat/history'); if (!r.ok) return;
     const d = await r.json(); const h = d.history || [];
     if (h.length) { hist.length = 0; hist.push(...h); $('mclog').innerHTML = ''; for (const t of h) { pushMsg('you', t.q); pushMsg('map', t.a); } }
   } catch {}
@@ -252,10 +268,10 @@ function stepDesc(s) {
 }
 async function applyStep(s) {
   const cid = S && S.mainChatId; if (!cid) throw new Error('no map');
-  if (s.kind === 'focus') await fetch(`${API}/api/chats/${cid}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: s.nodeId }) });
-  else if (s.kind === 'light') { for (const x of (s.lit || [])) await fetch(`${API}/api/chats/${cid}/lit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: x.id, on: true }) }); for (const x of (s.dim || [])) await fetch(`${API}/api/chats/${cid}/lit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: x.id, on: false }) }); }
-  else if (s.kind === 'zoom') await fetch(`${API}/api/chats/${cid}/zoomin`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: s.nodeId, focus: false }) });
-  else if (s.kind === 'favorite' || s.kind === 'unfavorite') await fetch(`${API}/api/nodes/${s.nodeId}/favorite`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on: s.kind === 'favorite' }) });
+  if (s.kind === 'focus') await apiFetch(`/api/chats/${cid}/focus`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: s.nodeId }) });
+  else if (s.kind === 'light') { for (const x of (s.lit || [])) await apiFetch(`/api/chats/${cid}/lit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: x.id, on: true }) }); for (const x of (s.dim || [])) await apiFetch(`/api/chats/${cid}/lit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: x.id, on: false }) }); }
+  else if (s.kind === 'zoom') await apiFetch(`/api/chats/${cid}/zoomin`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ nodeId: s.nodeId, focus: false }) });
+  else if (s.kind === 'favorite' || s.kind === 'unfavorite') await apiFetch(`/api/nodes/${s.nodeId}/favorite`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on: s.kind === 'favorite' }) });
 }
 const SIMPLE = new Set(['focus', 'light', 'zoom', 'favorite', 'unfavorite']);
 function openInMap(ask) { invoke('open_map', { ask: ask || '' }).catch(() => { try { window.open(API + '/' + (ask ? '?ask=' + encodeURIComponent(ask) : ''), '_blank'); } catch {} }); }
@@ -286,7 +302,7 @@ async function ask() {
   $('ask').value = ''; pushMsg('you', q);
   const w = pushMsg('map', '…');
   try {
-    const r = await fetch(API + '/api/map-chat', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hm-client': 'companion' }, body: JSON.stringify({ question: q, history: hist.slice(-4), client: 'companion' }) });
+    const r = await apiFetch('/api/map-chat', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hm-client': 'companion' }, body: JSON.stringify({ question: q, history: hist.slice(-4), client: 'companion' }) });
     if (r.status === 403) { w.textContent = 'your map server is out of date — run “update map” in your CLI, then try again'; return; }
     const j = await r.json();
     w.textContent = j.answer || '(no answer)';
@@ -306,7 +322,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel
   await loadState();
   loadHistory(); // shared guide history (one conversation across app + browser)
   connect();
-  setInterval(loadState, 15000); // gentle poll as a WS backstop
+  setInterval(loadState, 5000); // proxy poll — keeps the companion live even when the WS can't connect (old server)
 })();
 </script>
 </body></html>

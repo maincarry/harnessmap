@@ -69,6 +69,37 @@ fn urlencode(s: &str) -> String {
 #[tauri::command]
 fn start_drag(window: tauri::WebviewWindow) { let _ = window.start_dragging(); }
 
+/// Talk to the local map server FROM RUST, so the companion always reaches the map
+/// regardless of the server's version. A browser fetch carries an Origin header the
+/// server's loopback gate rejects on older builds; this native request carries none
+/// (like curl), so any server version accepts it. HTTP/1.0 + Connection: close avoids
+/// chunked transfer, so reading to EOF yields the whole body. Returns the response body.
+#[tauri::command]
+fn api(method: String, path: String, body: Option<String>) -> Result<String, String> {
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+    use std::time::Duration;
+    let port = map_port();
+    let mut s = TcpStream::connect(("127.0.0.1", port)).map_err(|e| e.to_string())?;
+    let _ = s.set_read_timeout(Some(Duration::from_secs(30)));
+    let _ = s.set_write_timeout(Some(Duration::from_secs(10)));
+    let m = if method.is_empty() { "GET".to_string() } else { method.to_uppercase() };
+    let b = body.unwrap_or_default();
+    let p = if path.starts_with('/') { path } else { format!("/{}", path) };
+    let req = format!(
+        "{m} {p} HTTP/1.0\r\nHost: 127.0.0.1\r\nAccept: application/json\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{b}",
+        b.len()
+    );
+    s.write_all(req.as_bytes()).map_err(|e| e.to_string())?;
+    let mut resp = Vec::new();
+    s.read_to_end(&mut resp).map_err(|e| e.to_string())?;
+    let text = String::from_utf8_lossy(&resp);
+    match text.find("\r\n\r\n") {
+        Some(i) => Ok(text[i + 4..].to_string()),
+        None => Ok(String::new()),
+    }
+}
+
 /// Rest the window in the bottom-right of the primary screen (its home position).
 fn place_bottom_right(win: &tauri::WebviewWindow) {
     if let Ok(Some(mon)) = win.primary_monitor() {
@@ -101,7 +132,7 @@ fn toggle_window(app: &tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, reset_position])
+        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, reset_position, api])
         .setup(|app| {
             // The window loads the bundled widget (index.html, app origin). It asks Rust
             // for the port, then talks to the map server over localhost.
