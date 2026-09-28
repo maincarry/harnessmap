@@ -1893,8 +1893,12 @@ function renderNudges() {
   const innerSources = [!!n.focus, !!n.light, !!rootSug, updateReady];
   const ob = $('other-btn').querySelector('.nudge-dot');
   if (ob) ob.hidden = !innerSources.some(Boolean);
+  // M388 (Jacob "red dots shine mysteriously with no corresponding function"): ＋more is a
+  // nested submenu, so its dot must reflect EVERY source inside it (the reviewer/tidy suggestion
+  // AND an available update, which lives in ＋more) — otherwise the ⋯ dot lights from `updateReady`
+  // with no visible trail down to it. Now the trail is always ⋯ → ＋more → the exact function.
   const mb = $('other-more-btn')?.querySelector('.nudge-dot');
-  if (mb) mb.hidden = !rootSug;
+  if (mb) mb.hidden = !(rootSug || updateReady);
   const tt = $('tidy-top');
   if (tt) {
     tt.innerHTML = `⟳ tidy this view${rootSug ? '<span class="nudge-dot">●</span>' : ''}`;
