@@ -1,5 +1,5 @@
 {
- "name": "a new map opens with an 'untitled' root focused and the example map (Pathwise) beside it, both ordinary top-level nodes (M278/M391)",
+ "name": "a new map opens with an 'untitled' root focused and the example map beside it, both ordinary top-level nodes (M278/M391)",
  "seed": [],
  "auto": {
   "on": false
@@ -13,7 +13,7 @@
      "topLevelMatching": "^untitled|Hello|bakery|Bakery"
     },
     {
-     "topLevelMatching": "Pathwise|example"
+     "topLevelMatching": "Example map|month of one long"
     },
     {
      "nodeMatching": "bakery"

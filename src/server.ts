@@ -109,26 +109,81 @@ function ensureToSort(pid: string): void {
 // the `example_seeded` setting so it is added exactly once and never re-added after
 // the user deletes it. Returns the created node ids so the caller can light them.
 function seedExampleMap(pid: string): string[] {
-  const ex = randomUUID(), intro = randomUUID();
-  const stack = randomUUID(), s1 = randomUUID(), s2 = randomUUID(), s3 = randomUUID();
-  const feat = randomUUID(), f1 = randomUUID(), f1d = randomUUID(), f2 = randomUUID(), f3 = randomUUID();
-  const iss = randomUUID(), i1 = randomUUID();
-  store.applyAlterations(pid, [
-    { op: 'create_node', id: ex, parentId: null, content: 'Pathwise — a weekend hiking-log app', title: 'Pathwise (example)', status: 'live', author: 'system' },
-    { op: 'create_node', id: intro, parentId: ex, content: 'This is an example of what your map becomes as you work — ask it anything in chat (“what’s left to do?”, “why FastAPI?”, “what’s still undecided?”), or just start working in your CLI and your own topics file themselves here. Delete it anytime (Ctrl/Cmd+Z undoes).', status: 'noted', author: 'system' },
-    { op: 'create_node', id: stack, parentId: ex, content: 'Stack', status: 'live', author: 'system' },
-    { op: 'create_node', id: s1, parentId: stack, content: 'Backend: FastAPI + SQLite — one small service to start', type: 'decision', status: 'decided', author: 'system' },
-    { op: 'create_node', id: s2, parentId: stack, content: 'Frontend: React, with the trail map as the home screen', type: 'decision', status: 'decided', author: 'system' },
-    { op: 'create_node', id: s3, parentId: stack, content: 'Host on Fly.io, or just a small VPS?', type: 'question', status: 'open', author: 'system' },
-    { op: 'create_node', id: feat, parentId: ex, content: 'Features', status: 'live', author: 'system' },
-    { op: 'create_node', id: f1, parentId: feat, content: 'Log a hike — date, distance, elevation, a few photos', type: 'task', status: 'done', author: 'system' },
-    { op: 'create_node', id: f1d, parentId: f1, content: 'distances stored in meters, shown in the user’s preferred unit', status: 'noted', author: 'system' },
-    { op: 'create_node', id: f2, parentId: feat, content: 'Trail map of all past hikes', type: 'task', status: 'doing', author: 'system' },
-    { op: 'create_node', id: f3, parentId: feat, content: 'Weekly summary email', type: 'task', status: 'todo', author: 'system' },
-    { op: 'create_node', id: iss, parentId: ex, content: 'Known issues', status: 'live', author: 'system' },
-    { op: 'create_node', id: i1, parentId: iss, content: 'Elevation gain double-counts on out-and-back routes', type: 'task', status: 'todo', author: 'system' },
-  ], { kind: 'system' });
-  return [ex, intro, stack, s1, s2, s3, feat, f1, f1d, f2, f3, iss, i1];
+  const ops: any[] = [];
+  const lit: string[] = [];   // nodes to light (the rest are born, then left DIM = set aside)
+  // M391/M394/M398 (Jacob 2026-09-28: "design very very carefully… use the MIND… the best
+  // case that showcases our product"): the example is ONE long, convoluted month of chat that
+  // jumped between FOUR threads — a calorie diary, two essays, movie nights, and a weekend
+  // coding project — which the map filed into coherent areas AND linked where they crossed.
+  // It showcases the three moves + node types + remembered (dated) details + a superseded
+  // decision + light/dim curation (the leisure + the raw daily log are dimmed/set aside) +
+  // cross-thread relations (the entanglement). Kept an "example" (deletable). Focus is left on
+  // the user's own empty root (M278), not stolen by the example.
+  const n = (parentId: string | null, content: string, extra: Record<string, unknown> = {}): string => {
+    const isLit = (extra as any).lit !== false; delete (extra as any).lit;
+    const id = randomUUID();
+    ops.push({ op: 'create_node', id, parentId, content, status: 'live', author: 'system', ...extra });
+    if (isLit) lit.push(id);
+    return id;
+  };
+  const link = (fromItemId: string, type: string, toId: string) =>
+    ops.push({ op: 'create_link', id: randomUUID(), type, fromItemId, toId, toKind: 'item' });
+
+  const ex = n(null, 'A month of one long, entangled chat — a calorie diary, two essays, movies, and a coding project', { title: 'Example map' });
+  n(ex, 'What this is: one ongoing conversation over about a month that kept jumping between four things at once — a calorie diary, two essays, movie nights, and a weekend coding project. You never sorted any of it; the map filed each exchange, kept every thread coherent, and linked them where they crossed. It’s an example — delete it anytime (Ctrl/Cmd+Z undoes).', { status: 'noted' });
+
+  // ── Diet: a month of calorie tracking ────────────────────────────────
+  const diet = n(ex, 'Diet — a month of calorie tracking');
+  const dgoal = n(diet, 'Goal: about 1,900 kcal a day, drop ~2 kg this month', { type: 'decision', status: 'decided' });
+  n(dgoal, 'starting weight 78.4 kg; target 76 kg', { status: 'noted', date: '2026-03-01' });
+  const dlog = n(diet, 'Daily log', { lit: false });   // a month of entries — set aside (dim)
+  n(dlog, '1,840 kcal, 8.2k steps', { status: 'noted', date: '2026-03-01', lit: false });
+  n(dlog, 'weekend blowout, ~2,600 kcal', { status: 'noted', date: '2026-03-09', lit: false });
+  n(dlog, '78.0 kg — roughly on track', { status: 'noted', date: '2026-03-16', lit: false });
+  n(dlog, 'plateaued around 77.6 kg', { status: 'noted', date: '2026-03-24', lit: false });
+  n(diet, 'The real lever: cut afternoon snacking', { type: 'decision', status: 'decided' });
+  n(diet, 'Keep a weekly free day, or count everything?', { type: 'question', status: 'open' });
+  const dtool = n(diet, 'Switched from MyFitnessPal to a plain daily note', { type: 'decision', status: 'decided' });
+  n(dtool, 'the app’s nagging killed the habit; a plain note stuck', { status: 'noted', lit: false });
+
+  // ── Essays: two of them, different stages ────────────────────────────
+  const ess = n(ex, 'Essays');
+  const e1 = n(ess, 'Essay 1 — “Why cities feel lonely”');
+  const e1t = n(e1, 'Thesis: density without shared space breeds isolation', { type: 'claim', status: 'decided' });
+  const e1d = n(e1, 'Draft 1 done — needs a stronger opening', { type: 'task', status: 'doing' });
+  n(e1, 'Cut the Jane Jacobs tangent — it ran too long', { type: 'decision', status: 'decided', lit: false });
+  n(e1, 'due to the editor', { status: 'noted', date: '2026-03-20' });
+  const e2 = n(ess, 'Essay 2 — “On rereading”');
+  const e2a = n(e2, 'Angle: books change because we change', { type: 'claim', status: 'decided' });
+  n(e2, 'Still just an outline', { type: 'task', status: 'todo' });
+  n(e2, 'Open with a personal anecdote, or a quote?', { type: 'question', status: 'open' });
+
+  // ── Movies: leisure, mostly set aside (dim) ──────────────────────────
+  const mov = n(ex, 'Movies', { lit: false });
+  const m1 = n(mov, 'Past Lives — loved it; fed the loneliness essay', { status: 'noted', lit: false });
+  const m2 = n(mov, 'Paterson — quiet; matched the rereading mood', { status: 'noted', lit: false });
+  n(mov, 'To watch: The Zone of Interest, Perfect Days', { type: 'task', status: 'todo', lit: false });
+  n(mov, 'Is Perfect Days too slow? — still debating', { type: 'question', status: 'open', lit: false });
+
+  // ── Coding: a weekend project, tangled with the rest ─────────────────
+  const code = n(ex, 'Coding — weekend project');
+  const c1 = n(code, 'weight-chart.py — chart my weight from the diary', { type: 'task', status: 'done' });
+  n(c1, 'reads the daily note, plots kg across the month', { status: 'noted', lit: false });
+  const site = n(code, 'A small static site to publish the essays', { type: 'decision', status: 'decided' });
+  n(site, 'Astro + Markdown, deploy on Netlify', { type: 'decision', status: 'decided' });
+  const wire = n(site, 'Wire the essays in once Essay 1 is final', { type: 'task', status: 'todo' });
+  n(code, 'Bug: the chart’s date axis skips weekends', { type: 'task', status: 'todo' });
+  n(code, 'Rewrite the chart in JS for the browser, or keep Python?', { type: 'question', status: 'open' });
+
+  // ── Where the threads crossed (the entanglement the map linked) ──────
+  link(c1, 'motivated-by', dlog);   // the chart came out of the diet tracking
+  link(site, 'satisfies', ess);     // the site exists to publish the essays
+  link(wire, 'blocks', e1d);        // can't wire in until the draft is final
+  link(m1, 'supports', e1t);        // Past Lives fed the loneliness thesis
+  link(m2, 'supports', e2a);        // Paterson matched the rereading angle
+
+  store.applyAlterations(pid, ops, { kind: 'system' });
+  return lit;
 }
 
 function bootstrapProject(pid: string): string {
@@ -282,7 +337,7 @@ let mainChatId = (() => {
 // a belt-and-braces check for an example already present, so it is never doubled or re-added
 // after the user deletes it.
 if (!store.getSetting('example_seeded')) {
-  const hasExample = store.getNodes(projectId).some((n: any) => String(n.title ?? '').startsWith('Pathwise (example)') || String(n.content ?? '').startsWith('Pathwise —'));
+  const hasExample = store.getNodes(projectId).some((n: any) => String(n.title ?? '') === 'Example map' || String(n.content ?? '').startsWith('A month of one long'));
   if (!hasExample) { try { for (const id of seedExampleMap(projectId)) store.setLit(mainChatId, id, true); } catch {} }
   store.setSetting('example_seeded', '1');
 }
