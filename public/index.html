@@ -6,7 +6,7 @@
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap">
 <title>harnessmap</title>
 <style>
   :root {
@@ -27,7 +27,7 @@
      gap that shows the host's black backdrop. dvh tracks the real viewport;
      html carries the theme bg so any residual gap is never black. */
   html { height: 100%; background: var(--bg); }
-  body { margin: 0; font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink);
+  body { margin: 0; font: 14px/1.5 'Sora', ui-sans-serif, system-ui, sans-serif; background: var(--bg); color: var(--ink);
          display: grid; grid-template-columns: var(--split, 40%) 6px 1fr; grid-template-rows: minmax(0, 1fr); height: 100vh; height: 100dvh; }
   /* M383 (Jacob "the strip is still there"): the grid had columns but no row
      height, so its single row was content-tall and left a gap below when the
@@ -285,6 +285,12 @@
      (visibility:visible on a child overrides the cluster's hidden) */
   .rowbtn.on { visibility: visible; color: var(--accent); border-color: var(--accent); font-weight: 600; }
   .rowbtn[data-fav].on { color: var(--warn); border-color: var(--warn); }
+  /* ⚡ "just do it" — the apply-without-review action; one on-brand accent style
+     everywhere it appears (the ⋯ menu, and the "sort all" / "tidy all" folder buttons),
+     so it never falls back to a raw browser button. */
+  .justdo { border: 1px solid var(--accent); background: var(--new1); color: var(--accent); border-radius: 6px;
+            cursor: pointer; font-family: inherit; font-size: 11px; font-weight: 600; line-height: 1.55; padding: 2px 9px; white-space: nowrap; }
+  .justdo:hover { background: var(--accent); color: #fff; }
   .folded-line { color: var(--muted); font-size: 12px; font-style: italic; }
   .pin-divider { display: flex; align-items: center; gap: 8px; margin: 12px 0 3px; color: var(--muted); opacity: .75;
     font-size: 10.5px; font-weight: 500; letter-spacing: .07em; text-transform: uppercase; cursor: help; }
@@ -730,7 +736,7 @@ function renderTree() {
       ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
       ${recChip(n.id)}
       <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
-      ${isTray && kids.length ? `<button class="rowbtn justdo" data-sortall="1" title="just do it: sort everything in “to sort” into the homes the map names now, no review (one ↩ undo)">⚡ sort all</button>` : ''}
+      ${isTray && kids.length ? `<button class="justdo" data-sortall="1" title="just do it: sort everything in “to sort” into the homes the map names now, no review (one ↩ undo)">⚡ sort all</button>` : ''}
       <span class="rowops">
         ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes)">◱</button>`}
         <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? (S.focusBy === 'user' ? 'the conversation is focused here — set by you; auto mode holds it until you move it or press ⚡' : 'the conversation is focused here') : 'focus: talk about this (no zoom)'}">▶</button>

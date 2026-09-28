@@ -4,20 +4,14 @@
 // origin, so Tauri IPC and window dragging always work; the widget talks to the local
 // map server over localhost (the server allows the app origin + sends CORS headers).
 // The native side stays thin: a tray icon, an always-on-top frameless transparent
-// window, and a few window commands (drag, tuck-to-edge, reset).
+// window, and a few window commands (drag, reset). Minimize is handled in the web layer.
 
 use std::fs;
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{TrayIconBuilder, TrayIconEvent},
     Manager,
 };
-
-// Edge-tuck state (a mis-tuck can never lose the window: the tray "Reset position"
-// item always brings it back to the bottom-right).
-static TUCKED: AtomicBool = AtomicBool::new(false);
-static SAVED_X: AtomicI32 = AtomicI32::new(i32::MIN);
 
 /// The map server's port: ~/.harnessmap/port (written by the server), else 8790.
 fn map_port() -> u16 {
@@ -75,30 +69,6 @@ fn urlencode(s: &str) -> String {
 #[tauri::command]
 fn start_drag(window: tauri::WebviewWindow) { let _ = window.start_dragging(); }
 
-/// Tuck the window off the right screen edge (leaving a thin tab), or restore it.
-/// Returns the new state: true = tucked.
-#[tauri::command]
-fn tuck_toggle(window: tauri::WebviewWindow) -> bool {
-    let cur = window.outer_position().ok();
-    let size = window.outer_size().ok();
-    if !TUCKED.load(Ordering::SeqCst) {
-        if let (Some(p), Some(s)) = (cur, size) {
-            SAVED_X.store(p.x, Ordering::SeqCst);
-            let sliver = 40i32; // physical px of the window left visible at the edge (the tab)
-            let _ = window.set_position(tauri::PhysicalPosition::new(p.x + s.width as i32 - sliver, p.y));
-        }
-        TUCKED.store(true, Ordering::SeqCst);
-        true
-    } else {
-        let sx = SAVED_X.load(Ordering::SeqCst);
-        if let Some(p) = cur {
-            if sx != i32::MIN { let _ = window.set_position(tauri::PhysicalPosition::new(sx, p.y)); }
-        }
-        TUCKED.store(false, Ordering::SeqCst);
-        false
-    }
-}
-
 /// Rest the window in the bottom-right of the primary screen (its home position).
 fn place_bottom_right(win: &tauri::WebviewWindow) {
     if let Ok(Some(mon)) = win.primary_monitor() {
@@ -112,10 +82,9 @@ fn place_bottom_right(win: &tauri::WebviewWindow) {
     }
 }
 
-/// Bring the window back to its home position (also the tray safety net).
+/// Bring the window back to its home position (the tray safety net, if it was dragged away).
 #[tauri::command]
 fn reset_position(window: tauri::WebviewWindow) {
-    TUCKED.store(false, Ordering::SeqCst);
     place_bottom_right(&window);
     let _ = window.show();
     let _ = window.set_focus();
@@ -132,7 +101,7 @@ fn toggle_window(app: &tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, tuck_toggle, reset_position])
+        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, reset_position])
         .setup(|app| {
             // The window loads the bundled widget (index.html, app origin). It asks Rust
             // for the port, then talks to the map server over localhost.
@@ -159,7 +128,6 @@ pub fn run() {
                     "toggle" => toggle_window(app),
                     "reset" => {
                         if let Some(w) = app.get_webview_window("companion") {
-                            TUCKED.store(false, Ordering::SeqCst);
                             place_bottom_right(&w);
                             let _ = w.show();
                             let _ = w.set_focus();

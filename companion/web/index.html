@@ -11,17 +11,21 @@
 *{box-sizing:border-box}
 @keyframes fadein{from{opacity:0;transform:translateY(3px) scale(.96)}to{opacity:1;transform:none}}
 @keyframes dpulse{50%{box-shadow:0 0 0 7px rgba(181,126,34,0)}}
+@keyframes appear{0%{opacity:0;transform:scale(.6) translateY(14px)}60%{opacity:1;transform:scale(1.06)}100%{opacity:1;transform:none}}
+@keyframes ring{0%{box-shadow:0 10px 30px rgba(10,15,25,.28),0 0 0 0 rgba(37,96,184,.45)}100%{box-shadow:0 10px 30px rgba(10,15,25,.28),0 0 0 22px rgba(37,96,184,0)}}
+@keyframes minipulse{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
 html,body{margin:0;height:100%;background:transparent}
 body{font-family:'Sora',system-ui,sans-serif;color:var(--ink);overflow:hidden;-webkit-user-select:none;user-select:none}
-#root{position:fixed;right:12px;bottom:12px;display:flex;flex-direction:column;align-items:flex-end}
-body.tucked #root{display:none}
+#root{position:fixed;right:14px;bottom:14px;display:flex;flex-direction:column;align-items:flex-end}
+/* the whole widget announces itself when it first appears / is restored, so it's easy to spot */
+.appearing .chip{animation:appear .5s var(--spring) both, ring 1s ease-out .1s 2}
 
 /* chip (collapsed) — shows the FOCUS node name; drag it to move, click to open */
-.chip{display:inline-flex;align-items:center;gap:9px;max-width:260px;background:var(--panel);border:1px solid var(--hair);border-radius:999px;
-  padding:8px 14px 8px 9px;box-shadow:0 10px 30px rgba(10,15,25,.28);font-weight:600;font-size:13.5px;letter-spacing:-.01em;cursor:grab;
+.chip{display:inline-flex;align-items:center;gap:10px;max-width:288px;background:var(--panel);border:1px solid var(--hair);border-radius:999px;
+  padding:11px 17px 11px 12px;box-shadow:0 12px 34px rgba(10,15,25,.30);font-weight:600;font-size:15px;letter-spacing:-.01em;cursor:grab;
   transition:opacity .3s ease, transform .35s var(--ease);transform-origin:bottom right}
 .chip:active{cursor:grabbing}
-.chip .nm{color:var(--ink);display:inline-block;max-width:172px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;pointer-events:none}
+.chip .nm{color:var(--ink);display:inline-block;max-width:196px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;pointer-events:none}
 .chip svg,.chip .filinglbl,.chip .infmark{pointer-events:none}
 .filinglbl{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--warn);display:none;flex:0 0 auto}
 .infmark{display:none;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--hair);border-radius:5px;padding:1px 5px;flex:0 0 auto}
@@ -75,10 +79,6 @@ body.infoff .infnote{max-height:40px;opacity:1}
 body.offline .offline{display:inline-flex;align-items:center;gap:8px}
 body.offline .chip,body.offline .panel{display:none}
 
-/* edge tab — shown only when tucked; click to bring the window back */
-.edgetab{position:fixed;right:0;top:50%;transform:translateY(-50%);display:none;width:30px;height:66px;background:var(--accent);
-  border-radius:13px 0 0 13px;box-shadow:-6px 0 20px rgba(10,15,25,.30);cursor:pointer;align-items:center;justify-content:center}
-body.tucked .edgetab{display:flex}
 </style></head>
 <body>
 <svg width="0" height="0" style="position:absolute"><defs>
@@ -102,7 +102,6 @@ body.tucked .edgetab{display:flex}
   <div class="panel" id="panel">
     <div class="hd">
       <span class="draghandle" id="draghandle"><svg width="18" height="18" style="color:var(--muted);pointer-events:none"><use href="#mk" transform="scale(0.25)"/></svg><span class="brand">harness<span class="b">map</span></span></span>
-      <span class="icobtn" id="tuck" title="tuck to the screen edge">⇥</span>
       <span class="icobtn" id="x" title="close">✕</span>
     </div>
     <div class="focus" id="p-focus">the map</div>
@@ -116,9 +115,8 @@ body.tucked .edgetab{display:flex}
       <div class="row"><input id="ask" placeholder="talk to the map…" autocomplete="off"><button class="snd" id="send">send</button></div>
     </div>
   </div>
-  <div class="offline"><svg width="18" height="18" style="color:var(--muted)"><use href="#mk" transform="scale(0.25)"/></svg> map not running</div>
+  <div class="offline"><svg width="18" height="18" style="color:var(--muted)"><use href="#mk" transform="scale(0.25)"/></svg> <span id="offmsg">map not running</span></div>
 </div>
-<div class="edgetab" id="edgetab" title="bring the companion back"><svg width="16" height="16" style="color:#fff"><use href="#mk" transform="scale(0.22)"/></svg></div>
 
 <script>
 const B = document.body, $ = (id) => document.getElementById(id);
@@ -159,12 +157,15 @@ function render() {
   $('p-last').textContent = f.lastFiled ? `just filed — ${String(f.lastFiled).slice(0,60)}` : (f.pending ? `${f.pending} exchange(s) waiting to file` : '');
 }
 
+function offline(msg) { const m = $('offmsg'); if (m) m.textContent = msg; B.classList.add('offline'); }
 async function loadState() {
   try {
     const r = await fetch(API + '/api/state', { cache: 'no-store' });
+    // 403 = the server is up but on an old build that blocks the app's origin.
+    if (r.status === 403) { offline("map out of date — run “update map”"); return; }
     if (!r.ok) throw 0;
     S = await r.json(); render();
-  } catch { B.classList.add('offline'); }
+  } catch { offline('map not running'); }
 }
 function flashFiling() {
   B.classList.add('filing');
@@ -209,8 +210,9 @@ armDrag($('chip'), openPanel);
 armDrag($('draghandle'));
 armDrag($('p-focus'));
 $('x').onclick = (e) => { e.stopPropagation(); closePanel(); };
-$('tuck').onclick = async (e) => { e.stopPropagation(); closePanel(); try { const t = await invoke('tuck_toggle'); B.classList.toggle('tucked', !!t); } catch {} };
-$('edgetab').onclick = async () => { try { const t = await invoke('tuck_toggle'); B.classList.toggle('tucked', !!t); } catch {} };
+// minimize/restore — an ON-SCREEN collapse to a small corner badge (never moves the
+// window off-screen, so it can't vanish). Restore replays the appear animation.
+function announce() { B.classList.remove('appearing'); void document.body.offsetWidth; B.classList.add('appearing'); setTimeout(() => B.classList.remove('appearing'), 1600); }
 $('open-map').onclick = () => { invoke('open_map').catch(() => { try { window.open(API + '/', '_blank'); } catch {} }); };
 $('inf-toggle').onclick = async () => {
   B.classList.toggle('infoff'); // optimistic
@@ -272,6 +274,7 @@ async function ask() {
   const w = pushMsg('map', '…');
   try {
     const r = await fetch(API + '/api/map-chat', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hm-client': 'companion' }, body: JSON.stringify({ question: q, history: hist.slice(-4), client: 'companion' }) });
+    if (r.status === 403) { w.textContent = 'your map server is out of date — run “update map” in your CLI, then try again'; return; }
     const j = await r.json();
     w.textContent = j.answer || '(no answer)';
     hist.push({ q, a: j.answer });
@@ -286,6 +289,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel
 (async () => {
   try { PORT = await invoke('map_port_cmd'); } catch { PORT = 8790; }
   API = `http://127.0.0.1:${PORT}`; WSB = `ws://127.0.0.1:${PORT}`;
+  announce(); // play the appear animation on launch so it's easy to spot
   await loadState();
   connect();
   setInterval(loadState, 15000); // gentle poll as a WS backstop
