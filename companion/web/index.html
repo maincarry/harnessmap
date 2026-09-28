@@ -4,26 +4,24 @@
 <style>
   html,body{margin:0;height:100%;background:transparent;font-family:ui-sans-serif,system-ui,sans-serif;color:#5c6c7a}
   #box{position:fixed;right:12px;bottom:12px;display:inline-flex;align-items:center;gap:9px;background:#fdfdfb;border:1px solid #dce1d9;
-    border-radius:999px;padding:9px 15px;box-shadow:0 10px 30px rgba(10,15,25,.28);font-size:13px;-webkit-user-select:none;user-select:none}
+    border-radius:999px;padding:9px 15px;box-shadow:0 10px 30px rgba(10,15,25,.28);font-size:13px;-webkit-user-select:none;user-select:none;cursor:grab}
   @media (prefers-color-scheme:dark){#box{background:#1a1f27;border-color:#2a323c;color:#8a97a5}}
   .dot{width:9px;height:9px;border-radius:50%;background:#b9c2bd;flex:0 0 auto}
 </style></head>
 <body>
-  <div id="box"><span class="dot"></span><span id="msg">looking for your map…</span></div>
+  <div id="box" data-tauri-drag-region><span class="dot"></span><span id="msg">looking for your map…</span></div>
 <script>
-  // Bundled loader: get the port from the native shell, wait for the map server,
-  // then hand over to the live widget the server serves. Retries while it's down.
-  async function port() {
-    try { return await window.__TAURI__.core.invoke('map_port_cmd'); } catch { return 8790; }
+  // Bundled loader (app origin): ask the native shell whether the map server is up
+  // (map_ready — a Rust check, so no browser CORS block), then hand over to the live
+  // widget the server serves at the SAME origin (so its fetch + WebSocket just work).
+  const core = () => (window.__TAURI__ && window.__TAURI__.core) || null;
+  async function invoke(cmd, def) { try { return await core().invoke(cmd); } catch { return def; } }
+  async function tick() {
+    const up = await invoke('map_ready', false);
+    if (up) { const p = await invoke('map_port_cmd', 8790); window.location.replace(`http://127.0.0.1:${p}/widget`); return; }
+    document.getElementById('msg').textContent = 'map not running — say “open map” in your CLI';
+    setTimeout(tick, 2500);
   }
-  async function tick(p) {
-    try {
-      const r = await fetch(`http://127.0.0.1:${p}/api/state`, { cache: 'no-store' });
-      if (r.ok) { window.location.replace(`http://127.0.0.1:${p}/widget`); return; }
-    } catch {}
-    document.getElementById('msg').textContent = 'map not running — start it, or say “open map”';
-    setTimeout(() => tick(p), 3000);
-  }
-  (async () => { tick(await port()); })();
+  tick();
 </script>
 </body></html>

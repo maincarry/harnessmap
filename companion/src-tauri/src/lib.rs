@@ -30,6 +30,19 @@ fn map_url() -> String { format!("http://127.0.0.1:{}/", map_port()) }
 #[tauri::command]
 fn map_port_cmd() -> u16 { map_port() }
 
+/// Is the map server reachable? Checked from Rust (no browser CORS), so the loader can
+/// decide when to hand over to the live widget. A cross-origin fetch from the tauri://
+/// origin is blocked by CORS and would never succeed — this side-steps that entirely.
+#[tauri::command]
+fn map_ready() -> bool {
+    use std::net::TcpStream;
+    use std::time::Duration;
+    match format!("127.0.0.1:{}", map_port()).parse() {
+        Ok(sa) => TcpStream::connect_timeout(&sa, Duration::from_millis(500)).is_ok(),
+        Err(_) => false,
+    }
+}
+
 /// Open the full map in the user's default browser.
 #[tauri::command]
 fn open_map(app: tauri::AppHandle) {
@@ -48,14 +61,26 @@ fn toggle_window(app: &tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd])
+        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready])
         .setup(|app| {
-            // The window loads the bundled loader (index.html), which asks Rust for the
-            // port (map_port_cmd), waits until the map server is reachable, then redirects
-            // itself to http://127.0.0.1:<port>/widget. If the server is down it shows a
-            // "map not running" message and retries — so we never land on a dead-URL error.
+            // The window loads the bundled loader (index.html), which asks Rust whether the
+            // map server is reachable (map_ready) and for the port (map_port_cmd), then
+            // redirects itself to http://127.0.0.1:<port>/widget. If the server is down it
+            // shows a "map not running" message and retries — never a dead-URL error.
             let win = app.get_webview_window("companion").unwrap();
             let _ = widget_url(); // (used by the loader via the port command)
+
+            // Rest the companion in the bottom-right corner of the primary screen instead
+            // of the OS default (dead centre), matching where the pill draws itself.
+            if let Ok(Some(mon)) = win.primary_monitor() {
+                let sz = mon.size();
+                let mp = mon.position();
+                let ws = win.outer_size().unwrap_or(tauri::PhysicalSize::new(320u32, 300u32));
+                let margin = 24i32;
+                let x = mp.x + sz.width as i32 - ws.width as i32 - margin;
+                let y = mp.y + sz.height as i32 - ws.height as i32 - margin - 48;
+                let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+            }
             let _ = win.show();
 
             // Tray icon + menu.

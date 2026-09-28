@@ -44,6 +44,9 @@ body.filing .focus-ring{animation:breathe2 1.7s ease-in-out infinite}
 body.open .panel{opacity:1;transform:none;pointer-events:auto}
 body.open .chip{opacity:0;transform:scale(.92) translateY(6px);pointer-events:none}
 .hd{display:flex;align-items:center;gap:8px;padding:12px 14px 9px}
+.hd .draghandle{display:flex;align-items:center;gap:8px;flex:1;cursor:grab}
+.hd .draghandle:active{cursor:grabbing}
+.focus[data-tauri-drag-region]{cursor:grab}
 .hd .brand{font-weight:800;font-size:12.5px;letter-spacing:-.01em;color:var(--muted)}
 .hd .brand .b{color:var(--accent)}
 .hd .x{margin-left:auto;color:var(--faint);font-size:15px;cursor:pointer;line-height:1}
@@ -90,8 +93,8 @@ body.offline .chip,body.offline .panel{display:none}
     <span class="dot"></span>
   </div>
   <div class="panel" id="panel">
-    <div class="hd"><svg width="18" height="18" style="color:var(--muted)"><use href="#mk" transform="scale(0.25)"/></svg><span class="brand">harness<span class="b">map</span></span><span class="x" id="x">✕</span></div>
-    <div class="focus" id="p-focus">the map</div>
+    <div class="hd"><span class="draghandle" data-tauri-drag-region><svg width="18" height="18" style="color:var(--muted);pointer-events:none"><use href="#mk" transform="scale(0.25)"/></svg><span class="brand">harness<span class="b">map</span></span></span><span class="x" id="x">✕</span></div>
+    <div class="focus" id="p-focus" data-tauri-drag-region>the map</div>
     <div class="status"><span class="dot" style="width:7px;height:7px"></span><span id="p-state">map current</span> <span class="inmap" id="p-inmap"></span></div>
     <div class="last" id="p-last"></div>
     <div class="open-b" id="open-map">open map</div>
