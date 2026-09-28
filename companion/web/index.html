@@ -11,14 +11,14 @@
 *{box-sizing:border-box}
 @keyframes fadein{from{opacity:0;transform:translateY(3px) scale(.96)}to{opacity:1;transform:none}}
 @keyframes dpulse{50%{box-shadow:0 0 0 7px rgba(181,126,34,0)}}
-@keyframes appear{0%{opacity:0;transform:scale(.6) translateY(14px)}60%{opacity:1;transform:scale(1.06)}100%{opacity:1;transform:none}}
-@keyframes ring{0%{box-shadow:0 10px 30px rgba(10,15,25,.28),0 0 0 0 rgba(37,96,184,.45)}100%{box-shadow:0 10px 30px rgba(10,15,25,.28),0 0 0 22px rgba(37,96,184,0)}}
+@keyframes appear{0%{opacity:0;transform:scale(.4) translateY(26px)}45%{opacity:1;transform:scale(1.22)}68%{transform:scale(.96)}84%{transform:scale(1.06)}100%{opacity:1;transform:none}}
+@keyframes ring{0%{box-shadow:0 12px 34px rgba(10,15,25,.30),0 0 0 0 rgba(37,96,184,.55)}100%{box-shadow:0 12px 34px rgba(10,15,25,.30),0 0 0 46px rgba(37,96,184,0)}}
 @keyframes minipulse{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
 html,body{margin:0;height:100%;background:transparent}
 body{font-family:'Sora',system-ui,sans-serif;color:var(--ink);overflow:hidden;-webkit-user-select:none;user-select:none}
 #root{position:fixed;right:14px;bottom:14px;display:flex;flex-direction:column;align-items:flex-end}
 /* the whole widget announces itself when it first appears / is restored, so it's easy to spot */
-.appearing .chip{animation:appear .5s var(--spring) both, ring 1s ease-out .1s 2}
+.appearing .chip{animation:appear .8s var(--spring) both, ring 1.1s ease-out .1s 3}
 
 /* chip (collapsed) — shows the FOCUS node name; drag it to move, click to open */
 .chip{display:inline-flex;align-items:center;gap:10px;max-width:288px;background:var(--panel);border:1px solid var(--hair);border-radius:999px;
@@ -121,7 +121,7 @@ body.offline .chip,body.offline .panel{display:none}
 </div>
 
 <script>
-const COMPANION_VER = '0.9.105'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.106'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
@@ -216,7 +216,7 @@ armDrag($('p-focus'));
 $('x').onclick = (e) => { e.stopPropagation(); closePanel(); };
 // minimize/restore — an ON-SCREEN collapse to a small corner badge (never moves the
 // window off-screen, so it can't vanish). Restore replays the appear animation.
-function announce() { B.classList.remove('appearing'); void document.body.offsetWidth; B.classList.add('appearing'); setTimeout(() => B.classList.remove('appearing'), 1600); }
+function announce() { B.classList.remove('appearing'); void document.body.offsetWidth; B.classList.add('appearing'); setTimeout(() => B.classList.remove('appearing'), 3600); }
 $('open-map').onclick = () => { invoke('open_map').catch(() => { try { window.open(API + '/', '_blank'); } catch {} }); };
 $('inf-toggle').onclick = async () => {
   B.classList.toggle('infoff'); // optimistic
