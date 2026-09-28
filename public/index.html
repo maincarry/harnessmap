@@ -139,6 +139,12 @@
   #map-pane { border-right: 1px solid var(--hair); position: relative; }
   header { padding: 8px 12px; border-bottom: 1px solid var(--hair); display: flex; gap: 8px; align-items: center;
            font-weight: 600; background: var(--panel); }
+  .htitle { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; letter-spacing: .2px; }
+  .brandmark { width: 27px; height: 27px; flex: 0 0 auto; color: var(--ink); shape-rendering: geometricPrecision; }
+  .brandmark-mono { width: 15px; height: 15px; flex: 0 0 auto; margin-right: 6px; vertical-align: -2px; shape-rendering: geometricPrecision; }
+  #map-chat .brandmark-mono { width: 16px; height: 16px; }
+  .msg-mapchat .brandmark-mono { width: 13px; height: 13px; margin-right: 5px; }
+  #mob-title .brandmark { width: 20px; height: 20px; vertical-align: -5px; margin-right: 6px; }
   header .lag { font-weight: 400; font-size: 12px; color: var(--muted); }
   #beat .step { opacity: .3; }
   #beat .step.on { opacity: 1; color: var(--accent); }
@@ -456,10 +462,10 @@
   <div id="map-pane">
     <div id="mob-top">
       <button id="mob-menu" title="menu: sessions, maps, and every map function">☰</button>
-      <span id="mob-title">map</span>
+      <span id="mob-title"><svg class="brandmark" viewBox="0 0 72 72" fill="none" aria-hidden="true"><path d="M36 13 C52 13 59 25 57 38 C55 52 41 57 30 55 C18 53 13 41 15 29 C17 19 25 13 36 13Z" stroke="currentColor" stroke-width="2.4"/><path d="M37 26 C46 26 50 32 49 39 C48 46 41 49 34 48 C26 47 23 40 24 33 C25 28 30 26 37 26Z" stroke="currentColor" stroke-width="2" opacity=".55"/><circle cx="21" cy="44" r="3.6" fill="currentColor"/><circle cx="52" cy="35" r="3.4" fill="var(--panel)" stroke="#9aa4b2" stroke-width="2.2"/><circle cx="40" cy="23" r="5.2" fill="#2f6bed"/><circle cx="40" cy="23" r="9" fill="none" stroke="#2f6bed" stroke-width="1.7"/></svg>harnessmap</span>
       <span id="mob-health" title="is filing keeping up?">●</span>
     </div>
-    <header><span class="htitle">the map</span>
+    <header><span class="htitle" title="harnessmap — focus (blue), lit (filled), the map (contours)"><svg class="brandmark" viewBox="0 0 72 72" fill="none" aria-hidden="true"><path d="M36 13 C52 13 59 25 57 38 C55 52 41 57 30 55 C18 53 13 41 15 29 C17 19 25 13 36 13Z" stroke="currentColor" stroke-width="2.4"/><path d="M37 26 C46 26 50 32 49 39 C48 46 41 49 34 48 C26 47 23 40 24 33 C25 28 30 26 37 26Z" stroke="currentColor" stroke-width="2" opacity=".55"/><circle cx="21" cy="44" r="3.6" fill="currentColor"/><circle cx="52" cy="35" r="3.4" fill="var(--panel)" stroke="#9aa4b2" stroke-width="2.2"/><circle cx="40" cy="23" r="5.2" fill="#2f6bed"/><circle cx="40" cy="23" r="9" fill="none" stroke="#2f6bed" stroke-width="1.7"/></svg><span class="htxt">harnessmap</span></span>
       <select id="proj-sel" class="hbtn" title="switch map — each map is completely separate"></select>
       <button class="hbtn" id="legend-btn" title="tutorial: a guided walk through every part of the map (the reference card is at the end)">?</button>
       <button class="hbtn" id="sideview-btn" title="side view: map only — for the Codex app's side panel or a narrow window; click again to show the conversation pane (remembered in this browser)">▯</button>
@@ -471,7 +477,7 @@
     </header>
     <div id="crumbs"></div>
     <div id="zoom-tools">
-      <button id="map-chat" title="confused, or want anything done? Ask in plain words — the map guide explains and proposes; you approve"><svg class="chat-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v7.5h-6l-3 2.5v-2.5h-2z"/></svg>talk to map</button>
+      <button id="map-chat" title="confused, or want anything done? Ask in plain words — the map guide explains and proposes; you approve"><svg class="brandmark-mono" viewBox="0 0 72 72" fill="none" aria-hidden="true"><path d="M36 13 C52 13 59 25 57 38 C55 52 41 57 30 55 C18 53 13 41 15 29 C17 19 25 13 36 13Z" stroke="currentColor" stroke-width="2.6"/><circle cx="21" cy="44" r="3.8" fill="currentColor"/><circle cx="52" cy="35" r="3.4" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="40" cy="23" r="4.6" fill="currentColor"/><circle cx="40" cy="23" r="8.6" fill="none" stroke="currentColor" stroke-width="1.9"/></svg>talk to map</button>
       <button id="home-btn" title="zoom to the home page (the whole map unless you set a node as home on its row)"><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</button>
       <button id="zoom-out" title="zoom out one level, to the parent node">↑ zoom out</button>
       <button id="search-btn" title="find a node (Ctrl/Cmd+K) — confirm it with its parents and children, then light, zoom, or focus it">🔍 search</button>
@@ -503,7 +509,7 @@
           <button id="prefs-btn" title="standing preferences every map agent follows — how to group, name, and clean your maps; edit anytime">☰ map preferences</button>
           <button id="models-btn" title="choose the model behind each role — the filer that runs every turn, the map guide, the brain, the import…">⚙ models</button>
           <button id="lit-mgr-btn" title="manage focus and background for the whole map in one list">▶☀ manage</button>
-          <button id="other-settings-btn" title="rare, set-and-forget: the agent's view, sessions overview, updates, influence, dev mode">＋ more…</button>
+          <button id="other-settings-btn" title="rare, set-and-forget: the agent's view, sessions overview, updates, influence, dev mode">＋ more…<span class="nudge-dot" hidden>●</span></button>
           <div id="other-settings" hidden>
           <button id="agent-view-btn" title="what the chat agent receives from the map each turn — the context composition, and the exact text if you want it">👁 what the agent sees</button>
           <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
@@ -1899,6 +1905,15 @@ function renderNudges() {
   // with no visible trail down to it. Now the trail is always ⋯ → ＋more → the exact function.
   const mb = $('other-more-btn')?.querySelector('.nudge-dot');
   if (mb) mb.hidden = !(rootSug || updateReady);
+  // M390 (Jacob "red dots issue remained" on 0.9.93): update-btn is nested TWO submenus deep —
+  // ⋯ → ＋more (#other-more-btn) → ＋more again (#other-settings-btn) → #update-btn. M388 lit the
+  // FIRST ＋more but the SECOND ＋more had no dot, so an update-driven dot died there: the classic
+  // "red dot with no traceable trail". The second ＋more now carries the update dot too, completing
+  // the trail ⋯ → ＋more → ＋more → check for updates. (rootSug's own function, tidy-top, lives in
+  // the first ＋more, so #other-more-btn correctly needs rootSug OR updateReady; #other-settings-btn
+  // only needs updateReady, the sole nudge source nested inside it.)
+  const sb = $('other-settings-btn')?.querySelector('.nudge-dot');
+  if (sb) sb.hidden = !updateReady;
   const tt = $('tidy-top');
   if (tt) {
     tt.innerHTML = `⟳ tidy this view${rootSug ? '<span class="nudge-dot">●</span>' : ''}`;
@@ -1948,7 +1963,7 @@ function msgHtml(role, content) {
     // M175 (Jacob): "no tools here" replies carry the way out — open a real
     // Claude Code session on this same map.
     const needsTools = !refersGuide && NEEDS_TOOLS.test(content);
-    return `<div class="msg assistant" data-raw="${esc(content)}">${md2html(content)}<button class="mcopy" title="copy this message">⧉</button>${refersGuide ? '<div style="margin-top:8px"><button class="msg-mapchat" title="ask the map guide — it explains and proposes; you approve"><svg class="chat-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v7.5h-6l-3 2.5v-2.5h-2z"/></svg>talk to map</button></div>' : ''}${needsTools ? '<div style="margin-top:8px"><button class="msg-mapchat msg-addsession" title="open a real Claude Code session on this same map — web search, files, and commands work there">＋ session (has the tools)</button></div>' : ''}</div>`;
+    return `<div class="msg assistant" data-raw="${esc(content)}">${md2html(content)}<button class="mcopy" title="copy this message">⧉</button>${refersGuide ? '<div style="margin-top:8px"><button class="msg-mapchat" title="ask the map guide — it explains and proposes; you approve"><svg class="brandmark-mono" viewBox="0 0 72 72" fill="none" aria-hidden="true"><path d="M36 13 C52 13 59 25 57 38 C55 52 41 57 30 55 C18 53 13 41 15 29 C17 19 25 13 36 13Z" stroke="currentColor" stroke-width="2.6"/><circle cx="21" cy="44" r="3.8" fill="currentColor"/><circle cx="52" cy="35" r="3.4" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="40" cy="23" r="4.6" fill="currentColor"/><circle cx="40" cy="23" r="8.6" fill="none" stroke="currentColor" stroke-width="1.9"/></svg>talk to map</button></div>' : ''}${needsTools ? '<div style="margin-top:8px"><button class="msg-mapchat msg-addsession" title="open a real Claude Code session on this same map — web search, files, and commands work there">＋ session (has the tools)</button></div>' : ''}</div>`;
   }
   return `<div class="msg ${role}">${esc(content)}</div>`;
 }
@@ -3021,7 +3036,7 @@ function openMapChat(seed) {
   ov.className = 'overlay';
   ov.innerHTML = `
     <div class="modal" style="width:min(860px,96vw);display:flex;flex-direction:column;max-height:88vh"><!-- M385 (Jacob): larger talk-to-map window -->
-      <h3 style="display:flex;align-items:center;gap:8px">🗨 talk to the map guide
+      <h3 style="display:flex;align-items:center;gap:8px"><svg class="brandmark" style="width:20px;height:20px" viewBox="0 0 72 72" fill="none" aria-hidden="true"><path d="M36 13 C52 13 59 25 57 38 C55 52 41 57 30 55 C18 53 13 41 15 29 C17 19 25 13 36 13Z" stroke="currentColor" stroke-width="2.4"/><path d="M37 26 C46 26 50 32 49 39 C48 46 41 49 34 48 C26 47 23 40 24 33 C25 28 30 26 37 26Z" stroke="currentColor" stroke-width="2" opacity=".55"/><circle cx="21" cy="44" r="3.6" fill="currentColor"/><circle cx="52" cy="35" r="3.4" fill="var(--panel)" stroke="#9aa4b2" stroke-width="2.2"/><circle cx="40" cy="23" r="5.2" fill="#2f6bed"/><circle cx="40" cy="23" r="9" fill="none" stroke="#2f6bed" stroke-width="1.7"/></svg>talk to the map guide
         <span class="mc-hint">explains this map · proposes changes you approve · records your standing preferences</span>
         <button id="mc-close" class="hbtn" style="margin-left:auto" title="close">✕</button>
       </h3>
