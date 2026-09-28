@@ -80,4 +80,13 @@ printf '%s\n' "  1. open a terminal in any project folder and run:  codex" "  2.
 # M267: the doctor's report closes the install — what works, what the person still has to do
 ( cd "${APP}" && HARNESSMAP_HOME="${HOME}/.harnessmap" bun run hooks/doctor.ts --fix --no-update-check --probe-timeout=20000 2>&1 | sed 's/^/  /' ) || true
 say "Any time something looks wrong: say \"map doctor\" in Codex (it diagnoses and repairs), or run:  bash <(curl -fsSL https://raw.githubusercontent.com/maincarry/harnessmap/main/test-codex.sh)"
+# Things you can say — so people who don't know the commands can discover them.
+printf '\n\033[1m%s\033[0m\n' "Things you can say to the map (in any Codex/Claude chat):"
+printf '%s\n' "  open map · close map · map status · update map · restart map · stop map" "  install the companion · map doctor · map help   (say \"map help\" any time for this list)"
+# Companion by default (opt out with HARNESSMAP_NO_COMPANION=1). Built from source in the BACKGROUND so
+# the map install stays fast; non-fatal by design — a toolchain/build issue never blocks the map.
+if [ -z "${HARNESSMAP_NO_COMPANION:-}" ] && [ -f "${APP}/companion/install.sh" ]; then
+  say "setting up your desktop companion in the background (first build takes a few minutes; progress in ~/.harnessmap/companion-install.log). Skip next time with HARNESSMAP_NO_COMPANION=1."
+  ( HARNESSMAP_APP="${APP}" bash "${APP}/companion/install.sh" >> "${HOME}/.harnessmap/companion-install.log" 2>&1 & ) || true
+fi
 say "The map lives at http://127.0.0.1:8790 once a session starts. All data stays in ~/.harnessmap."

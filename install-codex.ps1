@@ -77,4 +77,7 @@ Write-Host "  3. start a NEW thread (CLI or app) and say:  open map  - the map a
 # M267: the doctor's report closes the install
 Push-Location $App; try { $env:HARNESSMAP_HOME = (Join-Path $HOME '.harnessmap'); & bun run hooks/doctor.ts --fix --no-update-check --probe-timeout=20000 2>&1 | ForEach-Object { "  $_" } } catch {} ; Pop-Location
 Say "Any time something looks wrong: say 'map doctor' in Codex (it diagnoses and repairs), or run:  irm https://raw.githubusercontent.com/maincarry/harnessmap/main/test-codex.ps1 | iex"
+Write-Host ""; Write-Host "Things you can say to the map (in any Codex/Claude chat):" -ForegroundColor Yellow
+Write-Host "  open map | close map | map status | update map | restart map | stop map"
+Write-Host "  install the companion | map doctor | map help   (say 'map help' any time for this list)"
 Say "All data stays in ~\.harnessmap."
