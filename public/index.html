@@ -871,7 +871,10 @@ function renderTabs() {
   if (!chats.length) chats = all;
   const cutoff = Date.now() - 7 * 86400_000;
   const fresh = [], older = [];
-  for (const c of chats) (new Date((c.lastActivity || '') + 'Z').getTime() >= cutoff || c.id === S.mainChatId ? fresh : older).push(c);
+  // M395 (Jacob: "older sessions bundle sessions in mysterious ways"): a session stays in the
+  // visible tabs when it is recent, the active one, OR PINNED — pinning means "keep this in view",
+  // so a pinned session must never be swept into the "older" bundle just for being inactive a week.
+  for (const c of chats) ((new Date((c.lastActivity || '') + 'Z').getTime() >= cutoff || c.id === S.mainChatId || c.pinned) ? fresh : older).push(c);
   list.innerHTML = '';
   const mk = (c) => {
     const f = node(c.focusContainerId);
@@ -900,9 +903,11 @@ function renderTabs() {
   if (older.length) {
     const b = document.createElement('button');
     b.className = 'tab';
-    b.dataset.tip = `${older.length} older session(s) — inactive over a week`;
+    b.dataset.tip = `${older.length} session(s) inactive over a week — click to browse and pick one`;
     b.textContent = `▾ older (${older.length})`;
-    b.onclick = () => { const c = older[0]; post(`/api/chats/${c.id}/activate`, {}).then(() => showSession(c.id)); };
+    // M395 (Jacob): the "older" bundle used to jump straight to older[0] — opaque ("mysterious").
+    // Now it opens the full sessions list so you can see every older session and pick one.
+    b.onclick = () => openSessions();
     list.appendChild(b);
   }
 }
