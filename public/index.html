@@ -581,6 +581,7 @@ const DEAD = ['rejected','dropped','retracted','reversed','mooted'];
 let S = { nodes: [], chats: [], recency: {}, suggestions: [], mainChatId: null };
 let zoomId = localStorage.getItem('hm-zoom') || null;
 let folded = new Set(), userFolded = new Set(), userUnfolded = new Set();
+const opsOpen = new Set(); // rows whose ⋯ actions are expanded — persisted across re-renders so the cluster (depth, move, merge…) doesn't collapse mid-use
 let favsOpen = localStorage.getItem('hm-favs-open') === '1'; // ★ favorites folder — closed unless the user opened it (persists)
 let tidyOpen = localStorage.getItem('hm-tidy-open') === '1';  // ⟳ to tidy folder — same rule
 
@@ -734,6 +735,7 @@ function renderTree() {
       heading ? 'heading' : '',
       (n.parentId === null && (n.title || n.content).startsWith('to sort')) ? 'tosort' : '',
       n.id === focus ? 'focused' : '',
+      opsOpen.has(n.id) ? 'ops-open' : '',
       DEAD.includes(n.status) ? 'dead' : '',
       n.status === 'exploratory' ? 'exploratory' : '',
     ].filter(Boolean).join(' ');
@@ -754,7 +756,7 @@ function renderTree() {
       <span class="rowops">
         ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes)">◱</button>`}
         <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? (S.focusBy === 'user' ? 'the conversation is focused here — set by you; auto mode holds it until you move it or press ⚡' : 'the conversation is focused here') : 'focus: talk about this (no zoom)'}">▶</button>
-        <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? ((chat()?.userLit || []).includes(n.id) ? 'lit by you — auto mode never dims it; click to dim' : 'dim: remove from the chat agent’s background') : ((S.userDim || []).includes(n.id) ? 'set aside by you — auto mode never re-lights it; click to light' : 'light as background (incl. everything under it)')}">☀</button>${(() => { const d = S.served && S.served[n.id]; const pin = S.depthPins && S.depthPins[n.id]; if (d === undefined && pin === undefined) return ''; const names = ['one line', 'summary', 'whole story', 'original words']; const unmet = (S.pinsUnmet || []).includes(n.id); return `<span class="depth${pin !== undefined ? ' pinned' : ''}${unmet ? ' unmet' : ''}" title="${d !== undefined ? `served now at: ${names[d]}` : 'not in the last block'}${pin !== undefined ? ` · pinned by you: ${names[pin]}${unmet ? ' — did not fit this turn (❗)' : ''}` : ''}">${unmet ? '❗' : d !== undefined ? '·'.repeat(d + 1) : '⌖'}</span>`; })()}
+        <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? ((chat()?.userLit || []).includes(n.id) ? 'lit by you — auto mode never dims it; click to dim' : 'dim: remove from the chat agent’s background') : ((S.userDim || []).includes(n.id) ? 'set aside by you — auto mode never re-lights it; click to light' : 'light as background (incl. everything under it)')}">☀</button>${(() => { const d = S.served && S.served[n.id]; const pin = S.depthPins && S.depthPins[n.id]; if (d === undefined && pin === undefined) return ''; const names = ['one line', 'summary', 'whole story', 'original words']; const unmet = (S.pinsUnmet || []).includes(n.id); return `<span class="depth${pin !== undefined ? ' pinned' : ''}${unmet ? ' unmet' : ''}" title="${d !== undefined ? `served now at: ${names[d]}` : 'not in the last block'}${pin !== undefined ? ` · pinned by you: ${names[pin]}${unmet ? ' — did not fit this turn (❗)' : ''}` : ''}">${unmet ? '❗' : d !== undefined ? (['▂', '▃', '▅', '▇'][d] ?? '▂') : '⌖'}</span>`; })()}
         <button class="rowbtn" data-rowmore="${n.id}" title="more actions: favorite, home, add child, move, tidy, merge">⋯</button>
         <span class="rowext">
         ${(() => { const hand = (chat()?.userLit || []).includes(n.id) || (S.userDim || []).includes(n.id) || (n.id === focus && S.focusBy === 'user') || (S.depthPins && S.depthPins[n.id] !== undefined); return hand ? `<button class="rowbtn" data-release="${n.id}" title="you set something on this node by hand (light, dim, focus or depth) — auto mode keeps it. Click to let auto mode decide again">◎ auto again</button>` : ''; })()}
@@ -1914,6 +1916,14 @@ function openControlsBoard() {
 $('other-more-btn').onclick = (e) => { e.stopPropagation(); $('other-more').hidden = false; $('other-more-btn').hidden = true; };
 $('other-settings-btn').onclick = (e) => { e.stopPropagation(); $('other-settings').hidden = false; $('other-settings-btn').hidden = true; };
 document.addEventListener('click', (e) => { if (!$('other-wrap').contains(e.target)) $('other-menu').hidden = true; });
+// Safety net: Escape always closes the topmost modal, so a modal can never trap the map's
+// clicks. uiDialog handles its own Escape in the capture phase (stopPropagation), so this
+// only fires for the plain modals (sessions, search, etc.) that didn't bind one.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const ovs = document.querySelectorAll('.overlay');
+  if (ovs.length) { ovs[ovs.length - 1].remove(); }
+});
 function renderNudges() {
   const n = S.nudges || {};
   const set = (btnId, on, tip) => {
@@ -2113,7 +2123,7 @@ $('tree').addEventListener('click', async (e) => {
     return;
   }
   const rowMoreBtn = t.closest('[data-rowmore]');
-  if (rowMoreBtn) { rowMoreBtn.closest('.nrow')?.classList.toggle('ops-open'); return; }
+  if (rowMoreBtn) { const id = rowMoreBtn.dataset.rowmore; const row = rowMoreBtn.closest('.nrow'); if (opsOpen.has(id)) { opsOpen.delete(id); row?.classList.remove('ops-open'); } else { opsOpen.add(id); row?.classList.add('ops-open'); } return; }
   const sheetId = t.closest('[data-sheet]')?.dataset.sheet;
   if (sheetId) { openRowSheet(sheetId); return; }
   const foldId = t.closest('[data-fold]')?.dataset.fold;
