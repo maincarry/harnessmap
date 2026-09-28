@@ -15,7 +15,7 @@ the first real build. What *is* verified: the widget UI itself (`/widget`) runs 
 against a real map server. What needs a build pass: this native shell + the CI workflow.
 
 ## Layout
-- `dist/index.html` — bundled loader; waits for the map server, then redirects to the
+- `web/index.html` — bundled loader; waits for the map server, then redirects to the
   live `http://127.0.0.1:<port>/widget`. Shows "map not running" + retries when it's down.
 - `src-tauri/` — the Rust shell: reads `~/.harnessmap/port`, tray menu (show/hide, open
   map, quit), always-on-top frameless transparent window, updater.
