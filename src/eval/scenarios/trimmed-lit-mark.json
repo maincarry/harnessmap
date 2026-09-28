@@ -1,5 +1,5 @@
 {
-  "name": "with more lit statements than the block can hold, the branch that did not fit is marked and served as titles only, never silently dropped (M162/M199)",
+  "name": "with more lit than even the titles can hold, a branch that could not fit at all is marked ❗ and its top still served as a title, never silently dropped — a node served at minimal is fine and not flagged (M162/M199/M408b)",
   "seed": [
     {
       "key": "proj",
@@ -512,5 +512,8 @@
       ]
     }
   ],
-  "settleMs": 12000
+  "settleMs": 12000,
+  "env": {
+    "HARNESSMAP_MAP_BUDGET": "1800"
+  }
 }
