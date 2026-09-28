@@ -25,7 +25,11 @@ export function budgetChars(store: Store): number {
   const env = Number(process.env.HARNESSMAP_MAP_BUDGET ?? 0);
   if (env > 0) return env;
   const winTokens = Number(process.env.HARNESSMAP_HARNESS_WINDOW ?? 200_000);
-  return Math.min(64_000, Math.max(8_000, Math.round(winTokens * 0.05 * CHARS_PER_TOKEN)));
+  // M408 (Jacob 2026-09-28: "can we expand the space?"): the map's slice of the window
+  // was 5% (~40k chars ≈ 10k tokens) — filled fast on a rich map. Raised to 15%
+  // (~120k chars ≈ 30k tokens on a 200k window), cap 200k. Still leaves the bulk of the
+  // window for the conversation; override per map with the map_budget setting.
+  return Math.min(200_000, Math.max(8_000, Math.round(winTokens * 0.15 * CHARS_PER_TOKEN)));
 }
 
 // What one turn's injection is made of — for the user-facing "what the agent
