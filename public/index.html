@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&display=swap">
 <title>harnessmap</title>
 <style>
   :root {
@@ -139,14 +142,15 @@
   #map-pane { border-right: 1px solid var(--hair); position: relative; }
   header { padding: 8px 12px; border-bottom: 1px solid var(--hair); display: flex; gap: 8px; align-items: center;
            font-weight: 600; background: var(--panel); }
-  .htitle { display: inline-flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 800; letter-spacing: -.2px; }
+  .htitle { display: inline-flex; align-items: center; gap: 8px; font-family: 'Sora', ui-sans-serif, system-ui, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -.035em; line-height: 1; }
   .wm-h { color: var(--ink); }
   .wm-m { color: var(--accent); }
-  .brandmark { width: 32px; height: 32px; flex: 0 0 auto; color: var(--ink); shape-rendering: geometricPrecision; }
+  .brandmark { width: 31px; height: 31px; flex: 0 0 auto; color: var(--ink); shape-rendering: geometricPrecision; }
   .brandmark-mono { width: 16px; height: 16px; flex: 0 0 auto; margin-right: 6px; vertical-align: -3px; shape-rendering: geometricPrecision; }
   #map-chat { font-size: 14px; font-weight: 600; }
   #map-chat .brandmark-mono { width: 21px; height: 21px; margin-right: 7px; vertical-align: -5px; }
   .msg-mapchat .brandmark-mono { width: 14px; height: 14px; margin-right: 5px; }
+  #mob-title { font-family: 'Sora', ui-sans-serif, system-ui, sans-serif; letter-spacing: -.02em; }
   #mob-title .brandmark { width: 22px; height: 22px; vertical-align: -5px; margin-right: 6px; }
   header .lag { font-weight: 400; font-size: 12px; color: var(--muted); }
   #beat .step { opacity: .3; }
