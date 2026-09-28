@@ -58,11 +58,16 @@ case "$OS" in
   Darwin)
     APP_SRC="$C/src-tauri/target/release/bundle/macos/HarnessMap Companion.app"
     [ -d "$APP_SRC" ] || { say "build produced no .app at $APP_SRC"; exit 1; }
+    # QUIT any running companion first — otherwise macOS 'open' just re-focuses the old,
+    # already-running process and the rebuild looks like it did nothing.
+    osascript -e 'quit app "HarnessMap Companion"' >/dev/null 2>&1 || true
+    pkill -f 'HarnessMap Companion.app/Contents/MacOS' >/dev/null 2>&1 || true
+    sleep 1
     mkdir -p "$HOME/Applications"
     rm -rf "$HOME/Applications/HarnessMap Companion.app"
     cp -R "$APP_SRC" "$HOME/Applications/"
-    say "installed to ~/Applications — launching."
-    open "$HOME/Applications/HarnessMap Companion.app" 2>/dev/null || true ;;
+    say "installed to ~/Applications — launching the fresh build."
+    open -n "$HOME/Applications/HarnessMap Companion.app" 2>/dev/null || true ;;
   Linux)
     IMG="$(ls "$C"/src-tauri/target/release/bundle/appimage/*.AppImage 2>/dev/null | head -1)"
     if [ -n "$IMG" ]; then chmod +x "$IMG"; say "launching $IMG"; ( "$IMG" >/dev/null 2>&1 & ) ; else say "no AppImage produced; see companion/README for the .deb."; fi ;;
