@@ -1872,6 +1872,14 @@ const server = Bun.serve({
       const name = path.slice('/brand/'.length).replace(/[^\w.\-]/g, '');
       return new Response(Bun.file(join(here, '..', 'public', 'brand', name)), { headers: { 'content-type': 'image/svg+xml' } });
     }
+    // M396: the desktop companion's UI — a compact, live widget served same-origin
+    // with /api/* and /ws. The native (Tauri) shell just points its webview here;
+    // it also works docked in a browser tab or the Codex side panel.
+    if (path === '/widget' || path === '/widget.html') {
+      return new Response(Bun.file(join(here, '..', 'public', 'widget.html')), {
+        headers: { 'cache-control': 'no-cache' },
+      });
+    }
     if (path === '/' || path === '/index.html') {
       // M177b: the page must never be served stale from browser cache — a
       // user who just updated would otherwise keep seeing the old UI.

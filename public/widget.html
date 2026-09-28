@@ -1,0 +1,203 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<title>harnessmap companion</title>
+<style>
+:root{--panel:#fdfdfb;--panel2:#f4f6f1;--ink:#202b36;--muted:#5c6c7a;--faint:#8695a2;--hair:#dce1d9;--accent:#2560b8;--ok:#3f9d5a;--warn:#b57e22;
+  --ease:cubic-bezier(.22,.9,.24,1);--spring:cubic-bezier(.34,1.4,.5,1)}
+:root:not([data-theme="light"]){}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--panel:#1a1f27;--panel2:#222a33;--ink:#e8edf2;--muted:#8a97a5;--faint:#6f7d8a;--hair:#2a323c;--accent:#5aa2ff}}
+:root[data-theme="dark"]{--panel:#1a1f27;--panel2:#222a33;--ink:#e8edf2;--muted:#8a97a5;--faint:#6f7d8a;--hair:#2a323c;--accent:#5aa2ff}
+*{box-sizing:border-box}
+@keyframes fadein{from{opacity:0;transform:translateY(3px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes dpulse{50%{box-shadow:0 0 0 7px rgba(181,126,34,0)}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.16)}}
+@keyframes breathe2{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:.4;transform:scale(1.26)}}
+html,body{margin:0;height:100%;background:transparent}
+body{font-family:'Sora',system-ui,sans-serif;color:var(--ink);overflow:hidden;-webkit-user-select:none;user-select:none}
+/* the companion sits bottom-right of its own (transparent) window */
+#root{position:fixed;right:12px;bottom:12px;display:flex;flex-direction:column;align-items:flex-end}
+
+/* chip (collapsed) — shows the FOCUS node name */
+.chip{display:inline-flex;align-items:center;gap:9px;max-width:260px;background:var(--panel);border:1px solid var(--hair);border-radius:999px;
+  padding:8px 14px 8px 9px;box-shadow:0 10px 30px rgba(10,15,25,.28);font-weight:600;font-size:13.5px;letter-spacing:-.01em;cursor:pointer;
+  transition:opacity .3s ease, transform .35s var(--ease);transform-origin:bottom right}
+.chip .nm{color:var(--ink);display:inline-block;max-width:172px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+.filinglbl{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--warn);display:none;flex:0 0 auto}
+.infmark{display:none;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--hair);border-radius:5px;padding:1px 5px;flex:0 0 auto}
+.dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--ok);box-shadow:0 0 0 3px rgba(63,157,90,.2);transition:background .3s, box-shadow .3s}
+body.filing .dot{background:var(--warn);box-shadow:0 0 0 3px rgba(181,126,34,.22);animation:dpulse 1.1s ease-in-out infinite}
+body.attn .dot{background:var(--accent);box-shadow:0 0 0 3px rgba(37,96,184,.22)}
+body.filing .filinglbl{display:inline;animation:fadein .4s var(--ease)}
+body.infoff .chip .infmark{display:inline;animation:fadein .4s var(--ease)}
+body.infoff .dot{background:#b9c2bd;box-shadow:0 0 0 3px rgba(150,160,155,.18)}
+.focus-node{transform-box:fill-box;transform-origin:center}
+body.filing .focus-node{animation:breathe 1.7s ease-in-out infinite}
+body.filing .focus-ring{animation:breathe2 1.7s ease-in-out infinite}
+
+/* panel (expanded) */
+.panel{width:288px;background:var(--panel);border:1px solid var(--hair);border-radius:16px;box-shadow:0 22px 60px rgba(10,15,25,.34);
+  overflow:hidden;position:absolute;right:0;bottom:0;opacity:0;transform:scale(.94) translateY(12px);transform-origin:bottom right;pointer-events:none;
+  transition:opacity .34s ease, transform .5s var(--spring)}
+body.open .panel{opacity:1;transform:none;pointer-events:auto}
+body.open .chip{opacity:0;transform:scale(.92) translateY(6px);pointer-events:none}
+.hd{display:flex;align-items:center;gap:8px;padding:12px 14px 9px}
+.hd .brand{font-weight:800;font-size:12.5px;letter-spacing:-.01em;color:var(--muted)}
+.hd .brand .b{color:var(--accent)}
+.hd .x{margin-left:auto;color:var(--faint);font-size:15px;cursor:pointer;line-height:1}
+.focus{padding:0 14px 3px;font-size:15.5px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.status{padding:4px 14px 3px;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.status .inmap{color:var(--faint)}
+.last{padding:2px 14px 11px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint);line-height:1.5;min-height:0}
+.open-b{display:block;margin:0 14px 9px;text-align:center;font-weight:600;font-size:13px;padding:10px;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer}
+.inf{display:flex;align-items:center;gap:8px;margin:0 14px 6px;padding:9px 12px;border:1px solid var(--hair);border-radius:11px;background:var(--panel2);font-size:12.5px;font-weight:600;cursor:pointer}
+.sw{margin-left:auto;width:38px;height:22px;border-radius:999px;background:var(--accent);position:relative;transition:background .3s;flex:0 0 auto}
+.sw .knob{position:absolute;top:2px;left:18px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .28s var(--ease);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+body.infoff .sw{background:#c3ccc0}
+body.infoff .sw .knob{left:2px}
+.infnote{margin:-2px 14px 11px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);line-height:1.5;max-height:0;opacity:0;overflow:hidden;transition:max-height .4s var(--ease),opacity .3s ease}
+body.infoff .infnote{max-height:40px;opacity:1}
+.talk{margin:0 14px 14px;border:1px solid var(--hair);border-radius:11px;background:var(--panel2);overflow:hidden}
+.talk .ans{max-height:0;opacity:0;padding:0 12px;font-size:12px;color:var(--ink);line-height:1.45;overflow-y:auto;border-bottom:1px solid transparent;transition:max-height .45s var(--ease),opacity .35s ease,padding .45s var(--ease),border-color .35s ease}
+.talk .ans.show{max-height:150px;opacity:1;padding:10px 12px;border-bottom-color:var(--hair)}
+.talk .row{display:flex;align-items:center;gap:8px;padding:8px 12px}
+.talk input{flex:1;border:0;background:transparent;font:inherit;font-size:12.5px;color:var(--ink);outline:none}
+.talk input::placeholder{color:var(--faint)}
+.talk .snd{color:var(--accent);font-weight:700;font-size:12.5px;cursor:pointer;background:0;border:0;font-family:inherit}
+.offline{position:absolute;right:0;bottom:0;background:var(--panel);border:1px solid var(--hair);border-radius:999px;padding:8px 14px;font-size:12.5px;color:var(--muted);box-shadow:0 10px 30px rgba(10,15,25,.28);display:none}
+body.offline .offline{display:inline-flex;align-items:center;gap:8px}
+body.offline .chip,body.offline .panel{display:none}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<g id="mk">
+ <path d="M36 13 C52 13 59 25 57 38 C55 52 41 57 30 55 C18 53 13 41 15 29 C17 19 25 13 36 13Z" fill="none" stroke="currentColor" stroke-width="2.7"/>
+ <path d="M37 26 C46 26 50 32 49 39 C48 46 41 49 34 48 C26 47 23 40 24 33 C25 28 30 26 37 26Z" fill="none" stroke="currentColor" stroke-width="2.3" opacity=".5"/>
+ <circle cx="21" cy="44" r="3.6" fill="currentColor"/>
+ <circle cx="52" cy="35" r="3.4" fill="var(--panel)" stroke="#9aa4b2" stroke-width="2.2"/>
+ <circle class="focus-ring" cx="40" cy="23" r="9" fill="none" stroke="#2560b8" stroke-width="1.9"/>
+ <circle class="focus-node" cx="40" cy="23" r="5.2" fill="#2560b8"/>
+</g></defs></svg>
+
+<div id="root">
+  <div class="chip" id="chip">
+    <svg width="21" height="21" style="color:var(--ink);flex:0 0 auto"><use href="#mk" transform="scale(0.29)"/></svg>
+    <span class="nm" id="chip-focus">the map</span>
+    <span class="filinglbl">filing…</span>
+    <span class="infmark">off</span>
+    <span class="dot"></span>
+  </div>
+  <div class="panel" id="panel">
+    <div class="hd"><svg width="18" height="18" style="color:var(--muted)"><use href="#mk" transform="scale(0.25)"/></svg><span class="brand">harness<span class="b">map</span></span><span class="x" id="x">✕</span></div>
+    <div class="focus" id="p-focus">the map</div>
+    <div class="status"><span class="dot" style="width:7px;height:7px"></span><span id="p-state">map current</span> <span class="inmap" id="p-inmap"></span></div>
+    <div class="last" id="p-last"></div>
+    <div class="open-b" id="open-map">open map</div>
+    <div class="inf" id="inf-toggle"><span>map influence</span><span class="sw"><span class="knob"></span></span></div>
+    <div class="infnote">your sessions won't see the map · it keeps filing quietly</div>
+    <div class="talk">
+      <div class="ans" id="ans"></div>
+      <div class="row"><input id="ask" placeholder="talk to the map…" autocomplete="off"><button class="snd" id="send">send</button></div>
+    </div>
+  </div>
+  <div class="offline"><svg width="18" height="18" style="color:var(--muted)"><use href="#mk" transform="scale(0.25)"/></svg> map not running</div>
+</div>
+
+<script>
+const B = document.body, $ = (id) => document.getElementById(id);
+const TAURI = !!(window).__TAURI__;
+let S = null, filingTimer = null;
+
+const disp = (n) => n ? (n.title || n.content || '') : '';
+function toSortCount() {
+  if (!S) return 0;
+  const ts = (S.nodes||[]).find(n => n.parentId == null && /^(to sort)\b/i.test((n.title||n.content||'')));
+  return ts ? (S.nodes||[]).filter(n => n.parentId === ts.id).length : 0;
+}
+function activeChat() { return (S.chats||[]).find(c => c.id === S.mainChatId) || (S.chats||[])[0]; }
+function focusName() {
+  const c = activeChat(); if (!c) return null;
+  const f = (S.nodes||[]).find(n => n.id === c.focusContainerId);
+  return f ? disp(f) : null;
+}
+function mapName() { return (S.projects||[]).find(p => p.id === S.projectId)?.name || 'the map'; }
+
+function render() {
+  if (!S) return;
+  B.classList.remove('offline');
+  const fn = focusName(), mn = mapName(), ts = toSortCount();
+  const label = fn || mn || 'the map';
+  $('chip-focus').textContent = label;
+  $('chip-focus').title = label;
+  $('p-focus').textContent = label;
+  $('p-inmap').textContent = fn ? `· in ${mn}` : '';
+  const bits = [];
+  if (S.updateAvailable) bits.push('update available');
+  bits.push(S.influenceOff ? 'influence closed' : 'map current');
+  if (ts) bits.push(`${ts} to sort`);
+  $('p-state').textContent = bits.join(' · ');
+  B.classList.toggle('infoff', !!S.influenceOff);
+  B.classList.toggle('attn', !!(ts || S.updateAvailable) && !S.influenceOff);
+  const f = (S.filings || {});
+  $('p-last').textContent = f.lastFiled ? `just filed — ${String(f.lastFiled).slice(0,60)}` : (f.pending ? `${f.pending} exchange(s) waiting to file` : '');
+}
+
+async function loadState() {
+  try {
+    const r = await fetch('/api/state', { cache: 'no-store' });
+    if (!r.ok) throw 0;
+    S = await r.json(); render();
+  } catch { B.classList.add('offline'); }
+}
+function flashFiling() {
+  B.classList.add('filing');
+  clearTimeout(filingTimer);
+  filingTimer = setTimeout(() => B.classList.remove('filing'), 4000);
+}
+function connect() {
+  let ws;
+  try { ws = new WebSocket(`ws://${location.host}/ws`); } catch { return; }
+  ws.onmessage = (ev) => {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.type === 'map') { S = m; render(); }
+    else if (m.type === 'turn' || m.type === 'chat_delta') flashFiling();
+    else if (m.type === 'round') { flashFiling(); loadState(); }
+  };
+  ws.onclose = () => { B.classList.add('offline'); setTimeout(connect, 3000); };
+  ws.onopen = () => loadState();
+}
+
+// interactions
+function openPanel(){ B.classList.add('open'); }
+function closePanel(){ B.classList.remove('open'); $('ans').classList.remove('show'); }
+$('chip').onclick = openPanel;
+$('x').onclick = (e) => { e.stopPropagation(); closePanel(); };
+$('open-map').onclick = () => {
+  if (TAURI) { try { (window).__TAURI__.core.invoke('open_map'); return; } catch {} }
+  window.open('/', '_blank');
+};
+$('inf-toggle').onclick = async () => {
+  B.classList.toggle('infoff'); // optimistic
+  try { await fetch('/api/influence/toggle', { method: 'POST' }); } catch {}
+  loadState();
+};
+async function ask() {
+  const q = $('ask').value.trim(); if (!q) return;
+  $('ask').value = ''; $('ans').textContent = '…'; $('ans').classList.add('show');
+  try {
+    const r = await fetch('/api/map-chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ question: q }) });
+    const j = await r.json();
+    $('ans').textContent = j.answer || '(no answer)';
+  } catch { $('ans').textContent = 'could not reach the map'; }
+}
+$('send').onclick = ask;
+$('ask').addEventListener('keydown', (e) => { if (e.key === 'Enter') ask(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+
+loadState();
+connect();
+setInterval(loadState, 15000); // gentle poll as a WS backstop
+</script>
+</body></html>
