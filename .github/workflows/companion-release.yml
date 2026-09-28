@@ -1,8 +1,9 @@
-# Build the HarnessMap desktop companion.
+# Compile-check for the HarnessMap desktop companion.
 #
-# Iteration mode (workflow_dispatch): builds macOS UNSIGNED and uploads the .dmg/.app
-# as a downloadable workflow artifact — for testing the native app without a local
-# toolchain. Signing, Windows/Linux, and the release/updater come back once this is green.
+# Users install the companion by BUILDING IT LOCALLY via the `companion` skill (no
+# download), so this workflow is not the delivery path — it is regression cover: it runs
+# `cargo tauri build` on macOS for every dispatch/tag so we catch build breakage the
+# local build would hit, and uploads the .app/.dmg as an artifact for spot-checks.
 name: companion-release
 
 on:
