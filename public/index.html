@@ -423,6 +423,20 @@
   #sr-list { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; max-height: 46vh; overflow-y: auto; }
   .sr-row { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 8px; cursor: pointer; font-size: 13px; }
   .sr-row:hover { background: var(--user); }
+  /* sessions modal — one clean card per session, grouped current / pinned / recent */
+  .sr-card { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--hair); border-radius: 10px; }
+  .sr-card + .sr-card { margin-top: 6px; }
+  .sr-card:hover { border-color: var(--accent); }
+  .sr-card.current { border-color: var(--accent); background: var(--new2); }
+  .sr-main { flex: 1; min-width: 0; }
+  .sr-title { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 13.5px; }
+  .sr-title .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sr-badge { font-size: 9.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 5px; padding: 0 5px; flex: none; }
+  .sr-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+  .sr-meta { color: var(--faint); font-size: 11px; white-space: nowrap; flex: none; }
+  .sr-acts { display: flex; gap: 4px; align-items: center; flex: none; }
+  .sr-group { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 14px 2px 6px; }
+  .sr-group:first-child { margin-top: 2px; }
   .sr-row .sr-star { cursor: pointer; opacity: .35; }
   .sr-row .sr-star.on { opacity: 1; color: var(--warn); }
   .sr-row .sr-path { color: var(--muted); font-size: 11px; margin-left: auto; text-align: right; }
@@ -1501,25 +1515,43 @@ function openSessions() {
   const ov = document.createElement('div');
   ov.className = 'overlay';
   const ago = (t) => { const s0 = Math.round((Date.now() - new Date((t || '') + 'Z').getTime()) / 1000); return s0 < 3600 ? `${Math.max(1, Math.round(s0 / 60))}m ago` : s0 < 86400 ? `${Math.round(s0 / 3600)}h ago` : `${Math.round(s0 / 86400)}d ago`; };
-  const rows = [...(S.chats || [])]
-    .sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.lastActivity || '').localeCompare(a.lastActivity || ''))
-    .map(c => {
-      const f = node(c.focusContainerId);
-      return `<div class="sr-row" style="align-items:baseline;gap:10px">
+  const byRecency = (a, b) => (b.lastActivity || '').localeCompare(a.lastActivity || '');
+  const label = (c) => { const f = node(c.focusContainerId); return (c.name || (c.host && c.host.title) || (f ? disp(f) : 'Session')).slice(0, 40); };
+  const subtitle = (c) => {
+    const s = (c.summary ?? '').trim();
+    if (s) return esc(s.slice(0, 110));
+    const f = node(c.focusContainerId);
+    return f ? `focused on “${esc(disp(f).slice(0, 60))}”` : 'new session — nothing filed yet';
+  };
+  const card = (c) => {
+    const cur = c.id === S.mainChatId;
+    return `<div class="sr-card ${cur ? 'current' : ''}">
+      <div class="sr-main">
+        <div class="sr-title"><span class="nm">${esc(label(c))}</span>${cur ? '<span class="sr-badge">current</span>' : ''}${c.pinned ? '<span class="sr-badge" style="color:var(--warn);border-color:var(--warn)">pinned</span>' : ''}</div>
+        <div class="sr-sub">${subtitle(c)}</div>
+      </div>
+      <span class="sr-meta">${ago(c.lastActivity)}</span>
+      <div class="sr-acts">
         <button class="rowbtn ${c.pinned ? 'on' : ''}" data-spin="${c.id}" title="${c.pinned ? 'unpin — back to recency order' : 'pin: keep this session first in the tab bar'}">📌</button>
-        <span style="min-width:140px;font-weight:${c.id === S.mainChatId ? '600' : '400'}">${esc((c.name || (c.host && c.host.title) || (f ? disp(f) : 'session')).slice(0, 26))}</span>
         <button class="rowbtn" data-srename="${c.id}" title="rename this session on the map">✎</button>
-        <span style="flex:1;color:var(--muted);font-size:12px">${esc((c.summary ?? '').slice(0, 90) || '—')}</span>
-        <span style="color:var(--muted);font-size:11px;white-space:nowrap">${ago(c.lastActivity)}</span>
         <button class="rowbtn" data-sopen="${c.id}" title="switch to this session">open</button>
-        ${c.id === S.mainChatId ? '' : `<button class="rowbtn danger" data-sclose="${c.id}" title="close this session — everything it filed stays on the map">✕</button>`}
-      </div>`;
-    }).join('');
+        ${cur ? '' : `<button class="rowbtn danger" data-sclose="${c.id}" title="close this session — everything it filed stays on the map">✕</button>`}
+      </div>
+    </div>`;
+  };
+  const all = [...(S.chats || [])];
+  const current = all.find((c) => c.id === S.mainChatId);
+  const pinned = all.filter((c) => c.pinned && c.id !== S.mainChatId).sort(byRecency);
+  const others = all.filter((c) => !c.pinned && c.id !== S.mainChatId).sort(byRecency);
+  let body = '';
+  if (current) body += `<div class="sr-group">current session</div>${card(current)}`;
+  if (pinned.length) body += `<div class="sr-group">pinned</div>${pinned.map(card).join('')}`;
+  if (others.length) body += `<div class="sr-group">${current || pinned.length ? 'other sessions' : 'sessions'} · ${others.length}</div>${others.map(card).join('')}`;
   ov.innerHTML = `
     <div class="modal" style="width:min(680px,94vw)">
       <h3>▦ sessions on this map</h3>
-      <div style="font-size:12px;color:var(--muted);margin:-4px 0 8px">each session's topic is its focus; the grey line is what the conversation has evolved into. 📌 pinned sessions ride first in the tab bar.</div>
-      <div style="display:flex;flex-direction:column;gap:2px;max-height:55vh;overflow-y:auto">${rows || '<span style="color:var(--muted)">no sessions yet</span>'}</div>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 10px">every session on this map — the one you're in, the ones you pinned to the tab bar, then the rest by recency. Each shows what it's about and when it was last active; closing one keeps everything it filed.</div>
+      <div style="display:flex;flex-direction:column;max-height:58vh;overflow-y:auto;padding-right:2px">${body || '<span style="color:var(--muted)">no sessions yet</span>'}</div>
       <div class="actions"><button id="sv-close" class="primary" title="close this panel">close</button></div>
     </div>`;
   document.body.appendChild(ov);
