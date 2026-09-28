@@ -3073,8 +3073,15 @@ function openMapChat(seed) {
     log.appendChild(d); log.scrollTop = log.scrollHeight;
     return d;
   };
-  for (const h of mapChatLog) { push('you', h.q); push('map', h.a); }
-  if (!mapChatLog.length) push('map', 'I keep this map. Ask me anything about it — why something is where it is, what the agent sees, what auto mode did — or ask for a change (“merge those two”, “dim the old stuff”, “focus on the thesis”) and I propose it for your approval. Tell me a standing wish (“never dim my reading list”) and I record it as a map preference every agent follows.');
+  const INTRO = 'I keep this map. Ask me anything about it — why something is where it is, what the agent sees, what auto mode did — or ask for a change (“merge those two”, “dim the old stuff”, “focus on the thesis”) and I propose it for your approval. Tell me a standing wish (“never dim my reading list”) and I record it as a map preference every agent follows.';
+  const paintLog = () => { log.innerHTML = ''; for (const h of mapChatLog) { push('you', h.q); push('map', h.a); } if (!mapChatLog.length) push('map', INTRO); };
+  paintLog();
+  // Load the SHARED server-side guide history so the browser and the app companion are
+  // one continuous conversation — the same guide, the same memory (Jacob).
+  fetch('/api/map-chat/history').then((r) => r.json()).then((d) => {
+    const h = d.history || [];
+    if (h.length && h.length !== mapChatLog.length) { mapChatLog.length = 0; mapChatLog.push(...h); paintLog(); }
+  }).catch(() => {});
   // M382: grounded pick-and-send chips — one row at a time, cleared as the chat moves on.
   let chipRow = null;
   const showChips = (list) => {

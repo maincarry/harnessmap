@@ -2970,6 +2970,11 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // M77 (Jacob): direct line to the map agent — advisory, never edits.
     // M382: grounded pick-and-send query suggestions for the talk-to-map empty state
     // (after-answer follow-ups ride along in the /api/map-chat response's `suggested`).
+    // The map-guide conversation, shared: the app widget and the browser both load this
+    // same server-side history so the guide is one continuous person across them (Jacob).
+    if (path === '/api/map-chat/history' && req.method === 'GET') {
+      return json({ history: store.getGuideTurns(projectId, mainChatId, 50) });
+    }
     if (path === '/api/map-chat/suggestions' && req.method === 'GET') {
       return json({ suggested: suggestedQueries(store, projectId, mainChatId) });
     }

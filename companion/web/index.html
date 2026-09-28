@@ -121,7 +121,7 @@ body.offline .chip,body.offline .panel{display:none}
 </div>
 
 <script>
-const COMPANION_VER = '0.9.104'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.105'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
@@ -227,6 +227,15 @@ $('inf-toggle').onclick = async () => {
 // panel, and proposals render with an approve button (simple ones apply here; a tidy
 // or a multi-step plan opens the full map, which has the review UI).
 const hist = [];
+// Load the SHARED server-side guide history so the widget and the browser guide are one
+// continuous conversation — same guide, same memory (Jacob).
+async function loadHistory() {
+  try {
+    const r = await fetch(API + '/api/map-chat/history'); if (!r.ok) return;
+    const d = await r.json(); const h = d.history || [];
+    if (h.length) { hist.length = 0; hist.push(...h); $('mclog').innerHTML = ''; for (const t of h) { pushMsg('you', t.q); pushMsg('map', t.a); } }
+  } catch {}
+}
 function mclog() { const l = $('mclog'); l.classList.add('show'); return l; }
 function pushMsg(who, text) {
   const d = document.createElement('div'); d.className = 'm ' + (who === 'you' ? 'you' : 'map'); d.textContent = text;
@@ -295,6 +304,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel
   API = `http://127.0.0.1:${PORT}`; WSB = `ws://127.0.0.1:${PORT}`;
   announce(); // play the appear animation on launch so it's easy to spot
   await loadState();
+  loadHistory(); // shared guide history (one conversation across app + browser)
   connect();
   setInterval(loadState, 15000); // gentle poll as a WS backstop
 })();
