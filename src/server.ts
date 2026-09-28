@@ -103,6 +103,34 @@ function ensureToSort(pid: string): void {
   store.audit('tosort_ensured', { project: pid.slice(0, 8) });
 }
 
+// M391/M394 (Jacob): the example map — seeded on a fresh map's first run, AND
+// back-filled once into existing installs at startup (Jacob: "push the example map
+// for every user"), so every user sees it, not just brand-new installs. Guarded by
+// the `example_seeded` setting so it is added exactly once and never re-added after
+// the user deletes it. Returns the created node ids so the caller can light them.
+function seedExampleMap(pid: string): string[] {
+  const ex = randomUUID(), intro = randomUUID();
+  const stack = randomUUID(), s1 = randomUUID(), s2 = randomUUID(), s3 = randomUUID();
+  const feat = randomUUID(), f1 = randomUUID(), f1d = randomUUID(), f2 = randomUUID(), f3 = randomUUID();
+  const iss = randomUUID(), i1 = randomUUID();
+  store.applyAlterations(pid, [
+    { op: 'create_node', id: ex, parentId: null, content: 'Pathwise — a weekend hiking-log app', title: 'Pathwise (example)', status: 'live', author: 'system' },
+    { op: 'create_node', id: intro, parentId: ex, content: 'This is an example of what your map becomes as you work — ask it anything in chat (“what’s left to do?”, “why FastAPI?”, “what’s still undecided?”), or just start working in your CLI and your own topics file themselves here. Delete it anytime (Ctrl/Cmd+Z undoes).', status: 'noted', author: 'system' },
+    { op: 'create_node', id: stack, parentId: ex, content: 'Stack', status: 'live', author: 'system' },
+    { op: 'create_node', id: s1, parentId: stack, content: 'Backend: FastAPI + SQLite — one small service to start', type: 'decision', status: 'decided', author: 'system' },
+    { op: 'create_node', id: s2, parentId: stack, content: 'Frontend: React, with the trail map as the home screen', type: 'decision', status: 'decided', author: 'system' },
+    { op: 'create_node', id: s3, parentId: stack, content: 'Host on Fly.io, or just a small VPS?', type: 'question', status: 'open', author: 'system' },
+    { op: 'create_node', id: feat, parentId: ex, content: 'Features', status: 'live', author: 'system' },
+    { op: 'create_node', id: f1, parentId: feat, content: 'Log a hike — date, distance, elevation, a few photos', type: 'task', status: 'done', author: 'system' },
+    { op: 'create_node', id: f1d, parentId: f1, content: 'distances stored in meters, shown in the user’s preferred unit', status: 'noted', author: 'system' },
+    { op: 'create_node', id: f2, parentId: feat, content: 'Trail map of all past hikes', type: 'task', status: 'doing', author: 'system' },
+    { op: 'create_node', id: f3, parentId: feat, content: 'Weekly summary email', type: 'task', status: 'todo', author: 'system' },
+    { op: 'create_node', id: iss, parentId: ex, content: 'Known issues', status: 'live', author: 'system' },
+    { op: 'create_node', id: i1, parentId: iss, content: 'Elevation gain double-counts on out-and-back routes', type: 'task', status: 'todo', author: 'system' },
+  ], { kind: 'system' });
+  return [ex, intro, stack, s1, s2, s3, feat, f1, f1d, f2, f3, iss, i1];
+}
+
 function bootstrapProject(pid: string): string {
   ensureToSort(pid);
   const existing = store.getChats(pid);
@@ -114,33 +142,12 @@ function bootstrapProject(pid: string): string {
   // product by then) start with one root named after the map. Tutorial nodes
   // carry author 'system' so project adoption still sees a pristine map.
   const first = store.listProjects().length <= 1;
-  const seedIds = [rootId];
+  const seedIds: string[] = [rootId];
   // M278 (Jacob: "why do everything keep going into the getting started node? it should be a tutorial node such that user
   // starts a new node anew"): every new map starts with an EMPTY focused top-level node — the first round names it (M114) —
   // and the tutorial, on the first map only, is one more top-level node beside it, not the root of everything.
   store.applyAlterations(pid, [{ op: 'create_node', id: rootId, parentId: null, content: 'untitled', status: 'live', author: 'user' }], { kind: 'system' });
-  if (first) {
-    const ex = randomUUID(), intro = randomUUID();
-    const stack = randomUUID(), s1 = randomUUID(), s2 = randomUUID(), s3 = randomUUID();
-    const feat = randomUUID(), f1 = randomUUID(), f1d = randomUUID(), f2 = randomUUID(), f3 = randomUUID();
-    const iss = randomUUID(), i1 = randomUUID();
-    seedIds.push(ex, intro, stack, s1, s2, s3, feat, f1, f1d, f2, f3, iss, i1);
-    store.applyAlterations(pid, [
-      { op: 'create_node', id: ex, parentId: null, content: 'Pathwise — a weekend hiking-log app', title: 'Pathwise (example)', status: 'live', author: 'system' },
-      { op: 'create_node', id: intro, parentId: ex, content: 'This is an example of what your map becomes as you work — ask it anything in chat (“what’s left to do?”, “why FastAPI?”, “what’s still undecided?”), or just start working in your CLI and your own topics file themselves here. Delete it anytime (Ctrl/Cmd+Z undoes).', status: 'noted', author: 'system' },
-      { op: 'create_node', id: stack, parentId: ex, content: 'Stack', status: 'live', author: 'system' },
-      { op: 'create_node', id: s1, parentId: stack, content: 'Backend: FastAPI + SQLite — one small service to start', type: 'decision', status: 'decided', author: 'system' },
-      { op: 'create_node', id: s2, parentId: stack, content: 'Frontend: React, with the trail map as the home screen', type: 'decision', status: 'decided', author: 'system' },
-      { op: 'create_node', id: s3, parentId: stack, content: 'Host on Fly.io, or just a small VPS?', type: 'question', status: 'open', author: 'system' },
-      { op: 'create_node', id: feat, parentId: ex, content: 'Features', status: 'live', author: 'system' },
-      { op: 'create_node', id: f1, parentId: feat, content: 'Log a hike — date, distance, elevation, a few photos', type: 'task', status: 'done', author: 'system' },
-      { op: 'create_node', id: f1d, parentId: f1, content: 'distances stored in meters, shown in the user’s preferred unit', status: 'noted', author: 'system' },
-      { op: 'create_node', id: f2, parentId: feat, content: 'Trail map of all past hikes', type: 'task', status: 'doing', author: 'system' },
-      { op: 'create_node', id: f3, parentId: feat, content: 'Weekly summary email', type: 'task', status: 'todo', author: 'system' },
-      { op: 'create_node', id: iss, parentId: ex, content: 'Known issues', status: 'live', author: 'system' },
-      { op: 'create_node', id: i1, parentId: iss, content: 'Elevation gain double-counts on out-and-back routes', type: 'task', status: 'todo', author: 'system' },
-    ], { kind: 'system' });
-  }
+  if (first) { seedIds.push(...seedExampleMap(pid)); store.setSetting('example_seeded', '1'); }
   const chatId = randomUUID();
   store.createChat({ id: chatId, projectId: pid, focusContainerId: rootId, sdkSessionId: null });
   for (const id of seedIds) store.setLit(chatId, id, true);
@@ -269,6 +276,16 @@ let mainChatId = (() => {
   store.setSetting(`active_chat:${projectId}`, id);
   return id;
 })();
+// M394 (Jacob "push the example map for every user"): existing installs that predate the
+// example never saw it (first-run only seeds a fresh DB). Back-fill it ONCE into the active
+// map here — guarded by `example_seeded` (a fresh install set it during bootstrap above) and
+// a belt-and-braces check for an example already present, so it is never doubled or re-added
+// after the user deletes it.
+if (!store.getSetting('example_seeded')) {
+  const hasExample = store.getNodes(projectId).some((n: any) => String(n.title ?? '').startsWith('Pathwise (example)') || String(n.content ?? '').startsWith('Pathwise —'));
+  if (!hasExample) { try { for (const id of seedExampleMap(projectId)) store.setLit(mainChatId, id, true); } catch {} }
+  store.setSetting('example_seeded', '1');
+}
 // M271: self-healing after the inner-session storm — views whose host session's first user turn is one of OUR
 // prompts ("SYSTEM INSTRUCTIONS:" is the codex exec prompt's first line) are the map filing itself. Archive those
 // views, forget their sessions, remove the nodes their rounds created (one undo entry). Runs at boot and on demand.
