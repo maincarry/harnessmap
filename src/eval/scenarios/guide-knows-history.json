@@ -7,9 +7,9 @@
   "auto": { "on": true },
   "rounds": [
     { "user": "Decision: the launch deadline is March 1.", "assistant": "Recorded: launch deadline March 1.",
-      "then": [ { "nodeMatching": "deadline|march", "under": "proj" } ] },
+      "then": [ { "nodeMatching": "deadline|march", "under": "proj" }, { "nodeMatching": "release schedule|open items" } ] },
     { "user": "Change of plan — move the launch deadline to April 15, the March date is off.", "assistant": "Updated: launch deadline is now April 15 (was March 1).",
-      "then": [ { "nodeMatching": "deadline|april", "under": "proj" }, { "countUnder": "proj", "max": 3 } ] },
+      "then": [ { "nodeMatching": "deadline|april", "under": "proj" }, { "countUnder": "proj", "max": 3 }, { "nodeMatching": "release schedule|open items" } ] },
     { "user": "(the user opens talk-to-map)", "assistant": "ok",
       "then": [
         { "do": "ask", "question": "What's the launch deadline now?" },
