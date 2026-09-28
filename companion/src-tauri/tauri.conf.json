@@ -37,17 +37,7 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "createUpdaterArtifacts": true
+    ]
   },
-  "plugins": {
-    "updater": {
-      "active": true,
-      "endpoints": [
-        "https://github.com/maincarry/harnessmap/releases/latest/download/companion-latest.json"
-      ],
-      "dialog": true,
-      "pubkey": "REPLACE_WITH_TAURI_SIGNING_PUBLIC_KEY"
-    }
-  }
+  "plugins": {}
 }
