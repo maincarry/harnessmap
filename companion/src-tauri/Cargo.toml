@@ -1,0 +1,27 @@
+[package]
+name = "harnessmap-companion"
+version = "0.1.0"
+description = "HarnessMap desktop companion — an always-there presence for your live map"
+authors = ["HarnessMap"]
+edition = "2021"
+
+# NOTE: this scaffold has NOT been compiled (the dev box has no Rust/GUI toolchain).
+# It follows standard Tauri v2 conventions; expect a small fix-up pass on the first
+# real `cargo tauri build` on macOS / in CI. See companion/README.md.
+
+[lib]
+name = "harnessmap_companion_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-updater = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
