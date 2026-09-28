@@ -1862,7 +1862,10 @@ function state() {
 }
 
 function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
+  // access-control-allow-origin lets the desktop companion (a cross-origin Tauri app
+  // window) read these responses; safe here because the server is loopback-bound and
+  // the request-time origin gate already rejects any non-local, non-Tauri origin.
+  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' } });
 }
 
 // M265: after a self-update the new server starts while the old one is still leaving — wait for the port.
@@ -1893,9 +1896,25 @@ const server = Bun.serve({
       const host = (req.headers.get('host') ?? '').toLowerCase();
       const origin = req.headers.get('origin');
       const LOCAL_RE = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+      // The desktop companion (Tauri) runs at its own app origin — tauri://localhost
+      // on macOS/Linux, https://tauri.localhost on Windows. A web page in a browser
+      // cannot forge an Origin header, so allowing these does not weaken the
+      // rebinding/CSRF guard: only the installed app on this machine can send them.
+      const TAURI_RE = /^(tauri:\/\/localhost|https?:\/\/tauri\.localhost)$/i;
       if (!LOCAL_RE.test(host)) return new Response('forbidden (host)', { status: 403 });
-      if (origin && !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(origin)) {
+      if (origin && !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(origin) && !TAURI_RE.test(origin)) {
         return new Response('forbidden (origin)', { status: 403 });
+      }
+      // CORS preflight for the companion's cross-origin API calls. Loopback-bound +
+      // the origin gate above already fence this; the headers just let the browser
+      // engine in the app read the JSON responses (which carry access-control-allow-origin).
+      if (req.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: {
+          'access-control-allow-origin': origin ?? '*',
+          'access-control-allow-methods': 'GET, POST, OPTIONS',
+          'access-control-allow-headers': 'content-type',
+          'access-control-max-age': '86400',
+        } });
       }
     }
 

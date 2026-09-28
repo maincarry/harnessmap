@@ -1,18 +1,23 @@
 // HarnessMap desktop companion — Tauri v2 shell.
 //
-// It hosts the map's own /widget page (served by the local map server), so the
-// native side stays thin: a tray icon, an always-on-top frameless window, and a
-// couple of commands. Almost all UI/logic lives in the web widget the server serves.
-//
-// NOT YET COMPILED (dev box has no Rust/GUI toolchain). Standard Tauri v2; expect a
-// small fix-up on the first real build. See companion/README.md.
+// The window loads a small bundled widget (../web/index.html) that runs at the app
+// origin, so Tauri IPC and window dragging always work; the widget talks to the local
+// map server over localhost (the server allows the app origin + sends CORS headers).
+// The native side stays thin: a tray icon, an always-on-top frameless transparent
+// window, and a few window commands (drag, tuck-to-edge, reset).
 
 use std::fs;
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{TrayIconBuilder, TrayIconEvent},
-    Manager, WebviewUrl, WebviewWindowBuilder,
+    Manager,
 };
+
+// Edge-tuck state (a mis-tuck can never lose the window: the tray "Reset position"
+// item always brings it back to the bottom-right).
+static TUCKED: AtomicBool = AtomicBool::new(false);
+static SAVED_X: AtomicI32 = AtomicI32::new(i32::MIN);
 
 /// The map server's port: ~/.harnessmap/port (written by the server), else 8790.
 fn map_port() -> u16 {
@@ -23,16 +28,14 @@ fn map_port() -> u16 {
         .unwrap_or(8790)
 }
 
-fn widget_url() -> String { format!("http://127.0.0.1:{}/widget", map_port()) }
 fn map_url() -> String { format!("http://127.0.0.1:{}/", map_port()) }
 
-/// The map server's port, for the bundled loader to build its URLs.
+/// The map server's port, so the widget can build its localhost API + WebSocket URLs.
 #[tauri::command]
 fn map_port_cmd() -> u16 { map_port() }
 
-/// Is the map server reachable? Checked from Rust (no browser CORS), so the loader can
-/// decide when to hand over to the live widget. A cross-origin fetch from the tauri://
-/// origin is blocked by CORS and would never succeed — this side-steps that entirely.
+/// Is the map server reachable? A local TCP check from Rust (no browser CORS), so the
+/// widget can show "map not running" cleanly instead of a failed fetch.
 #[tauri::command]
 fn map_ready() -> bool {
     use std::net::TcpStream;
@@ -43,11 +46,79 @@ fn map_ready() -> bool {
     }
 }
 
-/// Open the full map in the user's default browser.
+/// Open the full map in the user's default browser. An optional `ask` carries a question
+/// across so the browser's talk-to-map reopens with it (to review a proposal there).
 #[tauri::command]
-fn open_map(app: tauri::AppHandle) {
+fn open_map(app: tauri::AppHandle, ask: Option<String>) {
     use tauri_plugin_shell::ShellExt;
-    let _ = app.shell().open(map_url(), None);
+    let url = match ask.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        Some(q) => format!("{}?ask={}", map_url(), urlencode(q)),
+        None => map_url(),
+    };
+    let _ = app.shell().open(url, None);
+}
+
+/// Minimal percent-encoding for the ask query value (kept dependency-free).
+fn urlencode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() * 3);
+    for b in s.as_bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(*b as char),
+            _ => out.push_str(&format!("%{:02X}", b)),
+        }
+    }
+    out
+}
+
+/// Begin an OS window drag — the widget calls this on mousedown of a drag handle (the
+/// pill or the panel header), so the frameless window can be moved anywhere.
+#[tauri::command]
+fn start_drag(window: tauri::WebviewWindow) { let _ = window.start_dragging(); }
+
+/// Tuck the window off the right screen edge (leaving a thin tab), or restore it.
+/// Returns the new state: true = tucked.
+#[tauri::command]
+fn tuck_toggle(window: tauri::WebviewWindow) -> bool {
+    let cur = window.outer_position().ok();
+    let size = window.outer_size().ok();
+    if !TUCKED.load(Ordering::SeqCst) {
+        if let (Some(p), Some(s)) = (cur, size) {
+            SAVED_X.store(p.x, Ordering::SeqCst);
+            let sliver = 40i32; // physical px of the window left visible at the edge (the tab)
+            let _ = window.set_position(tauri::PhysicalPosition::new(p.x + s.width as i32 - sliver, p.y));
+        }
+        TUCKED.store(true, Ordering::SeqCst);
+        true
+    } else {
+        let sx = SAVED_X.load(Ordering::SeqCst);
+        if let Some(p) = cur {
+            if sx != i32::MIN { let _ = window.set_position(tauri::PhysicalPosition::new(sx, p.y)); }
+        }
+        TUCKED.store(false, Ordering::SeqCst);
+        false
+    }
+}
+
+/// Rest the window in the bottom-right of the primary screen (its home position).
+fn place_bottom_right(win: &tauri::WebviewWindow) {
+    if let Ok(Some(mon)) = win.primary_monitor() {
+        let sz = mon.size();
+        let mp = mon.position();
+        let ws = win.outer_size().unwrap_or(tauri::PhysicalSize::new(320, 300));
+        let margin = 24i32;
+        let x = mp.x + sz.width as i32 - ws.width as i32 - margin;
+        let y = mp.y + sz.height as i32 - ws.height as i32 - margin - 48;
+        let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
+    }
+}
+
+/// Bring the window back to its home position (also the tray safety net).
+#[tauri::command]
+fn reset_position(window: tauri::WebviewWindow) {
+    TUCKED.store(false, Ordering::SeqCst);
+    place_bottom_right(&window);
+    let _ = window.show();
+    let _ = window.set_focus();
 }
 
 fn toggle_window(app: &tauri::AppHandle) {
@@ -61,33 +132,22 @@ fn toggle_window(app: &tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready])
+        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, tuck_toggle, reset_position])
         .setup(|app| {
-            // The window loads the bundled loader (index.html), which asks Rust whether the
-            // map server is reachable (map_ready) and for the port (map_port_cmd), then
-            // redirects itself to http://127.0.0.1:<port>/widget. If the server is down it
-            // shows a "map not running" message and retries — never a dead-URL error.
+            // The window loads the bundled widget (index.html, app origin). It asks Rust
+            // for the port, then talks to the map server over localhost.
             let win = app.get_webview_window("companion").unwrap();
-            let _ = widget_url(); // (used by the loader via the port command)
 
-            // Rest the companion in the bottom-right corner of the primary screen instead
-            // of the OS default (dead centre), matching where the pill draws itself.
-            if let Ok(Some(mon)) = win.primary_monitor() {
-                let sz = mon.size();
-                let mp = mon.position();
-                let ws = win.outer_size().unwrap_or(tauri::PhysicalSize::new(320u32, 300u32));
-                let margin = 24i32;
-                let x = mp.x + sz.width as i32 - ws.width as i32 - margin;
-                let y = mp.y + sz.height as i32 - ws.height as i32 - margin - 48;
-                let _ = win.set_position(tauri::PhysicalPosition::new(x, y));
-            }
+            // Rest in the bottom-right corner (not the OS default, dead centre).
+            place_bottom_right(&win);
             let _ = win.show();
 
             // Tray icon + menu.
             let open = MenuItemBuilder::with_id("open_map", "Open map").build(app)?;
             let toggle = MenuItemBuilder::with_id("toggle", "Show / hide companion").build(app)?;
+            let reset = MenuItemBuilder::with_id("reset", "Reset position").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&toggle, &open, &quit]).build()?;
+            let menu = MenuBuilder::new(app).items(&[&toggle, &open, &reset, &quit]).build()?;
 
             let handle = app.handle().clone();
             TrayIconBuilder::new()
@@ -95,8 +155,16 @@ pub fn run() {
                 .tooltip("HarnessMap — your live map")
                 .menu(&menu)
                 .on_menu_event(move |app, event| match event.id().as_ref() {
-                    "open_map" => open_map(app.clone()),
+                    "open_map" => open_map(app.clone(), None),
                     "toggle" => toggle_window(app),
+                    "reset" => {
+                        if let Some(w) = app.get_webview_window("companion") {
+                            TUCKED.store(false, Ordering::SeqCst);
+                            place_bottom_right(&w);
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })

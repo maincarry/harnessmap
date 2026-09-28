@@ -3111,6 +3111,9 @@ function openMapChat(seed) {
       '(brought over from the chat — figuring out what you need…)',
     );
   }
+  // the desktop companion sends the user here to review a proposal it wouldn't show in
+  // its small window — reopen the guide with that question so the proposal appears.
+  if (seed?.autoAsk) { ask(seed.autoAsk); }
   // M78 (Jacob): the map agent attaches proposals — focus / light / tidy —
   // applied only on the user's click, through the same endpoints the buttons use.
   // M81: multi-step plans — one card, steps applied in order on approve.
@@ -4218,6 +4221,12 @@ async function refresh() {
 connect();
 refresh();
 checkMobile();
+// ?ask=… — the desktop companion opens the map here to review a proposal in the
+// full talk-to-map; open the guide with the question and clear the param.
+try {
+  const askParam = new URLSearchParams(location.search).get('ask');
+  if (askParam) { openMapChat({ autoAsk: askParam }); history.replaceState(null, '', location.pathname); }
+} catch {}
 // M162 (Mark): the bottom line is STATUS, not pinned information — action
 // feedback ("focus → x") lingering there read as a pinned topic. Every
 // message reverts to the idle text after a beat.

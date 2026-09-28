@@ -1,18 +1,17 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the companion window — including the map's own /widget page, which is served remotely by the local map server and must be allowed to drag the window and open the map.",
+  "description": "Permissions for the companion window. The widget runs at the app origin, so drag/tuck/reset go through the app's own commands; these cover the tray + window show/hide + opening the map.",
   "windows": ["companion"],
-  "remote": {
-    "urls": ["http://127.0.0.1:*", "http://localhost:*"]
-  },
   "permissions": [
     "core:default",
     "core:window:allow-show",
     "core:window:allow-hide",
     "core:window:allow-set-focus",
     "core:window:allow-start-dragging",
-    "core:webview:allow-set-webview-focus",
+    "core:window:allow-set-position",
+    "core:window:allow-outer-position",
+    "core:window:allow-outer-size",
     "shell:allow-open"
   ]
 }
