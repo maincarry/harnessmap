@@ -1835,6 +1835,14 @@ const server = Bun.serve({
       const headers = /^galaxy\.(js|css)$/.test(name) ? { 'cache-control': 'no-cache' } : undefined;
       return new Response(f, headers ? { headers } : undefined);
     }
+    // M387: brand assets — the favicon (E1 constellation mark) and /brand/*.svg.
+    if (path === '/favicon.svg') {
+      return new Response(Bun.file(join(here, '..', 'public', 'favicon.svg')), { headers: { 'content-type': 'image/svg+xml' } });
+    }
+    if (path.startsWith('/brand/')) {
+      const name = path.slice('/brand/'.length).replace(/[^\w.\-]/g, '');
+      return new Response(Bun.file(join(here, '..', 'public', 'brand', name)), { headers: { 'content-type': 'image/svg+xml' } });
+    }
     if (path === '/' || path === '/index.html') {
       // M177b: the page must never be served stale from browser cache — a
       // user who just updated would otherwise keep seeing the old UI.
