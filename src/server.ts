@@ -120,13 +120,25 @@ function bootstrapProject(pid: string): string {
   // and the tutorial, on the first map only, is one more top-level node beside it, not the root of everything.
   store.applyAlterations(pid, [{ op: 'create_node', id: rootId, parentId: null, content: 'untitled', status: 'live', author: 'user' }], { kind: 'system' });
   if (first) {
-    const t0 = randomUUID(), k1 = randomUUID(), k2 = randomUUID(), k3 = randomUUID();
-    seedIds.push(t0, k1, k2, k3);
+    const ex = randomUUID(), intro = randomUUID();
+    const stack = randomUUID(), s1 = randomUUID(), s2 = randomUUID(), s3 = randomUUID();
+    const feat = randomUUID(), f1 = randomUUID(), f1d = randomUUID(), f2 = randomUUID(), f3 = randomUUID();
+    const iss = randomUUID(), i1 = randomUUID();
+    seedIds.push(ex, intro, stack, s1, s2, s3, feat, f1, f1d, f2, f3, iss, i1);
     store.applyAlterations(pid, [
-      { op: 'create_node', id: t0, parentId: null, content: 'getting started (tutorial)', title: 'getting started', status: 'live', author: 'system' },
-      { op: 'create_node', id: k1, parentId: t0, content: 'this map takes notes for you — talk to Claude and topics file themselves here', status: 'live', author: 'system' },
-      { op: 'create_node', id: k2, parentId: t0, content: 'try it: press ▶ on a node to talk about it, ☀ to keep it in Claude\u2019s background, ◱ to view only that branch', status: 'live', author: 'system' },
-      { op: 'create_node', id: k3, parentId: t0, content: 'when real work shows up, delete this topic (✕) — everything is undoable (Ctrl/Cmd+Z)', status: 'live', author: 'system' },
+      { op: 'create_node', id: ex, parentId: null, content: 'Pathwise — a weekend hiking-log app', title: 'Pathwise (example)', status: 'live', author: 'system' },
+      { op: 'create_node', id: intro, parentId: ex, content: 'This is an example of what your map becomes as you work — ask it anything in chat (“what’s left to do?”, “why FastAPI?”, “what’s still undecided?”), or just start working in your CLI and your own topics file themselves here. Delete it anytime (Ctrl/Cmd+Z undoes).', status: 'noted', author: 'system' },
+      { op: 'create_node', id: stack, parentId: ex, content: 'Stack', status: 'live', author: 'system' },
+      { op: 'create_node', id: s1, parentId: stack, content: 'Backend: FastAPI + SQLite — one small service to start', type: 'decision', status: 'decided', author: 'system' },
+      { op: 'create_node', id: s2, parentId: stack, content: 'Frontend: React, with the trail map as the home screen', type: 'decision', status: 'decided', author: 'system' },
+      { op: 'create_node', id: s3, parentId: stack, content: 'Host on Fly.io, or just a small VPS?', type: 'question', status: 'open', author: 'system' },
+      { op: 'create_node', id: feat, parentId: ex, content: 'Features', status: 'live', author: 'system' },
+      { op: 'create_node', id: f1, parentId: feat, content: 'Log a hike — date, distance, elevation, a few photos', type: 'task', status: 'done', author: 'system' },
+      { op: 'create_node', id: f1d, parentId: f1, content: 'distances stored in meters, shown in the user’s preferred unit', status: 'noted', author: 'system' },
+      { op: 'create_node', id: f2, parentId: feat, content: 'Trail map of all past hikes', type: 'task', status: 'doing', author: 'system' },
+      { op: 'create_node', id: f3, parentId: feat, content: 'Weekly summary email', type: 'task', status: 'todo', author: 'system' },
+      { op: 'create_node', id: iss, parentId: ex, content: 'Known issues', status: 'live', author: 'system' },
+      { op: 'create_node', id: i1, parentId: iss, content: 'Elevation gain double-counts on out-and-back routes', type: 'task', status: 'todo', author: 'system' },
     ], { kind: 'system' });
   }
   const chatId = randomUUID();
