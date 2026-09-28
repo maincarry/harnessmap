@@ -307,6 +307,24 @@ async function selfUpdate(): Promise<{ ok: boolean; changed?: boolean; from?: st
       try { spawnSyncHidden([process.execPath, 'run', 'hooks/enable-codex.ts', '--force'], { cwd: root, stdout: 'ignore', stderr: 'ignore', timeout: 30_000 }); } catch {}
     }
     store.audit('self_update', { from, to, hooksChanged });
+    // Carry the desktop companion along (Jacob): if it's installed and the companion changed
+    // in this pull, rebuild it in the background so "update map" keeps it current too — no
+    // separate "rebuild the companion". Detached (nohup) so it survives this server respawning;
+    // non-fatal; install.sh --rebuild quits the old app, recompiles, relaunches.
+    try {
+      const home = homedir();
+      const companionInstalled = existsSync(join(home, 'Applications', 'HarnessMap Companion.app')) || existsSync('/Applications/HarnessMap Companion.app');
+      const script = join(root, 'companion', 'install.sh');
+      const companionChanged = changedFiles.some((f) => f.startsWith('companion/'));
+      if (companionInstalled && companionChanged && existsSync(script) && process.platform !== 'win32') {
+        const log = join(home, '.harnessmap', 'companion-install.log');
+        Bun.spawn(['sh', '-c', 'nohup bash "$HM_SCRIPT" --rebuild >> "$HM_LOG" 2>&1 &'], {
+          env: { ...process.env, HARNESSMAP_APP: root, HM_SCRIPT: script, HM_LOG: log },
+          stdout: 'ignore', stderr: 'ignore', stdin: 'ignore',
+        });
+        store.audit('companion_autorebuild', { to });
+      }
+    } catch {}
     // Respawn on the same environment (home, db, port), then leave; the child waits for the port to free up.
     respawnSelf();
     return { ok: true, changed: true, from, to, hooksChanged, restarting: true };

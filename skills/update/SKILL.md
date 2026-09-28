@@ -12,4 +12,6 @@ Update the map server to the newest code, in order:
    - `{"ok":false,"error":…,"how":…}` — this copy cannot update itself (a plugin-cache copy); tell the user the `how` line.
 3. Tell the user in one line: updated from → to (or already current), and that the map page reloads by itself if it was open.
 
+If the desktop companion is installed and it changed in this update, the server rebuilds it in the background automatically (a minute or two; the companion relaunches itself) — the user does not need a separate "rebuild the companion".
+
 Never update unless the user asked ("update map", "update the map").
