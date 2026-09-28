@@ -25,11 +25,12 @@ export function budgetChars(store: Store): number {
   const env = Number(process.env.HARNESSMAP_MAP_BUDGET ?? 0);
   if (env > 0) return env;
   const winTokens = Number(process.env.HARNESSMAP_HARNESS_WINDOW ?? 200_000);
-  // M408 (Jacob 2026-09-28: "can we expand the space?"): the map's slice of the window
-  // was 5% (~40k chars ≈ 10k tokens) — filled fast on a rich map. Raised to 15%
-  // (~120k chars ≈ 30k tokens on a 200k window), cap 200k. Still leaves the bulk of the
-  // window for the conversation; override per map with the map_budget setting.
-  return Math.min(200_000, Math.max(8_000, Math.round(winTokens * 0.15 * CHARS_PER_TOKEN)));
+  // M408/M408c (Jacob 2026-09-28): briefly raised to 15% then REVERTED to 5% — measured
+  // +35% on /api/state (composeParts runs every poll) at 189 nodes, plus 3× the map
+  // context the agent reads per turn. The real problem was ❗ crying wolf on minimal-served
+  // nodes (fixed in M408b), not too little budget. 5% (~40k chars ≈ 10k tokens, cap 64k)
+  // stays; per-map override via the map_budget setting for anyone who wants more.
+  return Math.min(64_000, Math.max(8_000, Math.round(winTokens * 0.05 * CHARS_PER_TOKEN)));
 }
 
 // What one turn's injection is made of — for the user-facing "what the agent
@@ -517,7 +518,6 @@ export function composeParts(store: Store, chatId: string, manipulations: string
       budget -= full.length + 1; fullBy.set(f.e.id, full);
     }
     // Emit in tree order, each node once at its zoom.
-    const staysMinimal = new Set<string>();
     for (const b of branchTiers) {
       for (const e of b.entries) {
         if (!visibleLit.has(e.id)) continue;
@@ -529,13 +529,12 @@ export function composeParts(store: Store, chatId: string, manipulations: string
         const fullText = fullBy.get(e.id);
         if (fullText) resolved.push(`${pads(e)}  in full (the raw material):\n${fullText.split('\n').map((x) => `${pads(e)}    ${x}`).join('\n')}`);
         else if (focusFullNote && e.id === focusId) resolved.push(`${pads(e)}  ${focusFullNote}`);
-        // M292 (loop find): a lit node served at one line hides its statement too — not only its memory; a statement
-        // longer than a title is detail the person lit and did not get, so the branch is marked ❗ (M162's promise).
-        if (r === 0 && (memByNode.get(e.id) || (detailsBy.get(e.id) ?? []).length || ((byIdC.get(e.id)?.content?.length ?? 0) > 80 && e.substance.length > 0))) staysMinimal.add(b.id);
       }
-      // ❗ semantics under graceful degradation: mark a branch when depth was
-      // rolled away or some node with real detail could only serve minimal.
-      if (staysMinimal.has(b.id) || b.entries.some((e) => !visibleLit.has(e.id))) { litOmitted++; trimmedLit.push(b.id); }
+      // M408b (Jacob 2026-09-28: "minimum sounds fine, this is too much of a warning"):
+      // ❗ now fires ONLY when a lit node is COMPLETELY absent this turn (not even its
+      // one-line form fit — rolled away). A node served at minimal is fine and no longer
+      // warns; graceful degradation to one line is the design working, not a failure.
+      if (b.entries.some((e) => !visibleLit.has(e.id))) { litOmitted++; trimmedLit.push(b.id); }
     }
     // The map's thinking, by reason (dev-mode round story, M191d).
     {

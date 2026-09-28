@@ -1011,7 +1011,7 @@ console.log('\n== 35. context visibility (M162) ==');
   const av = await (await fetch(`${BASE}/api/agent-view`)).json();
   check('agent-view: sections with labels and sizes', Array.isArray(av.sections) && av.sections.length > 0 && av.sections.every((x: any) => typeof x.label === 'string' && x.chars > 0));
   check('agent-view: exact text + budget + total', av.text.startsWith('[map state') && av.budget > 0 && av.total === av.text.length);
-  check("budget derives from harness window (~15% of 200k tokens)", av.budget === 120_000);
+  check("budget derives from harness window (~5% of 200k tokens)", av.budget === 40_000);
   check('nothing trimmed at full budget', (await state()).trimmedLit.length === 0);
   // Shrink the budget via the settings seam; the big planted map must overflow.
   await post('/api/dev/setting', { key: 'map_budget', value: '1800' });
@@ -1025,7 +1025,7 @@ console.log('\n== 35. context visibility (M162) ==');
     return n && av2.text.includes((n.title || n.content.slice(0, 30)));
   }));
   await post('/api/dev/setting', { key: 'map_budget', value: '' });
-  check('budget seam resets clean', (await (await fetch(`${BASE}/api/agent-view`)).json()).budget === 120_000);
+  check('budget seam resets clean', (await (await fetch(`${BASE}/api/agent-view`)).json()).budget === 40_000);
 }
 
 console.log('\n== 37. browser trust boundary (M181) ==');
