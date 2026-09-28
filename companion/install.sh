@@ -51,7 +51,10 @@ fi
 
 # 2. Build.
 say "building the companion (a few minutes the first time)…"
-( cd "$C" && cargo tauri icon app-icon-source.png >/dev/null 2>&1 && cargo tauri build ) || { say "build failed — run 'cargo tauri build' in $C to see the error."; exit 1; }
+# Build ONLY the .app bundle (--bundles app): we copy the .app into ~/Applications and
+# never use the DMG for a local install, and a failing DMG-packaging step must not block
+# an otherwise-valid build (Jacob's codex hit exactly that).
+( cd "$C" && cargo tauri icon app-icon-source.png >/dev/null 2>&1 && cargo tauri build --bundles app ) || { say "build failed — run 'cargo tauri build --bundles app' in $C to see the error."; exit 1; }
 
 # 3. Install to a user-writable place (no sudo) and launch.
 case "$OS" in

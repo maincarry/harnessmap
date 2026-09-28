@@ -38,11 +38,12 @@ body.infoff .dot{background:#b9c2bd;box-shadow:0 0 0 3px rgba(150,160,155,.18)}
 
 /* panel (expanded) */
 .panel{width:288px;background:var(--panel);border:1px solid var(--hair);border-radius:16px;box-shadow:0 22px 60px rgba(10,15,25,.34);
-  overflow:hidden;position:absolute;right:0;bottom:0;opacity:0;transform:scale(.94) translateY(12px);transform-origin:bottom right;pointer-events:none;
+  position:absolute;right:0;bottom:0;max-height:calc(100vh - 24px);overflow-y:auto;overflow-x:hidden;opacity:0;transform:scale(.94) translateY(12px);transform-origin:bottom right;pointer-events:none;
   transition:opacity .34s ease, transform .5s var(--spring)}
 body.open .panel{opacity:1;transform:none;pointer-events:auto}
 body.open .chip{opacity:0;transform:scale(.92) translateY(6px);pointer-events:none}
-.hd{display:flex;align-items:center;gap:8px;padding:12px 14px 9px}
+/* header sticks so the logo + close never scroll out of the short (300px) native window */
+.hd{display:flex;align-items:center;gap:8px;padding:12px 14px 9px;position:sticky;top:0;z-index:3;background:var(--panel)}
 .hd .draghandle{display:flex;align-items:center;gap:8px;flex:1;cursor:grab}
 .hd .draghandle:active{cursor:grabbing}
 .hd .brand{font-weight:800;font-size:12.5px;letter-spacing:-.01em;color:var(--muted)}
@@ -121,7 +122,7 @@ body.offline .chip,body.offline .panel{display:none}
 </div>
 
 <script>
-const COMPANION_VER = '0.9.110'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.111'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
@@ -249,7 +250,9 @@ async function loadHistory() {
   try {
     const r = await apiFetch('/api/map-chat/history'); if (!r.ok) return;
     const d = await r.json(); const h = d.history || [];
-    if (h.length) { hist.length = 0; hist.push(...h); $('mclog').innerHTML = ''; for (const t of h) { pushMsg('you', t.q); pushMsg('map', t.a); } }
+    // Shared as CONTEXT (the guide is one person across app + browser), but the compact
+    // widget starts CLEAN — it must not dump the whole transcript into a 320×300 window.
+    if (h.length) { hist.length = 0; hist.push(...h); }
   } catch {}
 }
 function mclog() { const l = $('mclog'); l.classList.add('show'); return l; }
@@ -302,7 +305,7 @@ async function ask() {
   $('ask').value = ''; pushMsg('you', q);
   const w = pushMsg('map', '…');
   try {
-    const r = await apiFetch('/api/map-chat', { method: 'POST', headers: { 'content-type': 'application/json', 'x-hm-client': 'companion' }, body: JSON.stringify({ question: q, history: hist.slice(-4), client: 'companion' }) });
+    const r = await apiFetch('/api/map-chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ question: q, history: hist.slice(-4), client: 'companion' }) });
     if (r.status === 403) { w.textContent = 'your map server is out of date — run “update map” in your CLI, then try again'; return; }
     const j = await r.json();
     w.textContent = j.answer || '(no answer)';
