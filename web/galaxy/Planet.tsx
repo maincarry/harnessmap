@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { BodyDef } from "./planets";
 import { SpeechBubble } from "./SpeechBubble";
+import { sleepingSpriteFor } from "./sleepSprites";
 
 /** Hand-wobbled closed ring (r≈68 in a 160 viewBox) for the navigator
     highlight — deliberately imperfect so it reads as drawn, not orbital. */
@@ -109,13 +110,13 @@ export function Planet({ def, x, y, active, bouncing = false, newborn = false, d
         }}
       >
         <img
-          src={def.img}
+          src={dimmed ? sleepingSpriteFor(def.img) : def.img}
           alt=""
           width={def.size}
           height={def.size}
           draggable={false}
           className="h-full w-full object-contain"
-          style={{ animation, filter: dimmed ? "saturate(0.35) brightness(0.72) opacity(0.5)" : undefined }}
+          style={{ animation, filter: dimmed ? "saturate(0.82) brightness(0.9)" : undefined }}
         />
         {dimmed && (
           <span aria-hidden className="pointer-events-none absolute font-hand font-bold leading-none" style={{ top: "2%", right: "6%", color: "#cfc3ff", textShadow: "0 1px 4px rgba(0,0,0,.4)" }}>
