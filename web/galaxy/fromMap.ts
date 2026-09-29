@@ -95,7 +95,10 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
   // and the getting-started tutorial alongside. If there is a single dominant root with children,
   // UNWRAP it: that root becomes the sun, its children become the planets (else everything piles
   // onto one planet as moons — the bug Jacob hit). Otherwise the top-level nodes are the planets.
-  const isBucket = (n: MapNodeLite) => /^(to sort|untitled)$/i.test(String(n.title ?? n.content ?? "").trim());
+  // A system bucket ("to sort" / "untitled") is skipped as a planet ONLY when it is EMPTY — an empty
+  // bucket is chrome, but a bucket holding unsorted captures is real content and its subtree must show
+  // (Jacob: "many stars invisible" — the missing ones were all under a non-empty "to sort").
+  const isBucket = (n: MapNodeLite) => /^(to sort|untitled)$/i.test(String(n.title ?? n.content ?? "").trim()) && (kids.get(n.id)?.length ?? 0) === 0;
   const roots = topLevel.filter((n) => !isBucket(n));
   const withKids = roots.filter((n) => (kids.get(n.id)?.length ?? 0) > 0);
   let sunName = opts.projectName ?? "Map";
