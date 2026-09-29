@@ -14,8 +14,24 @@ const TAU = Math.PI * 2;
 // the wobble INTENSITY is dialed via the amp multiplier below, not by dropping shapes.
 const WOBBLY_KINDS = ORBIT_SHAPE_KINDS.filter((k) => k !== "ring");
 const SUN_SIZE = 720;
-const MARGIN = 120;        // clear space between a body's edge (incl. its moons) and the next ring
-const MOON_GAP = 26;       // space between a planet's edge and its first moon, and between moons
+// PROPORTION is the art style (Jacob): the whole system lives in a COMPACT band so the sun always
+// dominates. Planets are distributed evenly across [PLANET_INNER, outer]; they are NOT pushed outward
+// additively with node count (the old fromMap grew the world with the map, shrinking the sun into a
+// huge sparse field — the "spacing obviously wrong" bug). The band only widens past PLANET_OUTER when
+// a large map needs the minimum gap, so small/medium maps read exactly like the Lovable reference.
+const PLANET_INNER = 580;   // innermost ring clears the sun's face (sun radius ~360)
+const PLANET_OUTER = 1620;  // outermost ring for a typical map
+const PLANET_MIN_GAP = 155; // minimum center-to-center between adjacent planet rings
+
+// Center-to-center orbit radius for a small body — clearance from both painted discs plus storybook
+// breathing room and a per-sibling step. Verbatim from the reference's proportionalMoonOrbit so moons
+// sit in proportion to their parent (no absolute floor: an infinite branch keeps shrinking cleanly).
+function proportionalMoonOrbit(parentSize: number, childSize: number, siblingIndex = 0): number {
+  const clearance = parentSize / 2 + childSize / 2;
+  const breathingRoom = Math.max(parentSize * 0.1, childSize * 0.22);
+  const siblingStep = siblingIndex * Math.max(childSize * 0.72, parentSize * 0.16);
+  return clearance + breathingRoom + siblingStep;
+}
 
 export interface MapNodeLite {
   id: string; parentId: string | null; content: string; title?: string | null;
@@ -101,55 +117,50 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
 
   const sun: GalaxyBody = { id: "sun", name: sunName.slice(0, 40), img: pickBy(SUN_SPRITES, 0).img, size: SUN_SIZE, line: `${planetNodes.length} topics orbit here.`, breathe: 6, delay: 0 };
 
-  const moonSize = (id: string) => Math.max(38, Math.min(70, 42 + ((hash(id) >> 3) % 28)));
-  // moons for a body, placed by clearance around it; returns {moons, span} where span = farthest moon edge from body center
-  const buildMoons = (parent: MapNodeLite, parentSize: number, depth: number): { moons: GeneratedMoon[]; span: number } => {
+  // moons for a body, placed by PROPORTIONAL clearance around it (the reference art style): every moon
+  // is genuinely smaller than its parent (≤55%), and spacing derives from both painted discs. Folded at
+  // overview; they unfold on zoom, so they don't clutter the overview or affect the planet band.
+  const buildMoons = (parent: MapNodeLite, parentSize: number, depth: number): GeneratedMoon[] => {
     const children = depth > 2 ? [] : (kids.get(parent.id) ?? []);
-    if (!children.length) return { moons: [], span: parentSize / 2 };
-    let ringR = parentSize / 2; const out: GeneratedMoon[] = [];
-    for (const c of children) {
-      const h = hash(c.id); const size = moonSize(c.id);
-      const sub = buildMoons(c, size, depth + 1);              // grandchildren
-      const reach = sub.span;                                   // how far this moon's own moons extend
-      ringR += MOON_GAP + reach;                                // clear the previous body + this moon's sub-span
-      const mOrbitR = ringR + size / 2;
+    if (!children.length) return [];
+    const out: GeneratedMoon[] = [];
+    children.forEach((c, i) => {
+      const h = hash(c.id);
+      const size = Math.min(parentSize * 0.55, 66 - depth * 5);  // smaller than parent, shrinking with depth
+      const sub = buildMoons(c, size, depth + 1);                // grandchildren
+      const mOrbitR = proportionalMoonOrbit(parentSize, size, i);
       out.push({
         id: c.id, name: nameOf(c), img: pickBy(MOON_SPRITES, h).img, size,
         line: lineOf(c), breathe: 2.8 + ((h % 12) / 10), delay: (h % 15) / 10,
         dimmed: isDim(c), nodeId: c.id, nodeStatus: c.status,
-        orbitR: mOrbitR, period: 120 + (h % 90), startAngle: ((h >> 5) % 628) / 100,
-        ringD: makeOrbitShape("ring", mOrbitR, h, 10).d, moons: sub.moons,
+        orbitR: mOrbitR, period: 90 + (h % 79), startAngle: ((h >> 5) % 628) / 100,
+        ringD: makeOrbitShape("ring", mOrbitR, h, 10).d, moons: sub,
       } as GeneratedMoon & GalaxyBody);
-      ringR = mOrbitR + size / 2 + reach;                       // advance past this moon (and its own moons)
-    }
-    return { moons: out, span: ringR };
+    });
+    return out;
   };
 
-  // Keep planets BIG and characterful (toy-sized); grow the WORLD with the map instead of shrinking
-  // bodies. Rings are placed with clearance so they never overlap; the view opens at the toy's zoom
-  // (big inner planets) and you pan / zoom / navigate outward. Moons are FOLDED into their planet and
-  // unfold by ZOOM (rendered only when big enough on screen — see GeneratorSystem), so they neither
-  // clutter the overview nor affect ring spacing.
+  // Planets sit in a COMPACT band so the sun dominates (the reference proportion). They are spread
+  // evenly across [PLANET_INNER, bandOuter]; the band only widens past PLANET_OUTER when a large map
+  // needs the minimum gap. Sizes stay in the reference's ranges (85–310) but are chosen by importance
+  // (child count) so busy topics read bigger. Moons are FOLDED and unfold on zoom, so they don't
+  // affect the band. Wobbly orbits use the default hand-drawn jitter (radii are compact now, so a
+  // fixed jitter reads as intended instead of vanishing at huge radii).
   const N = planetNodes.length;
-  const RING_MARGIN = 105;
-  let prevEdge = SUN_SIZE / 2;
-  const planets: GeneratedPlanet[] = planetNodes.map((n): GeneratedPlanet => {
+  const bandOuter = Math.max(PLANET_OUTER, PLANET_INNER + PLANET_MIN_GAP * (N - 1));
+  const gap = N > 1 ? (bandOuter - PLANET_INNER) / (N - 1) : 0;
+  const planets: GeneratedPlanet[] = planetNodes.map((n, i): GeneratedPlanet => {
     const h = hash(n.id); const desc = (kids.get(n.id) ?? []).length;
-    const size = desc >= 4 ? 250 + (h % 60) : desc >= 1 ? 175 + (h % 60) : 120 + (h % 50);
-    const { moons } = buildMoons(n, size, 1);
-    const orbitR = prevEdge + RING_MARGIN + size / 2;   // clearance → never overlap, world grows with count
-    prevEdge = orbitR + size / 2;
+    const size = desc >= 4 ? 250 + (h % 60) : desc >= 1 ? 150 + (h % 65) : 85 + (h % 50);
+    const moons = buildMoons(n, size, 1);
+    const orbitR = PLANET_INNER + gap * i + ((h % 72) - 36);   // even spread + small deterministic jitter
     const body: GalaxyBody = {
       id: n.id, name: nameOf(n), img: pickBy(PLANET_SPRITES, h).img, size,
       line: lineOf(n), breathe: 3 + ((h % 24) / 10), delay: (h % 16) / 10,
       dimmed: isDim(n), nodeId: n.id, nodeStatus: n.status,
     };
     return {
-      // Hand-drawn WOBBLY orbits: exclude the near-circular "ring" kind, and scale the center jitter
-      // with the radius so the off-center hand-drawn wobble stays visible at big radii (a fixed ~44px
-      // jitter is invisible at r~4000, which made the rings read as mechanical circles). Clearance
-      // spacing keeps them from crossing.
-      ...body, orbit: makeOrbitShape(pickBy(WOBBLY_KINDS, h), orbitR, h, Math.min(orbitR * 0.025, 60), 0.4),
+      ...body, orbit: makeOrbitShape(pickBy(WOBBLY_KINDS, h), orbitR, h),
       period: 315 * Math.pow(orbitR / 445, 1.35), startAngle: (h % 628) / 100,
       dash: `${30 + (h % 18)} ${20 + ((h >> 4) % 12)}`, ringWidth: 9 + (h % 4), ringOpacity: 0.72 + ((h % 20) / 100),
       moons,
@@ -163,9 +174,8 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
   const dseed = hash(opts.projectName ?? "map");
   const drifterCount = 3 + (dseed % 3);                 // 3–5, like the generator
   const inner = SUN_SIZE * 0.9;
-  // keep drifters in the inner–mid field so they're seen at the opening zoom (on a big map prevEdge
-  // can be enormous; a drifter parked out there never shows) — but never inside the first ring.
-  const outer = Math.min(Math.max(prevEdge, SUN_SIZE * 1.8), SUN_SIZE * 3.6);
+  // drifters wander across the planet band so they're seen at the opening zoom, never inside the sun.
+  const outer = Math.max(bandOuter, SUN_SIZE * 1.6);
   const drifters: GeneratedDrifter[] = DRIFTER_SPRITES
     .map((s) => ({ s, k: hash(`${dseed}:${s.id}`) }))   // deterministic shuffle: order by a seeded hash
     .sort((a, b) => a.k - b.k)
