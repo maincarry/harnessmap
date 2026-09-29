@@ -6,8 +6,8 @@
 // cramming it into a fixed budget (the crowding Jacob caught). Lit drives sleep: awake = lit, asleep = dim (Jacob 2026-09-29).
 import type { BodyDef } from "./planets";
 import { makeOrbitShape, ORBIT_SHAPE_KINDS } from "./orbitShapes";
-import { PLANET_SPRITES, MOON_SPRITES, SUN_SPRITES } from "./spritePool";
-import type { SystemConfig, GeneratedPlanet, GeneratedMoon } from "./systemGenerator";
+import { PLANET_SPRITES, MOON_SPRITES, SUN_SPRITES, DRIFTER_SPRITES } from "./spritePool";
+import type { SystemConfig, GeneratedPlanet, GeneratedMoon, GeneratedDrifter } from "./systemGenerator";
 
 const TAU = Math.PI * 2;
 // keep the FULL hand-drawn shape variety (egg/bean/peanut/tilt/wobble; drop only the near-circular "ring");
@@ -156,5 +156,30 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
     } as GeneratedPlanet & GalaxyBody;
   });
 
-  return { seed: hash(opts.projectName ?? "map"), planetCount: planets.length, sun, planets, drifters: [] };
+  // Drifting space friends — a few whimsical wanderers (space cats, astronauts, comets, UFOs)
+  // float among the worlds so the map feels alive even when sparse. Deterministic from the project
+  // seed (stable across reloads), scaled to the world's actual extent so they wander the whole field
+  // instead of clustering at a fixed radius. (Lovable populates these; the map fork had left it empty.)
+  const dseed = hash(opts.projectName ?? "map");
+  const drifterCount = 3 + (dseed % 3);                 // 3–5, like the generator
+  const inner = SUN_SIZE * 0.9;
+  // keep drifters in the inner–mid field so they're seen at the opening zoom (on a big map prevEdge
+  // can be enormous; a drifter parked out there never shows) — but never inside the first ring.
+  const outer = Math.min(Math.max(prevEdge, SUN_SIZE * 1.8), SUN_SIZE * 3.6);
+  const drifters: GeneratedDrifter[] = DRIFTER_SPRITES
+    .map((s) => ({ s, k: hash(`${dseed}:${s.id}`) }))   // deterministic shuffle: order by a seeded hash
+    .sort((a, b) => a.k - b.k)
+    .slice(0, drifterCount)
+    .map(({ s }, i): GeneratedDrifter => {
+      const h = hash(`${dseed}:${s.id}:${i}`);
+      const orbitR = inner + ((h % 1000) / 1000) * (outer - inner);
+      return {
+        id: `drifter-${i}-${s.id}`, name: s.name, img: s.img, size: 80 + (h % 40),
+        orbit: makeOrbitShape(pickBy(ORBIT_SHAPE_KINDS, h), orbitR, h),
+        orbitR, period: 320 + (h % 220), startAngle: ((h >> 3) % 628) / 100,
+        dir: (h & 1) ? 1 : -1, line: "", breathe: 3.6 + ((h % 18) / 10), delay: ((h >> 6) % 14) / 10,
+      };
+    });
+
+  return { seed: dseed, planetCount: planets.length, sun, planets, drifters };
 }
