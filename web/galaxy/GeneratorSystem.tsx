@@ -42,6 +42,7 @@ import {
 import { ensureSpritesReady, warmSpritePool } from "./spritePool";
 import { recordCrashEvent, setCrashContext } from "@/lib/crash-reporter";
 import type { OrbitShapeKind } from "./orbitShapes";
+import { semanticVisibility, type SemanticVisibility } from "./semanticZoom";
 import { BodyInfoPanel, type BodyPanelInfo } from "./BodyInfoPanel";
 import { ChatPanel, type ChatSubjectInfo } from "./ChatPanel";
 import {
@@ -962,6 +963,69 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
   // the screen edge are fine — that's how the reference behaves as you pan a large system.)
   const ringFullyVisible = (_maxR: number): boolean => true;
 
+  // ---- Semantic-zoom fading (Jacob, 2026-09-29 — ported from the Lovable reference) --------------
+  // Presentation-only: the body tree is never mutated. Each body re-derives its visibility every frame
+  // from the focused body + camera scale, so zooming/focusing is smoothly reversible. See semanticZoom.ts.
+  const bodyMetaZ = useMemo(() => {
+    const map = new Map<string, { depth: number; parentId: string | null; size: number }>();
+    map.set(config.sun.id, { depth: 0, parentId: null, size: config.sun.size });
+    const addMoons = (moons: GeneratedMoon[], parentId: string, depth: number) => {
+      for (const moon of moons) { map.set(moon.id, { depth, parentId, size: moon.size }); addMoons(moon.moons, moon.id, depth + 1); }
+    };
+    for (const planet of config.planets) { map.set(planet.id, { depth: 1, parentId: config.sun.id, size: planet.size }); addMoons(planet.moons, planet.id, 2); }
+    return map;
+  }, [config]);
+  const isMobileZ = typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches;
+  const focusForVisibility = focusedId ?? chatTalkId ?? config.sun.id;
+  const focusDepthZ = bodyMetaZ.get(focusForVisibility)?.depth ?? 0;
+  const familyDistanceZ = (fromId: string, toId: string): number => {
+    const chain = (id: string) => {
+      const result = new Map<string, number>();
+      let current: string | null = id; let hops = 0;
+      while (current) { result.set(current, hops++); current = bodyMetaZ.get(current)?.parentId ?? null; }
+      return result;
+    };
+    const from = chain(fromId);
+    let current: string | null = toId; let hops = 0;
+    while (current) {
+      const shared = from.get(current);
+      if (shared !== undefined) return shared + hops;
+      current = bodyMetaZ.get(current)?.parentId ?? null; hops += 1;
+    }
+    return Number.POSITIVE_INFINITY;
+  };
+  const protectedBodiesZ = new Set<string | null>([
+    focusForVisibility,
+    rocketHostId,
+    ...(chatOpen && chatTalkId ? [chatTalkId] : []),
+    ...(flight ? [flight.toId] : []),
+    ...(rocketInboundId ? [rocketInboundId] : []),
+  ]);
+  const visibilityFor = (id: string, renderedSize?: number): SemanticVisibility => {
+    if (chatActive && fanSubjectRef.current?.layout.slots.has(id)) {
+      return { detail: "full", opacity: 1, scale: 1, labelOpacity: 1, ringOpacity: 1, interactive: true };
+    }
+    const meta = bodyMetaZ.get(id);
+    if (!meta) return { detail: "full", opacity: 1, scale: 1, labelOpacity: 1, ringOpacity: 1, interactive: true };
+    const viewScale = stateRef.current?.scale ?? 0.36;
+    return semanticVisibility({
+      depth: meta.depth,
+      focusDepth: focusDepthZ,
+      apparentSize: (renderedSize ?? meta.size) * viewScale,
+      familyDistance: familyDistanceZ(focusForVisibility, id),
+      protected: protectedBodiesZ.has(id),
+      mobile: isMobileZ,
+      generationWindow: chatActive ? 5 : 3,
+    });
+  };
+  // A parent's enclosing orbit belongs to the previous family view: keep the parent body as epic
+  // context but quiet its ring so the focused body's local rings stay the clearest geometry.
+  const localRingOpacity = (id: string, opacity: number): number => {
+    const depth = bodyMetaZ.get(id)?.depth ?? focusDepthZ;
+    if (depth >= focusDepthZ) return opacity;
+    return opacity * (depth === focusDepthZ - 1 ? 0.24 : 0.08);
+  };
+
   // How far a body's own moon subtree reaches from THAT body's center (recursive, so an outer planet's
   // moons — and their mini-moons — are counted when fitting the whole system to the screen).
   const moonReach = (moons: GeneratedMoon[]): number =>
@@ -1881,9 +1945,6 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     depth = 0,
   ): ReactNode =>
     moons.map((m) => {
-      // No apparent-size fold (Jacob, 2026-09-29): deep moon rings render regardless of on-screen size
-      // so their bodies never disappear at overview — matching the reference (fade, don't hard-remove).
-      const camScale = stateRef.current?.scale ?? 0.36;
       const a = m.startAngle + (t * TAU) / m.period;
       // The moon's rendered pose (frame-guarded, agrees with the moon
       // bodies) so nested rings center on where it actually is — and
@@ -1891,6 +1952,10 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
       // rides it into the lineup.
       const pose = chatPoseMoon(m, px, py, a, parentId);
       const s = ringScaleRef.current.get(m.id) ?? 1;
+      // Semantic-zoom ring fade (reference): the ring fades with its moon body; drop it once hidden.
+      const mrvis = mapMode ? visibilityFor(m.id, pose.size) : null;
+      if (mrvis && mrvis.detail === "hidden") return renderMoonRings(m.moons, pose.x, pose.y, m.id, depth + 1);
+      const mRingOp = mrvis ? localRingOpacity(m.id, mrvis.ringOpacity) : 0.72;
       return (
         <Fragment key={m.id}>
           {/* Position lives on the <g> so the path's own CSS transform
@@ -1900,7 +1965,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
               d={m.ringD}
               fill="none"
               stroke="white"
-              strokeOpacity={0.72}
+              strokeOpacity={mRingOp}
               strokeWidth={(depth === 0 ? 6.5 : 5) / s}
               strokeDasharray={
                 depth === 0
@@ -1931,12 +1996,13 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     depth = 1,
   ): ReactNode =>
     moons.map((m) => {
-      // No apparent-size fold (Jacob, 2026-09-29): every moon body renders regardless of on-screen size,
-      // so nodes never disappear at overview — the reference fades distant bodies, it doesn't remove them.
-      const camScale = stateRef.current?.scale ?? 0.36;
       const a = m.startAngle + (t * TAU) / m.period;
       const r = chatPoseMoon(m, px, py, a, parentId);
       const chatSized = Math.abs(r.size - m.size) > 0.5;
+      // Semantic-zoom fade (reference logic): fade by family-distance + apparent size, never hard-cull
+      // by ring-fit. A body only drops from render once it has faded to nothing (detail "hidden").
+      const vis: SemanticVisibility = mapMode ? visibilityFor(m.id, r.size) : { detail: "full", opacity: 1, scale: 1, labelOpacity: 1, ringOpacity: 1, interactive: true };
+      if (vis.detail === "hidden") return null;
       return (
         <Fragment key={m.id}>
           <Planet
@@ -1955,7 +2021,11 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
             newborn={newbornId === m.id}
             departing={departingIds.includes(m.id)}
             dimmed={(m as any).dimmed}
-            showLabel={!mapMode || m.size * camScale >= 42 || activeId === m.id || focusedId === m.id}
+            visualOpacity={vis.opacity}
+            visualScale={vis.scale}
+            labelOpacity={vis.labelOpacity}
+            interactive={vis.interactive}
+            showLabel={!mapMode || vis.labelOpacity > 0.01 || activeId === m.id || focusedId === m.id}
             onTap={handleBodyTap}
           />
           {renderMoonTree(m.moons, r.x, r.y, m.id, depth + 1)}
@@ -2022,12 +2092,14 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                   aria-hidden
                 >
                   {config.planets.map((p) => {
-                    // Don't draw a ring that is too big for the view — otherwise it slices across the
-                    // screen as a cut-off arc. As you zoom out, bigger rings come to fit and appear.
-                    if (mapMode && !ringFullyVisible(p.orbit.maxR)) return null;
                     // In chat mode each ring breathes toward its fan-arc
                     // radius, carrying its planet along with it.
                     const s = ringScaleRef.current.get(p.id) ?? 1;
+                    // Semantic-zoom ring fade (reference): the ring dims with its body and ancestor rings
+                    // are further quieted, so the focused family's local rings stay the clearest geometry.
+                    const rvis = mapMode ? visibilityFor(p.id, p.size) : null;
+                    if (rvis && rvis.detail === "hidden") return null;
+                    const ringOp = rvis ? localRingOpacity(p.id, rvis.ringOpacity) : p.ringOpacity;
                     return (
                       <g
                         key={p.id}
@@ -2037,7 +2109,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                           d={p.orbit.d}
                           fill="none"
                           stroke="white"
-                          strokeOpacity={p.ringOpacity}
+                          strokeOpacity={ringOp}
                           strokeWidth={p.ringWidth / s}
                           strokeDasharray={p.dash
                             .split(" ")
@@ -2087,6 +2159,11 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                   return <Drifter key={d.id} def={d} x={q.x} y={q.y} />;
                 })}
 
+                {(() => {
+                  // The sun stays the world anchor — apply the semantic fade's opacity so it recedes to
+                  // epic background context when you're deep in a family, but never hard-skip it.
+                  const svis: SemanticVisibility = mapMode ? visibilityFor(config.sun.id, config.sun.size) : { detail: "full", opacity: 1, scale: 1, labelOpacity: 1, ringOpacity: 1, interactive: true };
+                  return (
                 <Planet
                   def={config.sun}
                   x={center}
@@ -2102,9 +2179,15 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                   highlightMode={
                     highlightId === config.sun.id ? "flash" : "steady"
                   }
+                  visualOpacity={Math.max(0.14, svis.opacity)}
+                  labelOpacity={svis.labelOpacity}
+                  interactive={svis.interactive}
+                  showLabel={!mapMode || svis.labelOpacity > 0.01 || activeId === config.sun.id || focusedId === config.sun.id}
                   onTap={handleBodyTap}
                   spin
                 />
+                  );
+                })()}
 
                 {[...config.planets]
                   .sort((a, b) => b.size - a.size)
@@ -2114,11 +2197,10 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                       chatRenderRef.current.get(p.id) ??
                       chatRideRef.current.get(p.id);
                     const chatSized = cr != null && Math.abs(cr.size - p.size) > 0.5;
-                    const camScaleP = stateRef.current?.scale ?? 0.36;
-                    // Fold the planet together with its orbit (star <-> orbit): if the ring is too big
-                    // for the view it isn't drawn, so don't draw a ringless planet either. Zoom out and
-                    // both come to fit and appear together. Focused/active always shows.
-                    if (mapMode && !ringFullyVisible(p.orbit.maxR) && focusedId !== p.id && activeId !== p.id) return null;
+                    // Semantic-zoom fade (reference logic) — fade by family-distance + apparent size,
+                    // never hard-cull by ring-fit; drop from render only once faded to nothing.
+                    const pvis: SemanticVisibility = mapMode ? visibilityFor(p.id, chatSized && cr ? cr.size : p.size) : { detail: "full", opacity: 1, scale: 1, labelOpacity: 1, ringOpacity: 1, interactive: true };
+                    if (pvis.detail === "hidden") return null;
                     return (
                       <Planet
                         key={p.id}
@@ -2139,7 +2221,11 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
                           highlightId === p.id ? "flash" : "steady"
                         }
                         dimmed={(p as any).dimmed}
-                        showLabel={!mapMode || p.size * camScaleP >= 42 || activeId === p.id || focusedId === p.id}
+                        visualOpacity={pvis.opacity}
+                        visualScale={pvis.scale}
+                        labelOpacity={pvis.labelOpacity}
+                        interactive={pvis.interactive}
+                        showLabel={!mapMode || pvis.labelOpacity > 0.01 || activeId === p.id || focusedId === p.id}
                         onTap={handleBodyTap}
                       />
                     );

@@ -45,6 +45,12 @@ interface PlanetProps {
   dimmed?: boolean;
   /** Hide the name label (map mode declutter: only bodies big enough on screen show a label). */
   showLabel?: boolean;
+  /** Semantic-zoom presentation (reference logic, presentation-only): fade & scale a body by its
+      family-distance from focus and apparent size. The body stays in the tree; these only affect paint. */
+  visualOpacity?: number;
+  visualScale?: number;
+  labelOpacity?: number;
+  interactive?: boolean;
 }
 
 /**
@@ -62,7 +68,7 @@ export function planetLabelSize(size: number, name: string): number {
  * A celestial body floating in the world: sprite, name label, tap
  * reaction. Position comes from the parent's orbit math.
  */
-export function Planet({ def, x, y, active, bouncing = false, newborn = false, departing = false, onTap, spin, jumping, highlighted, highlightMode = "flash", labelBoost = 1, dimmed = false, showLabel = true }: PlanetProps) {
+export function Planet({ def, x, y, active, bouncing = false, newborn = false, departing = false, onTap, spin, jumping, highlighted, highlightMode = "flash", labelBoost = 1, dimmed = false, showLabel = true, visualOpacity = 1, visualScale = 1, labelOpacity = 1, interactive = true }: PlanetProps) {
   const downAt = useRef<{ x: number; y: number; t: number } | null>(null);
   const longName = def.name.length > 16;
 
@@ -85,11 +91,14 @@ export function Planet({ def, x, y, active, bouncing = false, newborn = false, d
 
   return (
     <div
-      className={`absolute ${departing ? "pointer-events-none" : ""}`}
+      className={`absolute ${departing || !interactive ? "pointer-events-none" : ""}`}
       style={{
         left: x,
         top: y,
-        transform: "translate(-50%, -50%)",
+        // Semantic-zoom fade & scale (reference): recede distant/tiny bodies without removing them.
+        transform: `translate(-50%, -50%)${visualScale !== 1 ? ` scale(${visualScale})` : ""}`,
+        opacity: visualOpacity,
+        transition: "opacity 220ms ease",
         zIndex: active || highlighted ? 30 : undefined,
       }}
     >
@@ -205,6 +214,7 @@ export function Planet({ def, x, y, active, bouncing = false, newborn = false, d
         }`}
         style={{
           fontSize: labelSize * labelBoost,
+          opacity: departing ? undefined : labelOpacity, // labels fade before bodies (reference rule)
           textShadow: "0 0 3px #1a0f3a, 0 0 3px #1a0f3a, 0 2px 8px rgba(10,6,30,0.95)",
         }}
       >
