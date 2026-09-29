@@ -3,7 +3,7 @@
 // Placement is DETERMINISTIC + identity-stable (sprite/orbit from node id + stable birth order) AND spaced
 // with GUARANTEED CLEARANCE so nothing overlaps no matter how many nodes there are — rings are laid out by
 // summing each body's diameter + its moon span + a margin, so the field GROWS with the map instead of
-// cramming it into a fixed budget (the crowding Jacob caught). Status drives lit/dim (asleep = dimmed).
+// cramming it into a fixed budget (the crowding Jacob caught). Lit drives sleep: awake = lit, asleep = dim (Jacob 2026-09-29).
 import type { BodyDef } from "./planets";
 import { makeOrbitShape, ORBIT_SHAPE_KINDS } from "./orbitShapes";
 import { PLANET_SPRITES, MOON_SPRITES, SUN_SPRITES } from "./spritePool";
@@ -38,12 +38,35 @@ const SLEEPY = new Set([
 function hash(s: string): number { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; }
 const pickBy = <T,>(arr: readonly T[], seed: number): T => arr[seed % arr.length]!;
 const isTutorial = (n: MapNodeLite) => n.author === "system" || /getting started/i.test(String(n.title ?? "")) || /getting started \(tutorial\)/i.test(String(n.content ?? ""));
-function bodyDim(n: MapNodeLite, _o: MapToSystemOpts): boolean { return SLEEPY.has(n.status); }
+function bodyDimByStatus(n: MapNodeLite): boolean { return SLEEPY.has(n.status); }
+// Jacob (2026-09-29): "sleep means dim, awake means lit." A body is awake iff it is lit —
+// and lighting a node lights everything under it (map UI: "light as background, incl.
+// everything under it"), so a node counts as lit when it OR any ancestor is in the lit set.
+// build*() computes the closure of lit ids over the parent chain; when no lit set is
+// provided at all (a non-map caller), fall back to the status-based sleep.
+function litClosureOf(nodes: MapNodeLite[], litIds: Set<string>): Set<string> {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const closure = new Set<string>();
+  for (const n of nodes) {
+    const chain: string[] = [];
+    let cur: MapNodeLite | undefined = n;
+    while (cur) {
+      chain.push(cur.id);
+      if (litIds.has(cur.id)) { for (const id of chain) closure.add(id); break; }
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+    }
+  }
+  return closure;
+}
 function nameOf(n: MapNodeLite): string { const t = String(n.title ?? "").trim(); if (t) return t.slice(0, 40); return String(n.content ?? "node").trim().split(/\s+/).slice(0, 5).join(" ").slice(0, 40) || "node"; }
 function lineOf(n: MapNodeLite): string { return String(n.content ?? "").trim().slice(0, 240); }
 
 export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}): SystemConfig {
   const nodes = nodesIn.filter((n) => n.status !== "removed" && !isTutorial(n));
+  // sleep = dim, awake = lit (Jacob). With a lit set present, a body is dim unless it is in the
+  // lit closure; with no lit set at all, fall back to status-based sleep.
+  const litClosure = opts.litIds ? litClosureOf(nodes, opts.litIds) : null;
+  const isDim = (n: MapNodeLite): boolean => (litClosure ? !litClosure.has(n.id) : bodyDimByStatus(n));
   const kids = new Map<string | null, MapNodeLite[]>();
   for (const n of nodes) { const k = n.parentId; if (!kids.has(k)) kids.set(k, []); kids.get(k)!.push(n); }
   for (const arr of kids.values()) arr.sort((a, b) => String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? "")) || a.id.localeCompare(b.id));
@@ -93,7 +116,7 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
       out.push({
         id: c.id, name: nameOf(c), img: pickBy(MOON_SPRITES, h).img, size,
         line: lineOf(c), breathe: 2.8 + ((h % 12) / 10), delay: (h % 15) / 10,
-        dimmed: bodyDim(c, opts), nodeId: c.id, nodeStatus: c.status,
+        dimmed: isDim(c), nodeId: c.id, nodeStatus: c.status,
         orbitR: mOrbitR, period: 120 + (h % 90), startAngle: ((h >> 5) % 628) / 100,
         ringD: makeOrbitShape("ring", mOrbitR, h, 10).d, moons: sub.moons,
       } as GeneratedMoon & GalaxyBody);
@@ -119,7 +142,7 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
     const body: GalaxyBody = {
       id: n.id, name: nameOf(n), img: pickBy(PLANET_SPRITES, h).img, size,
       line: lineOf(n), breathe: 3 + ((h % 24) / 10), delay: (h % 16) / 10,
-      dimmed: bodyDim(n, opts), nodeId: n.id, nodeStatus: n.status,
+      dimmed: isDim(n), nodeId: n.id, nodeStatus: n.status,
     };
     return {
       // Hand-drawn WOBBLY orbits: exclude the near-circular "ring" kind, and scale the center jitter

@@ -9,7 +9,10 @@ export interface MountData { nodes: MapNodeLite[]; projectName?: string; litIds?
 function mount(el: HTMLElement, data: MountData) {
   const config = mapToSystem(data.nodes ?? [], {
     projectName: data.projectName,
-    litIds: data.litIds && data.litIds.length ? new Set(data.litIds) : null,
+    // Jacob (2026-09-29): "sleep means dim, awake means lit." Pass the lit set
+    // through even when EMPTY (empty = nothing lit = all bodies asleep) — only a
+    // truly absent litIds (a non-map caller) falls back to status-based sleep.
+    litIds: data.litIds ? new Set(data.litIds) : null,
   });
   root = createRoot(el);
   root.render(React.createElement(GeneratorSystem, { initialConfig: config, mapMode: true, onFocusNode: data.onFocusNode }));
