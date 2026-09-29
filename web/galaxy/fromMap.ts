@@ -160,7 +160,10 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
       dimmed: isDim(n), nodeId: n.id, nodeStatus: n.status,
     };
     return {
-      ...body, orbit: makeOrbitShape(pickBy(WOBBLY_KINDS, h), orbitR, h),
+      // Gentler hand-drawn orbits: keep the shape VARIETY (egg/bean/tilt/wobble, never a stiff ring),
+      // but dial the wobble amplitude and center jitter DOWN so many rings read calmer and cross less —
+      // "slightly less messy, not stiff circles" (Jacob).
+      ...body, orbit: makeOrbitShape(pickBy(WOBBLY_KINDS, h), orbitR, h, 26, 0.6),
       period: 315 * Math.pow(orbitR / 445, 1.35), startAngle: (h % 628) / 100,
       dash: `${30 + (h % 18)} ${20 + ((h >> 4) % 12)}`, ringWidth: 9 + (h % 4), ringOpacity: 0.72 + ((h % 20) / 100),
       moons,
