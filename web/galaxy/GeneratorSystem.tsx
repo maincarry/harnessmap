@@ -962,12 +962,19 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
   // the screen edge are fine — that's how the reference behaves as you pan a large system.)
   const ringFullyVisible = (_maxR: number): boolean => true;
 
+  // How far a body's own moon subtree reaches from THAT body's center (recursive, so an outer planet's
+  // moons — and their mini-moons — are counted when fitting the whole system to the screen).
+  const moonReach = (moons: GeneratedMoon[]): number =>
+    moons.length ? Math.max(...moons.map((m) => m.orbitR + m.size / 2 + moonReach(m.moons ?? []))) : 0;
+
   const frameRadius = (id: string): number => {
     if (id === config.sun.id) {
       // Every planet may have been waved goodbye — frame just the sun.
       if (config.planets.length === 0) return config.sun.size * 1.2;
+      // Outermost extent from the sun = the farthest (planet orbit + that planet's moon span), so the
+      // whole system — planets AND their moons — fits when we frame the sun.
       return (
-        Math.max(...config.planets.map((p) => p.orbit.maxR + p.size / 2)) + 80
+        Math.max(...config.planets.map((p) => p.orbit.maxR + p.size / 2 + moonReach(p.moons))) + 80
       );
     }
     const p = config.planets.find((pp) => pp.id === id);
@@ -1117,25 +1124,24 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     }
   }, [config, rocketHostId]);
 
-  // Map mode opens centered on the sun, framing the INNER few planets big (not the whole system,
-  // which would shrink everything to a speck). You pan / zoom / use the navigator to reach the rest;
-  // moons unfold as you zoom in. One-shot on mount.
+  // Map mode opens framing the WHOLE system to fit the screen (Jacob, 2026-09-29: "the orbits should
+  // be adjustable to the zoom screen") — every orbit fits the viewport on open, so nothing is off-screen
+  // or hidden. This is safe now that spacing is a compact band (v0.9.119); the earlier "inner few only"
+  // framing dates from the old sprawling layout that would have shrunk a fitted system to a speck.
+  // You still pan / zoom in from here; moons unfold as you zoom. One-shot on mount.
   const didOpenRef = useRef(false);
   useEffect(() => {
     if (!mapMode || didOpenRef.current) return;
     const t = setTimeout(() => {
-      const apply = setTransformRef.current; const ps = config.planets;
+      const apply = setTransformRef.current;
       if (!apply) return;
       didOpenRef.current = true;
       const c = bodyPos(config.sun.id) ?? { x: center, y: center };
       const navX = window.innerWidth >= 640 ? 296 : 0;
       const areaW = window.innerWidth - navX, areaH = window.innerHeight - 110;
-      let s = 0.36;
-      if (ps.length) {
-        const k = Math.min(3, ps.length - 1);
-        const framR = ps[k]!.orbit.maxR + ps[k]!.size / 2 + 140;
-        s = Math.min(Math.max((Math.min(areaW, areaH) * 0.92) / (2 * framR), 0.06), 0.6);
-      }
+      // frameRadius(sun) = outermost orbit edge → fit the entire system into the visible content area
+      const framR = frameRadius(config.sun.id);
+      const s = Math.min(Math.max((Math.min(areaW, areaH) * 0.92) / (2 * framR), 0.02), 0.6);
       // center the sun in the visible content area (right of the navigator, above the bottom hint)
       apply(navX + areaW / 2 - c.x * s, areaH / 2 - c.y * s, s, 350);
     }, 150);
@@ -1979,7 +1985,7 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
       <TransformWrapper
         key={`${seed}-${planetCount}`}
         initialScale={0.36}
-        minScale={chatOpen && fanSubj ? fanSubj.layout.camera.scale : 0.12}
+        minScale={chatOpen && fanSubj ? fanSubj.layout.camera.scale : 0.02}
         maxScale={2.5}
         centerOnInit
         limitToBounds={false}
