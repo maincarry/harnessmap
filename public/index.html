@@ -988,7 +988,7 @@ $('tab-add').onclick = () => {
   ov.querySelector('#nc-cancel').onclick = () => ov.remove();
   // Jacob: from +session you can also pull a past Claude/Codex chat onto the map — this
   // opens the import flow (its "past sessions" section browses this folder's conversations).
-  ov.querySelector('#nc-import').onclick = () => { ov.remove(); openImport(); };
+  ov.querySelector('#nc-import').onclick = () => { ov.remove(); openImport({ onlySessions: true }); };
   // M221: one radio per harness (Claude Code, Codex, …) from the server — installed ones
   // enabled, the rest greyed with why; the last choice is preselected.
   post2get('/api/term').then((ti) => {
@@ -1671,14 +1671,15 @@ $('influence-btn').onclick = async () => {
     ? '⏻ map influence CLOSED — your sessions get nothing from the map (it keeps updating quietly; reopen in ⋯)'
     : '⏻ map influence reopened — sessions receive map context again from their next message';
 };
-function openImport() {
+function openImport(opts = {}) {
+  const onlySessions = !!opts.onlySessions;
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `
     <div class="modal" style="width:min(640px,94vw)">
-      <h3>⇪ import onto the map</h3>
+      <h3>${onlySessions ? '⇪ import a Claude Code / Codex chat' : '⇪ import onto the map'}</h3>
       <div id="im-pick">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Bring outside material in: the import agent reads it and proposes ONE organized branch — you see the whole tree before anything lands, and it's undoable after.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${onlySessions ? 'Pick one of your local Claude Code or Codex conversations for this folder — the import agent organizes it into one branch you approve before anything lands.' : "Bring outside material in: the import agent reads it and proposes ONE organized branch — you see the whole tree before anything lands, and it's undoable after."}</div>
         <div id="im-find-wrap" hidden>
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px">search the imported source</div>
           <div style="font-size:12px;color:var(--muted);margin:2px 0 4px">the original source stays with the map — ask for anything it holds and the filer files it into the import's branch (undoable)</div>
@@ -1688,6 +1689,7 @@ function openImport() {
           </div>
           <div id="im-find-out" style="font-size:12px;color:var(--muted);margin-top:3px"></div>
         </div>
+        <div id="im-nonsess">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px">paste anything</div>
         <textarea id="im-text" placeholder="notes, a document, meeting minutes, an old conversation…" style="width:100%;min-height:110px;border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px"></textarea>
         <div class="actions" style="margin:6px 0 2px"><button id="im-go-text" class="primary" title="the import agent organizes the pasted text into a subtree proposal">propose from pasted text</button></div>
@@ -1695,7 +1697,8 @@ function openImport() {
         <div id="im-files" style="display:flex;flex-direction:column;gap:2px;max-height:18vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">Claude's own memory (this project)</div>
         <div id="im-mem" style="display:flex;flex-direction:column;gap:2px;max-height:14vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">past sessions — Claude Code and Codex (this project)</div>
+        </div>
+        <div id="im-sess-label" style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">past sessions — Claude Code and Codex (this project)</div>
         <div id="im-sess" style="display:flex;flex-direction:column;gap:2px;max-height:18vh;overflow-y:auto"><span style="color:var(--muted);font-size:12px">looking…</span></div>
       </div>
       <div id="im-prop" hidden>
@@ -1715,6 +1718,7 @@ function openImport() {
       </div>
     </div>`;
   document.body.appendChild(ov);
+  if (onlySessions) { const ns = ov.querySelector('#im-nonsess'); if (ns) ns.hidden = true; const lbl = ov.querySelector('#im-sess-label'); if (lbl) lbl.style.marginTop = '2px'; }
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   ov.querySelector('#im-cancel').onclick = () => ov.remove();
   let current = null, lastReq = null;
@@ -1812,7 +1816,8 @@ function openImport() {
       for (const x of src.sessions ?? []) {
         const d = document.createElement('div');
         d.className = 'sr-row';
-        d.innerHTML = `<span>${esc(new Date(x.mtime).toLocaleString())}</span><span class="sr-path">${x.sizeKB} KB</span>`;
+        const hz = x.harness === 'codex' ? 'Codex' : 'Claude Code';
+        d.innerHTML = `<span style="color:var(--accent);font-weight:600;font-size:12px;min-width:74px">${hz}</span><span>${esc(new Date(x.mtime).toLocaleString())}</span><span class="sr-path">${x.sizeKB} KB</span>`;
         d.onclick = () => propose({ kind: 'session', sessionFile: x.file, sizeKB: x.sizeKB });
         sess.appendChild(d);
       }
