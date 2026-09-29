@@ -121,12 +121,17 @@ export function mapToSystem(nodesIn: MapNodeLite[], opts: MapToSystemOpts = {}):
   // is genuinely smaller than its parent (≤55%), and spacing derives from both painted discs. Folded at
   // overview; they unfold on zoom, so they don't clutter the overview or affect the planet band.
   const buildMoons = (parent: MapNodeLite, parentSize: number, depth: number): GeneratedMoon[] => {
-    const children = depth > 2 ? [] : (kids.get(parent.id) ?? []);
+    // Build the WHOLE subtree (was capped at depth 2, which left every node deeper than a planet's
+    // grandchild with no body at all — "many stars invisible on deep maps", Jacob). GeneratorSystem
+    // folds bodies by apparent size (a subtree too small to read isn't walked), so deep nodes cost
+    // nothing until you zoom to them; the generous cap only guards against pathological recursion.
+    const children = depth > 12 ? [] : (kids.get(parent.id) ?? []);
     if (!children.length) return [];
     const out: GeneratedMoon[] = [];
     children.forEach((c, i) => {
       const h = hash(c.id);
-      const size = Math.min(parentSize * 0.55, 66 - depth * 5);  // smaller than parent, shrinking with depth
+      // smaller than parent, shrinking with depth, but floored so deep generations never hit 0/negative
+      const size = Math.max(16, Math.min(parentSize * 0.55, 70 - depth * 4));
       const sub = buildMoons(c, size, depth + 1);                // grandchildren
       const mOrbitR = proportionalMoonOrbit(parentSize, size, i);
       out.push({
