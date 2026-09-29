@@ -954,14 +954,13 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
   // A ring is centered on the sun (world center). Draw/keep it only when its FULL circle is inside the
   // visible content area at the current pan+zoom — right of the navigator, above the bottom hint — so it
   // never slices the screen as a cut-off arc. Robust to panning, not just the opening frame.
-  const ringFullyVisible = (maxR: number): boolean => {
-    const st = stateRef.current; if (!st) return true;
-    const sx = st.positionX + center * st.scale, sy = st.positionY + center * st.scale;
-    const rpx = maxR * st.scale;
-    const navX = window.innerWidth >= 640 ? 296 : 0;
-    const botY = window.innerHeight - 110;
-    return sx - rpx >= navX + 10 && sx + rpx <= window.innerWidth - 10 && sy - rpx >= 10 && sy + rpx <= botY - 10;
-  };
+  // DISABLED (Jacob, 2026-09-29): this used to gate whether a planet (and its ring/moons) rendered at
+  // all — a body whose orbit ring didn't fully fit the viewport returned null and VANISHED, so zooming
+  // in made outer nodes disappear. That "consistent disappearing-nodes" bug is the opposite of the
+  // Lovable reference, which never hard-removes a body by ring-fit (it only fades via semantic zoom).
+  // So ring-fit no longer hides anything: every body and ring always renders. (Partial orbit arcs at
+  // the screen edge are fine — that's how the reference behaves as you pan a large system.)
+  const ringFullyVisible = (_maxR: number): boolean => true;
 
   const frameRadius = (id: string): number => {
     if (id === config.sun.id) {
@@ -1876,10 +1875,9 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     depth = 0,
   ): ReactNode =>
     moons.map((m) => {
-      // Match the body's fold: gen-2 rings (depth 0) always show with the planet; gen-3+ (depth >= 1)
-      // fold by zoom, exactly like the moon bodies.
+      // No apparent-size fold (Jacob, 2026-09-29): deep moon rings render regardless of on-screen size
+      // so their bodies never disappear at overview — matching the reference (fade, don't hard-remove).
       const camScale = stateRef.current?.scale ?? 0.36;
-      if (mapMode && depth >= 1 && m.size * camScale < 20 && focusedId !== m.id && activeId !== m.id && chatTalkId !== m.id) return null;
       const a = m.startAngle + (t * TAU) / m.period;
       // The moon's rendered pose (frame-guarded, agrees with the moon
       // bodies) so nested rings center on where it actually is — and
@@ -1927,10 +1925,9 @@ export function GeneratorSystem({ initialConfig, mapMode, onFocusNode }: GalaxyP
     depth = 1,
   ): ReactNode =>
     moons.map((m) => {
-      // Show TWO generations by default: planets + their moons (depth 1) always render with the planet.
-      // Deeper generations (mini-moons, depth >= 2) fold by zoom — they appear only when big enough to read.
+      // No apparent-size fold (Jacob, 2026-09-29): every moon body renders regardless of on-screen size,
+      // so nodes never disappear at overview — the reference fades distant bodies, it doesn't remove them.
       const camScale = stateRef.current?.scale ?? 0.36;
-      if (mapMode && depth >= 2 && m.size * camScale < 20 && focusedId !== m.id && activeId !== m.id && chatTalkId !== m.id) return null;
       const a = m.startAngle + (t * TAU) / m.period;
       const r = chatPoseMoon(m, px, py, a, parentId);
       const chatSized = Math.abs(r.size - m.size) > 0.5;
