@@ -974,6 +974,10 @@ $('tab-add').onclick = () => {
       <div id="nc-harnesses"><label><input type="radio" name="nc-talk" value="term" data-harness="claude"> ⌨ Claude Code terminal — the real CLI in this tab, full fidelity</label></div>
       <label><input type="radio" name="nc-talk" value="chat"> 💬 chat — our streamlined interface; the conversation stays with the map</label>
       <p id="nc-term-note" style="font-size:11px;color:var(--muted);margin:2px 0 0"></p>
+      <div style="margin-top:12px;border-top:1px solid var(--hair);padding-top:8px">
+        <button id="nc-import" style="width:100%;text-align:left;border:1px dashed var(--hair);background:var(--bg);border-radius:8px;padding:9px 11px;cursor:pointer;font:inherit;font-size:12.5px;color:var(--ink)">⇪ or import a past Claude Code / Codex chat onto this map…</button>
+        <p style="font-size:11px;color:var(--muted);margin:4px 2px 0">browse your recent Claude Code and Codex conversations for this folder; the import agent organizes the one you pick into a branch you approve.</p>
+      </div>
       <div class="actions">
         <button id="nc-cancel" title="close without creating a chat">cancel</button>
         <button id="nc-create" class="primary" title="create the new chat with the chosen mode and focus">create</button>
@@ -982,6 +986,9 @@ $('tab-add').onclick = () => {
   document.body.appendChild(ov);
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   ov.querySelector('#nc-cancel').onclick = () => ov.remove();
+  // Jacob: from +session you can also pull a past Claude/Codex chat onto the map — this
+  // opens the import flow (its "past sessions" section browses this folder's conversations).
+  ov.querySelector('#nc-import').onclick = () => { ov.remove(); openImport(); };
   // M221: one radio per harness (Claude Code, Codex, …) from the server — installed ones
   // enabled, the rest greyed with why; the last choice is preselected.
   post2get('/api/term').then((ti) => {
