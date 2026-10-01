@@ -51,10 +51,18 @@ fi
 
 # 2. Build.
 say "building the companion (a few minutes the first time)…"
-# Build ONLY the .app bundle (--bundles app): we copy the .app into ~/Applications and
-# never use the DMG for a local install, and a failing DMG-packaging step must not block
-# an otherwise-valid build (Jacob's codex hit exactly that).
-( cd "$C" && cargo tauri icon app-icon-source.png >/dev/null 2>&1 && cargo tauri build --bundles app ) || { say "build failed — run 'cargo tauri build --bundles app' in $C to see the error."; exit 1; }
+# Pick the bundle target per-OS. macOS: the .app (we copy it into ~/Applications and never
+# use the DMG for a local install, and a failing DMG-packaging step must not block an
+# otherwise-valid build — Jacob's codex hit exactly that). Linux: the AppImage, which the
+# launch step below expects — "app" is a macOS-only target, so requesting it on Linux
+# produced NO bundle and left every Linux install at "no AppImage produced". Windows uses
+# the manual steps, not this script.
+case "$OS" in
+  Darwin) BUNDLE=app ;;
+  Linux)  BUNDLE=appimage ;;
+  *)      BUNDLE=app ;;
+esac
+( cd "$C" && cargo tauri icon app-icon-source.png >/dev/null 2>&1 && cargo tauri build --bundles "$BUNDLE" ) || { say "build failed — run 'cargo tauri build --bundles $BUNDLE' in $C to see the error."; exit 1; }
 
 # 3. Install to a user-writable place (no sudo) and launch.
 case "$OS" in

@@ -34,8 +34,15 @@ if [ "$1" = "tauri" ] && [ "$2" = "build" ]; then
   case "$HM_BUILD" in
     fail) echo "mock: compile error E0001" >&2; exit 1 ;;
     noartifact) exit 0 ;;
-    *) mkdir -p "$PWD/src-tauri/target/release/bundle/appimage" "$PWD/src-tauri/target/release/bundle/macos/HarnessMap Companion.app/Contents/MacOS";
-       printf '#!/bin/sh\\nexit 0\\n' > "$PWD/src-tauri/target/release/bundle/appimage/HarnessMap_0.0.0.AppImage";
+    *) # Model Tauri's real per-OS bundle targets: ONLY the requested --bundles target is
+       # produced. "app" is macOS-only, "appimage" is Linux — so asking for the wrong one
+       # (e.g. --bundles app on Linux) yields NO launchable artifact, which is the real bug
+       # the Linux install path had. Target is the arg after --bundles.
+       tgt=""; for a in "$@"; do [ "$prev" = "--bundles" ] && tgt="$a"; prev="$a"; done
+       case "$tgt" in
+         app) mkdir -p "$PWD/src-tauri/target/release/bundle/macos/HarnessMap Companion.app/Contents/MacOS" ;;
+         appimage) mkdir -p "$PWD/src-tauri/target/release/bundle/appimage"; printf '#!/bin/sh\\nexit 0\\n' > "$PWD/src-tauri/target/release/bundle/appimage/HarnessMap_0.0.0.AppImage" ;;
+       esac
        exit 0 ;;
   esac
 fi
