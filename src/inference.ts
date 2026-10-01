@@ -124,6 +124,27 @@ export function modelFor(task: Task): string {
   return chosen && /^[a-z0-9.-]{3,60}$/.test(chosen) ? chosen : defaultModelFor(task);
 }
 
+// M400 (Mark, 2026-10-01): reasoning effort is a HARNESS setting, pinned per role —
+// never the user's chat / ~/.codex config. A background codex exec with no
+// `-c model_reasoning_effort` inherits the user's config (Mark's was `max`), which is
+// why the filer kept hitting its 150 s timeout. Default by tier — cheap→low (the
+// per-turn filer is low, so it's fast), smart→medium, fancy→high (the brain is high) —
+// exactly Mark's "filer low by default, brain high by default". Overridable per task
+// via the `effort:<task>` setting (settings resolver below), like `model:<task>`.
+export type Effort = 'minimal' | 'low' | 'medium' | 'high';
+const EFFORT_VALUES = new Set<string>(['minimal', 'low', 'medium', 'high']);
+const tierEffort = (t: Tier): Effort => (t === 'fancy' ? 'high' : t === 'smart' ? 'medium' : 'low');
+export function defaultEffortFor(task: Task): Effort {
+  const r = ROLES.find((x) => x.task === task);
+  return tierEffort(r?.tier ?? 'cheap');
+}
+let effortResolver: ((task: Task) => string | undefined) | null = null;
+export function setEffortResolver(fn: ((task: Task) => string | undefined) | null): void { effortResolver = fn; }
+export function effortFor(task: Task): Effort {
+  const chosen = effortResolver?.(task);
+  return chosen && EFFORT_VALUES.has(chosen) ? (chosen as Effort) : defaultEffortFor(task);
+}
+
 // M220 (Mark: Codex users): three backends. 'subscription' = claude -p on the
 // user's Claude plan; 'api' = ANTHROPIC_API_KEY; 'codex' = `codex exec` on
 // the user's ChatGPT plan (or CODEX_API_KEY). Explicit via HARNESSMAP_INFERENCE;
@@ -313,7 +334,9 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
     for (let attempt = 1; attempt <= 2; attempt++) {
       const user = attempt === 1 ? opts.user : `${opts.user}\n\n(Your previous reply was not valid JSON for the schema: ${lastErr}. Reply again with ONLY the JSON object.)`;
       const prompt = `SYSTEM INSTRUCTIONS:\n${opts.system}${jsonNote}\n\n---\n\n${user}`;
-      const args = [codexBin() ?? 'codex', 'exec', '-', ...(useModel ? ['-m', useModel] : []), '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', ...(process.env.HARNESSMAP_CODEX_PLUGINS === '1' ? [] : ['--disable', 'remote_plugin', '--disable', 'plugins', '--disable', 'apps']), '-C', dir, '-o', outFile, ...(schemaFile ? ['--output-schema', schemaFile] : [])];
+      // M400 (Mark): pin reasoning effort per role so it never inherits the user's ~/.codex config.
+      const effort = effortFor(opts.task);
+      const args = [codexBin() ?? 'codex', 'exec', '-', ...(useModel ? ['-m', useModel] : []), '-c', `model_reasoning_effort=${effort}`, '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', ...(process.env.HARNESSMAP_CODEX_PLUGINS === '1' ? [] : ['--disable', 'remote_plugin', '--disable', 'plugins', '--disable', 'apps']), '-C', dir, '-o', outFile, ...(schemaFile ? ['--output-schema', schemaFile] : [])];
       const env: Record<string, string> = {}; for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v;
       // M271: this codex exec is the MAP's own call — Codex runs the user's hooks for it too; they must exit at once
       // (else the filer's own prompt is filed as a session, its Stop files a round, which calls the filer… — Jacob's 50 rounds).

@@ -29,7 +29,7 @@ import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories, nodeFull } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots, outlineWithIds } from './translator/importer.js';
-import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, backendName, backendSource, setBackend, type Backend } from './inference.js';
+import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, setEffortResolver, defaultEffortFor, effortFor, backendName, backendSource, setBackend, type Backend } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, codexSessionMeta, stripHostScaffold, looksLikeScaffold, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
 import { sessionIsIdle } from './host-liveness.js';
@@ -69,6 +69,9 @@ const HOST_BLOCK_DECLARATION = '[harnessmap] This is reference context from a me
 const store = new Store(DB_PATH);
 // M217: the user's per-role model choice (⚙ models) resolves ahead of the defaults.
 setModelResolver((task) => store.getSetting(`model:${task}`) || undefined);
+// M400 (Mark, 2026-10-01): reasoning effort is a harness setting per role (effort:<task>),
+// NOT the user's ~/.codex config. Default filer→low (fast), brain→high; see defaultEffortFor.
+setEffortResolver((task) => store.getSetting(`effort:${task}`) || undefined);
 // A parent cycle in the data (2026-09-06: two find-and-file nodes as each
 // other's parent) sent every tree walk into an endless loop and the OOM
 // killer took the server, the tmux scope and the Claude session. Broken on
@@ -3392,7 +3395,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // M217 (Mark): one model per role, chosen here; empty = the default.
     if (path === '/api/models' && req.method === 'GET') {
       try {
-      return json({ groups: ROLE_GROUPS, roles: ROLES.map((r) => ({ ...r, default: defaultModelFor(r.task), chosen: store.getSetting(`model:${r.task}`) || '', current: modelFor(r.task) })), catalog: modelCatalog(), backend: backendName(), backendSource: backendSource(), backends: backendChoices() });
+      return json({ groups: ROLE_GROUPS, roles: ROLES.map((r) => ({ ...r, default: defaultModelFor(r.task), chosen: store.getSetting(`model:${r.task}`) || '', current: modelFor(r.task), effortDefault: defaultEffortFor(r.task), effortChosen: store.getSetting(`effort:${r.task}`) || '', effort: effortFor(r.task) })), efforts: ['minimal', 'low', 'medium', 'high'], catalog: modelCatalog(), backend: backendName(), backendSource: backendSource(), backends: backendChoices() });
       } catch (err) { return json({ error: `models: ${err instanceof Error ? err.message : String(err)}` }, 500); }
     }
     // M264: which plan the map's agents run on — a persisted choice, switchable here.
@@ -3413,25 +3416,31 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ ok: true, backend: backendName(), source: backendSource(), catalog: modelCatalog() });
     }
     if (path === '/api/models' && req.method === 'POST') {
-      const b = await req.json() as { task?: string; model?: string; reset?: boolean };
-      if (b.reset) { for (const r of ROLES) store.setSetting(`model:${r.task}`, ''); store.audit('models_reset', {}); return json({ ok: true }); }
-      // A whole group at once ("the per-turn agent on haiku").
+      // M400 (Mark): `effort` is set here alongside `model` — a harness setting per role, never the user's config.
+      const b = await req.json() as { task?: string; model?: string; effort?: string; reset?: boolean };
+      const okEffort = (e: string) => e === '' || ['minimal', 'low', 'medium', 'high'].includes(e);
+      if (b.reset) { for (const r of ROLES) { store.setSetting(`model:${r.task}`, ''); store.setSetting(`effort:${r.task}`, ''); } store.audit('models_reset', {}); return json({ ok: true }); }
+      const hasModel = b.model !== undefined, hasEffort = b.effort !== undefined;
+      const effort = String(b.effort ?? '').trim();
+      if (hasEffort && !okEffort(effort)) return json({ error: 'effort must be minimal, low, medium, high, or empty for default' }, 400);
+      // A whole group at once ("the per-turn agent on haiku" / "the brain at high effort").
       if (b.task?.startsWith('group:')) {
         const g = b.task.slice(6); const members = ROLES.filter((r) => r.group === g);
         if (!members.length) return json({ error: 'unknown group' }, 400);
         const model = String(b.model ?? '').trim();
-        if (model && !/^[a-z0-9.-]{3,60}$/.test(model)) return json({ error: 'model ids are lowercase letters, digits, dots and dashes' }, 400);
-        for (const r of members) store.setSetting(`model:${r.task}`, model);
-        store.audit('model_chosen', { role: `group:${g}`, model: model || '(default)' });
-        return json({ ok: true, group: g, roles: members.map((r) => ({ task: r.task, current: modelFor(r.task) })) });
+        if (hasModel && model && !/^[a-z0-9.-]{3,60}$/.test(model)) return json({ error: 'model ids are lowercase letters, digits, dots and dashes' }, 400);
+        for (const r of members) { if (hasModel) store.setSetting(`model:${r.task}`, model); if (hasEffort) store.setSetting(`effort:${r.task}`, effort); }
+        store.audit('model_chosen', { role: `group:${g}`, ...(hasModel ? { model: model || '(default)' } : {}), ...(hasEffort ? { effort: effort || '(default)' } : {}) });
+        return json({ ok: true, group: g, roles: members.map((r) => ({ task: r.task, current: modelFor(r.task), effort: effortFor(r.task) })) });
       }
       const role = ROLES.find((r) => r.task === b.task);
       if (!role) return json({ error: 'unknown role' }, 400);
       const model = String(b.model ?? '').trim();
-      if (model && !/^[a-z0-9.-]{3,60}$/.test(model)) return json({ error: 'model ids are lowercase letters, digits, dots and dashes' }, 400);
-      store.setSetting(`model:${role.task}`, model);
-      store.audit('model_chosen', { role: role.task, model: model || '(default)' });
-      return json({ ok: true, task: role.task, current: modelFor(role.task) });
+      if (hasModel && model && !/^[a-z0-9.-]{3,60}$/.test(model)) return json({ error: 'model ids are lowercase letters, digits, dots and dashes' }, 400);
+      if (hasModel) store.setSetting(`model:${role.task}`, model);
+      if (hasEffort) store.setSetting(`effort:${role.task}`, effort);
+      store.audit('model_chosen', { role: role.task, ...(hasModel ? { model: model || '(default)' } : {}), ...(hasEffort ? { effort: effort || '(default)' } : {}) });
+      return json({ ok: true, task: role.task, current: modelFor(role.task), effort: effortFor(role.task) });
     }
     // M225: cost per role — calls and approximate tokens from the metrics every
     // successful call reports (M184), with a rough dollar figure at list prices.
