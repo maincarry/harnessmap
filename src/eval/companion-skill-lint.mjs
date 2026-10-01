@@ -39,7 +39,23 @@ for (const c of ['map_port_cmd', 'map_ready', 'open_map', 'start_drag', 'reset_p
   check(`invoke command defined: ${c}`, new RegExp(`fn\\s+${c}\\b`).test(lib));
 
 // The skill promises macOS transparency hinges on this flag.
-check('tauri.conf macOSPrivateApi=true', /"macOSPrivateApi"\s*:\s*true/.test(read('companion/src-tauri/tauri.conf.json')));
+const confRaw = read('companion/src-tauri/tauri.conf.json');
+const privateApi = /"macOSPrivateApi"\s*:\s*true/.test(confRaw);
+check('tauri.conf macOSPrivateApi=true', privateApi);
+
+// Cargo.toml tauri features MUST enable `macos-private-api` whenever the config sets
+// macOSPrivateApi:true — Tauri's build script enforces the match. `cargo tauri build`
+// auto-injects the feature (so CI/macOS stayed green without it), but a plain `cargo build`/
+// `cargo check` — the natural way a fresh/codex build verifies compilation — fails with
+// "the tauri dependency features … does not match the allowlist … add the macos-private-api
+// feature". A real codex-built bug; this lint keeps the two files consistent. (Found 2026-10-01
+// by driving a real in-box build.)
+const cargoToml = read('companion/src-tauri/Cargo.toml');
+const tauriDepLine = (cargoToml.match(/^\s*tauri\s*=\s*\{[^\n]*\}/m) || [''])[0];
+const hasFeature = /macos-private-api/.test(tauriDepLine);
+check('Cargo.toml tauri features include macos-private-api (matches conf allowlist)',
+  !privateApi || hasFeature,
+  privateApi ? `conf sets macOSPrivateApi:true but tauri dep features lack macos-private-api — plain cargo build/check will fail: ${tauriDepLine.trim() || '(tauri dep line not found)'}` : '');
 
 // HTTP endpoints the widget (per the skill) calls must be served. server.ts matches most paths
 // with regexes, so accept either a literal string or a path.match(/.../), tolerant of the <id>.

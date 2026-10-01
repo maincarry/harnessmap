@@ -17,7 +17,13 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+# macos-private-api MUST be enabled here to match "macOSPrivateApi": true in
+# tauri.conf.json — Tauri's build script enforces that the config allowlist and the
+# tauri cargo features agree. `cargo tauri build` injects it from the config so CI
+# (macOS) stayed green without it, but a plain `cargo build`/`cargo check` (what a
+# fresh build or a debugging agent runs) fails with "does not match the allowlist …
+# add the macos-private-api feature". Enabling it here makes every build path work.
+tauri = { version = "2", features = ["tray-icon", "image-png", "macos-private-api"] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
