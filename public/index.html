@@ -2746,23 +2746,27 @@ $('models-btn').onclick = async () => {
     const custom = r.chosen && !ids.includes(r.chosen);
     return `<option value="">default (${esc(r.default)})</option>` + d.catalog.map((c) => `<option value="${c.id}" ${r.chosen === c.id ? 'selected' : ''}>${c.id} — ${esc(c.note)}</option>`).join('') + `<option value="__custom" ${custom ? 'selected' : ''}>custom id…</option>`;
   };
+  // M400 (Mark): reasoning effort per role — a harness setting, pinned, never the user's config.
+  const effs = d.efforts || ['minimal', 'low', 'medium', 'high'];
+  const effOpt = (r) => `<option value="">default (${esc(r.effortDefault || '')})</option>` + effs.map((e) => `<option value="${e}" ${r.effortChosen === e ? 'selected' : ''}>${e}</option>`).join('');
   ov.innerHTML = `
     <div class="modal" style="width:min(760px,96vw);max-height:90vh;overflow:auto">
-      <h3>⚙ models per role</h3>
+      <h3>⚙ models &amp; effort per role</h3>
       ${cost ? `<div style="font-size:12px;line-height:1.5;margin:-4px 0 8px;padding:6px 8px;border:1px solid var(--hair);border-radius:8px"><b>last 24 h:</b> ${cost.total.calls} calls · ≈${fmtTok(cost.total.tokens)} tokens · ≈${fmtUsd(cost.total.usd)} at list prices${cost.backend !== 'api' ? ' (your plan pays; the dollar figure is what the API would charge)' : ''} — the per-turn agent's share: ${cost.total.tokens ? Math.round(100 * cost.roles.filter((r) => r.perTurn).reduce((a, r) => a + r.tokens, 0) / cost.total.tokens) : 0}%. <span style="color:var(--muted)">${esc(cost.note)}</span></div>` : ''}
-      <div style="font-size:12px;color:var(--muted);margin:-4px 0 10px;line-height:1.5">Every role is a one-shot call; choose its model here. Roles marked <b>every turn</b> run on each exchange — their model sets the running cost. Changes apply from the next call; nothing restarts.</div>
+      <div style="font-size:12px;color:var(--muted);margin:-4px 0 10px;line-height:1.5">Every role is a one-shot call; choose its <b>model</b> and <b>reasoning effort</b> here. Roles marked <b>every turn</b> run on each exchange — their model and effort set the running cost and speed. Effort is a <b>map setting</b>, pinned per role — it never follows your chat / Codex config (filer defaults to <b>low</b> to stay fast, the brain to <b>high</b>). Changes apply from the next call; nothing restarts.</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px;padding:8px 10px;border:1px solid var(--hair);border-radius:8px;font-size:13px"><b>the agents run on:</b>
         <select id="be-sel" style="font:inherit;font-size:12px;padding:4px;background:var(--bg);color:var(--ink);border:1px solid var(--hair);border-radius:6px" ${d.backendSource === 'env' ? 'disabled' : ''}>${(d.backends || []).map((b) => `<option value="${b.id}" ${d.backend === b.id ? 'selected' : ''} ${b.available ? '' : 'disabled'}>${esc(b.label)}${b.available ? '' : ' — not found'}</option>`).join('')}</select>
         <span style="font-size:11.5px;color:var(--muted)">${d.backendSource === 'env' ? 'fixed by HARNESSMAP_INFERENCE in the server\'s environment' : d.backendSource === 'chosen' ? 'your choice (the Codex installer sets Codex; switch any time)' : 'auto-detected — choose to pin it'}. The model ids below belong to this backend.</span>
       </div>
       <table style="width:100%;border-collapse:collapse;font-size:13px">
-        <thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em"><th style="padding:4px 6px">role</th><th style="padding:4px 6px">what it does</th><th style="padding:4px 6px">model</th></tr></thead>
-        <tbody>${(d.groups || [{ id: null, label: 'roles', what: '' }]).map((g) => `<tr data-group="${g.id || ''}" style="border-top:2px solid var(--hair);background:var(--panel,transparent)"><td colspan="2" style="padding:10px 6px 6px"><b style="font-size:13px">${esc(g.label)}</b><div style="font-size:11.5px;color:var(--muted);line-height:1.4">${esc(g.what)}</div></td><td style="padding:10px 6px 6px;min-width:220px"><select class="g-sel" style="width:100%;font:inherit;font-size:12px;padding:4px;background:var(--bg);color:var(--ink);border:1px solid var(--hair);border-radius:6px"><option value="">set the whole group…</option><option value="__default">defaults</option>${d.catalog.map((c) => `<option value="${c.id}">${c.id}</option>`).join('')}</select></td></tr>` + d.roles.filter((r) => !g.id || r.group === g.id).map((r) => `<tr data-task="${r.task}" style="border-top:1px solid var(--hair);vertical-align:top">
+        <thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em"><th style="padding:6px">role</th><th style="padding:6px">what it does</th><th style="padding:6px">model</th><th style="padding:6px">effort</th></tr></thead>
+        <tbody>${(d.groups || [{ id: null, label: 'roles', what: '' }]).map((g) => `<tr data-group="${g.id || ''}" style="border-top:2px solid var(--hair)"><td colspan="2" style="padding:13px 6px 6px 10px;border-left:3px solid var(--accent,#c8a24a)"><b style="font-size:13.5px;letter-spacing:.01em">${esc(g.label)}</b><div style="font-size:11.5px;color:var(--muted);line-height:1.4">${esc(g.what)}</div></td><td style="padding:10px 6px 6px;min-width:220px"><select class="g-sel" style="width:100%;font:inherit;font-size:12px;padding:4px;background:var(--bg);color:var(--ink);border:1px solid var(--hair);border-radius:6px"><option value="">set the whole group…</option><option value="__default">defaults</option>${d.catalog.map((c) => `<option value="${c.id}">${c.id}</option>`).join('')}</select></td><td style="padding:10px 6px 6px;min-width:140px"><select class="g-eff" style="width:100%;font:inherit;font-size:12px;padding:4px;background:var(--bg);color:var(--ink);border:1px solid var(--hair);border-radius:6px"><option value="">set effort…</option><option value="__default">defaults</option>${effs.map((e) => `<option value="${e}">${e}</option>`).join('')}</select></td></tr>` + d.roles.filter((r) => !g.id || r.group === g.id).map((r) => `<tr data-task="${r.task}" style="border-top:1px solid var(--hair);vertical-align:top">
           <td style="padding:8px 6px;white-space:nowrap"><b>${esc(r.label)}</b>${r.perTurn ? '<div style="font-size:11px;color:var(--accent,#c8a24a)">every turn</div>' : ''}</td>
           <td style="padding:8px 6px;color:var(--muted);line-height:1.4">${esc(r.what)}${costOf(r.task) && costOf(r.task).calls ? `<div style="font-size:11px;margin-top:3px;color:var(--ink)">24 h: ${costOf(r.task).calls} calls · ≈${fmtTok(costOf(r.task).tokens)} tokens · ≈${fmtUsd(costOf(r.task).usd)}</div>` : '<div style="font-size:11px;margin-top:3px">24 h: no calls</div>'}</td>
           <td style="padding:8px 6px;min-width:220px"><select class="m-sel" style="width:100%;font:inherit;font-size:12px;padding:4px;background:var(--bg);color:var(--ink);border:1px solid var(--hair);border-radius:6px">${opt(r)}</select>
             <input class="m-custom" placeholder="model id" value="${esc(r.chosen && !d.catalog.some((c) => c.id === r.chosen) ? r.chosen : '')}" style="width:100%;margin-top:4px;font:inherit;font-size:12px;padding:4px;background:var(--bg);color:var(--ink);border:1px solid var(--hair);border-radius:6px" ${r.chosen && !d.catalog.some((c) => c.id === r.chosen) ? '' : 'hidden'}>
             <div class="m-now" style="font-size:11px;color:var(--muted);margin-top:3px">now: ${esc(r.current)}</div></td>
+          <td style="padding:8px 6px;min-width:140px"><select class="e-sel" style="width:100%;font:inherit;font-size:12px;padding:4px;background:var(--bg);color:var(--ink);border:1px solid var(--hair);border-radius:6px">${effOpt(r)}</select><div class="e-now" style="font-size:11px;color:var(--muted);margin-top:3px">now: ${esc(r.effort)}</div></td>
         </tr>`).join('')).join('')}</tbody>
       </table>
       <div class="actions">
@@ -2775,16 +2779,30 @@ $('models-btn').onclick = async () => {
     try { const r = await post('/api/models', { task: tr.dataset.task, model }); tr.querySelector('.m-now').textContent = `now: ${r.current}`; $('round-line').textContent = `${tr.dataset.task}: ${r.current} from the next call on`; }
     catch (err) { $('round-line').textContent = `could not save: ${err.message}`; }
   };
+  const saveEff = async (tr, effort) => {
+    try { const r = await post('/api/models', { task: tr.dataset.task, effort }); tr.querySelector('.e-now').textContent = `now: ${r.effort}`; $('round-line').textContent = `${tr.dataset.task}: ${r.effort} effort from the next call on`; }
+    catch (err) { $('round-line').textContent = `could not save: ${err.message}`; }
+  };
   ov.querySelectorAll('tr[data-task]').forEach((tr) => {
     const sel = tr.querySelector('.m-sel'), cus = tr.querySelector('.m-custom');
     sel.onchange = () => { if (sel.value === '__custom') { cus.hidden = false; cus.focus(); } else { cus.hidden = true; save(tr, sel.value); } };
     cus.onchange = () => { const v = cus.value.trim(); if (v) save(tr, v); };
+    const esel = tr.querySelector('.e-sel'); if (esel) esel.onchange = () => saveEff(tr, esel.value);
   });
   ov.querySelectorAll('tr[data-group] .g-sel').forEach((sel) => {
     sel.onchange = async () => {
       const g = sel.closest('tr').dataset.group; if (!sel.value || !g) return;
       const model = sel.value === '__default' ? '' : sel.value;
       try { const r = await post('/api/models', { task: `group:${g}`, model }); for (const x of r.roles) { const tr = ov.querySelector(`tr[data-task="${x.task}"]`); if (tr) { tr.querySelector('.m-now').textContent = `now: ${x.current}`; tr.querySelector('.m-sel').value = model && d.catalog.some((c) => c.id === model) ? model : (model ? '__custom' : ''); } } $('round-line').textContent = `${g}: ${model || 'defaults'} from the next call on`; }
+      catch (err) { $('round-line').textContent = `could not save: ${err.message}`; }
+      sel.value = '';
+    };
+  });
+  ov.querySelectorAll('tr[data-group] .g-eff').forEach((sel) => {
+    sel.onchange = async () => {
+      const g = sel.closest('tr').dataset.group; if (!sel.value || !g) return;
+      const effort = sel.value === '__default' ? '' : sel.value;
+      try { const r = await post('/api/models', { task: `group:${g}`, effort }); for (const x of r.roles) { const tr = ov.querySelector(`tr[data-task="${x.task}"]`); if (tr) { tr.querySelector('.e-now').textContent = `now: ${x.effort}`; tr.querySelector('.e-sel').value = effort; } } $('round-line').textContent = `${g}: ${effort || 'default'} effort from the next call on`; }
       catch (err) { $('round-line').textContent = `could not save: ${err.message}`; }
       sel.value = '';
     };

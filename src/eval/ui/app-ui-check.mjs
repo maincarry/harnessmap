@@ -144,6 +144,28 @@ async function run() {
   check("+session import shows browse (paste hidden)", imp.pasteHidden === true, imp.err || `pasteHidden=${imp.pasteHidden}`);
   check("+session import lists local chats", (imp.rows || 0) >= 2, `${imp.rows} rows`);
 
+  // 5) ⚙ models modal renders the per-role effort column (M400, Mark) — a harness setting,
+  //    pinned per role: filer defaults to low, brain to high.
+  const mdl = await (async () => {
+    try {
+      await page.evaluate(() => document.querySelectorAll(".overlay").forEach((o) => o.remove()));
+      await page.waitForTimeout(150);
+      await page.evaluate(() => document.getElementById("models-btn").click()); // raw DOM click (button lives in a collapsed menu)
+      await page.waitForSelector(".modal .e-sel", { timeout: 8000 }).catch(() => {});
+      const hasEffortHead = await page.$$eval(".modal thead th", (ths) => ths.some((t) => /effort/i.test(t.textContent))).catch(() => false);
+      const eSelCount = await page.$$eval(".modal .e-sel", (els) => els.length).catch(() => 0);
+      const mSelCount = await page.$$eval(".modal .m-sel", (els) => els.length).catch(() => 0);
+      const filerEff = await page.$eval('tr[data-task="filer"] .e-sel option[selected], tr[data-task="filer"] .e-sel', (el) => el.closest("select") ? el.closest("select").querySelector("option").textContent : el.querySelector("option").textContent).catch(() => "");
+      const filerDefault = await page.$eval('tr[data-task="filer"] .e-now', (e) => e.textContent).catch(() => "");
+      const brainDefault = await page.$eval('tr[data-task="brain"] .e-now', (e) => e.textContent).catch(() => "");
+      return { hasEffortHead, eSelCount, mSelCount, filerDefault, brainDefault };
+    } catch (e) { return { err: String(e) }; }
+  })();
+  check("⚙ models: effort column present", mdl.hasEffortHead === true, mdl.err || "no 'effort' header");
+  check("⚙ models: an effort select per role", mdl.eSelCount > 0 && mdl.eSelCount === mdl.mSelCount, `e-sel=${mdl.eSelCount} m-sel=${mdl.mSelCount}`);
+  check("⚙ models: filer default effort is low", /low/i.test(mdl.filerDefault || ""), `filer e-now="${mdl.filerDefault}"`);
+  check("⚙ models: brain default effort is high", /high/i.test(mdl.brainDefault || ""), `brain e-now="${mdl.brainDefault}"`);
+
   await browser.close();
 }
 
