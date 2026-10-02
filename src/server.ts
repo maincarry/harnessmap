@@ -568,6 +568,61 @@ function resolveMapChoice(choice: string, cwd: string): string | null {
   if (!scratchRootOf(cwd)) store.bindCwd(cwd, pid); // the folder remembers this choice
   return pid;
 }
+// M401 (Jacob): remember the host CLI's process id for a session (the hook runs as a child of
+// the CLI, so its process.ppid IS the CLI). Lets a user-pressed button bring that session's OS
+// window to the foreground. Stored locally only; never sent anywhere.
+function setHostPid(sessionId: string, hostPid: number): void {
+  try { (store as any).db.prepare("UPDATE harness_sessions SET host_pid = ?, host_pid_at = datetime('now') WHERE session_id = ?").run(hostPid, sessionId); } catch {}
+}
+// M401 (Jacob): bring the OS window of a host CLI (by pid) to the foreground — ONLY on an explicit
+// user click (never auto). Best-effort per OS: a CLI's window is usually its terminal host, so we walk
+// up the process tree to the first ancestor owning a visible top-level window and activate THAT. Never
+// injects input or reads other windows — just activates. Returns how it went so the UI stays honest.
+async function foregroundWindow(hostPid: number): Promise<{ ok: boolean; detail: string }> {
+  const { spawn } = await import('node:child_process');
+  const run = (cmd: string, args: string[]) => new Promise<{ code: number; out: string; err: string }>((res) => {
+    try {
+      const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      let out = '', err = ''; p.stdout?.on('data', (d) => (out += d)); p.stderr?.on('data', (d) => (err += d));
+      const t = setTimeout(() => { try { p.kill(); } catch {} }, 8000);
+      p.on('error', () => { clearTimeout(t); res({ code: -1, out, err: 'spawn failed' }); });
+      p.on('close', (code) => { clearTimeout(t); res({ code: code ?? -1, out, err }); });
+    } catch { res({ code: -1, out: '', err: 'spawn threw' }); }
+  });
+  if (process.platform === 'win32') {
+    const psScript = [
+      "$ErrorActionPreference='SilentlyContinue'",
+      'Add-Type @"',
+      'using System; using System.Runtime.InteropServices;',
+      'public class FG { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h); [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int n); }',
+      '"@',
+      `$id=${hostPid}; $h=[IntPtr]::Zero`,
+      'for($i=0;$i -lt 8 -and $id -and $h -eq [IntPtr]::Zero;$i++){',
+      '  $p=Get-Process -Id $id -ErrorAction SilentlyContinue',
+      '  if($p -and $p.MainWindowHandle -ne 0){ $h=$p.MainWindowHandle; break }',
+      '  $id=(Get-CimInstance Win32_Process -Filter "ProcessId=$id").ParentProcessId',
+      '}',
+      "if($h -ne [IntPtr]::Zero){ [FG]::ShowWindow($h,9) | Out-Null; if([FG]::SetForegroundWindow($h)){ 'OK' } else { 'DENIED' } } else { 'NOWIN' }",
+    ].join("\n");
+    const r = await run('powershell', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
+    const o = (r.out || '').trim();
+    if (o.includes('OK')) return { ok: true, detail: 'brought the session window to the front' };
+    if (o.includes('DENIED')) return { ok: false, detail: 'Windows blocked the focus change — its taskbar button is flashing; click it' };
+    if (o.includes('NOWIN')) return { ok: false, detail: 'no visible window for that session (a remote/SSH or multiplexer session has none)' };
+    return { ok: false, detail: `powershell error: ${(r.err || o).slice(0, 140)}` };
+  }
+  if (process.platform === 'darwin') {
+    const r = await run('osascript', ['-e', `tell application "System Events" to set frontmost of (first process whose unix id is ${hostPid}) to true`]);
+    return r.code === 0 ? { ok: true, detail: 'brought the session window to the front' } : { ok: false, detail: 'could not activate — the terminal app may need Accessibility permission (System Settings → Privacy)' };
+  }
+  // Linux: wmctrl maps windows to pids; a terminal tab shares the terminal's pid, so this activates the terminal window.
+  const list = await run('wmctrl', ['-l', '-p']);
+  if (list.code !== 0) return { ok: false, detail: 'wmctrl is not installed (apt install wmctrl) — it is needed to activate windows on Linux' };
+  const line = (list.out || '').split('\n').find((l) => l.trim().split(/\s+/)[2] === String(hostPid));
+  if (!line) return { ok: false, detail: 'no window is owned by that process (it may be inside a terminal whose pid differs)' };
+  const a = await run('wmctrl', ['-ia', line.trim().split(/\s+/)[0]]);
+  return a.code === 0 ? { ok: true, detail: 'brought the session window to the front' } : { ok: false, detail: 'wmctrl could not activate the window' };
+}
 function ensureSessionBound(sessionId: string | null | undefined, cwd: string | null | undefined, harness?: string | null, forkedFrom?: string | null, mapChoice?: string | null): void {
   if (!sessionId || !cwd) return;
   const h = harness === 'codex' ? 'codex' : harness === 'claude' ? 'claude' : null;
@@ -605,7 +660,7 @@ function recordHarness(sessionId: string, claimed: string | null | undefined, tr
   else if (weak) { db.prepare('UPDATE harness_sessions SET harness = COALESCE(harness, ?) WHERE session_id = ?').run(weak, sessionId); if (!store.getSetting(`harness:session:${sessionId}`)) store.setSetting(`harness:session:${sessionId}`, weak); }
 }
 function hostRow(sessionId: string): any | null {
-  return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
+  return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active, host_pid, host_pid_at FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
 }
 function ensureHostChat(sessionId: string, pid: string, harness: string | null, opts: { follow?: boolean; forkedFrom?: string | null } = {}): string {
   const db = (store as any).db;
@@ -677,6 +732,7 @@ function hostSessionOf(chat: { id: string; hostSessionId?: string | null }): Rec
     harnessTitle: row.title ?? null,
     resume: harness === 'codex' ? `codex resume ${chat.hostSessionId}` : harness === 'claude' ? `claude --resume ${chat.hostSessionId}` : null,
     embedded,
+    hostPid: row.host_pid ?? null, hostPidAt: row.host_pid_at ?? null, // M401: for the bring-to-foreground button (local only)
     forkedFrom: store.getSetting(`fork:${chat.hostSessionId}`) ?? null, // M255
   };
 }
@@ -2404,6 +2460,18 @@ const server = Bun.serve({
       broadcast({ type: 'map', ...state() });
       return json({ ok: true, pinned: on });
     }
+    // M401 (Jacob): bring this session's OS window to the foreground — a user-pressed button only.
+    const chatFgMatch = path.match(/^\/api\/chats\/([\w-]+)\/foreground$/);
+    if (chatFgMatch && req.method === 'POST') {
+      const c = store.getChat(chatFgMatch[1]);
+      if (!c || c.projectId !== projectId) return json({ error: 'unknown chat' }, 404);
+      const host = hostSessionOf({ id: c.id, hostSessionId: (c as any).hostSessionId });
+      const pid = host && Number((host as any).hostPid) > 0 ? Number((host as any).hostPid) : 0;
+      if (!pid) return json({ ok: false, detail: 'that session has not reported its process yet — type one message in it, then try again' });
+      const r = await foregroundWindow(pid);
+      store.audit('session_foreground', { chat: c.id.slice(0, 8), pid, ok: r.ok });
+      return json({ ok: r.ok, detail: r.detail });
+    }
     const chatActMatch = path.match(/^\/api\/chats\/([\w-]+)\/activate$/);
     if (chatActMatch && req.method === 'POST') {
       const c = store.getChat(chatActMatch[1]);
@@ -3886,8 +3954,9 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ ok: true });
     }
     if (path === '/api/harness/prompt' && req.method === 'POST') {
-      const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string; forked_from?: string | null; map?: string | null };
+      const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string; forked_from?: string | null; map?: string | null; host_pid?: number | null };
       ensureSessionBound(body.session_id, body.cwd, body.harness, body.forked_from ?? null, body.map ?? null);
+      if (body.session_id && Number.isInteger(body.host_pid) && (body.host_pid as number) > 0) setHostPid(body.session_id, body.host_pid as number); // M401: the host CLI's pid, for the foreground button
       if (body.session_id && body.text) { const clean = stripHostScaffold(body.text); if (clean) pendingPrompts.set(body.session_id, clean.slice(0, 20_000)); } // M259: never the host's preamble
       return json({ ok: true });
     }
