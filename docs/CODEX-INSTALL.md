@@ -79,7 +79,7 @@ Question (Mark): the easiest way for someone to install the map when they use (1
 
 ## What Codex offers today (September 2026)
 
-- Hooks are stable (feature `hooks`, on by default). Same events and the same stdin fields and JSON envelope as Claude Code: SessionStart, UserPromptSubmit, Stop, PreCompact/PostCompact, etc. Our three hook scripts already serve both (M160). Hooks are loaded from `~/.codex/hooks.json`, inline `[hooks]` in `config.toml`, a repo's `.codex/`, or a plugin's `hooks/hooks.json`.
+- Hooks are stable (feature `hooks`, on by default). Our hook scripts serve both Codex and Claude Code, but output support varies by event. In particular, Codex's [PreCompact](https://learn.chatgpt.com/docs/hooks#precompact) accepts only common output fields, not `hookSpecificOutput.compactionInstructions`; our PreCompact hook exits quietly for Codex (and unidentified hosts). PostCompact and SessionStart with `source: "compact"` still reset the map anchor so the next UserPromptSubmit injects a full map. Hooks are loaded from `~/.codex/hooks.json`, inline `[hooks]` in `config.toml`, a repo's `.codex/`, or a plugin's `hooks/hooks.json`.
 - Non-managed hooks (ours) must be trusted once by the user before they run.
 - additionalContext is capped at ~2,500 tokens per hook by default; the cap is a per-hook key `additionalContextLimit` (tokens). Our 5% block is ~10k tokens, so the hook entry must set it. Oversized output spills to a file with a preview, which is not usable for us.
 - The CLI renders hook context as a visible developer card in the transcript (open issues #16933, #20766, #21696 ask to collapse it). Every turn would show our block. Cosmetic, but real.
