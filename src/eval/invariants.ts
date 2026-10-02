@@ -64,8 +64,14 @@ for (const f of files) {
   // 7. governor fights: the same guard on the same node in 2+ rounds
   const guards = db.query("select ts, kind, detail from audit_log where kind like 'guard%' or kind in ('title_healed','title_heal_stale','auto_place_skip','filer_empty_retry') order by ts").all() as any[];
   const fights = new Map<string, Set<string>>();
-  for (const g of guards) { let d: any = {}; try { d = JSON.parse(g.detail); } catch {} const id = d.id ?? d.nodeId ?? ''; if (!id) continue; const k = `${g.kind}:${String(id).slice(0, 8)}`; if (!fights.has(k)) fights.set(k, new Set()); fights.get(k)!.add(g.ts.slice(0, 16)); }
-  for (const [k, rounds] of fights) if (rounds.size >= 2) hit('governor_fight', tag, `${k} in ${rounds.size} rounds`, out);
+  const healTitlesByNode = new Map<string, string[]>(); // title_healed titles per node, to tell an evolving node (distinct heals) from a re-heal-the-same-regression thrash (repeated heals)
+  for (const g of guards) { let d: any = {}; try { d = JSON.parse(g.detail); } catch {} const id = d.id ?? d.nodeId ?? ''; if (!id) continue; const k = `${g.kind}:${String(id).slice(0, 8)}`; if (!fights.has(k)) fights.set(k, new Set()); fights.get(k)!.add(g.ts.slice(0, 16)); if (g.kind === 'title_healed' && typeof d.title === 'string') { const nk = String(id).slice(0, 8); if (!healTitlesByNode.has(nk)) healTitlesByNode.set(nk, []); healTitlesByNode.get(nk)!.push(d.title); } }
+  for (const [k, rounds] of fights) if (rounds.size >= 2) {
+    // M-loop 2026-10-02 (codex win-replace replay): a title_healed "fight" where every healed title is DISTINCT is the healer tracking an evolving node (the filer re-stuffed a growing critique into the title each round), not two governors oscillating — final title stable+clean. Annotate so the pattern triages at a glance; a repeated identical heal (true re-heal of the same regression) still reads as thrash.
+    let note = '';
+    if (k.startsWith('title_healed:')) { const ts = healTitlesByNode.get(k.slice('title_healed:'.length)) ?? []; const uniq = new Set(ts).size; note = uniq === ts.length ? ` (distinct heals → evolving node, benign)` : ` (repeated heal → thrash)`; }
+    hit('governor_fight', tag, `${k} in ${rounds.size} rounds${note}`, out);
+  }
   const kinds = db.query("select kind, count(*) c from audit_log where kind like 'guard%' group by kind").all() as any[];
   const guardLine = kinds.map((k) => `${k.kind.replace('guard_', '')}×${k.c}`).join(' ');
   console.log(`${tag}: nodes ${live.length}/${nodes.length} events ${events.length} guards[${guardLine}]${out.length ? '\n   ' + out.join('\n   ') : ' ok'}`);
