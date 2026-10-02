@@ -8,8 +8,8 @@
 
 use std::fs;
 use tauri::{
-    menu::{MenuBuilder, MenuItemBuilder},
-    tray::{TrayIconBuilder, TrayIconEvent},
+    menu::{Menu, MenuBuilder, MenuItemBuilder},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager,
 };
 
@@ -128,11 +128,38 @@ fn toggle_window(app: &tauri::AppHandle) {
     }
 }
 
+// Keep the same native menu alive for the tray and the widget's context menu.
+struct CompanionMenu(Menu<tauri::Wry>);
+
+#[tauri::command]
+fn show_companion_menu(window: tauri::WebviewWindow, menu: tauri::State<'_, CompanionMenu>) -> Result<(), String> {
+    window.popup_menu(&menu.0).map_err(|error| error.to_string())
+}
+
+fn toggles_companion(event: &TrayIconEvent) -> bool {
+    matches!(event, TrayIconEvent::Click {
+        button: MouseButton::Left,
+        button_state: MouseButtonState::Up,
+        ..
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, reset_position, api])
+        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api])
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "open_map" => open_map(app.clone(), None),
+            "toggle" => toggle_window(app),
+            "reset" => {
+                if let Some(w) = app.get_webview_window("companion") {
+                    reset_position(w);
+                }
+            }
+            "quit" => app.exit(0),
+            _ => {}
+        })
         .setup(|app| {
             // The window loads the bundled widget (index.html, app origin). It asks Rust
             // for the port, then talks to the map server over localhost.
@@ -146,33 +173,66 @@ pub fn run() {
             let open = MenuItemBuilder::with_id("open_map", "Open map").build(app)?;
             let toggle = MenuItemBuilder::with_id("toggle", "Show / hide companion").build(app)?;
             let reset = MenuItemBuilder::with_id("reset", "Reset position").build(app)?;
-            let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Exit companion").build(app)?;
             let menu = MenuBuilder::new(app).items(&[&toggle, &open, &reset, &quit]).build()?;
+            app.manage(CompanionMenu(menu.clone()));
 
             let handle = app.handle().clone();
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("HarnessMap — your live map")
                 .menu(&menu)
-                .on_menu_event(move |app, event| match event.id().as_ref() {
-                    "open_map" => open_map(app.clone(), None),
-                    "toggle" => toggle_window(app),
-                    "reset" => {
-                        if let Some(w) = app.get_webview_window("companion") {
-                            place_bottom_right(&w);
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
-                    }
-                    "quit" => app.exit(0),
-                    _ => {}
-                })
+                // Right-click owns the menu. Toggling/focusing the window on
+                // either right-button event dismisses that menu on Windows.
+                .show_menu_on_left_click(false)
                 .on_tray_icon_event(move |_tray, event| {
-                    if let TrayIconEvent::Click { .. } = event { toggle_window(&handle); }
+                    if toggles_companion(&event) { toggle_window(&handle); }
                 })
                 .build(app)?;
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running the HarnessMap companion");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn click(button: MouseButton, button_state: MouseButtonState) -> TrayIconEvent {
+        TrayIconEvent::Click {
+            id: "companion".into(),
+            position: tauri::PhysicalPosition::new(0.0, 0.0),
+            rect: tauri::Rect::default(),
+            button,
+            button_state,
+        }
+    }
+
+    #[test]
+    fn a_left_click_toggles_once_on_release() {
+        let events = [click(MouseButton::Left, MouseButtonState::Down), click(MouseButton::Left, MouseButtonState::Up)];
+        assert_eq!(events.iter().filter(|event| toggles_companion(event)).count(), 1);
+        assert!(!toggles_companion(&events[0]));
+    }
+
+    #[test]
+    fn context_menu_and_middle_clicks_do_not_toggle() {
+        for button in [MouseButton::Right, MouseButton::Middle] {
+            for state in [MouseButtonState::Down, MouseButtonState::Up] {
+                assert!(!toggles_companion(&click(button, state)));
+            }
+        }
+    }
+
+    #[test]
+    fn hover_and_double_click_notifications_do_not_toggle() {
+        let id = "companion".into();
+        let position = tauri::PhysicalPosition::new(0.0, 0.0);
+        let rect = tauri::Rect::default();
+        assert!(!toggles_companion(&TrayIconEvent::Enter { id, position, rect }));
+        assert!(!toggles_companion(&TrayIconEvent::DoubleClick {
+            id: "companion".into(), position, rect, button: MouseButton::Left,
+        }));
+    }
 }
