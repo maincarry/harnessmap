@@ -58,6 +58,7 @@ body.open .chip{opacity:0;transform:scale(.92) translateY(6px);pointer-events:no
 .last{padding:2px 14px 11px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint);line-height:1.5;min-height:0}
 .ver{padding:0 14px 12px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--faint);letter-spacing:.02em}
 .open-b{display:block;margin:0 14px 9px;text-align:center;font-weight:600;font-size:13px;padding:10px;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer}
+.open-b.alt{background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:-4px}
 .inf{display:flex;align-items:center;gap:8px;margin:0 14px 6px;padding:9px 12px;border:1px solid var(--hair);border-radius:11px;background:var(--panel2);font-size:12.5px;font-weight:600;cursor:pointer}
 .sw{margin-left:auto;width:38px;height:22px;border-radius:999px;background:var(--accent);position:relative;transition:background .3s;flex:0 0 auto}
 .sw .knob{position:absolute;top:2px;left:18px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .28s var(--ease);box-shadow:0 1px 3px rgba(0,0,0,.3)}
@@ -109,10 +110,11 @@ body.offline .chip,body.offline .panel{display:none}
       <button class="icobtn" id="companion-menu" type="button" title="Companion menu" aria-label="Companion menu">⋯</button>
       <span class="icobtn" id="x" title="close">✕</span>
     </div>
-    <div class="focus" id="p-focus">the map</div>
-    <div class="status"><span class="dot" style="width:7px;height:7px"></span><span id="p-state">map current</span> <span class="inmap" id="p-inmap"></span></div>
+    <div class="focus" id="p-focus" title="current focus"><svg class="focusico" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" style="flex:0 0 auto;margin-right:5px;opacity:.72;vertical-align:-1px"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span id="p-focus-name">the map</span></div>
+    <div class="status"><span class="dot" style="width:7px;height:7px"></span><span class="mapnm" id="p-mapname" style="font-weight:600">the map</span> <span id="p-state" style="opacity:.82">map current</span></div>
     <div class="last" id="p-last"></div>
     <div class="open-b" id="open-map">open map</div>
+    <div class="open-b alt" id="fg-session" hidden title="bring this session's terminal window to the front (only when you click)">⤒ bring session to front</div>
     <div class="inf" id="inf-toggle"><span>map influence</span><span class="sw"><span class="knob"></span></span></div>
     <div class="infnote">your sessions won't see the map · it keeps filing quietly</div>
     <div class="talk">
@@ -125,7 +127,7 @@ body.offline .chip,body.offline .panel{display:none}
 </div>
 
 <script>
-const COMPANION_VER = '0.9.130'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.133'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
@@ -149,6 +151,13 @@ let S = null, filingTimer = null, PORT = 8790, API = 'http://127.0.0.1:8790', WS
 
 const disp = (n) => n ? (n.title || n.content || '') : '';
 function activeChat() { return (S.chats||[]).find(c => c.id === S.mainChatId) || (S.chats||[])[0]; }
+// M401: the session the foreground button targets — the live host session (Codex/Claude) most recently
+// active that has reported its process id. null when none qualifies (button hidden).
+function currentSession() {
+  const hs = (S.chats||[]).filter(c => c.host && c.host.hostPid && c.host.status !== 'closed');
+  hs.sort((a,b) => String(b.lastActivity||'').localeCompare(String(a.lastActivity||'')));
+  return hs[0] || null;
+}
 function focusName() {
   const c = activeChat(); if (!c) return null;
   const f = (S.nodes||[]).find(n => n.id === c.focusContainerId);
@@ -167,8 +176,8 @@ function render() {
   const fn = focusName(), mn = mapName(), ts = toSortCount();
   const label = fn || mn || 'the map';
   $('chip-focus').textContent = label; $('chip-focus').title = label;
-  $('p-focus').textContent = label;
-  $('p-inmap').textContent = fn ? `· in ${mn}` : '';
+  $('p-focus-name').textContent = label; $('p-focus').title = `current focus: ${label}`;
+  $('p-mapname').textContent = mn;
   const bits = [];
   if (S.updateAvailable) bits.push('update available');
   bits.push(S.influenceOff ? 'influence closed' : 'map current');
@@ -176,6 +185,7 @@ function render() {
   $('p-state').textContent = bits.join(' · ');
   B.classList.toggle('infoff', !!S.influenceOff);
   B.classList.toggle('attn', !!(ts || S.updateAvailable) && !S.influenceOff);
+  const fgb = $("fg-session"); if (fgb) fgb.hidden = !currentSession(); // M401: show only when a live host session has reported its pid
   const f = (S.filings || {});
   $('p-last').textContent = f.lastFiled ? `just filed — ${String(f.lastFiled).slice(0,60)}` : (f.pending ? `${f.pending} exchange(s) waiting to file` : '');
   $('ver').textContent = `companion v${COMPANION_VER}` + (S.build ? ` · server ${String(S.build).slice(0,7)}` : '');
@@ -247,6 +257,14 @@ $('x').onclick = (e) => { e.stopPropagation(); closePanel(); };
 // window off-screen, so it can't vanish). Restore replays the appear animation.
 function announce() { B.classList.remove('appearing'); void document.body.offsetWidth; B.classList.add('appearing'); setTimeout(() => B.classList.remove('appearing'), 3600); }
 $('open-map').onclick = () => { invoke('open_map').catch(() => { try { window.open(API + '/', '_blank'); } catch {} }); };
+// M401 (Jacob): bring the active session's window to the front — only on this click, never automatically.
+$('fg-session').onclick = async () => {
+  const ac = currentSession(); if (!ac) return;
+  const b = $('fg-session'), old = b.textContent; b.textContent = 'bringing…';
+  try { const r = await apiFetch(`/api/chats/${ac.id}/foreground`, { method:'POST', headers:{'content-type':'application/json'}, body:'{}' }); const j = await r.json().catch(() => ({})); $('p-last').textContent = j.detail || (j.ok ? 'brought to front' : 'could not bring it forward'); }
+  catch { $('p-last').textContent = 'could not reach the session'; }
+  setTimeout(() => { b.textContent = old; }, 1600);
+};
 $('inf-toggle').onclick = async () => {
   B.classList.toggle('infoff'); // optimistic
   try { await apiFetch('/api/influence/toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); } catch {}

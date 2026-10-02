@@ -11,7 +11,7 @@ try {
   if (input.prompt) {
     fetch(`${BASE}/api/harness/prompt`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ session_id: input.session_id, text: input.prompt, cwd: input.cwd, harness: hostHarness(input), forked_from: forkedFromOf(input.transcript_path), map: chosenMap() }), // M244: cwd binds a session claimed mid-way; M245: which host; M255: a fork's parent
+      body: JSON.stringify({ session_id: input.session_id, text: input.prompt, cwd: input.cwd, harness: hostHarness(input), forked_from: forkedFromOf(input.transcript_path), map: chosenMap(), host_pid: process.ppid || null }), // M244: cwd binds a session claimed mid-way; M245: which host; M255: a fork's parent; M401: the hook's parent IS the host CLI — its pid lets a button foreground that session's window (local only)
       signal: AbortSignal.timeout(3000),
     }).catch(() => {});
   }

@@ -1540,6 +1540,7 @@ function openSessions() {
       </div>
       <span class="sr-meta">${ago(c.lastActivity)}</span>
       <div class="sr-acts">
+        ${c.host && c.host.hostPid ? `<button class="rowbtn" data-sfg="${c.id}" title="bring this session's terminal window to the front">⤒</button>` : ''}
         <button class="rowbtn ${c.pinned ? 'on' : ''}" data-spin="${c.id}" title="${c.pinned ? 'unpin — back to recency order' : 'pin: keep this session first in the tab bar'}">📌</button>
         <button class="rowbtn" data-srename="${c.id}" title="rename this session on the map">✎</button>
         <button class="rowbtn" data-sopen="${c.id}" title="switch to this session">open</button>
@@ -1565,6 +1566,7 @@ function openSessions() {
   document.body.appendChild(ov);
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   ov.querySelector('#sv-close').onclick = () => ov.remove();
+  for (const b of ov.querySelectorAll('[data-sfg]')) b.onclick = async () => { try { const r = await post(`/api/chats/${b.dataset.sfg}/foreground`, {}); $('round-line').textContent = r && r.detail ? r.detail : (r && r.ok ? 'brought the session to the front' : 'could not bring it forward'); } catch { $('round-line').textContent = 'could not bring it forward'; } };
   for (const b of ov.querySelectorAll('[data-spin]')) b.onclick = async () => { await post(`/api/chats/${b.dataset.spin}/pin`, {}); ov.remove(); openSessions(); };
   for (const b of ov.querySelectorAll('[data-sopen]')) b.onclick = () => { ov.remove(); showSession(b.dataset.sopen); };
   for (const b of ov.querySelectorAll('[data-srename]')) b.onclick = async () => { const c = (S.chats || []).find((x) => x.id === b.dataset.srename); ov.remove(); if (c) { await renameSession(c); openSessions(); } };

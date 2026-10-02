@@ -55,6 +55,7 @@ body.open .chip{opacity:0;transform:scale(.92) translateY(6px);pointer-events:no
 .status .inmap{color:var(--faint)}
 .last{padding:2px 14px 11px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint);line-height:1.5;min-height:0}
 .open-b{display:block;margin:0 14px 9px;text-align:center;font-weight:600;font-size:13px;padding:10px;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer}
+.open-b.alt{background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:-4px}
 .inf{display:flex;align-items:center;gap:8px;margin:0 14px 6px;padding:9px 12px;border:1px solid var(--hair);border-radius:11px;background:var(--panel2);font-size:12.5px;font-weight:600;cursor:pointer}
 .sw{margin-left:auto;width:38px;height:22px;border-radius:999px;background:var(--accent);position:relative;transition:background .3s;flex:0 0 auto}
 .sw .knob{position:absolute;top:2px;left:18px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .28s var(--ease);box-shadow:0 1px 3px rgba(0,0,0,.3)}
@@ -94,10 +95,11 @@ body.offline .chip,body.offline .panel{display:none}
   </div>
   <div class="panel" id="panel">
     <div class="hd"><span class="draghandle" data-tauri-drag-region><svg width="18" height="18" style="color:var(--muted);pointer-events:none"><use href="#mk" transform="scale(0.25)"/></svg><span class="brand">harness<span class="b">map</span></span></span><span class="x" id="x">✕</span></div>
-    <div class="focus" id="p-focus" data-tauri-drag-region>the map</div>
-    <div class="status"><span class="dot" style="width:7px;height:7px"></span><span id="p-state">map current</span> <span class="inmap" id="p-inmap"></span></div>
+    <div class="focus" id="p-focus" data-tauri-drag-region title="current focus"><svg class="focusico" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" style="flex:0 0 auto;margin-right:5px;opacity:.72;vertical-align:-1px"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span id="p-focus-name">the map</span></div>
+    <div class="status"><span class="dot" style="width:7px;height:7px"></span><span class="mapnm" id="p-mapname" style="font-weight:600">the map</span> <span id="p-state" style="opacity:.82">map current</span></div>
     <div class="last" id="p-last"></div>
     <div class="open-b" id="open-map">open map</div>
+    <div class="open-b alt" id="fg-session" hidden title="bring this session's terminal window to the front (only when you click)">⤒ bring session to front</div>
     <div class="inf" id="inf-toggle"><span>map influence</span><span class="sw"><span class="knob"></span></span></div>
     <div class="infnote">your sessions won't see the map · it keeps filing quietly</div>
     <div class="talk">
@@ -134,8 +136,8 @@ function render() {
   const label = fn || mn || 'the map';
   $('chip-focus').textContent = label;
   $('chip-focus').title = label;
-  $('p-focus').textContent = label;
-  $('p-inmap').textContent = fn ? `· in ${mn}` : '';
+  $('p-focus-name').textContent = label; $('p-focus').title = `current focus: ${label}`;
+  $('p-mapname').textContent = mn;
   const bits = [];
   if (S.updateAvailable) bits.push('update available');
   bits.push(S.influenceOff ? 'influence closed' : 'map current');
@@ -144,6 +146,7 @@ function render() {
   B.classList.toggle('infoff', !!S.influenceOff);
   B.classList.toggle('attn', !!(ts || S.updateAvailable) && !S.influenceOff);
   const f = (S.filings || {});
+  const _ac = activeChat(); const _fgb = $("fg-session"); if (_fgb) _fgb.hidden = !(_ac && _ac.host && _ac.host.hostPid);
   $('p-last').textContent = f.lastFiled ? `just filed — ${String(f.lastFiled).slice(0,60)}` : (f.pending ? `${f.pending} exchange(s) waiting to file` : '');
 }
 
@@ -180,6 +183,13 @@ $('x').onclick = (e) => { e.stopPropagation(); closePanel(); };
 $('open-map').onclick = () => {
   if (TAURI) { try { (window).__TAURI__.core.invoke('open_map'); return; } catch {} }
   window.open('/', '_blank');
+};
+$("fg-session").onclick = async () => {
+  const ac = activeChat(); if (!ac) return;
+  const b = $("fg-session"), old = b.textContent; b.textContent = "bringing…";
+  try { const r = await (TAURI ? apiFetch(`/api/chats/${ac.id}/foreground`, { method:"POST", headers:{"content-type":"application/json"}, body:"{}" }) : fetch(`/api/chats/${ac.id}/foreground`, { method:"POST" })); const j = await r.json().catch(() => ({})); $("p-last").textContent = j.detail || (j.ok ? "brought to front" : "could not bring it forward"); }
+  catch { $("p-last").textContent = "could not reach the session"; }
+  setTimeout(() => { b.textContent = old; }, 1600);
 };
 $('inf-toggle').onclick = async () => {
   B.classList.toggle('infoff'); // optimistic
