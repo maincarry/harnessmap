@@ -15,7 +15,11 @@ const flagVal = (name: string) => { const i = argv.indexOf(name); return i >= 0 
 
 function experienceFromScenario(path: string): string {
   const sc = JSON.parse(readFileSync(path, 'utf8'));
-  const seed: any[] = sc.seed ?? [];
+  // sc.seed may be an array of {content,status} (legacy) or a single string (current replay-real schema).
+  const seedRaw = sc.seed ?? [];
+  const seed: any[] = Array.isArray(seedRaw)
+    ? seedRaw
+    : (typeof seedRaw === 'string' && seedRaw.trim() ? [{ content: seedRaw.trim() }] : []);
   const rounds: any[] = sc.rounds ?? [];
   const seedLines = seed.map((s) => `  - ${s.content}${s.status && s.status !== 'live' ? ` [${s.status}]` : ''}`).join('\n');
   const roundLines = rounds.map((r, i) => {
