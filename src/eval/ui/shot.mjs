@@ -52,6 +52,10 @@ await page.screenshot({ path: OUT + "-overview.png" });
 await page.evaluate((id) => { try { setZoom(id); } catch {} }, cli);
 await sleep(600);
 await page.screenshot({ path: OUT + "-zoomed.png" });
+// 3rd frame: the ⟳ suggestion UI — INJECTED client-side (inference is off, so the server generates none); verifies marker + chip render
+await page.evaluate(({ a, b }) => { try { setZoom(null); S.suggestions = [{ id: "shot-1", nodeId: a, kind: "relight", note: "belongs under the CLI work [" + a.slice(0, 8) }, { id: "shot-2", nodeId: b, kind: "tidy", note: "two overlapping notes could merge" }]; renderAll(); } catch {} }, { a: essay, b: cli });
+await sleep(500);
+await page.screenshot({ path: OUT + "-suggestions.png" });
 await browser.close();
-console.log("wrote", OUT + "-overview.png", OUT + "-zoomed.png");
+console.log("wrote", OUT + "-overview.png", OUT + "-zoomed.png", OUT + "-suggestions.png");
 process.exit(0);
