@@ -215,7 +215,7 @@
   @keyframes rl-breathe { 50% { opacity: .45; } }
   .trimwarn { color: #c62828; font-weight: 900; font-size: 15px; cursor: help; margin: 0 2px; }
   #crumbs .focus-away {
-    display: inline-block; max-width: 58%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: inline-block; flex: 1 1 auto; min-width: 14ch; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     background: color-mix(in srgb, var(--accent) 10%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
     color: var(--accent); font-weight: 600; font-size: 12px;
@@ -272,6 +272,10 @@
   .ntype:hover { text-decoration: underline dotted; }
   .ncontent { cursor: pointer; }
   .heading > .ncontent { font-weight: 600; }
+  /* dim = set aside (Mark 2026-10-04): faded + normal weight so "dim" reads at a glance — faded, never hidden (you still see everything). The tray keeps its own look. */
+  .nrow.dim:not(.tosort) > .ncontent { opacity: .55; font-weight: 400; }
+  .nrow.dim:not(.tosort) > .caret { opacity: .5; }
+  body.mobile .nrow.dim:not(.tosort) .ncontent { opacity: .55; font-weight: 400; }
   .dead { opacity: .45; }
   .dead > .ncontent { text-decoration: line-through; }
   .exploratory { opacity: .62; }
@@ -757,6 +761,7 @@ function renderTree() {
     const cls = [
       'nrow',
       heading ? 'heading' : '',
+      lit.has(n.id) ? '' : 'dim', // set aside (Mark 2026-10-04): faded + normal weight so dim is VISIBLE; faded ≠ hidden
       (n.parentId === null && (n.title || n.content).startsWith('to sort')) ? 'tosort' : '',
       n.id === focus ? 'focused' : '',
       opsOpen.has(n.id) ? 'ops-open' : '',
