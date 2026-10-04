@@ -194,7 +194,7 @@
   .nrow.focused .ncontent { font-weight: 600; }
   .fmark { color: var(--accent); font-weight: 700; margin-right: 2px; flex: none; }
   body.mobile .fmark { margin-right: 6px; }
-  /* M112: "to sort" is a TRAY, not a topic — separated, dashed, always last */
+  /* M112: "Needs a home" is a TRAY, not a topic — separated, dashed, always last */
   .nrow.tosort { margin-top: 14px; border: 1px dashed var(--hair); border-radius: 8px;
                  background: color-mix(in srgb, var(--panel) 60%, var(--bg)); padding-top: 3px; padding-bottom: 3px; }
   .nrow.tosort > .ncontent::before { content: '📥 '; }
@@ -496,7 +496,7 @@
       <select id="proj-sel" class="hbtn" title="switch map — each map is completely separate"></select>
       <button class="hbtn" id="legend-btn" title="tutorial: a guided walk through every part of the map (the reference card is at the end)">?</button>
       <button class="hbtn" id="sideview-btn" title="side view: map only — for the Codex app's side panel or a narrow window; click again to show the conversation pane (remembered in this browser)">▯</button>
-      <button class="hbtn" id="auto-btn" title="auto mode: the map aims itself after each round — focus, light, stale titles, placement out of to sort (this map; every action is one undo). Right-click or long-press to choose what it may do">◎ auto</button>
+      <button class="hbtn" id="auto-btn" title="auto mode: the map aims itself after each round — focus, light, stale titles, placement out of the “Needs a home” tray (this map; every action is one undo). Right-click or long-press to choose what it may do">◎ auto</button>
       <button class="hbtn" id="ctx-btn" hidden title="see the exact map description the CHAT agent receives next turn">chat agent's view</button>
       <span id="beat" title="the turn lifecycle: message seen → agent replying → filed onto the map" style="margin-left:auto;font-weight:400;font-size:12px;color:var(--muted)">waiting for activity</span>
       <span class="lag" id="lag" style="margin-left:10px">map current</span>
@@ -632,7 +632,7 @@ async function post(p, b) {
   return d ?? {};
 }
 const node = (id) => S.nodes.find(n => n.id === id);
-const disp = (n) => n ? (n.title || n.content) : '';
+const isTrayNode = (n) => !!n && n.parentId === null && String(n.title || n.content).startsWith('to sort'); const disp = (n) => n ? (isTrayNode(n) ? 'Needs a home' : (n.title || n.content)) : ''; // display: the tray reads "Needs a home" — its stored identity stays 'to sort' (Mark 2026-10-04)
 const sugFor = (id) => (S.suggestions ?? []).find(s => s.nodeId === id);
 const kidsOf = (id) => S.nodes.filter(n => n.parentId === id);
 
@@ -748,11 +748,11 @@ function renderTree() {
       ${S.home === n.id ? `<span class="badge" title="home page — the home button (top of the map) zooms here">${HOME_ICO}</span>` : ''}
 
       ${n.id === focus ? '<span class="fmark" title="the conversation is talking about this">▶</span>' : ''}
-      <span class="ncontent" data-edit="${n.id}" title="${esc(n.title && n.title !== n.content ? n.content : 'click to edit')}">${esc(disp(n))}</span>
+      <span class="ncontent" data-edit="${n.id}" title="${esc(isTray ? 'the filer couldn’t tell where these belong yet — they wait here so nothing is lost; approve a placement or move one home' : (n.title && n.title !== n.content ? n.content : 'click to edit'))}">${esc(disp(n))}</span>
       ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
       ${recChip(n.id)}
       <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
-      ${isTray && kids.length ? `<button class="justdo" data-sortall="1" title="just do it: sort everything in “to sort” into the homes the map names now, no review (one ↩ undo)">⚡ sort all</button>` : ''}
+      ${isTray && kids.length ? `<button class="justdo" data-sortall="1" title="just do it: sort everything in “Needs a home” into the homes the map names now, no review (one ↩ undo)">⚡ sort all</button>` : ''}
       <span class="rowops">
         ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes)">◱</button>`}
         <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? (S.focusBy === 'user' ? 'the conversation is focused here — set by you; auto mode holds it until you move it or press ⚡' : 'the conversation is focused here') : 'focus: talk about this (no zoom)'}">▶</button>
@@ -798,7 +798,7 @@ function renderTree() {
     // M130 (Jacob): the zoom root's caret must work like every other —
     // rendering ignored its fold state, so collapsing it did nothing.
     html = row(z, 0) + (folded.has(zoomId) ? '' : walk(zoomId, 1).join(''));
-    // M47: "to sort" stays visible even when zoomed — off-scope arrivals are
+    // M47: "Needs a home" stays visible even when zoomed — off-scope arrivals are
     // never invisible.
   } else {
     html = walkRoot(0).join('');
@@ -827,7 +827,9 @@ function renderTree() {
       seenSug.add(n.id);
       sugRows.push({ n, kind: sg.kind });
     }
-    html += `<div class="pin-divider" title="rides along in every view: the to-sort bucket (arrivals are never invisible), your ★ favorites, and ⟳ to tidy (the map's pending suggestions)">pinned</div>`;
+    // (2026-10-04, Mark: the "pinned" divider is gone — it lumped content (the tray), navigation (★ favorites) and
+    // the map's own proposals (⟳ suggestions) under one jargon label. The tray's own placeholder style is the
+    // boundary; favorites and suggestions are moving out of the content tree.)
     if (showToSort) html += row(toSort, 0) + (folded.has(toSort.id) ? '' : walk(toSort.id, 1).join(''));
     {
       html += `
@@ -1101,7 +1103,7 @@ $('tab-add').onclick = () => {
   input.focus();
 };
 let sessionRoot = null;
-// M74: the conversation has drifted into "to sort" for 2+ rounds — the map
+// M74: the conversation has drifted into "Needs a home" for 2+ rounds — the map
 // agent nudges auto-focus / auto-light with a red dot; any focus/light action clears it.
 // M96 (Jacob): progressive disclosure — only zoom-out / talk-to-map / search
 // stay visible; everything else folds under ⋯ other.
@@ -1620,7 +1622,7 @@ function paintAuto() {
   b.textContent = a.on ? '◉ auto' : '◎ auto';
   b.title = a.on
     ? `auto mode is ON for this map: after each round the map may ${what.join(', ') || 'do nothing (choose in the settings)'} — every action shows here with ↩ undo. Click to switch off; right-click for the settings`
-    : 'auto mode is off: the map only proposes. Click to let it aim itself after each round (focus, light, stale titles, placement out of to sort — each one undo). Right-click or long-press to choose what it may do';
+    : 'auto mode is off: the map only proposes. Click to let it aim itself after each round (focus, light, stale titles, placement out of the “Needs a home” tray — each one undo). Right-click or long-press to choose what it may do';
 }
 async function toggleAuto() {
   const next = !(S.auto && S.auto.on);
@@ -1636,7 +1638,7 @@ function openAutoSettings() {
     ['focus', '▶ focus', 'move the focus when a round leaves the current topic (the aiming agent decides; your ancestors stay lit)'],
     ['light', '☀ light', 'light and dim the background for that focus — never a node you lit by hand, never over the budget'],
     ['rename', '✎ rename', 'retitle a node this round changed when its name no longer fits its statement'],
-    ['place', '⇢ place', 'move a new "to sort" arrival into a home the placement agent names — only when that home is lit'],
+    ['place', '⇢ place', 'move a new "Needs a home" arrival into a home the placement agent names — only when that home is lit'],
     ['tidy', '⟳ tidy', 'let the periodic review apply its own small, non-destructive proposal (≤ 8 moves, nothing removed, favorites untouched); bigger ones still wait in ⟳ to tidy'],
     ['zoom', '◱ zoom', 'follow the focus with the view (this browser only)'],
   ];
@@ -1960,8 +1962,8 @@ function renderNudges() {
   };
   set('auto-focus', n.focus, n.focusName
     ? `you asked to focus on “${n.focusName}” — click to make that the topic`
-    : 'recent rounds keep landing in "to sort" — the talk may have moved on; consider focusing on the new topic');
-  set('auto-lit', n.light, 'recent rounds keep landing in "to sort" — the light may be too narrow; consider lighting more of the map');
+    : 'recent rounds keep landing in "Needs a home" — the talk may have moved on; consider focusing on the new topic');
+  set('auto-lit', n.light, 'recent rounds keep landing in "Needs a home" — the light may be too narrow; consider lighting more of the map');
   // M124: a root-scope flag from the map reviewer lands as a dot on ⋯ and on
   // "⟳ tidy top level" — clicking the button opens the root proposal with the
   // reviewer's reason attached.
@@ -2137,7 +2139,7 @@ $('tree').addEventListener('click', async (e) => {
   // M371 (Jacob): ⚡ on the folders themselves — sort/tidy EVERYTHING at once, no review, one ↩ undo.
   if (t.closest('[data-sortall]')) {
     e.stopPropagation();
-    $('round-line').textContent = '⚡ sorting everything out of “to sort”…';
+    $('round-line').textContent = '⚡ sorting everything out of “Needs a home”…';
     try { const r = await post('/api/tosort/place-all', {}); if (r.placed) undoToast(r.label); else $('round-line').textContent = r.label; }
     catch (err) { $('round-line').textContent = `⚡ sort all failed: ${err.message}`; }
     return;
@@ -2351,11 +2353,11 @@ function openPlacePicker(id) {
 function openNodeDetail(id) {
   const n = node(id);
   if (!n) return;
-  // M51: "to sort" is a system folder — show info, no editing.
+  // M51: "Needs a home" is a system folder — show info, no editing.
   if (n.parentId === null && (n.title || n.content).startsWith('to sort')) {
     const ov = document.createElement('div');
     ov.className = 'overlay';
-    ov.innerHTML = `<div class="modal"><h3>to sort</h3>
+    ov.innerHTML = `<div class="modal"><h3>Needs a home</h3>
       <p style="font-size:13px">System folder — the map's holding pen. Anything the filer can't place lands here, carrying a note of where it arrived from. Items the map knows where to place appear in the ⟳ to tidy folder (pinned, bottom of the map): one click approves the move.</p>
       <p style="font-size:12px;color:var(--muted)">To move something out: click its ● dot and approve the suggested move (one click). Or ↖ on the item to pick a parent yourself, ⇧ to promote it to a topic — or light its destination and the map files it home on the next round. ⟳ tidy on this folder proposes a full cleanup.</p>
       <div class="actions"><button id="nd-cancel" class="primary" title="close this panel">close</button></div></div>`;
@@ -3427,9 +3429,9 @@ function openSuggestion(nodeId) {
     <div class="modal">
       <h3>Where “${esc(name)}” belongs</h3>
       <p style="font-size:13px">${esc(s.note)}</p>
-      <p style="font-size:12px;color:var(--muted)">This couldn't be placed when it arrived, so it waits under "to sort". Approve to move it${target ? ` under “${esc(disp(target))}”` : ''} now — or ↖ on the node picks a different home.</p>
+      <p style="font-size:12px;color:var(--muted)">This couldn't be placed when it arrived, so it waits under "Needs a home". Approve to move it${target ? ` under “${esc(disp(target))}”` : ''} now — or ↖ on the node picks a different home.</p>
       <div class="actions">
-        <button id="sg-dismiss" title="remove this suggestion — the dot disappears; the node stays in to sort">dismiss</button>
+        <button id="sg-dismiss" title="remove this suggestion — the dot disappears; the node stays in “Needs a home”">dismiss</button>
         <button id="sg-later" title="keep the dot — decide another time">keep for later</button>
         ${target ? `<button id="sg-place" class="primary" title="move it under the suggested branch now (the destination's lighting is unchanged)">↖ move under “${esc(disp(target))}”</button>` : ''}
       </div>
@@ -3609,10 +3611,10 @@ function openLegend() {
         <tr><td>◱ zoom · ↑ zoom out</td><td>view only one branch — nothing else changes. ◐ dim all outside (in ⋯ other) then dims everything you zoomed away from</td></tr>
         <tr><td><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</td><td>always there above the map: zooms to your home page — the whole map by default, or the node you set with the house button on its row</td></tr>
         <tr><td colspan="2"><hr><b>The map speaks, you decide</b></td></tr>
-        <tr><td>pinned</td><td>three folders ride at the bottom of every view: "to sort" (arrivals the filer couldn't place) · ★ favorites (shortcuts to nodes you starred — the real node, never a copy; click to jump, ✕ only unpins) · ⟳ to tidy (every pending suggestion, cleanups and placements — click one for the before/after; nothing applies without you). The map adds to "to tidy" as you talk, and reviews the whole map by itself every 10 rounds</td></tr>
+        <tr><td>pinned</td><td>three folders ride at the bottom of every view: "Needs a home" (arrivals the filer couldn't place) · ★ favorites (shortcuts to nodes you starred — the real node, never a copy; click to jump, ✕ only unpins) · ⟳ to tidy (every pending suggestion, cleanups and placements — click one for the before/after; nothing applies without you). The map adds to "to tidy" as you talk, and reviews the whole map by itself every 10 rounds</td></tr>
         <tr><td><span style="color:var(--danger)">●</span> on ⋯</td><td>a suggestion is waiting inside (auto-focus / auto-light); any focus/light action clears it</td></tr>
         <tr><td><span style="color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:0 4px;font-size:9px">new</span> <span style="color:var(--muted);border:1px solid var(--hair);border-radius:3px;padding:0 4px;font-size:9px">changed</span></td><td>the map added/edited this and you haven't touched it — clicking the node clears the mark. Click the status line under the map for the full change list ("clear all marks" lives there)</td></tr>
-        <tr><td>to sort</td><td>the holding pen: anything the filer can't place lands here with an arrival note. Leaving: approve its placement in ⟳ to tidy, ↖ pick a parent, ⇧ promote to a topic — or light the destination and the filer moves it home next round</td></tr>
+        <tr><td>Needs a home</td><td>the holding pen: anything the filer can't place lands here with an arrival note. Leaving: approve its placement in ⟳ to tidy, ↖ pick a parent, ⇧ promote to a topic — or light the destination and the filer moves it home next round</td></tr>
         <tr><td colspan="2"><hr><b>On every node</b> (hover the row)</td></tr>
         <tr><td>◱ ▶ ☀ ⋯ ✕</td><td>on every row: zoom · focus · light/dim · ✕ delete. ⋯ unfolds the rest — ★ favorite · <svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home · + add child · ↖ move · ⟳ tidy · ⇢ merge (⇧ promote on to-sort items)</td></tr>
         <tr><td colspan="2"><hr><b>Words your agent knows</b> (say them in Codex or Claude Code)</td></tr>
@@ -3628,7 +3630,7 @@ function openLegend() {
         <tr><td>▶ auto-focus</td><td>the focus agent suggests what to talk about next — you confirm</td></tr>
         <tr><td>☀ auto-light</td><td>the lighting agent picks which nodes belong in the background for the current focus — shown as a proposal you approve</td></tr>
         <tr><td>◱ auto-zoom</td><td>the zoom agent suggests which branch to view alone — you confirm; your lighting is untouched</td></tr>
-        <tr><td>◎ auto</td><td>auto mode (header button, beside ▯): after each round the map aims itself — moves the focus when the talk left it, lights and dims for it (never a node you lit by hand, never over the budget), retitles a changed node whose name went stale, and files a new "to sort" arrival into a lit home. Optional: let the periodic review apply its small tidies; follow the focus with the view. Every action shows under the map with ↩ undo. Right-click the button to choose</td></tr>
+        <tr><td>◎ auto</td><td>auto mode (header button, beside ▯): after each round the map aims itself — moves the focus when the talk left it, lights and dims for it (never a node you lit by hand, never over the budget), retitles a changed node whose name went stale, and files a new "Needs a home" arrival into a lit home. Optional: let the periodic review apply its small tidies; follow the focus with the view. Every action shows under the map with ↩ undo. Right-click the button to choose</td></tr>
         <tr><td>◐ dim all outside</td><td>dim everything outside the zoomed branch in one press — the chat agent stops seeing all of it (zoom in first, so "outside" means something)</td></tr>
         <tr><td>⇪ import</td><td>bring outside material onto the map — paste notes, pick a project document, or a past session (Claude Code or Codex); the import agent proposes one organized subtree you approve</td></tr>
         <tr><td>↩ undo</td><td>undo the last destructive action — delete, merge, tidy, move (Ctrl/Cmd+Z works anywhere)</td></tr>
@@ -3898,7 +3900,7 @@ const TOUR = [
   { find: () => document.querySelector('.nrow.focused') ?? document.querySelector('.nrow'), title: '▶ Focus — talk about this', body: 'One node is what the conversation is about right now. Press ▶ on any row and Claude talks about that instead.' },
   { find: () => document.querySelector('.nrow'), title: '☀ Light — keep it in mind', body: 'Claude only sees what\u2019s lit ☀. Dim a branch and Claude forgets it — you still see everything. You decide what it knows.' },
   { find: () => document.querySelector('.nrow'), title: '◱ Zoom — view only this', body: '◱ shows just one branch on your screen. It changes what YOU see, never what Claude sees.' },
-  { find: () => document.querySelector('.pin-divider'), title: 'Pinned folders', body: 'This band travels with you: \u201cto sort\u201d holds things the map couldn\u2019t place yet \u00b7 ★ favorites keeps shortcuts to nodes you starred \u00b7 ⟳ to tidy collects the map\u2019s cleanup suggestions (you approve each one). Empty folders just wait.' },
+  { find: () => document.querySelector('.pin-divider'), title: 'Pinned folders', body: 'This band travels with you: \u201cNeeds a home\u201d holds things the map couldn\u2019t place yet \u00b7 ★ favorites keeps shortcuts to nodes you starred \u00b7 ⟳ to tidy collects the map\u2019s cleanup suggestions (you approve each one). Empty folders just wait.' },
   { sel: '#tabbar', title: 'Sessions', body: 'Each tab is one of your Claude Code or Codex sessions on this map — say \u201copen map\u201d in a session to attach it, or start one here with ＋ session. What you say there files here.' },
   { sel: '#legend-btn', title: 'That\u2019s it', body: 'Three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (view only this). Everything else hides under ⋯ · 🗨 talk to map does anything in plain words · Ctrl/Cmd+Z undoes. Details: the reference card (next).' },
 ];
