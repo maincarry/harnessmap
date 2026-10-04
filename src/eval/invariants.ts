@@ -113,6 +113,20 @@ for (const f of files) {
     const cyrTitles = titled.filter((n: any) => /\p{Script=Cyrillic}/u.test(String(n.title))).length;
     if (convoCyr > 0.5 && titled.length >= 2 && cyrTitles / titled.length < 0.5) hit('map_language_mismatch', tag, `conversation ${Math.round(convoCyr * 100)}% Cyrillic but only ${cyrTitles}/${titled.length} titles contain Cyrillic — the map answered in another language`, out);
   } catch {}
+  // 5q (transformer-review #148, luna): title_tail heals the SYMPTOM, not the word — "Class-level method accesseline>" lost its ">" and kept
+  // "accesseline" (access + a garbled tail). Rule: the title_tail guard fired on this node AND the healed title's last Latin word (>=6 letters)
+  // appears neither in the node's content nor in the rest of the title. Swept 105 kept maps: 1 hit (this one), 0 false positives. The broader
+  // split-word heuristic (a known prefix + an unknown suffix) was rejected in the same sweep: 0 true hits, 2 false positives (ValueError, equalisation).
+  try {
+    const tailIds = new Set<string>();
+    try { for (const r of db.query("select detail from audit_log where kind='guard_title_tail'").all() as any[]) { try { const j = JSON.parse(String(r.detail ?? '')); if (j && j.id) tailIds.add(String(j.id).slice(0, 8)); } catch {} } } catch {}
+    if (tailIds.size) for (const n of live) {
+      if (n.author === 'system' || !n.title) continue; const id8 = String(n.id).slice(0, 8); if (!tailIds.has(id8)) continue;
+      const t = String(n.title); const m = t.match(/([A-Za-z]{6,})\s*$/); if (!m) continue;
+      const w = m[1].toLowerCase(); if (String(n.content ?? '').toLowerCase().includes(w) || t.slice(0, m.index).toLowerCase().includes(w)) continue;
+      hit('title_tail_fused', tag, `${id8} "${t.slice(0, 60)}" — title_tail healed this title but its last word "${m[1]}" is in neither content nor the rest of the title (5q)`, out);
+    }
+  } catch {}
   // 5o (sqlsugar-isolate-zh #114, luna): an INSTRUCTION paraphrase fused into a title — "SqlSugar 事务隔离方法保留原有类型与标题" ends in
   // "keep the original type and title", a rule the filer was given, not a fact the person said. The self_leak guard (M354) watches CONTENT for
   // English schema words; this is the title, in the language of the conversation. Flag any title carrying a keep/omit/preserve-the-type-or-title
