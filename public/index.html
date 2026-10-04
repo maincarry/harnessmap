@@ -1503,16 +1503,28 @@ $('update-btn').onclick = async () => {
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
   const now = ov.querySelector('#up-now');
   if (now) now.onclick = async () => {
-    now.disabled = true; now.textContent = '…updating';
+    // M-loop 2026-10-04 (Mark): once the update starts the dialog is READ-ONLY — no "later"/abort button,
+    // no click-outside dismiss. Aborting mid pull/reinstall/restart is not something we should offer; the
+    // page simply reloads itself when the new server is back. An indeterminate bar stands in for progress
+    // (the server replies once before restarting, so there is no granular progress to show).
     const ub = ov.querySelector('#up-body');
+    const acts = ov.querySelector('.actions');
+    ov.onclick = null; // the overlay cannot be dismissed while the update runs
+    const BAR = `<style>@keyframes up-slide{0%{left:-40%}100%{left:100%}}</style><div style="position:relative;height:4px;margin:12px 0 10px;background:var(--hair);border-radius:2px;overflow:hidden"><div style="position:absolute;top:0;width:40%;height:100%;background:var(--accent);border-radius:2px;animation:up-slide 1.2s ease-in-out infinite"></div></div>`;
+    const readonly = (msg) => { acts.innerHTML = `${BAR}<div style="font-size:13px;color:var(--muted)">${msg}</div>`; };
+    // nothing in progress any more (failed / nothing to pull / server never came back) → a plain close is fine again
+    const closable = () => { acts.innerHTML = '<button id="up-close2" class="primary">close</button>'; acts.querySelector('#up-close2').onclick = () => ov.remove(); ov.onclick = (e) => { if (e.target === ov) ov.remove(); }; };
+    readonly('⬆ updating… the map pulls the update, reinstalls and restarts itself (about 20 seconds). This page reloads by itself when it is back — your sessions keep going.');
     let u = null;
-    try { u = await post('/api/update', {}); } catch (err) { ub.innerHTML = `update failed: ${esc(err.message)}<br><br>${manual}`; now.hidden = true; return; }
-    if (!u.changed) { ub.textContent = `nothing to pull — this copy is already at ${u.to || u.from}.`; now.hidden = true; return; }
+    try { u = await post('/api/update', {}); } catch (err) { ub.innerHTML = `update failed: ${esc(err.message)}<br><br>${manual}`; closable(); return; }
+    if (!u.changed) { ub.textContent = `nothing to pull — this copy is already at ${u.to || u.from}.`; closable(); return; }
     ub.innerHTML = `updated ${esc(u.from)} → ${esc(u.to)}; the map server is restarting…${u.hooksChanged ? '<br><br><b>The hook definitions changed:</b> Codex will ask you to trust them once more (<code>codex</code> → <code>/hooks</code>).' : ''}`;
+    readonly('restarting the map server… this page reloads by itself when it is back.');
     const t0 = Date.now();
     const poll = async () => {
       try { const st = await post2get('/api/state'); if (st.build && st.build !== r.build) { location.reload(); return; } } catch {}
-      if (Date.now() - t0 < 90_000) setTimeout(poll, 1500); else ub.innerHTML += '<br><br>the server has not come back yet — reload this page in a moment, or start a new session (the hooks restart it).';
+      if (Date.now() - t0 < 90_000) setTimeout(poll, 1500);
+      else { ub.innerHTML += '<br><br>the server has not come back yet — reload this page in a moment, or start a new session (the hooks restart it).'; closable(); }
     };
     setTimeout(poll, 3000);
   };
