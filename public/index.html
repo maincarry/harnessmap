@@ -4269,7 +4269,15 @@ function connect() {
       // M170 (Jacob): the line breathes gently while work is in flight —
       // "something is happening", said lightly — and stops when it lands.
       $('round-line').classList.toggle('working', m.lag > 0);
-      if (m.lag > 0) $('round-line').textContent = 'filing the round onto the map…';
+      if (m.lag > 0) {
+        // M-loop 2026-10-04 (Jacob: "the user should know where the filer is at with more clarity") —
+        // name WHAT is being filed and HOW MUCH, from the pending ledger, not a generic "filing the round".
+        const pend = ((S.filings && S.filings.items) || []).filter(f => f.status === 'pending');
+        const newest = pend.length ? String(pend[pend.length - 1].userHead || '').replace(/\s+/g, ' ').slice(0, 44) : '';
+        $('round-line').textContent = m.lag > 1
+          ? `⟳ filing ${m.lag} exchanges onto the map…${newest ? ` newest: “${newest}”` : ''}`
+          : `⟳ filing your last turn onto the map…${newest ? ` “${newest}”` : ''}`;
+      }
     } else if (m.type === 'host_prompt') {
       setBeat('prompt');
       // A host-harness session just took a user message — show life in the
