@@ -19,6 +19,11 @@ const PORT = Number(process.env.E2E_PORT ?? 8792); const BASE = `http://127.0.0.
 const RESUME = process.argv.includes('--resume'); // Jacob 2026-09-18 ("do they break down as the conversation goes?"): continue an earlier run's map and home instead of a fresh one, so a long thread lives in ONE map
 const TMP = `/tmp/claude-1000/harnessmap-e2e-${process.env.E2E_TMP_NAME ?? basename(file, '.json')}${process.env.E2E_MODELS ? `-${process.env.E2E_MODELS}` : ''}`;
 const DB = join(TMP, 'e2e.sqlite'); // TMP is per ensemble: a batch may run the same scenario on two ensembles at once
+// M-loop 2026-10-04 (17 "codex-native" runs silently ran on the Claude subscription): the harness strips HARNESSMAP_INFERENCE from the
+// test server and only E2E_ENGINE=codex re-sets it — so a launch that set HARNESSMAP_INFERENCE=codex got the subscription (Haiku filer)
+// with no trace in the header or summary. Now: HARNESSMAP_INFERENCE=codex is honored as the same intent, the intended engine is printed,
+// and the summary carries the OBSERVED filer backend/model from the server's own audit — a mismatch is a loud WARN line, never a quiet default.
+const ENGINE: 'codex' | 'subscription' = (process.env.E2E_ENGINE === 'codex' || process.env.HARNESSMAP_INFERENCE === 'codex') ? 'codex' : 'subscription';
 let pass = 0, fail = 0; const notes: string[] = [];
 let softMode = false; let noted = 0; // a soft assertion ("soft": true) is a ruling the models miss by judgment: reported as NOTE, never a FAIL
 const check = (name: string, cond: boolean, detail = '') => { if (cond) { pass++; console.log(`  PASS ${name}`); } else if (softMode) { noted++; console.log(`  NOTE (soft) ${name}${detail ? ` — ${detail}` : ''}`); } else { fail++; console.log(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`); notes.push(`${name}${detail ? ` — ${detail}` : ''}`); } };
@@ -48,7 +53,7 @@ function linkCredentials(dst: string) {
 }
 try { linkCredentials(join(TMP, 'home', '.claude', '.credentials.json')); } catch { console.warn('no subscription credentials to copy'); }
 const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
-  env: { ...process.env, ANTHROPIC_API_KEY: undefined as any, HARNESSMAP_INFERENCE: undefined as any, ...(process.env.E2E_ENGINE === 'codex' ? { HARNESSMAP_INFERENCE: 'codex', CODEX_HOME: process.env.CODEX_HOME ?? join(process.env.HOME ?? '', '.codex'), HARNESSMAP_INFERENCE_CONCURRENCY: process.env.HARNESSMAP_INFERENCE_CONCURRENCY ?? '4' } : {}), /* Jacob 2026-09-19: "run in codex native environment" — E2E_ENGINE=codex runs the server on the codex engine with the product's four in flight; the test home keeps its own HOME, so CODEX_HOME names the real ~/.codex */ HARNESSMAP_DB: DB, HARNESSMAP_HOME: join(TMP, 'home', '.harnessmap'), PORT: String(PORT), HARNESSMAP_AUTOTIDY_ROUNDS: '0', ...(process.env.E2E_ENGINE === 'codex' ? {} : { HARNESSMAP_INFERENCE_CONCURRENCY: '1' }), /* one child at a time on this 4 GB box (Claude backend): two in flight still tripped the memory watchdog on a long replay; on codex the calls are network-bound and run four wide like the product */ HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home'), ...(sc.env ?? {}) }, // a scenario may set server env (e.g. the review rhythm)
+  env: { ...process.env, ANTHROPIC_API_KEY: undefined as any, HARNESSMAP_INFERENCE: undefined as any, ...(ENGINE === 'codex' ? { HARNESSMAP_INFERENCE: 'codex', CODEX_HOME: process.env.CODEX_HOME ?? join(process.env.HOME ?? '', '.codex'), HARNESSMAP_INFERENCE_CONCURRENCY: process.env.HARNESSMAP_INFERENCE_CONCURRENCY ?? '4' } : {}), /* Jacob 2026-09-19: "run in codex native environment" — E2E_ENGINE=codex runs the server on the codex engine with the product's four in flight; the test home keeps its own HOME, so CODEX_HOME names the real ~/.codex */ HARNESSMAP_DB: DB, HARNESSMAP_HOME: join(TMP, 'home', '.harnessmap'), PORT: String(PORT), HARNESSMAP_AUTOTIDY_ROUNDS: '0', ...(process.env.E2E_ENGINE === 'codex' ? {} : { HARNESSMAP_INFERENCE_CONCURRENCY: '1' }), /* one child at a time on this 4 GB box (Claude backend): two in flight still tripped the memory watchdog on a long replay; on codex the calls are network-bound and run four wide like the product */ HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home'), ...(sc.env ?? {}) }, // a scenario may set server env (e.g. the review rhythm)
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
 });
 process.on('exit', () => server.kill());
@@ -69,7 +74,7 @@ for (const [g, m] of Object.entries(ENSEMBLES[ENSEMBLE] ?? {})) await post('/api
 // tradeoff is measurable. The filer is the per-turn writer whose latency the user actually waits on; its default is 'low'.
 const FILER_EFFORT = (process.env.E2E_FILER_EFFORT ?? '').trim();
 if (FILER_EFFORT) { const r = await post('/api/models', { task: 'filer', effort: FILER_EFFORT }); console.log(`[filer effort → ${FILER_EFFORT}] (${r.status})`); }
-console.log(`\n== ${sc.name} == [models: ${ENSEMBLE}${FILER_EFFORT ? ` · filer:${FILER_EFFORT}` : ''}]`);
+console.log(`\n== ${sc.name} == [models: ${ENSEMBLE} · engine: ${ENGINE}${FILER_EFFORT ? ` · filer:${FILER_EFFORT}` : ''}]`);
 let s = await state();
 const keys: Record<string, string> = {};
 const rootTop = (s.nodes ?? []).find((n: any) => n.parentId === null && !String(n.title ?? n.content).startsWith('to sort'));
@@ -282,7 +287,9 @@ try { const t0 = Date.now(); for (;;) { const f = await get('/api/filings'); con
 let tokens = 0; try { const c = await get('/api/cost?window=24h'); tokens = Number(c?.total?.tokens ?? 0); } catch {}
 // M295 (Jacob: "experiment with speeding up the map updates"): the speed baseline — median round wall time (filing landed, minus the settle) and per-agent latency
 let speed = ''; try { const inf = (await audit('inference')).filter((r: any) => r.detail?.ok); const by: Record<string, number[]> = {}; for (const r of inf) (by[r.detail.task] ??= []).push(Number(r.detail.ms)); const med = (a: number[]) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; }; speed = `round ${med(roundMs) / 1000 | 0}s · paint ${firstPaintMs.length ? (med(firstPaintMs) / 1000).toFixed(0) : '?'}s · ` + Object.entries(by).map(([t, a]) => `${t} ${Math.round(med(a) / 100) / 10}s×${a.length}`).join(' '); } catch {}
-const line = `${new Date().toISOString().slice(0, 16)} · ${sc.name} · [${ENSEMBLE}] ${pass} passed, ${fail} failed · ≈${Math.round(tokens / 1000)}k tokens${speed ? ' · ' + speed : ''}${notes.length ? ' · ' + notes.join(' ; ').slice(0, 400) : ''}`;
+// observed engine: what the filer ACTUALLY ran on, from the server's inference audit (the intent above can be wrong; this cannot)
+let engineTag = ''; try { const inf = (await audit('inference')).filter((r: any) => r.detail?.task === 'filer'); const seen = [...new Set(inf.map((r: any) => `${r.detail.backend}/${r.detail.model}`))]; engineTag = seen.length ? `engine ${seen.join('+')}` : 'engine ?'; const obs = String(inf[0]?.detail?.backend ?? ''); if (obs && obs !== ENGINE) { engineTag += ' ⚠ MISMATCH'; console.log(`\nWARN: intended engine ${ENGINE} but the filer ran on ${seen.join('+')} — check E2E_ENGINE / the server env`); } } catch {}
+const line = `${new Date().toISOString().slice(0, 16)} · ${sc.name} · [${ENSEMBLE}] ${pass} passed, ${fail} failed · ≈${Math.round(tokens / 1000)}k tokens${engineTag ? ' · ' + engineTag : ''}${speed ? ' · ' + speed : ''}${notes.length ? ' · ' + notes.join(' ; ').slice(0, 400) : ''}`;
 console.log(`\n================ ${line} ================`);
 try { appendFileSync('docs/E2E-LEDGER.md', `- ${line}\n`); } catch {}
 // M355 (Jacob 2026-09-20): every finished run leaves its map as a .map bundle — the transcript a founder can open and read

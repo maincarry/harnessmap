@@ -98,9 +98,11 @@ for (const f of files) {
     if (k.startsWith('title_healed:')) { const ts = healTitlesByNode.get(k.slice('title_healed:'.length)) ?? []; const uniq = new Set(ts).size; note = uniq === ts.length ? ` (distinct heals → evolving node, benign)` : ` (repeated heal → thrash)`; }
     hit('governor_fight', tag, `${k} in ${rounds.size} rounds${note}`, out);
   }
+  // M-loop 2026-10-04: name the engine the filer ran on — 17 runs passed as "codex" while on the subscription/Haiku path; the sweep now says which.
+  let engine = '?'; try { const inf = (db.query("select detail from audit_log where kind = 'inference'").all() as any[]).map((r) => { try { return JSON.parse(r.detail); } catch { return null; } }).filter((d) => d && d.task === 'filer'); const seen = [...new Set(inf.map((d) => `${d.backend}/${d.model}`))]; if (seen.length) engine = seen.join('+'); } catch {}
   const kinds = db.query("select kind, count(*) c from audit_log where kind like 'guard%' group by kind").all() as any[];
   const guardLine = kinds.map((k) => `${k.kind.replace('guard_', '')}×${k.c}`).join(' ');
-  console.log(`${tag}: nodes ${live.length}/${nodes.length} events ${events.length} guards[${guardLine}]${out.length ? '\n   ' + out.join('\n   ') : ' ok'}`);
+  console.log(`${tag}: engine ${engine} · nodes ${live.length}/${nodes.length} events ${events.length} guards[${guardLine}]${out.length ? '\n   ' + out.join('\n   ') : ' ok'}`);
   } catch (e) { console.log(tag, 'CHECK FAIL', String(e).slice(0, 200)); }
   db.close();
 }
