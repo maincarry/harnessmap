@@ -150,8 +150,12 @@ export async function twinStep(goal: string, mapView: string, history: string[],
   const user = [
     `YOUR GOAL: ${goal}`,
     history.length ? `WHAT YOU HAVE DONE SO FAR:\n${history.map((h, i) => `  ${i + 1}. ${h}`).join('\n')}` : `You have just started; you have not typed anything yet.`,
-    // Perceived speed of the previous turn: how long after you sent it the map first SHOWED a result. undefined on the first step (nothing sent yet).
-    opts.paintMs != null ? `RESPONSIVENESS: after your last turn, the map took ~${(opts.paintMs / 1000).toFixed(0)}s to first show a result.` : null,
+    // Perceived speed of the previous turn. ackMs = how long until the map acknowledged your turn (the
+    // "filing…" ghost echoing what you sent); paintMs = how long until the finished, filed result appeared.
+    // The ghost is what makes it feel live even when filing itself is slow. undefined on the first step.
+    opts.ackMs != null
+      ? `RESPONSIVENESS: after your last turn, the map acknowledged it in ~${(opts.ackMs / 1000).toFixed(0)}s — your turn showed up right away as a "filing…" placeholder — and the finished, filed result appeared ~${opts.paintMs != null ? (opts.paintMs / 1000).toFixed(0) : '?'}s after you sent it.`
+      : opts.paintMs != null ? `RESPONSIVENESS: after your last turn, the map took ~${(opts.paintMs / 1000).toFixed(0)}s to first show a result.` : null,
     `WHAT THE MAP SHOWS RIGHT NOW:\n${mapView}`,
     `Decide your next move and how you feel (include how the speed felt, if you were told it). Return the JSON.`,
   ].filter(Boolean).join('\n\n');
@@ -168,7 +172,7 @@ export async function twinStep(goal: string, mapView: string, history: string[],
   return out as TwinStep;
 }
 
-export interface TwinOpts { persona?: TwinPersona; modelOverride?: string; maxTokens?: number; timeoutMs?: number; audit?: (k: string, d: Record<string, unknown>) => void; paintMs?: number /* perceived latency (ms) of the PREVIOUS turn — time to first visible result; drives the twin's speed reaction */ }
+export interface TwinOpts { persona?: TwinPersona; modelOverride?: string; maxTokens?: number; timeoutMs?: number; audit?: (k: string, d: Record<string, unknown>) => void; paintMs?: number /* perceived latency (ms) of the PREVIOUS turn — time to first visible FILED result; drives the twin's speed reaction */; ackMs?: number /* time (ms) to first ACKNOWLEDGEMENT of the previous turn — the "filing…" ghost row; perceived responsiveness even when filing is slow */ }
 
 // Run the twin over a described session/experience and return its structured friction report.
 export async function runTwin(experience: string, opts: TwinOpts = {}): Promise<TwinReport> {

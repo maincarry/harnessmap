@@ -69,12 +69,18 @@ function mapView(s: any): string {
     }
   };
   walk(null, 0);
+  // GHOST ROW (2026-10-04, Jacob perceived-speed): an in-flight filing echoes the user's just-sent turn
+  // immediately — the real client shows a transient "filing…" row the instant the turn lands, before the
+  // filer finishes (replaced by the real node when it does). Only present mid-filing; empty once drained.
+  const ghostLines = ((s.filings?.items ?? []) as any[])
+    .filter((f) => f.status === 'pending')
+    .map((f) => `- ⟳ filing your last turn: ${String(f.userHead ?? '').replace(/\s+/g, ' ').slice(0, 50)}…`);
   const host = chat.host;
   const strip = !host ? '(no live session strip)'
     : host.status === 'closed' ? `bottom strip: "closed in ${host.label ?? 'session'} — resume it…"`
     : host.idle ? `bottom strip: "${host.label ?? 'session'} is quiet — it may no longer be attached…"`
     : `bottom strip: "live in ${host.label ?? 'your session'} — type there; everything shows up here"`;
-  return `${lines.join('\n') || '(the map is empty)'}\n${strip}`;
+  return `${[...ghostLines, ...lines].join('\n') || '(the map is empty)'}\n${strip}`;
 }
 
 console.log(`\n══ USER TWIN DRIVING a live map [${PERSONA}] (${engine ? 'codex' : 'claude'}) ══`);
@@ -82,7 +88,8 @@ console.log(`goal: ${GOAL}\n`);
 
 const steps: TwinStep[] = [];
 const history: string[] = [];
-let lastPaintMs: number | undefined; // perceived latency of the previous turn (time to first visible node) — fed to the next twinStep so the persona judges speed (Jacob 2026-10-04)
+let lastPaintMs: number | undefined; // perceived latency of the previous turn (time to first visible FILED node) — fed to the next twinStep so the persona judges speed (Jacob 2026-10-04)
+let lastAckMs: number | undefined; // time to the ghost acknowledgement of the previous turn (map echoes the turn before the filer finishes) — the perceived-responsiveness signal (Jacob "ghost row")
 const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
 
 for (let i = 0; i < STEPS; i++) {
@@ -90,7 +97,7 @@ for (let i = 0; i < STEPS; i++) {
   const view = mapView(s);
   let step: TwinStep;
   prog(`step ${i + 1}: calling twinStep`);
-  try { step = await twinStep(GOAL, view, history, { persona: PERSONA, paintMs: lastPaintMs }); }
+  try { step = await twinStep(GOAL, view, history, { persona: PERSONA, paintMs: lastPaintMs, ackMs: lastAckMs }); }
   catch (e) { prog(`step ${i + 1}: twinStep FAILED ${String(e).slice(0, 120)}`); console.error(`step ${i + 1} twin call failed:`, String(e).slice(0, 200)); break; }
   prog(`step ${i + 1}: twinStep returned (${step.severity}, ${step.action.kind})`);
   steps.push(step);
@@ -108,6 +115,10 @@ for (let i = 0; i < STEPS; i++) {
   const nBefore = liveCount(s);
   const tObs = Date.now();
   await post('/api/harness/observe', { session_id: 'twin', cwd: join(TMP, 'proj'), user_text: step.action.user_text ?? '', assistant_text: step.action.assistant_text ?? '' });
+  // ACK (ghost): the pending-filing row for this turn exists the instant observe returns — the real client
+  // echoes it immediately as a "filing…" row, so the user sees motion well before the filer finishes.
+  let ack: number | undefined;
+  { const st: any = await get('/api/state').catch(() => null); if (st && (st.filings?.pending ?? 0) > 0) ack = Date.now() - tObs; }
   let paint: number | undefined;
   for (let j = 0; j < 25; j++) {
     await sleep(2000);
@@ -115,8 +126,9 @@ for (let i = 0; i < STEPS; i++) {
     const f: any = await get('/api/filings').catch(() => ({ pending: 0 })); if ((f?.pending ?? 0) === 0 && j > 1) break;
   }
   await sleep(3000);
-  lastPaintMs = paint;
-  if (paint != null) console.log(`   (perceived: map first showed a result in ~${(paint / 1000).toFixed(0)}s)`);
+  lastPaintMs = paint; lastAckMs = ack;
+  if (ack != null) console.log(`   (acknowledged: map echoed your turn in ~${(ack / 1000).toFixed(1)}s — ghost)`);
+  if (paint != null) console.log(`   (perceived: map first showed the FILED result in ~${(paint / 1000).toFixed(0)}s)`);
   prog(`step ${i + 1}: round filed`);
   console.log('');
 }
