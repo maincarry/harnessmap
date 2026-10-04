@@ -108,13 +108,31 @@ export function dropCorrectionTwins(alterations: any[], nodes: { title?: string 
   for (const n of nodes) for (const w of toks(`${n.title ?? ''} ${n.content}`)) df.set(w, (df.get(w) ?? 0) + 1);
   const rare = (w: string) => (df.get(w) ?? 0) <= Math.max(2, Math.ceil(nodes.length * 0.05));
   const out: any[] = [];
+  const remap = new Map<string, string>(); // dropped created id → the existing node it was folded into
   for (const a of alterations) {
     if (a.op === 'create_node' && (a.type === 'decision' || a.type === 'constraint')) {
       const cw = [...toks(`${a.title ?? ''} ${a.content ?? ''}`)].filter(rare);
       const dup = rewritten.find((r) => { const rw = toks(r.content); const shared = cw.filter((w) => rw.has(w)).length; return cw.length > 0 && shared >= 2 && shared / cw.length >= 0.6; });
-      if (dup) { audit({ dropped: String(a.content ?? '').slice(0, 80), rewrote: dup.id }); continue; }
+      if (dup) { audit({ dropped: String(a.content ?? '').slice(0, 80), rewrote: dup.id }); if (a.id) remap.set(String(a.id), String(dup.id)); continue; }
     }
     out.push(a);
+  }
+  // M-loop 2026-10-04 (spice-rc-filter-en replay, luna): a dropped twin can be the PARENT of other alterations in the same batch —
+  // "Proposed RC values" was created under the dropped node and a link pointed at it, so the child dangled under an id that
+  // never existed (invariants: parent_missing / event_create_under_unknown). Every reference to a dropped id now follows the
+  // twin to the node it was folded into, and the remap is audited.
+  if (remap.size) {
+    const follow = (v: unknown) => (typeof v === 'string' && remap.has(v)) ? remap.get(v)! : v;
+    for (const a of out) {
+      if (!a || typeof a !== 'object') continue;
+      for (const k of ['parentId', 'fromItemId', 'toId', 'nodeId'] as const) {
+        if (typeof a[k] === 'string' && remap.has(a[k])) { audit({ reparent: k, op: a.op, id: String(a.id ?? a.nodeId ?? '').slice(0, 8), from: String(a[k]).slice(0, 8), to: String(remap.get(a[k])).slice(0, 8) }); a[k] = follow(a[k]); }
+      }
+      if ((a.op === 'update_node' || a.op === 'move_node') && typeof a.id === 'string' && remap.has(a.id)) { audit({ reparent: 'id', op: a.op, from: String(a.id).slice(0, 8), to: String(remap.get(a.id)).slice(0, 8) }); a.id = follow(a.id); }
+      if (Array.isArray(a.ids)) a.ids = a.ids.map(follow);
+    }
+    // a remap can turn a move/link into a self-reference (move X under E where X became E) — those carry no information, drop them
+    return out.filter((a) => !(a && ((a.op === 'move_node' && a.id === a.parentId) || (a.op === 'create_link' && a.fromItemId === a.toId))));
   }
   return out;
 }
