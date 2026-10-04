@@ -184,7 +184,7 @@
   #crumbs #trail { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
   #crumbs #trail .crumb { font-weight: 500; }
   #crumbs #trail .sep { margin: 0 2px; }
-  #map-pane #crumbs .focus-away { flex: 0 0 auto; max-width: 42%; font-size: 11px; padding: 2px 9px; border-radius: 10px; border: none; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+  #map-pane #crumbs .focus-away { flex: 0 0 auto; margin-left: 0; margin-right: 2px; max-width: 42%; font-size: 11px; padding: 2px 9px; border-radius: 10px; border: none; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
   #map-pane #crumbs .focus-away.away { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
   /* "Needs a home" tray (Jacob 2026-10-04 "looks like a random node"): an INBOX PANEL, not a topic — NEUTRAL grey tint + dashed
      outline (Jacob "why yellow?": amber already means attention here; the tray is set-aside, not alarming — distinct by SHAPE), its own inline-SVG tray icon (no emoji-font dependence), a subtitle that says what it is, and a thin
@@ -697,7 +697,9 @@ function renderCrumbs() {
   // Jacob 2026-10-04 ("crowded and confusing"): icon-only ghost buttons — the text labels live in their tooltips.
   { const hb = $('home-btn'), zo = $('zoom-out');
     if (hb && !el.contains(hb)) { for (const n of [...hb.childNodes]) if (n.nodeType === 3) n.remove(); hb.classList.add('navico'); el.prepend(hb); }
-    if (zo && !el.contains(zo)) { zo.textContent = '↑'; zo.classList.add('navico'); $('trail').after(zo); } }
+    // Jacob 2026-10-04 ("zoom out and focus LEFT of 'whole map'"): ⌂ ↑ ▶focus cluster on the left, the trail after.
+    if (zo && !el.contains(zo)) { zo.textContent = '↑'; zo.classList.add('navico'); hb ? hb.after(zo) : el.prepend(zo); }
+    { const fsl = $('focus-slot'), tr = $('trail'); if (fsl && tr && tr.nextElementSibling === fsl) tr.before(fsl); } }
   const parts = [`<span class="crumb" data-crumb="">whole map</span>`];
   if (zoomId && node(zoomId)) {
     // M123b (Jacob): the genealogy trail broke with long names (untitled
