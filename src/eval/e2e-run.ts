@@ -52,11 +52,15 @@ function linkCredentials(dst: string) {
   symlinkSync(real, dst);
 }
 try { linkCredentials(join(TMP, 'home', '.claude', '.credentials.json')); } catch { console.warn('no subscription credentials to copy'); }
-const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
+// Stray-codex fix (loop find #150/#152, 2026-10-04): the server's in-flight `codex exec` child outlived the run because
+// server.kill() only signalled the server. Under setsid the server leads its own process group (same pid — setsid execs in
+// place when the child is not already a group leader), so stopServer() can signal the whole group: server + codex children.
+const server = Bun.spawn([...(process.platform === 'linux' ? ['setsid'] : []), 'bun', 'run', 'src/server.ts'], {
   env: { ...process.env, ANTHROPIC_API_KEY: undefined as any, HARNESSMAP_INFERENCE: undefined as any, ...(ENGINE === 'codex' ? { HARNESSMAP_INFERENCE: 'codex', CODEX_HOME: process.env.CODEX_HOME ?? join(process.env.HOME ?? '', '.codex'), HARNESSMAP_INFERENCE_CONCURRENCY: process.env.HARNESSMAP_INFERENCE_CONCURRENCY ?? '4' } : {}), /* Jacob 2026-09-19: "run in codex native environment" — E2E_ENGINE=codex runs the server on the codex engine with the product's four in flight; the test home keeps its own HOME, so CODEX_HOME names the real ~/.codex */ HARNESSMAP_DB: DB, HARNESSMAP_HOME: join(TMP, 'home', '.harnessmap'), PORT: String(PORT), HARNESSMAP_AUTOTIDY_ROUNDS: '0', ...(process.env.E2E_ENGINE === 'codex' ? {} : { HARNESSMAP_INFERENCE_CONCURRENCY: '1' }), /* one child at a time on this 4 GB box (Claude backend): two in flight still tripped the memory watchdog on a long replay; on codex the calls are network-bound and run four wide like the product */ HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home'), ...(sc.env ?? {}) }, // a scenario may set server env (e.g. the review rhythm)
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
 });
-process.on('exit', () => server.kill());
+const stopServer = () => { try { process.kill(-server.pid, 'SIGTERM'); } catch {} try { server.kill(); } catch {} };
+process.on('exit', stopServer);
 let up = false; for (let i = 0; i < 30; i++) { try { await get('/api/state'); up = true; break; } catch { await sleep(500); } }
 if (!up) { console.error('server never came up'); process.exit(1); }
 
@@ -310,6 +314,6 @@ try { appendFileSync('docs/E2E-LEDGER.md', `- ${line}\n`); } catch {}
 // M355 (Jacob 2026-09-20): every finished run leaves its map as a .map bundle — the transcript a founder can open and read
 // in their own HarnessMap. E2E_MAP_OUT names the file; else it lands beside the scenario. Audit rides along (the guard story).
 try { const st = await state(); const r = await fetch(`${BASE}/api/projects/${st.projectId}/export?audit=1`); if (r.ok) { const out = process.env.E2E_MAP_OUT ?? file.replace(/\.json$/, '') + '.map'; const b = await r.json(); b.project.name = basename(out).replace(/\.map$/, ''); b.scenario = sc.name; mkdirSync(dirname(out), { recursive: true }); writeFileSync(out, JSON.stringify(b)); console.log(`map saved: ${out}`); } else console.log(`map save failed: ${r.status}`); } catch (err) { console.log(`map save failed: ${String(err).slice(0, 100)}`); }
-server.kill();
+stopServer();
 if (!process.argv.includes('--keep')) { try { rmSync(TMP, { recursive: true, force: true }); } catch {} }
 process.exit(fail ? 1 : 0);
