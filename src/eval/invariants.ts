@@ -56,6 +56,20 @@ for (const f of files) {
       hit('title_combining_mark', tag, `${String(n.id).slice(0, 8)} "${n.title.slice(0, 40)}" U+${cp.toString(16).padStart(4, '0')} after "${prev || '∅'}"`, out); break; } }
   // 5i. stray interrogation/exclamation mark (M-loop 2026-10-03, §10 #5 foreign-script-punctuation subclass — codex drone-swarm replay emitted "MAVLink failures question؟?" with a U+061F Arabic question mark fused onto the ASCII "?"). The corpus is EN/ZH/RU, so a ?/! from any other script is a leak. High-precision: legit interrogation/exclamation is ASCII (? !) or CJK fullwidth (？ ！); flag the rest (Arabic ؟, inverted ¿ ¡, Greek ;, ⁇ ⁈ ⁉ ‽, heavy ❢ ❣).
   for (const n of live) { if (n.author === 'system' || !n.title) continue; const m = n.title.match(/[؟¿¡⁇⁈⁉‽❢❣]/u); if (m) hit('title_stray_qmark', tag, `${String(n.id).slice(0, 8)} "${n.title.slice(0, 40)}" U+${m[0].codePointAt(0)!.toString(16).padStart(4, '0')}`, out); }
+  // 5j. MAP LANGUAGE MISMATCH (M-loop 2026-10-04, §10#11): two fully-Chinese replays were filed in ENGLISH (sqlsugar-nested-zh 0/5
+  // CJK titles, minesweeper-design-zh 0/14) — and one still PASSED because its assertions were language-neutral. Pass/fail cannot
+  // see this, so it is a structural check: the map should speak the conversation's language. Conversation language = share of
+  // CJK among the letters of the user's turns; map language = share of live user-facing titles containing CJK. A Chinese
+  // conversation (>50% CJK) with a mostly non-CJK map (<50% of titles) is a mismatch. A few English technical titles in a
+  // Chinese map are normal — hence a title-share threshold, not per-title. Latin/Cyrillic conversations are not judged.
+  try {
+    const userText = (db.query("select content from turns where role = 'user'").all() as any[]).map((t) => String(t.content ?? '')).join('');
+    const letters = (userText.match(/\p{L}/gu) ?? []).length; const cjkChars = (userText.match(/[\u4e00-\u9fff]/g) ?? []).length;
+    const convoCjk = letters ? cjkChars / letters : 0;
+    const titled = live.filter((n: any) => n.author !== 'system' && n.title && !/^(to sort|untitled)$/i.test(String(n.title).trim()));
+    const cjkTitles = titled.filter((n: any) => /[\u4e00-\u9fff]/.test(String(n.title))).length;
+    if (convoCjk > 0.5 && titled.length >= 2 && cjkTitles / titled.length < 0.5) hit('map_language_mismatch', tag, `conversation ${Math.round(convoCjk * 100)}% CJK but only ${cjkTitles}/${titled.length} titles contain CJK — the map answered in English`, out);
+  } catch {}
   const seenSib = new Map<string, any>();
   // M-loop 2026-10-02 (codex nfconntrack replay): a sibling_twin fires on norm(title||content), so it covers two cases worth telling apart — same title but DIFFERENT content (a label collision: two real facts the filer labelled alike, the how-to that should have nested) vs same content (a true dedup miss). Annotate which, so the triage is immediate.
   for (const n of live) { if (n.author === 'system') continue; const k = `${n.parent_id}|${norm(n.title || n.content)}`; if (k.split('|')[1].length < 6) continue; const prev = seenSib.get(k); if (prev) { const sameContent = norm(prev.content || '') === norm(n.content || ''); hit('sibling_twin', tag, `"${(n.title || n.content).slice(0, 40)}" ×2 under ${(n.parent_id ?? 'root').slice(0, 8)} (${sameContent ? 'same content → dedup miss' : 'distinct content → title collision'})`, out); } seenSib.set(k, n); }
