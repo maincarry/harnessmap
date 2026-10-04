@@ -104,6 +104,15 @@ for (const f of files) {
   // sharpest form (the scaffold root rewritten to its one child's name, or a child restating the parent). Near-echoes stay a judgment call;
   // the exact form is a legibility defect on its own: the trail reads "X › X".
   try { for (const n of live) { if (n.author === 'system') continue; const p = byId.get(n.parent_id); if (!p || p.author === 'system') continue; const a = norm(n.title || n.content), b = norm(p.title || p.content); if (a.length >= 6 && a === b && !/^(untitled|to sort)/.test(a)) hit('parent_child_echo', tag, `${String(n.id).slice(0, 8)} "${String(n.title || n.content).slice(0, 40)}" under an identically titled parent ${String(p.id).slice(0, 8)}`, out); } } catch {}
+  // 5j-b (M-loop 2026-10-04, autohotkey-ru on luna: "AutoHotkey touchpad inversion", "Repeated script error" for a Russian conversation): the
+  // Cyrillic twin of 5j — the CJK check cannot see a Russian map answered in English.
+  try {
+    const userText = (db.query("select content from turns where role = 'user'").all() as any[]).map((t) => String(t.content ?? '')).join('');
+    const letters = (userText.match(/\p{L}/gu) ?? []).length; const cyr = (userText.match(/\p{Script=Cyrillic}/gu) ?? []).length; const convoCyr = letters ? cyr / letters : 0;
+    const titled = live.filter((n: any) => n.author !== 'system' && n.title && !/^(to sort|untitled)$/i.test(String(n.title).trim()));
+    const cyrTitles = titled.filter((n: any) => /\p{Script=Cyrillic}/u.test(String(n.title))).length;
+    if (convoCyr > 0.5 && titled.length >= 2 && cyrTitles / titled.length < 0.5) hit('map_language_mismatch', tag, `conversation ${Math.round(convoCyr * 100)}% Cyrillic but only ${cyrTitles}/${titled.length} titles contain Cyrillic — the map answered in another language`, out);
+  } catch {}
   // 5n-c (cas-coherence, luna): the stray tail can be a pictograph — "Line six correction attempt 🤔?" — an emoji fused before the terminal question mark
   // that appears nowhere in the node's content. Same family, same test.
   try { for (const n of live) { if (n.author === 'system' || !n.title) continue; const t = String(n.title); const m = t.match(/(\p{Extended_Pictographic})\s*[?？]\s*$/u); if (m && !String(n.content ?? '').includes(m[1])) hit('title_stray_qword', tag, `${String(n.id).slice(0, 8)} "${t.slice(0, 50)}" — emoji "${m[1]}" fused before the question mark, absent from content`, out); } } catch {}
