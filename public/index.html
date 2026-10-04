@@ -175,6 +175,16 @@
   #crumbs .crumb { cursor: pointer; color: var(--accent); }
   #crumbs .sep { opacity: .5; }
   #crumbs .focus-away { margin-left: auto; color: var(--warn); cursor: pointer; }
+  /* nav bar (Mark 2026-10-04): home + zoom-out live in the crumbs row — compact so the trail stays legible */
+  #crumbs button { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px; font-size: 11px; padding: 1px 7px; cursor: pointer; flex: none; }
+  #crumbs button:hover { color: var(--accent); border-color: var(--accent); }
+  #crumbs #trail { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  /* ★ bookmarks bar: favorites as browser-style shortcuts under the nav row */
+  #bookmarks { display: flex; gap: 6px; padding: 4px 12px; border-bottom: 1px solid var(--hair); background: var(--panel); overflow-x: auto; font-size: 12px; }
+  #bookmarks[hidden] { display: none; }
+  #bookmarks .bm { flex: none; cursor: pointer; color: var(--warn); border: 1px solid var(--hair); border-radius: 12px; padding: 1px 9px; white-space: nowrap; }
+  #bookmarks .bm:hover { border-color: var(--warn); }
+  body.mobile #bookmarks { display: none; }
   #zoom-tools { display: flex; gap: 6px; padding: 5px 12px; border-bottom: 1px solid var(--hair); background: var(--panel); flex-wrap: wrap; }
   #zoom-tools button { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px;
                        font-size: 11px; cursor: pointer; padding: 1px 8px; }
@@ -502,7 +512,8 @@
       <span class="lag" id="lag" style="margin-left:10px">map current</span>
       <span id="filing-notice" class="lag behind" style="margin-left:10px;display:none;cursor:pointer" title="exchanges the filer did not manage to put on the map yet — they are retried on their own; click to retry now"></span>
     </header>
-    <div id="crumbs"></div>
+    <div id="crumbs"><span id="trail"></span><span id="focus-slot"></span></div>
+    <div id="bookmarks" hidden></div>
     <div id="zoom-tools">
       <button id="map-chat" title="confused, or want anything done? Ask in plain words — the map guide explains and proposes; you approve"><svg class="brandmark-mono" viewBox="0 0 72 72" fill="none" aria-hidden="true"><path d="M36 13 C52 13 59 25 57 38 C55 52 41 57 30 55 C18 53 13 41 15 29 C17 19 25 13 36 13Z" stroke="currentColor" stroke-width="2.6"/><circle cx="21" cy="44" r="3.8" fill="currentColor"/><circle cx="52" cy="35" r="3.4" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="40" cy="23" r="4.6" fill="currentColor"/><circle cx="40" cy="23" r="8.6" fill="none" stroke="currentColor" stroke-width="1.9"/></svg>talk to map</button>
       <button id="home-btn" title="zoom to the home page (the whole map unless you set a node as home on its row)"><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</button>
@@ -582,7 +593,6 @@ let S = { nodes: [], chats: [], recency: {}, suggestions: [], mainChatId: null }
 let zoomId = localStorage.getItem('hm-zoom') || null;
 let folded = new Set(), userFolded = new Set(), userUnfolded = new Set();
 const opsOpen = new Set(); // rows whose ⋯ actions are expanded — persisted across re-renders so the cluster (depth, move, merge…) doesn't collapse mid-use
-let favsOpen = localStorage.getItem('hm-favs-open') === '1'; // ★ favorites folder — closed unless the user opened it (persists)
 let tidyOpen = localStorage.getItem('hm-tidy-open') === '1';  // ⟳ to tidy folder — same rule
 
 const $ = (id) => document.getElementById(id);
@@ -656,6 +666,10 @@ function setZoom(id) {
 // ---- breadcrumbs + focus-elsewhere indicator (Z2) ----
 function renderCrumbs() {
   const el = $('crumbs');
+  // M-loop 2026-10-04 (Mark): #crumbs is the NAVIGATION BAR — home + the zoom trail + zoom-out live in this row.
+  // The buttons are the original elements relocated once (id-bound handlers stay intact); the trail and the
+  // focus chip render into their own slots so a re-render never wipes the buttons.
+  { const hb = $('home-btn'), zo = $('zoom-out'); if (hb && !el.contains(hb)) el.prepend(hb); if (zo && !el.contains(zo)) $('trail').after(zo); }
   const parts = [`<span class="crumb" data-crumb="">whole map</span>`];
   if (zoomId && node(zoomId)) {
     // M123b (Jacob): the genealogy trail broke with long names (untitled
@@ -673,8 +687,18 @@ function renderCrumbs() {
     const away = zoomId ? !pathOf(f).some(n => n.id === zoomId) && f !== zoomId : false;
     focusChip = `<span class="focus-away${away ? ' away' : ''}" data-jump-focus="${f}" title="${away ? 'the focus is outside this view — click to zoom to it' : 'click to jump to the focus (offers auto-zoom)'}">▶ focus: ${esc(disp(node(f)))}</span>`;
   }
-  el.innerHTML = parts.join('') + focusChip;
+  $('trail').innerHTML = parts.join('');
+  $('focus-slot').innerHTML = focusChip;
 }
+// ★ BOOKMARKS BAR (Mark 2026-10-04): favorites as browser-style shortcuts under the nav row — out of the content
+// tree. Click zooms to the node; ★ on any row adds/removes one. Hidden when empty; on mobile they stay reachable via search.
+function renderBookmarks() {
+  const el = $('bookmarks'); if (!el) return;
+  const favs = (S.favorites || []).map((id) => node(id)).filter((n) => n && n.status !== 'removed');
+  el.hidden = !favs.length;
+  el.innerHTML = favs.map((n) => { const t = disp(n); return `<span class="bm" data-bm="${n.id}" title="★ ${esc(t)} — click to zoom here">★ ${esc(t.length > 22 ? t.slice(0, 21) + '…' : t)}</span>`; }).join('');
+}
+$('bookmarks')?.addEventListener('click', (e) => { const c = e.target.closest('[data-bm]'); if (c) setZoom(c.dataset.bm); });
 $('crumbs').addEventListener('click', async (e) => {
   const j = e.target.closest('[data-jump-focus]');
   if (j) {
@@ -831,25 +855,7 @@ function renderTree() {
     // the map's own proposals (⟳ suggestions) under one jargon label. The tray's own placeholder style is the
     // boundary; favorites and suggestions are moving out of the content tree.)
     if (showToSort) html += row(toSort, 0) + (folded.has(toSort.id) ? '' : walk(toSort.id, 1).join(''));
-    {
-      html += `
-      <div class="srow favhead" ${favs.length ? 'data-favfold="1"' : ''} title="${favs.length ? 'shortcuts to your ★ favorite nodes — each is the real node living where it lives; no parents shown here' : 'no favorites yet — press ★ on any node to put a shortcut here'}">
-        <span class="caret" title="${favs.length ? (favsOpen ? 'close this folder' : 'open this folder') : 'nothing inside yet'}">${favs.length ? (favsOpen ? '▾' : '▸') : '·'}</span><span class="sstar">★</span><b>favorites</b>
-        <span class="fold-count">${favs.length ? `${favs.length} inside` : 'empty'}</span>
-      </div>`;
-      if (favsOpen && favs.length) for (const n of favs) {
-        html += `
-        <div class="srow sind" data-jump="${n.id}" title="shortcut — click to view this node where it lives">
-          <span class="sstar">★</span>
-          <span class="scontent">${esc(disp(n))}</span>
-          <span class="sops">
-            <button class="rowbtn ${n.id === chat()?.focusContainerId ? 'on' : ''}" data-focus="${n.id}" title="focus: talk about this">▶</button>
-            <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? 'dim: remove from the chat agent\u2019s background' : 'light as background (incl. everything under it)'}">☀</button>
-            <button class="rowbtn" data-fav="${n.id}" title="remove from favorites — the node itself stays on the map">✕</button>
-          </span>
-        </div>`;
-      }
-    }
+    // (★ favorites moved to the bookmarks bar under the navigation row — Mark 2026-10-04)
     {
       html += `
       <div class="srow favhead" ${sugRows.length ? 'data-tidyfold="1"' : ''} title="${sugRows.length ? 'every node the map suggests changing — click one to see its before/after; nothing applies without you' : 'nothing to tidy right now — suggestions appear here as you talk (and the map reviews itself every 10 rounds)'}">
@@ -873,7 +879,7 @@ function renderTree() {
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
 }
 
-function renderAll() { applyAutoFold(); renderCrumbs(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); paintAuto(); paintUndo(); }
+function renderAll() { applyAutoFold(); renderCrumbs(); renderBookmarks(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); paintAuto(); paintUndo(); }
 // M88: one server, many projects (each its own map) and many chats (views).
 function renderSwitchers() {
   const ps = $('proj-sel');
@@ -2183,7 +2189,6 @@ $('tree').addEventListener('click', async (e) => {
     }
     return;
   }
-  if (t.closest('[data-favfold]')) { favsOpen = !favsOpen; localStorage.setItem('hm-favs-open', favsOpen ? '1' : ''); renderTree(); return; }
   if (t.closest('[data-tidyfold]')) { tidyOpen = !tidyOpen; localStorage.setItem('hm-tidy-open', tidyOpen ? '1' : ''); renderTree(); return; }
   const jumpRow = t.closest('[data-jump]');
   if (jumpRow && !t.closest('.rowbtn')) { setZoom(jumpRow.dataset.jump); return; }
@@ -3611,7 +3616,7 @@ function openLegend() {
         <tr><td>◱ zoom · ↑ zoom out</td><td>view only one branch — nothing else changes. ◐ dim all outside (in ⋯ other) then dims everything you zoomed away from</td></tr>
         <tr><td><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</td><td>always there above the map: zooms to your home page — the whole map by default, or the node you set with the house button on its row</td></tr>
         <tr><td colspan="2"><hr><b>The map speaks, you decide</b></td></tr>
-        <tr><td>pinned</td><td>three folders ride at the bottom of every view: "Needs a home" (arrivals the filer couldn't place) · ★ favorites (shortcuts to nodes you starred — the real node, never a copy; click to jump, ✕ only unpins) · ⟳ to tidy (every pending suggestion, cleanups and placements — click one for the before/after; nothing applies without you). The map adds to "to tidy" as you talk, and reviews the whole map by itself every 10 rounds</td></tr>
+        <tr><td>★ bookmarks</td><td>your favorites as shortcuts in the bar under the navigation row — the real node, never a copy; click one to zoom to it. ★ on any row adds or removes it. (⟳ to tidy still collects the map's pending suggestions at the bottom of the map until the next update.)</td></tr>
         <tr><td><span style="color:var(--danger)">●</span> on ⋯</td><td>a suggestion is waiting inside (auto-focus / auto-light); any focus/light action clears it</td></tr>
         <tr><td><span style="color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:0 4px;font-size:9px">new</span> <span style="color:var(--muted);border:1px solid var(--hair);border-radius:3px;padding:0 4px;font-size:9px">changed</span></td><td>the map added/edited this and you haven't touched it — clicking the node clears the mark. Click the status line under the map for the full change list ("clear all marks" lives there)</td></tr>
         <tr><td>Needs a home</td><td>the holding pen: anything the filer can't place lands here with an arrival note. Leaving: approve its placement in ⟳ to tidy, ↖ pick a parent, ⇧ promote to a topic — or light the destination and the filer moves it home next round</td></tr>
@@ -3900,7 +3905,7 @@ const TOUR = [
   { find: () => document.querySelector('.nrow.focused') ?? document.querySelector('.nrow'), title: '▶ Focus — talk about this', body: 'One node is what the conversation is about right now. Press ▶ on any row and Claude talks about that instead.' },
   { find: () => document.querySelector('.nrow'), title: '☀ Light — keep it in mind', body: 'Claude only sees what\u2019s lit ☀. Dim a branch and Claude forgets it — you still see everything. You decide what it knows.' },
   { find: () => document.querySelector('.nrow'), title: '◱ Zoom — view only this', body: '◱ shows just one branch on your screen. It changes what YOU see, never what Claude sees.' },
-  { find: () => document.querySelector('.pin-divider'), title: 'Pinned folders', body: 'This band travels with you: \u201cNeeds a home\u201d holds things the map couldn\u2019t place yet \u00b7 ★ favorites keeps shortcuts to nodes you starred \u00b7 ⟳ to tidy collects the map\u2019s cleanup suggestions (you approve each one). Empty folders just wait.' },
+  { find: () => document.querySelector('.nrow.tosort'), title: 'Needs a home', body: 'Arrivals the filer couldn\u2019t place yet wait here so nothing is lost \u2014 approve a placement or move one home. Your \u2605 favorites now live in the bookmarks bar under the navigation row.' },
   { sel: '#tabbar', title: 'Sessions', body: 'Each tab is one of your Claude Code or Codex sessions on this map — say \u201copen map\u201d in a session to attach it, or start one here with ＋ session. What you say there files here.' },
   { sel: '#legend-btn', title: 'That\u2019s it', body: 'Three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (view only this). Everything else hides under ⋯ · 🗨 talk to map does anything in plain words · Ctrl/Cmd+Z undoes. Details: the reference card (next).' },
 ];
