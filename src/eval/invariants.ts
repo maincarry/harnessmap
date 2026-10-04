@@ -113,6 +113,11 @@ for (const f of files) {
     const cyrTitles = titled.filter((n: any) => /\p{Script=Cyrillic}/u.test(String(n.title))).length;
     if (convoCyr > 0.5 && titled.length >= 2 && cyrTitles / titled.length < 0.5) hit('map_language_mismatch', tag, `conversation ${Math.round(convoCyr * 100)}% Cyrillic but only ${cyrTitles}/${titled.length} titles contain Cyrillic — the map answered in another language`, out);
   } catch {}
+  // 5r (go-html-png-zh #150, luna): a CJK title clipped mid-clause — "curl 页面转 PNG并" ("curl page to PNG and"), a conjunction glued to the
+  // last Latin token with nothing after it (the same node came out "curl 页面转 PNG探讨" on #32: unstable tail). Rule: the title ends in a
+  // one-char conjunction/particle glued to a Latin/digit token, or in a two-char conjunction anywhere. Swept 105 kept maps: 1 hit, 0 false
+  // positives (a Han-then-particle ending like 规则/方向/存在 is a real word and is NOT matched; a glued-but-real word like "Ruby环境" is spacing, not a glitch, and is NOT matched).
+  try { const DANGLE = /(?:[A-Za-z0-9](并|和|与|及|或|而|且|但|则|的)|(并且|或者|以及|但是|然后|因为|所以|如果|虽然|及其))\s*[?？!！]?\s*$/u; for (const n of live) { if (n.author === 'system' || !n.title) continue; const t = String(n.title); if (!/\p{Script=Han}/u.test(t)) continue; const m = t.match(DANGLE); if (m) hit('title_dangling_particle', tag, `${String(n.id).slice(0, 8)} "${t.slice(0, 60)}" — ends in the conjunction/particle "${m[1] ?? m[2]}" (5r, clipped clause)`, out); } } catch {}
   // 5q (transformer-review #148, luna): title_tail heals the SYMPTOM, not the word — "Class-level method accesseline>" lost its ">" and kept
   // "accesseline" (access + a garbled tail). Rule: the title_tail guard fired on this node AND the healed title's last Latin word (>=6 letters)
   // appears neither in the node's content nor in the rest of the title. Swept 105 kept maps: 1 hit (this one), 0 false positives. The broader
