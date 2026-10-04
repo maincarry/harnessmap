@@ -64,7 +64,12 @@ const ENSEMBLES: Record<string, Record<string, string>> = {
   high: { 'per-turn': 'claude-sonnet-4-6', 'on-demand': 'claude-opus-4-8' },
 };
 for (const [g, m] of Object.entries(ENSEMBLES[ENSEMBLE] ?? {})) await post('/api/models', { task: `group:${g}`, model: m });
-console.log(`\n== ${sc.name} == [models: ${ENSEMBLE}]`);
+// M-loop 2026-10-04 (Jacob "fix to their demands" — the twins' speed demand): E2E_FILER_EFFORT=minimal|low|medium|high
+// overrides JUST the filer role's reasoning effort for this run, so the perceived-speed (first-paint) vs. filing-quality
+// tradeoff is measurable. The filer is the per-turn writer whose latency the user actually waits on; its default is 'low'.
+const FILER_EFFORT = (process.env.E2E_FILER_EFFORT ?? '').trim();
+if (FILER_EFFORT) { const r = await post('/api/models', { task: 'filer', effort: FILER_EFFORT }); console.log(`[filer effort → ${FILER_EFFORT}] (${r.status})`); }
+console.log(`\n== ${sc.name} == [models: ${ENSEMBLE}${FILER_EFFORT ? ` · filer:${FILER_EFFORT}` : ''}]`);
 let s = await state();
 const keys: Record<string, string> = {};
 const rootTop = (s.nodes ?? []).find((n: any) => n.parentId === null && !String(n.title ?? n.content).startsWith('to sort'));
