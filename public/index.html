@@ -4211,6 +4211,19 @@ function renderBeat() {
   } else {
     el.innerHTML = lastFiledAt ? `✓ filed ${age(lastFiledAt)} ago` : 'waiting for activity';
   }
+  // M-loop 2026-10-04 (Mark): mirror the top-right "replying" state in the bottom-left status line so the
+  // user sees what's happening where they're already looking (no diagonal glance to the beat). Fill it ONLY
+  // while the agent is replying AND the line is otherwise idle — the host-prompt, filing ("⟳ filing…"),
+  // round-summary and idle phases keep owning the line themselves, so this never clobbers them.
+  const rl = $('round-line'); const REPLYING = 'waiting for the agent to finish responding…';
+  if (rl && beatState === 'prompt' && rl.textContent === rl.dataset.idle && Date.now() - beatAt <= 240000) {
+    rl.classList.add('working');
+    rl.textContent = REPLYING;
+  } else if (rl && rl.textContent === REPLYING && beatState !== 'prompt') {
+    // replying ended without filing taking the line over — don't leave it stuck
+    rl.classList.remove('working');
+    rl.textContent = rl.dataset.idle;
+  }
 }
 setInterval(renderBeat, 5000);
 
