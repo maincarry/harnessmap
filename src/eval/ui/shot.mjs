@@ -36,6 +36,10 @@ await mk("cut the Jane Jacobs tangent (decided)", essay);
 if (tray) await mk("deploy keys — where should these live? (arrived unplaced)", tray.id);
 await post(`/api/nodes/${cli}/favorite`, { on: true });    // → the ★ bookmarks bar
 await post(`/api/nodes/${essay}/favorite`, { on: true });
+// a lit/dim mix: set the example map and one topic aside (dim), as a user would
+{ const chatId = st0.mainChatId; const ex = (st0.nodes || []).find((n) => n.title === 'Example map');
+  if (chatId && ex) await post(`/api/chats/${chatId}/lit`, { nodeId: ex.id, on: false });
+  if (chatId) await post(`/api/chats/${chatId}/lit`, { nodeId: essay, on: false }); }
 await sleep(300);
 
 const browser = await chromium.launch({ executablePath: CHROME });
