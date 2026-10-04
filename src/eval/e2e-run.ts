@@ -101,10 +101,11 @@ async function memoryCount() { return (await audit('inference')).filter((r: any)
 let nodesAddedThisRound = 0;
 const roundMs: number[] = [];
 const firstPaintMs: number[] = []; // M-loop 2026-10-04 (Jacob: "speed is how fast the user sees the results"): time from the user's turn to the FIRST visible node (first filer bump) — perceived latency, i.e. first paint. The memory/relations/brain passes land AFTER this, so they don't delay what the user sees. Poll-granular (±3s).
+let infraTimeouts = 0; // M-loop 2026-10-04 (sqlsugar-nested #139): a filer call that hits the codex exec timeout files nothing, so a round's checks fail against an unfiled map — a red that is infra, not filer judgement. Count and annotate.
 async function round(user: string, assistant: string, session = 'e2e-1', roundHarness: string | undefined = undefined, roundFork: string | undefined = undefined) {
   const t0 = Date.now();
   const nodesBefore = ((await state()).nodes ?? []).length;
-  const before = await filerCount(); const memBefore = await memoryCount(); const autoBefore = (await audit()).filter((r: any) => /^auto_/.test(r.kind)).length;
+  const before = await filerCount(); const memBefore = await memoryCount(); const auditStart = await audit(); const autoBefore = auditStart.filter((r: any) => /^auto_/.test(r.kind)).length; const timeoutsBefore = auditStart.filter((r: any) => r.kind === 'filing_failed' && /timed out/i.test(JSON.stringify(r.detail ?? ''))).length;
   const ob = await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness, forked_from: roundFork ?? null });
   const dup = ob.body?.ok === false && /duplicate|not filed|empty/.test(String(ob.body?.reason ?? '')); // M270/M309: nothing will be filed — do not wait for it
   for (let i = 0; i < 40 && !dup; i++) { await sleep(3000); if ((await filerCount()) > before) { firstPaintMs.push(Date.now() - t0); break; } }
@@ -121,6 +122,7 @@ async function round(user: string, assistant: string, session = 'e2e-1', roundHa
   if (sc.auto?.on) { for (let i = 0; i < 10; i++) { await sleep(3000); if ((await audit()).filter((r: any) => /^auto_/.test(r.kind)).length > autoBefore) break; } } // up to 30 s: with the aim off a quiet round leaves no auto_ audit
   await sleep(sc.settleMs ?? 6000);
   s = await state();
+  try { const timeoutsNow = (await audit()).filter((r: any) => r.kind === 'filing_failed' && /timed out/i.test(JSON.stringify(r.detail ?? ''))).length; if (timeoutsNow > timeoutsBefore) { infraTimeouts += timeoutsNow - timeoutsBefore; console.log('  ⚠ INFRA: the filer timed out in this round (codex exec limit) — it filed nothing; a red below is infra, not filer judgement; a retry may land in a LATER round'); } } catch {}
   nodesAddedThisRound = (s.nodes ?? []).length - nodesBefore;
   roundMs.push(Date.now() - t0 - (sc.settleMs ?? 6000));
 }
@@ -289,7 +291,7 @@ let tokens = 0; try { const c = await get('/api/cost?window=24h'); tokens = Numb
 let speed = ''; try { const inf = (await audit('inference')).filter((r: any) => r.detail?.ok); const by: Record<string, number[]> = {}; for (const r of inf) (by[r.detail.task] ??= []).push(Number(r.detail.ms)); const med = (a: number[]) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; }; speed = `round ${med(roundMs) / 1000 | 0}s · paint ${firstPaintMs.length ? (med(firstPaintMs) / 1000).toFixed(0) : '?'}s · ` + Object.entries(by).map(([t, a]) => `${t} ${Math.round(med(a) / 100) / 10}s×${a.length}`).join(' '); } catch {}
 // observed engine: what the filer ACTUALLY ran on, from the server's inference audit (the intent above can be wrong; this cannot)
 let engineTag = ''; try { const inf = (await audit('inference')).filter((r: any) => r.detail?.task === 'filer'); const seen = [...new Set(inf.map((r: any) => `${r.detail.backend}/${r.detail.model}`))]; engineTag = seen.length ? `engine ${seen.join('+')}` : 'engine ?'; const obs = String(inf[0]?.detail?.backend ?? ''); if (obs && obs !== ENGINE) { engineTag += ' ⚠ MISMATCH'; console.log(`\nWARN: intended engine ${ENGINE} but the filer ran on ${seen.join('+')} — check E2E_ENGINE / the server env`); } } catch {}
-const line = `${new Date().toISOString().slice(0, 16)} · ${sc.name} · [${ENSEMBLE}] ${pass} passed, ${fail} failed · ≈${Math.round(tokens / 1000)}k tokens${engineTag ? ' · ' + engineTag : ''}${speed ? ' · ' + speed : ''}${notes.length ? ' · ' + notes.join(' ; ').slice(0, 400) : ''}`;
+const line = `${new Date().toISOString().slice(0, 16)} · ${sc.name} · [${ENSEMBLE}] ${pass} passed, ${fail} failed · ≈${Math.round(tokens / 1000)}k tokens${engineTag ? ' · ' + engineTag : ''}${infraTimeouts ? ' · ⚠ infra-timeouts ' + infraTimeouts : ''}${speed ? ' · ' + speed : ''}${notes.length ? ' · ' + notes.join(' ; ').slice(0, 400) : ''}`;
 console.log(`\n================ ${line} ================`);
 try { appendFileSync('docs/E2E-LEDGER.md', `- ${line}\n`); } catch {}
 // M355 (Jacob 2026-09-20): every finished run leaves its map as a .map bundle — the transcript a founder can open and read
