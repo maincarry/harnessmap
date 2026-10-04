@@ -113,6 +113,11 @@ for (const f of files) {
     const cyrTitles = titled.filter((n: any) => /\p{Script=Cyrillic}/u.test(String(n.title))).length;
     if (convoCyr > 0.5 && titled.length >= 2 && cyrTitles / titled.length < 0.5) hit('map_language_mismatch', tag, `conversation ${Math.round(convoCyr * 100)}% Cyrillic but only ${cyrTitles}/${titled.length} titles contain Cyrillic — the map answered in another language`, out);
   } catch {}
+  // 5o (sqlsugar-isolate-zh #114, luna): an INSTRUCTION paraphrase fused into a title — "SqlSugar 事务隔离方法保留原有类型与标题" ends in
+  // "keep the original type and title", a rule the filer was given, not a fact the person said. The self_leak guard (M354) watches CONTENT for
+  // English schema words; this is the title, in the language of the conversation. Flag any title carrying a keep/omit/preserve-the-type-or-title
+  // phrase (CJK or Latin) that the node content does not contain.
+  try { const LEAK = /保留原有|原有(?:类型|标题|名称)|维持原(?:类型|标题)|keep (?:the )?(?:existing|original|current) (?:type|title|name)|(?:existing|original|unchanged) (?:type|title) (?:and|&) (?:title|type)|omit(?:ted)? (?:the )?(?:type|title)/i; for (const n of live) { if (n.author === 'system' || !n.title) continue; const t = String(n.title); const m = t.match(LEAK); if (m && !String(n.content ?? '').includes(m[0])) hit('title_instruction_leak', tag, `${String(n.id).slice(0, 8)} "${t.slice(0, 60)}" — instruction phrase "${m[0]}" in a title`, out); } } catch {}
   // 5n-c (cas-coherence, luna): the stray tail can be a pictograph — "Line six correction attempt 🤔?" — an emoji fused before the terminal question mark
   // that appears nowhere in the node's content. Same family, same test.
   try { for (const n of live) { if (n.author === 'system' || !n.title) continue; const t = String(n.title); const m = t.match(/(\p{Extended_Pictographic})\s*[?？]\s*$/u); if (m && !String(n.content ?? '').includes(m[1])) hit('title_stray_qword', tag, `${String(n.id).slice(0, 8)} "${t.slice(0, 50)}" — emoji "${m[1]}" fused before the question mark, absent from content`, out); } } catch {}
