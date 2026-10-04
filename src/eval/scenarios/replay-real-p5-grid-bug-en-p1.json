@@ -35,6 +35,10 @@
         {
           "countUnder": "proj",
           "max": 12
+        },
+        {
+          "notStatus": "p5|grid|cell|column|box",
+          "statuses": "done"
         }
       ]
     },
@@ -52,6 +56,10 @@
         {
           "countUnder": "proj",
           "max": 15
+        },
+        {
+          "notStatus": "p5|grid|cell|column|box",
+          "statuses": "done"
         }
       ]
     },

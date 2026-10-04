@@ -15,6 +15,10 @@
         {
           "countUnder": "proj",
           "max": 21
+        },
+        {
+          "notStatus": "p5|grid|cell|column|box",
+          "statuses": "done"
         }
       ]
     },
@@ -28,6 +32,10 @@
         {
           "atMostTitles": "column|cell|colorize|whole column|single cell|select",
           "max": 3
+        },
+        {
+          "notStatus": "p5|grid|cell|column|box",
+          "statuses": "done"
         }
       ]
     },
