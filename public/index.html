@@ -175,10 +175,17 @@
   #crumbs .crumb { cursor: pointer; color: var(--accent); }
   #crumbs .sep { opacity: .5; }
   #crumbs .focus-away { margin-left: auto; color: var(--warn); cursor: pointer; }
-  /* nav bar (Mark 2026-10-04): home + zoom-out live in the crumbs row — compact so the trail stays legible */
-  #crumbs button { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px; font-size: 11px; padding: 1px 7px; cursor: pointer; flex: none; }
-  #crumbs button:hover { color: var(--accent); border-color: var(--accent); }
-  #crumbs #trail { display: inline-flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  /* nav bar (Mark 2026-10-04; restyled per Jacob "crowded and confusing"): ONE quiet line — icon-only ⌂ ↑ as ghost
+     buttons, the zoom trail as the primary text (truncates, never wraps), the focus as a small right-aligned pill. */
+  #crumbs { flex-wrap: nowrap; gap: 8px; }
+  #crumbs button.navico { border: none; background: none; color: var(--muted); font-size: 14px; line-height: 1; padding: 2px 4px; cursor: pointer; flex: none; border-radius: 6px; }
+  #crumbs button.navico:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  #crumbs button.navico svg { width: 14px; height: 14px; vertical-align: -2px; }
+  #crumbs #trail { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
+  #crumbs #trail .crumb { font-weight: 500; }
+  #crumbs #trail .sep { margin: 0 2px; }
+  #map-pane #crumbs .focus-away { flex: 0 1 auto; min-width: 0; max-width: 42%; font-size: 11px; padding: 2px 9px; border-radius: 10px; border: none; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+  #map-pane #crumbs .focus-away.away { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
   /* ★ bookmarks bar: favorites as browser-style shortcuts under the nav row */
   #bookmarks { display: flex; gap: 6px; padding: 4px 12px; border-bottom: 1px solid var(--hair); background: var(--panel); overflow-x: auto; font-size: 12px; }
   #bookmarks[hidden] { display: none; }
@@ -678,7 +685,10 @@ function renderCrumbs() {
   // M-loop 2026-10-04 (Mark): #crumbs is the NAVIGATION BAR — home + the zoom trail + zoom-out live in this row.
   // The buttons are the original elements relocated once (id-bound handlers stay intact); the trail and the
   // focus chip render into their own slots so a re-render never wipes the buttons.
-  { const hb = $('home-btn'), zo = $('zoom-out'); if (hb && !el.contains(hb)) el.prepend(hb); if (zo && !el.contains(zo)) $('trail').after(zo); }
+  // Jacob 2026-10-04 ("crowded and confusing"): icon-only ghost buttons — the text labels live in their tooltips.
+  { const hb = $('home-btn'), zo = $('zoom-out');
+    if (hb && !el.contains(hb)) { for (const n of [...hb.childNodes]) if (n.nodeType === 3) n.remove(); hb.classList.add('navico'); el.prepend(hb); }
+    if (zo && !el.contains(zo)) { zo.textContent = '↑'; zo.classList.add('navico'); $('trail').after(zo); } }
   const parts = [`<span class="crumb" data-crumb="">whole map</span>`];
   if (zoomId && node(zoomId)) {
     // M123b (Jacob): the genealogy trail broke with long names (untitled
