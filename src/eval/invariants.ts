@@ -100,6 +100,12 @@ for (const f of files) {
   }
   // M-loop 2026-10-04: name the engine the filer ran on — 17 runs passed as "codex" while on the subscription/Haiku path; the sweep now says which.
   let engine = '?'; try { const inf = (db.query("select detail from audit_log where kind = 'inference'").all() as any[]).map((r) => { try { return JSON.parse(r.detail); } catch { return null; } }).filter((d) => d && d.task === 'filer'); const seen = [...new Set(inf.map((d) => `${d.backend}/${d.model}`))]; if (seen.length) engine = seen.join('+'); } catch {}
+  // 5k (M-loop 2026-10-04, signal11-mix on the subscription path): a user-authored node filed UNDER the seeded Example map — the
+  // tutorial is system content; real work parented inside it is misfiled (brain-side distraction was §10#3; this is the filer side).
+  try { for (const n of live) { if (n.author === 'system') continue; let c = byId.get(n.parent_id); let hops = 0; while (c && hops++ < 30) { if (c.author === 'system') { hit('filed_under_example', tag, `${String(n.id).slice(0, 8)} "${String(n.title || n.content).slice(0, 40)}" under system node "${String(c.title || c.content).slice(0, 30)}"`, out); break; } c = byId.get(c.parent_id); } } } catch {}
+  // 5l (same run): a live non-system node whose title is BLANK while its content is a paragraph — the row shows the paragraph as its
+  // title (guard_stale_title can clear a title and nothing re-titles it). The bare scaffold root ("untitled") and the tray are exempt.
+  try { for (const n of live) { if (n.author === 'system') continue; const t = String(n.title ?? '').trim(); const c = String(n.content ?? '').trim(); if (!t && c.length > 60 && !/^(untitled|to sort)/i.test(c)) hit('empty_title', tag, `${String(n.id).slice(0, 8)} content "${c.slice(0, 50)}…" (${c.length} chars)`, out); } } catch {}
   const kinds = db.query("select kind, count(*) c from audit_log where kind like 'guard%' group by kind").all() as any[];
   const guardLine = kinds.map((k) => `${k.kind.replace('guard_', '')}×${k.c}`).join(' ');
   console.log(`${tag}: engine ${engine} · nodes ${live.length}/${nodes.length} events ${events.length} guards[${guardLine}]${out.length ? '\n   ' + out.join('\n   ') : ' ok'}`);
