@@ -46,15 +46,26 @@ function mapView(s: any): string {
   const nodes: any[] = s.nodes ?? [];
   const chat = (s.chats ?? []).find((c: any) => c.id === s.mainChatId) ?? {};
   const focusId = chat.focusContainerId ?? null;
+  const byId = new Map<string, any>(nodes.map((n: any) => [n.id, n]));
+  // M120 FIDELITY (2026-10-04, Jacob "test yourself"): mirror the client's default-fold so the twin
+  // sees what a user actually sees. index.html applyAutoFold: every parent with children starts
+  // COLLAPSED (shown as "▸ N inside") except the focus path — the conversation's own thread stays
+  // expanded. Without this the twin saw the example map fully expanded (~40 rows) and read it as
+  // clutter that "buries" the user; the real UI shows it as a single folded row beside the user's work.
+  const focusPath = new Set<string>();
+  for (let id: string | null = focusId; id; id = byId.get(id)?.parentId ?? null) focusPath.add(id);
   const nm = (n: any) => String(n.title || n.content || '').replace(/\s+/g, ' ').slice(0, 60);
   const kids = (pid: string | null) => nodes.filter((n) => (n.parentId ?? null) === pid && n.status !== 'removed');
+  const subtreeCount = (id: string): number => { let c = 0; for (const k of kids(id)) c += 1 + subtreeCount(k.id); return c; };
   const lines: string[] = [];
   const walk = (pid: string | null, depth: number) => {
     for (const n of kids(pid)) {
       const mark = n.id === focusId ? '▶ ' : '';
       const st = n.status && !['live'].includes(n.status) ? ` (${n.status})` : '';
-      lines.push(`${'  '.repeat(depth)}- ${mark}${nm(n)}${st}`);
-      if (depth < 3) walk(n.id, depth + 1);
+      const ks = kids(n.id);
+      const folded = ks.length > 0 && !focusPath.has(n.id); // collapsed unless on the focus path
+      lines.push(`${'  '.repeat(depth)}- ${mark}${nm(n)}${st}${folded ? ` ▸ (${subtreeCount(n.id)} inside)` : ''}`);
+      if (ks.length && !folded && depth < 6) walk(n.id, depth + 1);
     }
   };
   walk(null, 0);
