@@ -110,7 +110,11 @@ Your moves:
 - "work": the next thing you say to your CODING agent (not to the map — the map only watches). Supply user_text (what you type) and a short, plausible assistant_text (what your agent replies) — you are role-playing the whole working session.
 - "stop": you stop — either your goal is met, or you have lost patience / trust and would walk away. Say which in note.
 
-You do NOT type commands to the map; you just work, and glance at the map between turns. React to what the map did (or failed to do) in response to your last turn. Be a real user: if the map is quietly keeping up, that is GOOD and you say so (severity "none"); only flag what genuinely bothers you, and name the mechanism when it does. Return strict JSON only.`;
+You do NOT type commands to the map; you just work, and glance at the map between turns. React to what the map did (or failed to do) in response to your last turn. Be a real user: if the map is quietly keeping up, that is GOOD and you say so (severity "none"); only flag what genuinely bothers you, and name the mechanism when it does.
+
+SPEED IS PART OF THE EXPERIENCE (Jacob 2026-10-04: "speed is how fast the user sees the results"). When a step tells you how long the map took to show your last result, factor that into how it FELT — judge PERCEIVED speed: time until you first SAW your result appear, not background refinement you don't wait for. A near-instant update is good (and worth saying so); a visible wait before anything shows is friction — name it (attention residue / cost of interruption to flow / the Gulf of Evaluation while you wait) and let it move severity like any other friction. Do not invent a wait you weren't told about.
+
+Return strict JSON only.`;
 
 const STEP_SCHEMA = {
   type: 'object',
@@ -146,9 +150,11 @@ export async function twinStep(goal: string, mapView: string, history: string[],
   const user = [
     `YOUR GOAL: ${goal}`,
     history.length ? `WHAT YOU HAVE DONE SO FAR:\n${history.map((h, i) => `  ${i + 1}. ${h}`).join('\n')}` : `You have just started; you have not typed anything yet.`,
+    // Perceived speed of the previous turn: how long after you sent it the map first SHOWED a result. undefined on the first step (nothing sent yet).
+    opts.paintMs != null ? `RESPONSIVENESS: after your last turn, the map took ~${(opts.paintMs / 1000).toFixed(0)}s to first show a result.` : null,
     `WHAT THE MAP SHOWS RIGHT NOW:\n${mapView}`,
-    `Decide your next move and how you feel. Return the JSON.`,
-  ].join('\n\n');
+    `Decide your next move and how you feel (include how the speed felt, if you were told it). Return the JSON.`,
+  ].filter(Boolean).join('\n\n');
   const out = await call({
     task: 'brain',
     modelOverride: opts.modelOverride,
@@ -162,7 +168,7 @@ export async function twinStep(goal: string, mapView: string, history: string[],
   return out as TwinStep;
 }
 
-export interface TwinOpts { persona?: TwinPersona; modelOverride?: string; maxTokens?: number; timeoutMs?: number; audit?: (k: string, d: Record<string, unknown>) => void }
+export interface TwinOpts { persona?: TwinPersona; modelOverride?: string; maxTokens?: number; timeoutMs?: number; audit?: (k: string, d: Record<string, unknown>) => void; paintMs?: number /* perceived latency (ms) of the PREVIOUS turn — time to first visible result; drives the twin's speed reaction */ }
 
 // Run the twin over a described session/experience and return its structured friction report.
 export async function runTwin(experience: string, opts: TwinOpts = {}): Promise<TwinReport> {

@@ -71,6 +71,7 @@ console.log(`goal: ${GOAL}\n`);
 
 const steps: TwinStep[] = [];
 const history: string[] = [];
+let lastPaintMs: number | undefined; // perceived latency of the previous turn (time to first visible node) — fed to the next twinStep so the persona judges speed (Jacob 2026-10-04)
 const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
 
 for (let i = 0; i < STEPS; i++) {
@@ -78,7 +79,7 @@ for (let i = 0; i < STEPS; i++) {
   const view = mapView(s);
   let step: TwinStep;
   prog(`step ${i + 1}: calling twinStep`);
-  try { step = await twinStep(GOAL, view, history, { persona: PERSONA }); }
+  try { step = await twinStep(GOAL, view, history, { persona: PERSONA, paintMs: lastPaintMs }); }
   catch (e) { prog(`step ${i + 1}: twinStep FAILED ${String(e).slice(0, 120)}`); console.error(`step ${i + 1} twin call failed:`, String(e).slice(0, 200)); break; }
   prog(`step ${i + 1}: twinStep returned (${step.severity}, ${step.action.kind})`);
   steps.push(step);
@@ -89,11 +90,22 @@ for (let i = 0; i < STEPS; i++) {
   if (step.action.kind === 'stop') { console.log(`   → STOP: ${step.action.note ?? ''}\n`); break; }
   console.log(`   → works: "${step.action.user_text ?? ''}"`);
   history.push(`you: ${step.action.user_text ?? ''}${step.action.assistant_text ? ` → agent: ${step.action.assistant_text}` : ''}`);
-  // apply the turn to the live product (the map files it), then wait for filing to drain
+  // apply the turn to the live product (the map files it); measure PERCEIVED latency (time to first visible
+  // node — mirrors e2e-run's firstPaint; count-based, catches the common add-a-node case) and wait for filing to drain.
   prog(`step ${i + 1}: observing round`);
+  const liveCount = (st: any) => (st?.nodes ?? []).filter((n: any) => n.status !== 'removed').length;
+  const nBefore = liveCount(s);
+  const tObs = Date.now();
   await post('/api/harness/observe', { session_id: 'twin', cwd: join(TMP, 'proj'), user_text: step.action.user_text ?? '', assistant_text: step.action.assistant_text ?? '' });
-  for (let j = 0; j < 25; j++) { const f: any = await get('/api/filings').catch(() => ({ pending: 0 })); if ((f?.pending ?? 0) === 0 && j > 1) break; await sleep(2000); }
+  let paint: number | undefined;
+  for (let j = 0; j < 25; j++) {
+    await sleep(2000);
+    if (paint == null) { const st: any = await get('/api/state').catch(() => null); if (st && liveCount(st) > nBefore) paint = Date.now() - tObs; }
+    const f: any = await get('/api/filings').catch(() => ({ pending: 0 })); if ((f?.pending ?? 0) === 0 && j > 1) break;
+  }
   await sleep(3000);
+  lastPaintMs = paint;
+  if (paint != null) console.log(`   (perceived: map first showed a result in ~${(paint / 1000).toFixed(0)}s)`);
   prog(`step ${i + 1}: round filed`);
   console.log('');
 }
