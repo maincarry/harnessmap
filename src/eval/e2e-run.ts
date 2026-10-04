@@ -90,13 +90,14 @@ async function filerCount() { return (await audit('inference')).filter((r: any) 
 async function memoryCount() { return (await audit('inference')).filter((r: any) => JSON.stringify(r.detail).includes('"memory"')).length; }
 let nodesAddedThisRound = 0;
 const roundMs: number[] = [];
+const firstPaintMs: number[] = []; // M-loop 2026-10-04 (Jacob: "speed is how fast the user sees the results"): time from the user's turn to the FIRST visible node (first filer bump) — perceived latency, i.e. first paint. The memory/relations/brain passes land AFTER this, so they don't delay what the user sees. Poll-granular (±3s).
 async function round(user: string, assistant: string, session = 'e2e-1', roundHarness: string | undefined = undefined, roundFork: string | undefined = undefined) {
   const t0 = Date.now();
   const nodesBefore = ((await state()).nodes ?? []).length;
   const before = await filerCount(); const memBefore = await memoryCount(); const autoBefore = (await audit()).filter((r: any) => /^auto_/.test(r.kind)).length;
   const ob = await post('/api/harness/observe', { session_id: session, cwd: join(TMP, 'proj'), user_text: user, assistant_text: assistant, harness: roundHarness, forked_from: roundFork ?? null });
   const dup = ob.body?.ok === false && /duplicate|not filed|empty/.test(String(ob.body?.reason ?? '')); // M270/M309: nothing will be filed — do not wait for it
-  for (let i = 0; i < 40 && !dup; i++) { await sleep(3000); if ((await filerCount()) > before) break; }
+  for (let i = 0; i < 40 && !dup; i++) { await sleep(3000); if ((await filerCount()) > before) { firstPaintMs.push(Date.now() - t0); break; } }
   // A round files in MULTIPLE passes (filer, then relations/memory refine it); on slow codex those land
   // seconds apart, so a single filerCount bump does NOT mean the round is done. Wait for the ledger to
   // drain (pending==0) before checks — else a check races writes still in flight. Found 2026-09-21:
@@ -275,7 +276,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
 try { const t0 = Date.now(); for (;;) { const f = await get('/api/filings'); const open = ((f?.items ?? []) as any[]).filter((r) => r.status === 'pending' || r.status === 'failed'); if (!open.length) break; if (Date.now() - t0 > 180_000) { console.log(`filing ledger not drained: ${open.length} left`); notes.push(`ledger: ${open.length} unfiled`); break; } for (const r of open) if (r.status === 'failed' && !r.inFlight) await post(`/api/filings/${r.turnId}/retry`, {}); await sleep(5000); } } catch {}
 let tokens = 0; try { const c = await get('/api/cost?window=24h'); tokens = Number(c?.total?.tokens ?? 0); } catch {}
 // M295 (Jacob: "experiment with speeding up the map updates"): the speed baseline — median round wall time (filing landed, minus the settle) and per-agent latency
-let speed = ''; try { const inf = (await audit('inference')).filter((r: any) => r.detail?.ok); const by: Record<string, number[]> = {}; for (const r of inf) (by[r.detail.task] ??= []).push(Number(r.detail.ms)); const med = (a: number[]) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; }; speed = `round ${med(roundMs) / 1000 | 0}s · ` + Object.entries(by).map(([t, a]) => `${t} ${Math.round(med(a) / 100) / 10}s×${a.length}`).join(' '); } catch {}
+let speed = ''; try { const inf = (await audit('inference')).filter((r: any) => r.detail?.ok); const by: Record<string, number[]> = {}; for (const r of inf) (by[r.detail.task] ??= []).push(Number(r.detail.ms)); const med = (a: number[]) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; }; speed = `round ${med(roundMs) / 1000 | 0}s · paint ${firstPaintMs.length ? (med(firstPaintMs) / 1000).toFixed(0) : '?'}s · ` + Object.entries(by).map(([t, a]) => `${t} ${Math.round(med(a) / 100) / 10}s×${a.length}`).join(' '); } catch {}
 const line = `${new Date().toISOString().slice(0, 16)} · ${sc.name} · [${ENSEMBLE}] ${pass} passed, ${fail} failed · ≈${Math.round(tokens / 1000)}k tokens${speed ? ' · ' + speed : ''}${notes.length ? ' · ' + notes.join(' ; ').slice(0, 400) : ''}`;
 console.log(`\n================ ${line} ================`);
 try { appendFileSync('docs/E2E-LEDGER.md', `- ${line}\n`); } catch {}
