@@ -803,16 +803,8 @@ function renderTree() {
   } else {
     html = walkRoot(0).join('');
   }
-  // GHOST ROW (2026-10-04, Jacob perceived-speed): echo each in-flight filing the instant the turn lands,
-  // so the map shows motion at ~1s while the filer runs (9-42s), replaced by the real node when it arrives.
-  // Purely presentational — read from S.filings, no node exists for it; clears itself when filing drains.
-  // Validated via the user-twin: perceived-speed friction dropped moderate→minor at the same filing time.
-  {
-    const ghosts = ((S.filings && S.filings.items) || []).filter(f => f.status === 'pending');
-    if (ghosts.length) html = ghosts.map(f =>
-      `<div class="nrow ghost" title="your last turn — the map is filing it now; it becomes a node in a moment"><span class="tguide"></span><span class="caret" style="opacity:.8">⟳</span><span class="ncontent" style="font-style:italic;opacity:.65">filing your last turn: ${esc(String(f.userHead || '').slice(0, 60))}…</span></div>`
-    ).join('') + html;
-  }
+  // (2026-10-04: an in-tree "filing…" ghost row briefly lived here. Removed — the tree holds real nodes only;
+  // the filing status has ONE home, the bottom-left #round-line (Jacob's call), fed by showFilingStatus().)
   // The PINNED band (M162b/M164b/M165 — Jacob): rides at the bottom in every
   // view. Zoomed: the to-sort bucket (arrivals never invisible) + folders.
   // Always: ★ favorites (shortcuts, 快捷方式 — the real nodes, never copies)
@@ -4190,6 +4182,21 @@ $('dev-btn').onclick = async () => {
 };
 
 // ---- turn-lifecycle beat (M62): visual per-turn health ----
+// M-loop 2026-10-04 (Jacob: "the user should know where the filer is at with more clarity" → the bottom-left
+// line; Mark: ONE home for it, not an in-tree ghost row): name WHAT is being filed and HOW MUCH, from the
+// pending ledger. Called on both 'lag' (count only — the ledger row may not exist yet) and 'filings' (which
+// carries the text), so the quoted turn reliably appears. `lag` is a fallback count when the ledger is empty.
+function showFilingStatus(lag) {
+  const rl = $('round-line'); if (!rl || !S) return;
+  const pend = ((S.filings && S.filings.items) || []).filter(f => f.status === 'pending');
+  const n = pend.length || lag || 0; if (!n) return;
+  const newest = pend.length ? String(pend[pend.length - 1].userHead || '').replace(/\s+/g, ' ').slice(0, 44) : '';
+  rl.classList.add('working');
+  rl.textContent = n > 1
+    ? `⟳ filing ${n} exchanges onto the map…${newest ? ` newest: “${newest}”` : ''}`
+    : `⟳ filing your last turn onto the map…${newest ? ` “${newest}”` : ''}`;
+}
+
 // states: idle → prompt (message seen, agent replying) → observed (reply
 // landed, filing) → filed ✓. Staleness: prompt seen but nothing observed for
 // minutes = the observation pipe may be broken — say so loudly.
@@ -4272,9 +4279,10 @@ function connect() {
       $('round-line').classList.remove('working');
       $('round-line').textContent = `↳ ${m.summary} (${m.alterations} change${m.alterations === 1 ? '' : 's'})`;
     } else if (m.type === 'filings') {
-      // M-loop 2026-10-04 (Jacob perceived-speed): the server now pushes this the instant a turn arrives, so
-      // re-render the tree to show/clear the transient "filing…" ghost row at ~1s (not just the corner notice).
-      if (S) { S.filings = { pending: m.pending, failed: m.failed, abandoned: m.abandoned, items: m.items }; try { paintUndo(); } catch {} try { renderTree(); } catch {} }
+      // M-loop 2026-10-04: the server pushes this the instant a turn arrives (it carries the pending text).
+      // 'lag' fires BEFORE the ledger row exists, so this is the event that lets the bottom-left line
+      // name what's being filed — refresh it here (one status home: #round-line, not an in-tree ghost).
+      if (S) { S.filings = { pending: m.pending, failed: m.failed, abandoned: m.abandoned, items: m.items }; try { paintUndo(); } catch {} try { showFilingStatus(m.pending); } catch {} }
     } else if (m.type === 'lag') {
       const el = $('lag');
       el.textContent = m.lag > 0 ? `map is ${m.lag} round${m.lag === 1 ? '' : 's'} behind` : 'map current';
@@ -4282,15 +4290,10 @@ function connect() {
       // M170 (Jacob): the line breathes gently while work is in flight —
       // "something is happening", said lightly — and stops when it lands.
       $('round-line').classList.toggle('working', m.lag > 0);
-      if (m.lag > 0) {
-        // M-loop 2026-10-04 (Jacob: "the user should know where the filer is at with more clarity") —
-        // name WHAT is being filed and HOW MUCH, from the pending ledger, not a generic "filing the round".
-        const pend = ((S.filings && S.filings.items) || []).filter(f => f.status === 'pending');
-        const newest = pend.length ? String(pend[pend.length - 1].userHead || '').replace(/\s+/g, ' ').slice(0, 44) : '';
-        $('round-line').textContent = m.lag > 1
-          ? `⟳ filing ${m.lag} exchanges onto the map…${newest ? ` newest: “${newest}”` : ''}`
-          : `⟳ filing your last turn onto the map…${newest ? ` “${newest}”` : ''}`;
-      }
+      // the specific "filing your last turn… '<text>'" line comes from showFilingStatus(); 'lag' arrives
+      // before the ledger row exists, so this call may only have the count — the 'filings' event that
+      // follows refreshes it with the text.
+      if (m.lag > 0) showFilingStatus(m.lag);
     } else if (m.type === 'host_prompt') {
       setBeat('prompt');
       // A host-harness session just took a user message — show life in the
