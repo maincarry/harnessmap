@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { finishNarrationTrim } from './narration-trim';
 import { systemCard } from './cast.js';
 import { statusConsult } from './mapstatus.js';
 import { call, modelFor, backendName } from '../inference.js';
@@ -523,9 +524,8 @@ export class Translator {
           .replace(/(^|[.;?!]\s*)(The user|User|The person|The agent|Agent|The assistant|Assistant)( and (the )?(agent|assistant|user))? (greeted|said hello|thanked|exchanged (a |some )?(pun|joke|pleasantr|banter)|joked|made a pun|complimented|apologi[sz]ed)[^.;\n]*[.;]?\s*/g, '$1') /* M340: pleasantries drop whole */
           .replace(/(^|[.;?!]\s*)(The user|User|The person) is (doing|working on|building|using|developing|writing|creating|learning|studying|trying to|planning|running)\s+/gi, '$1') /* M340: "User is doing embedded development…" → "Embedded development…" */.replace(/(^|[.;?!]\s*)(the )?(user|person) (asked|inquired)( in \p{L}+)? (about|for)[^.;\n]*[.;]?\s*/giu, '$1').replace(/,?\s*and (the )?(agent|assistant) (listed|explained|offered|described|suggested|answered|gave|recommended)[^.;\n]*/gi, '')
           .replace(/(^|[.;?!]\s*)(the )?(agent|assistant) (asked for clarification|redirected (the user|them) to)[^.;\n]*[.;]?\s*/gi, '$1')
-          .replace(/([:;,—-])\s*[;,.]\s*/g, '$1 ').replace(/\s+([;,.])/g, '$1').replace(/^\s*[:;,—-]+\s*/, '').replace(/\s*[:;,—-]+\s*$/, '').replace(/\s{2,}/g, ' ').trim();
-        trimmed = trimmed.replace(/(^|[.!?]\s+)([a-z])/g, (m, a, b) => a + b.toUpperCase());
-        if (trimmed && /[.!?]$/.test(src) && !/[.!?]$/.test(trimmed)) trimmed += '.';
+          ;
+        trimmed = finishNarrationTrim(src, trimmed); // 2026-10-04 bug fix: tidy + sentence-case ONLY after a real trim, never an identifier (node-xlsx, os/exec, .NET) — see narration-trim.ts
         if (trimmed && trimmed !== src && trimmed.length >= 12) { this.store.audit('guard_narration_trim', { from: anyA.content.slice(0, 80), to: trimmed.slice(0, 80) }); anyA.content = trimmed; }
       }
       // M315 (loop find, guard under "integrate, don't append; update-don't-duplicate" and M286 "choosing never erases"): the filer
