@@ -122,7 +122,20 @@ async function round(user: string, assistant: string, session = 'e2e-1', roundHa
   if (sc.auto?.on) { for (let i = 0; i < 10; i++) { await sleep(3000); if ((await audit()).filter((r: any) => /^auto_/.test(r.kind)).length > autoBefore) break; } } // up to 30 s: with the aim off a quiet round leaves no auto_ audit
   await sleep(sc.settleMs ?? 6000);
   s = await state();
-  try { const timeoutsNow = (await audit()).filter((r: any) => r.kind === 'filing_failed' && /timed out/i.test(JSON.stringify(r.detail ?? ''))).length; if (timeoutsNow > timeoutsBefore) { infraTimeouts += timeoutsNow - timeoutsBefore; console.log('  ⚠ INFRA: the filer timed out in this round (codex exec limit) — it filed nothing; a red below is infra, not filer judgement; a retry may land in a LATER round'); } } catch {}
+  // M-loop 2026-10-04 (container-baseline #140, sqlsugar-nested #139): a filer call that hits the codex exec timeout files nothing and
+  // pending drops to 0, so the drain above is satisfied by a FAILED filing and the checks run against an unfiled map. The product then
+  // retries on its own (filing_retry → filing_retry_succeeded, ~90 s later tonight). The check should see the map the person eventually
+  // sees, so after a timeout wait — bounded — for that retry to land; the ⚠ INFRA line keeps the timeout itself visible in the record.
+  try {
+    const timeoutsNow = (await audit()).filter((r: any) => r.kind === 'filing_failed' && /timed out/i.test(JSON.stringify(r.detail ?? ''))).length;
+    if (timeoutsNow > timeoutsBefore) {
+      infraTimeouts += timeoutsNow - timeoutsBefore;
+      const retriesBefore = (await audit()).filter((r: any) => /^filing_retry_(succeeded|skipped)$/.test(r.kind)).length; const tw = Date.now(); let landed = false;
+      for (let i = 0; i < 100; i++) { await sleep(2000); const a = await audit(); if (a.filter((r: any) => /^filing_retry_(succeeded|skipped)$/.test(r.kind)).length > retriesBefore) { landed = true; break; } }
+      if (landed) { for (let i = 0; i < 30; i++) { const f: any = await get('/api/filings'); if ((f?.pending ?? 0) === 0) break; await sleep(2000); } await sleep(sc.settleMs ?? 6000); s = await state(); }
+      console.log(`  ⚠ INFRA: the filer timed out in this round (codex exec limit, filed nothing); ${landed ? `the product's retry landed after ${Math.round((Date.now() - tw) / 1000)} s and the checks below see the retried map` : 'no retry landed within 200 s — the checks below run against the unfiled map'}`);
+    }
+  } catch {}
   nodesAddedThisRound = (s.nodes ?? []).length - nodesBefore;
   roundMs.push(Date.now() - t0 - (sc.settleMs ?? 6000));
 }
