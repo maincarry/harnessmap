@@ -547,7 +547,7 @@
           </div></div></div>
       </div>
     </div>
-    <div id="tree"><div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status), or press “+ add node” to begin</div></div>
+    <div id="tree"><div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status). The map files your conversation as you go.</div></div>
     <div id="round-line" data-idle="no map update running — click here after an update to see what changed">no map update running — click here after an update to see what changed</div>
   </div>
   <div id="splitter" data-tip="drag to resize the panes"></div>
@@ -864,8 +864,9 @@ function renderTree() {
       }
     }
   }
-  html += `<button id="add-root" title="add an unnamed node and focus the conversation there — the map names it from what you talk about next">+ add node${zoomId ? ' here' : ''}</button>`;
-  tree.innerHTML = html || '<div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status), or press “+ add node” to begin</div>';
+  // (2026-10-04, Mark: "+ add node" removed — users don't hand-file nodes. The filer files new topics as they
+  // arise, and the focus picker's "name a new topic" creates, lights and focuses one when you mean to switch.)
+  tree.innerHTML = html || '<div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status). The map files your conversation as you go.</div>';
   const f = node(focus);
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
 }
@@ -1196,7 +1197,6 @@ function openDrawer() {
     ${act('tab-add', '＋', 'new session')}
     <div class="dr-h">maps</div>${maps}
     <div class="dr-h">map</div>
-    ${act('add-root', '＋', 'add node')}
     ${act('undo-btn', '↩', 'undo last action')}
     ${act('import-btn', '⇪', 'import notes, documents, or past sessions')}
     ${act('map-save-btn', '⤓', 'save as .map file')}
@@ -2115,7 +2115,7 @@ $('tree').addEventListener('change', async (e) => {
 });
 $('tree').addEventListener('click', async (e) => {
   const t = e.target;
-  if (t.id === 'add-root') { await addNode(zoomId ?? null); return; }
+  // ('add-root' handler removed 2026-10-04 with the "+ add node" button — see renderTree)
   // M135b: mobile rows are plain text — tap decides by what the row IS:
   // parents fold/unfold, leaves open their action sheet. Suggestion dots
   // keep their direct tap everywhere.
