@@ -2373,7 +2373,7 @@ function openNodeDetail(id) {
     const ov = document.createElement('div');
     ov.className = 'overlay';
     ov.innerHTML = `<div class="modal"><h3>Needs a home</h3>
-      <p style="font-size:13px">System folder — the map's holding pen. Anything the filer can't place lands here, carrying a note of where it arrived from. Items the map knows where to place appear in the ⟳ to tidy folder (pinned, bottom of the map): one click approves the move.</p>
+      <p style="font-size:13px">System folder — the map's holding pen. Anything the filer can't place lands here, carrying a note of where it arrived from. When the map knows where one belongs, that item shows a ⟳ — click it and one click approves the move (the count at the bottom of the map lists them all).</p>
       <p style="font-size:12px;color:var(--muted)">To move something out: click its ● dot and approve the suggested move (one click). Or ↖ on the item to pick a parent yourself, ⇧ to promote it to a topic — or light its destination and the map files it home on the next round. ⟳ tidy on this folder proposes a full cleanup.</p>
       <div class="actions"><button id="nd-cancel" class="primary" title="close this panel">close</button></div></div>`;
     document.body.appendChild(ov);
