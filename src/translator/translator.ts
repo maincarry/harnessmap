@@ -476,6 +476,11 @@ export class Translator {
     // M336 (perturbed translate-clone replay): the filer sometimes lists an update BEFORE the create of the same node; the update was
     // dropped as "unknown id". An update or move whose target is created later in this batch is deferred to the end, after the create.
     const createdInBatch = new Set<string>(alterations.filter((x: any) => x?.op === 'create_node' && x.id).map((x: any) => String(x.id)));
+    // M-loop 2026-10-04 (§10#4b): a guard that DROPS a batch-created node must not strand the batch's references to it. Every drop
+    // site records the survivor it folded into (when there is one); the post-pass below re-points parentId/fromItemId/toId/nodeId
+    // that still name a dropped id — to the survivor, else to the dropped node's own intended parent, else top level.
+    const dropSurvivor = new Map<string, string>();
+    const origParent = new Map<string, string | null>(alterations.filter((x: any) => x?.op === 'create_node' && x.id).map((x: any) => [String(x.id), x.parentId ? String(x.parentId) : null]));
     const deferred: Alteration[] = [];
     const ensureToSort = () => {
       if (toSortId) { live.add(toSortId); return toSortId; }
@@ -676,7 +681,7 @@ export class Translator {
         const normC = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
         const mine = normC(anyA.content);
         const twin = map.nodes.find((n) => n.status !== 'removed' && n.author !== 'system' && n.content.length >= 40 && normC(n.content) === mine);
-        if (twin) { this.store.audit('guard_create_twin', { id: String(anyA.id ?? '').slice(0, 8), twin: twin.id.slice(0, 8), content: anyA.content.slice(0, 60) }); continue; }
+        if (twin) { this.store.audit('guard_create_twin', { id: String(anyA.id ?? '').slice(0, 8), twin: twin.id.slice(0, 8), content: anyA.content.slice(0, 60) }); if (anyA.id) dropSurvivor.set(String(anyA.id), twin.id); continue; }
       }
       // M363 (sqlsugar-rollback zh replay): the user re-pasted the original ask and the filer created "手动事务控制" beside the
       // existing "手动控制事务" — the same characters in another order. A CREATE whose title, as a sorted character multiset
@@ -687,7 +692,7 @@ export class Translator {
         if (mine.length >= 4) {
           const parent = anyA.parentId ?? null;
           const twin = map.nodes.find((n) => n.status !== 'removed' && n.author !== 'system' && (n.parentId ?? null) === parent && typeof n.title === 'string' && n.title !== anyA.title && bag(n.title) === mine);
-          if (twin) { this.store.audit('guard_create_twin', { id: String(anyA.id ?? '').slice(0, 8), twin: twin.id.slice(0, 8), title: anyA.title.slice(0, 40), of: String(twin.title).slice(0, 40), kind: 'title-anagram' }); continue; }
+          if (twin) { this.store.audit('guard_create_twin', { id: String(anyA.id ?? '').slice(0, 8), twin: twin.id.slice(0, 8), title: anyA.title.slice(0, 40), of: String(twin.title).slice(0, 40), kind: 'title-anagram' }); if (anyA.id) dropSurvivor.set(String(anyA.id), twin.id); continue; }
         }
       }
       if (a.op === 'create_node') {
@@ -796,6 +801,24 @@ export class Translator {
       out.push(a);
     }
     for (const d of deferred) { const anyD = d as any; if (live.has(anyD.id)) { delete anyD.__deferred; out.push(d); } else this.store.audit('guard_dim_drop', { op: d.op, id: String(anyD.id).slice(0, 8), why: 'created later but not live' }); }
+    {
+      const surviving = new Set<string>(out.filter((x: any) => x?.op === 'create_node' && x.id).map((x: any) => String(x.id)));
+      const dangling = (ref: unknown) => typeof ref === 'string' && createdInBatch.has(ref) && !surviving.has(ref) && !live.has(ref);
+      const target = (ref: string): string | null => { const sv = dropSurvivor.get(ref); if (sv) return sv; const op = origParent.get(ref) ?? null; return op && (live.has(op) || surviving.has(op)) ? op : null; };
+      const kept: any[] = [];
+      for (const a of out) {
+        const anyA = a as any; let drop = false;
+        for (const k of ['parentId', 'fromItemId', 'toId', 'nodeId'] as const) {
+          if (!dangling(anyA[k])) continue;
+          const to = target(anyA[k]);
+          if (to === null && (k === 'fromItemId' || k === 'toId' || k === 'nodeId' || anyA.op === 'move_node')) { drop = true; this.store.audit('guard_orphan_drop', { op: anyA.op, key: k, id: String(anyA.id ?? '').slice(0, 8), from: String(anyA[k]).slice(0, 8) }); break; }
+          this.store.audit('guard_orphan_reparent', { op: anyA.op, key: k, id: String(anyA.id ?? '').slice(0, 8), from: String(anyA[k]).slice(0, 8), to: to ? to.slice(0, 8) : null });
+          anyA[k] = to;
+        }
+        if (!drop && !((anyA.op === 'move_node' && anyA.id === anyA.parentId) || (anyA.op === 'create_link' && anyA.fromItemId === anyA.toId))) kept.push(a);
+      }
+      out.length = 0; out.push(...kept);
+    }
     return out;
   }
 }
