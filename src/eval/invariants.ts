@@ -100,6 +100,10 @@ for (const f of files) {
   }
   // M-loop 2026-10-04: name the engine the filer ran on — 17 runs passed as "codex" while on the subscription/Haiku path; the sweep now says which.
   let engine = '?'; try { const inf = (db.query("select detail from audit_log where kind = 'inference'").all() as any[]).map((r) => { try { return JSON.parse(r.detail); } catch { return null; } }).filter((d) => d && d.task === 'filer'); const seen = [...new Set(inf.map((d) => `${d.backend}/${d.model}`))]; if (seen.length) engine = seen.join('+'); } catch {}
+  // 5m (M-loop 2026-10-04, hash-table + signal11-mix on codex): a node whose title is EXACTLY its parent's — the §10#1 title-echo in its
+  // sharpest form (the scaffold root rewritten to its one child's name, or a child restating the parent). Near-echoes stay a judgment call;
+  // the exact form is a legibility defect on its own: the trail reads "X › X".
+  try { for (const n of live) { if (n.author === 'system') continue; const p = byId.get(n.parent_id); if (!p || p.author === 'system') continue; const a = norm(n.title || n.content), b = norm(p.title || p.content); if (a.length >= 6 && a === b && !/^(untitled|to sort)/.test(a)) hit('parent_child_echo', tag, `${String(n.id).slice(0, 8)} "${String(n.title || n.content).slice(0, 40)}" under an identically titled parent ${String(p.id).slice(0, 8)}`, out); } } catch {}
   // 5k (M-loop 2026-10-04, signal11-mix on the subscription path): a user-authored node filed UNDER the seeded Example map — the
   // tutorial is system content; real work parented inside it is misfiled (brain-side distraction was §10#3; this is the filer side).
   try { for (const n of live) { if (n.author === 'system') continue; let c = byId.get(n.parent_id); let hops = 0; while (c && hops++ < 30) { if (c.author === 'system') { hit('filed_under_example', tag, `${String(n.id).slice(0, 8)} "${String(n.title || n.content).slice(0, 40)}" under system node "${String(c.title || c.content).slice(0, 30)}"`, out); break; } c = byId.get(c.parent_id); } } } catch {}
