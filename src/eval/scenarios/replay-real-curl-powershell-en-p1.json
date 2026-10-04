@@ -14,6 +14,9 @@
           "text": "what is being demonstrated? one line"
         },
         {
+          "brainMustNot": "calorie|essay|movie|weekend coding|Past Lives|Paterson|Jane Jacobs|MyFitnessPal|Netlify|rereading"
+        },
+        {
           "nodeMatching": "curl|api|sample|request|call"
         },
         {
