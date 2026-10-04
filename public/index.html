@@ -803,6 +803,16 @@ function renderTree() {
   } else {
     html = walkRoot(0).join('');
   }
+  // GHOST ROW (2026-10-04, Jacob perceived-speed): echo each in-flight filing the instant the turn lands,
+  // so the map shows motion at ~1s while the filer runs (9-42s), replaced by the real node when it arrives.
+  // Purely presentational — read from S.filings, no node exists for it; clears itself when filing drains.
+  // Validated via the user-twin: perceived-speed friction dropped moderate→minor at the same filing time.
+  {
+    const ghosts = ((S.filings && S.filings.items) || []).filter(f => f.status === 'pending');
+    if (ghosts.length) html = ghosts.map(f =>
+      `<div class="nrow ghost" title="your last turn — the map is filing it now; it becomes a node in a moment"><span class="tguide"></span><span class="caret" style="opacity:.8">⟳</span><span class="ncontent" style="font-style:italic;opacity:.65">filing your last turn: ${esc(String(f.userHead || '').slice(0, 60))}…</span></div>`
+    ).join('') + html;
+  }
   // The PINNED band (M162b/M164b/M165 — Jacob): rides at the bottom in every
   // view. Zoomed: the to-sort bucket (arrivals never invisible) + folders.
   // Always: ★ favorites (shortcuts, 快捷方式 — the real nodes, never copies)
@@ -4249,7 +4259,9 @@ function connect() {
       $('round-line').classList.remove('working');
       $('round-line').textContent = `↳ ${m.summary} (${m.alterations} change${m.alterations === 1 ? '' : 's'})`;
     } else if (m.type === 'filings') {
-      if (S) { S.filings = { pending: m.pending, failed: m.failed, abandoned: m.abandoned, items: m.items }; try { paintUndo(); } catch {} }
+      // M-loop 2026-10-04 (Jacob perceived-speed): the server now pushes this the instant a turn arrives, so
+      // re-render the tree to show/clear the transient "filing…" ghost row at ~1s (not just the corner notice).
+      if (S) { S.filings = { pending: m.pending, failed: m.failed, abandoned: m.abandoned, items: m.items }; try { paintUndo(); } catch {} try { renderTree(); } catch {} }
     } else if (m.type === 'lag') {
       const el = $('lag');
       el.textContent = m.lag > 0 ? `map is ${m.lag} round${m.lag === 1 ? '' : 's'} behind` : 'map current';

@@ -1560,6 +1560,12 @@ function enqueueTranslation(params: { chatId: string; turnId: string; userText: 
   broadcast({ type: 'lag', lag });
   enqueuedHere.add(params.turnId);
   if (!params.retry) { try { store.upsertFilingPending({ turnId: params.turnId, chatId: params.chatId, userText: params.userText, assistantText: params.assistantText, provenance: params.provenance ?? null }); } catch (err) { store.audit('filing_ledger_error', { error: String(err).slice(0, 200) }); } }
+  // M-loop 2026-10-04 (Jacob, perceived-speed "ghost row"): push the full pending-filing state the
+  // instant a turn arrives — not just the lag count — so a client can echo the just-submitted turn as
+  // a transient "filing…" ghost row (perceived first-paint at ~1s) while the filer runs (9–42s). This
+  // is purely presentational: no node is created, the ghost clears when the real filing lands, and the
+  // map/invariants/e2e assertions (which see only real nodes) are untouched.
+  broadcast({ type: 'filings', ...filingSummary() });
   waiting.push({ ...params, enqueuedAt: Date.now() });
   pump();
 }
