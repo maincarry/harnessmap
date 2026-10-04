@@ -186,13 +186,13 @@
   #crumbs #trail .sep { margin: 0 2px; }
   #map-pane #crumbs .focus-away { flex: 0 0 auto; max-width: 42%; font-size: 11px; padding: 2px 9px; border-radius: 10px; border: none; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
   #map-pane #crumbs .focus-away.away { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
-  /* "Needs a home" tray (Jacob 2026-10-04 "looks like a random node"): an INBOX PANEL, not a topic — amber tint + dashed
-     amber outline, its own inline-SVG tray icon (no emoji-font dependence), a subtitle that says what it is, and a thin
+  /* "Needs a home" tray (Jacob 2026-10-04 "looks like a random node"): an INBOX PANEL, not a topic — NEUTRAL grey tint + dashed
+     outline (Jacob "why yellow?": amber already means attention here; the tray is set-aside, not alarming — distinct by SHAPE), its own inline-SVG tray icon (no emoji-font dependence), a subtitle that says what it is, and a thin
      boundary line above it separating the holding area from the topics. Undeletable, always last (M112/M47 unchanged). */
-  #tree .nrow.tosort { margin-top: 20px; padding: 8px 10px 8px 6px; border: 1.5px dashed color-mix(in srgb, var(--warn) 60%, var(--hair)); border-radius: 10px; background: color-mix(in srgb, var(--warn) 7%, var(--panel)); position: relative; }
+  #tree .nrow.tosort { margin-top: 20px; padding: 8px 10px 8px 6px; border: 1.5px dashed color-mix(in srgb, var(--muted) 45%, var(--hair)); border-radius: 10px; background: color-mix(in srgb, var(--muted) 7%, var(--panel)); position: relative; }
   #tree .nrow.tosort::before { content: ''; position: absolute; left: 4px; right: 4px; top: -11px; border-top: 1px solid var(--hair); }
-  #tree .nrow.tosort > .ncontent::before { content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 16 16' fill='none' stroke='%23b26a00' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 9.5h3.2l1 2h3.6l1-2H14'/%3E%3Cpath d='M3.5 4.5h9l1.5 5v4h-12v-4z'/%3E%3Cpath d='M8 1.5v5m-2-2 2 2 2-2'/%3E%3C/svg%3E"); margin-right: 6px; vertical-align: -2px; }
-  #tree .nrow.tosort > .ncontent { color: var(--warn); font-weight: 700; }
+  #tree .nrow.tosort > .ncontent::before { content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 16 16' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 9.5h3.2l1 2h3.6l1-2H14'/%3E%3Cpath d='M3.5 4.5h9l1.5 5v4h-12v-4z'/%3E%3Cpath d='M8 1.5v5m-2-2 2 2 2-2'/%3E%3C/svg%3E"); margin-right: 6px; vertical-align: -2px; }
+  #tree .nrow.tosort > .ncontent { color: var(--ink); font-weight: 700; }
   body.mobile #tree .nrow.tosort { border: none; background: none; opacity: .75; } /* keep the mobile simplification (M133) */
   .tray-sub { display: block; font-size: 11px; font-weight: 400; color: var(--muted); margin-top: 1px; }
   /* ★ bookmarks bar: favorites as browser-style shortcuts under the nav row */
