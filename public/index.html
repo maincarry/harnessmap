@@ -185,6 +185,11 @@
   #bookmarks .bm { flex: none; cursor: pointer; color: var(--warn); border: 1px solid var(--hair); border-radius: 12px; padding: 1px 9px; white-space: nowrap; }
   #bookmarks .bm:hover { border-color: var(--warn); }
   body.mobile #bookmarks { display: none; }
+  /* ⟳ suggestions (Mark 2026-10-04): proposals live on the node they affect + a count in the status strip — never a pseudo-folder in the tree */
+  .sugmark { color: var(--danger); cursor: pointer; margin: 0 3px; font-weight: 700; animation: beatpulse 2.4s ease-in-out infinite; }
+  #sug-chip { cursor: pointer; font-size: 12px; color: var(--danger); padding: 4px 12px 0; }
+  #sug-chip:hover { text-decoration: underline; }
+  #sug-chip[hidden] { display: none; }
   #zoom-tools { display: flex; gap: 6px; padding: 5px 12px; border-bottom: 1px solid var(--hair); background: var(--panel); flex-wrap: wrap; }
   #zoom-tools button { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px;
                        font-size: 11px; cursor: pointer; padding: 1px 8px; }
@@ -542,7 +547,7 @@
           <button id="enrich-btn" title="the map too coarse? the machinery reads this map's own conversation record, finds thin nodes that were discussed at length, and proposes the depth under them — you approve">✚ enrich map</button>
           <button id="map-save-btn" title="save this whole map as one .map file — nodes, history, transcript and memory; only HarnessMap opens it (＋ more… → open a .map)">⤓ save as .map</button>
           <button id="map-open-btn" title="open a .map file saved from a HarnessMap — it becomes its own separate map here, read-through; nothing is merged">⤒ open a .map</button>
-          <button id="map-check" title="review the whole map now — anything needing a restructure lands in the ⟳ to tidy folder, or you get a clean bill (the map also reviews itself every 10 rounds)">⟳ tidy map</button>
+          <button id="map-check" title="review the whole map now — anything needing a restructure shows as ⟳ on the node and in the suggestions count at the bottom of the map, or you get a clean bill (the map also reviews itself every 10 rounds)">⟳ tidy map</button>
           <div style="display:flex;gap:4px"><button id="tidy-top" style="flex:1" title="tidy what you are looking at — the whole map, or the zoomed branch — the tidy agent proposes regrouping, renames and merges, containers at any level; you approve">⟳ tidy this view</button><button class="justdo" data-do="tidy-top" title="just do it: tidy this view now and apply the proposal without review (one ↩ undo)">⚡</button></div>
           <button id="auto-rename" title="give every long-named node a short display name (max 6 words) — applies directly, no proposal">✎ auto-rename</button>
           <button id="auto-settings-btn" title="auto mode: choose what the map may do by itself after each round, and switch it on or off">◎ auto mode…</button>
@@ -563,6 +568,7 @@
       </div>
     </div>
     <div id="tree"><div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status). The map files your conversation as you go.</div></div>
+    <div id="sug-chip" hidden></div>
     <div id="round-line" data-idle="no map update running — click here after an update to see what changed">no map update running — click here after an update to see what changed</div>
   </div>
   <div id="splitter" data-tip="drag to resize the panes"></div>
@@ -597,7 +603,6 @@ let S = { nodes: [], chats: [], recency: {}, suggestions: [], mainChatId: null }
 let zoomId = localStorage.getItem('hm-zoom') || null;
 let folded = new Set(), userFolded = new Set(), userUnfolded = new Set();
 const opsOpen = new Set(); // rows whose ⋯ actions are expanded — persisted across re-renders so the cluster (depth, move, merge…) doesn't collapse mid-use
-let tidyOpen = localStorage.getItem('hm-tidy-open') === '1';  // ⟳ to tidy folder — same rule
 
 const $ = (id) => document.getElementById(id);
 const HOME_ICO = '<svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg>';
@@ -703,6 +708,28 @@ function renderBookmarks() {
   el.innerHTML = favs.map((n) => { const t = disp(n); return `<span class="bm" data-bm="${n.id}" title="★ ${esc(t)} — click to zoom here">★ ${esc(t.length > 22 ? t.slice(0, 21) + '…' : t)}</span>`; }).join('');
 }
 $('bookmarks')?.addEventListener('click', (e) => { const c = e.target.closest('[data-bm]'); if (c) setZoom(c.dataset.bm); });
+
+// ⟳ SUGGESTIONS (Mark 2026-10-04): the map's proposals are not content, so they no longer sit in a pseudo-folder in the
+// tree. Each one shows as ⟳ on the node it affects (click → the existing before/after modal), the status strip carries a
+// count that opens this panel, and the panel reuses the same actions: review (openSuggestion), ignore (dismiss — persists),
+// ⚡ apply all (/api/tidy/apply-all). Nothing applies without the user.
+function pendingSuggestions() { const out = [], seen = new Set(); for (const sg of (S.suggestions || [])) { const n = node(sg.nodeId); if (!n || n.status === 'removed' || seen.has(n.id)) continue; seen.add(n.id); out.push({ n, kind: sg.kind, s: sg }); } return out; }
+function renderSugChip() { const el = $('sug-chip'); if (!el) return; const n = pendingSuggestions().length; el.hidden = !n; el.textContent = n ? `⟳ ${n} suggestion${n === 1 ? '' : 's'} from the map · review` : ''; }
+function openSuggestionsPanel() {
+  const rows = pendingSuggestions(); if (!rows.length) return;
+  const ov = document.createElement('div'); ov.className = 'overlay';
+  const item = ({ n, kind }) => `<div class="srow" data-sg="${n.id}"><span class="sstar" style="color:var(--danger)">⟳</span><span class="scontent" title="${esc(disp(n))}">${esc(disp(n))}</span><span style="font-size:11px;color:var(--muted);flex:none">${kind === 'relight' ? 'placement' : 'restructure'}</span><span class="sops"><button class="rowbtn" data-sg-review="${n.id}" title="see the before/after and approve">✓ review</button><button class="rowbtn" data-sg-ignore="${n.id}" title="dismiss this suggestion — the ⟳ disappears, nothing moves">✕ ignore</button></span></div>`;
+  ov.innerHTML = `<div class="modal" style="width:min(560px,94vw)"><h3>⟳ ${rows.length} suggestion${rows.length === 1 ? '' : 's'} from the map</h3><p style="font-size:12px;color:var(--muted);margin:0 0 8px">Each ⟳ sits on the node it affects. Review one to see its before/after; nothing applies without you.</p><div id="sg-list">${rows.map(item).join('')}</div><div class="actions"><button id="sg-all" class="justdo" title="apply every pending suggestion now — placements and restructures — no review (one ↩ undo)">⚡ apply all</button><button id="sg-close" class="primary">close</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', async (e) => {
+    if (e.target === ov || e.target.id === 'sg-close') { ov.remove(); return; }
+    const rv = e.target.closest('[data-sg-review]'); if (rv) { ov.remove(); openSuggestion(rv.dataset.sgReview); return; }
+    const ig = e.target.closest('[data-sg-ignore]');
+    if (ig) { const sg = sugFor(ig.dataset.sgIgnore); if (!sg) return; try { await post(`/api/suggestions/${sg.id}`, { status: 'dismissed' }); S.suggestions = (S.suggestions || []).filter((x) => x.id !== sg.id); ig.closest('[data-sg]')?.remove(); renderSugChip(); renderTree(); if (!pendingSuggestions().length) ov.remove(); } catch (err) { $('round-line').textContent = `dismiss failed: ${err.message}`; } return; }
+    if (e.target.id === 'sg-all') { ov.remove(); try { const r = await post('/api/tidy/apply-all', {}); if (r.applied) undoToast(r.label); else $('round-line').textContent = r.label; } catch (err) { $('round-line').textContent = `apply all failed: ${err.message}`; } }
+  });
+}
+$('sug-chip')?.addEventListener('click', openSuggestionsPanel);
 $('crumbs').addEventListener('click', async (e) => {
   const j = e.target.closest('[data-jump-focus]');
   if (j) {
@@ -773,6 +800,7 @@ function renderTree() {
       ${'<span class="tguide"></span>'.repeat(depth)}
       <span class="caret" data-fold="${n.id}" title="${kids.length ? (folded.has(n.id) ? 'expand: show its immediate children' : 'collapse this branch') : 'nothing nested under this node yet — + adds a sub-node'}">${kids.length ? (folded.has(n.id) ? '▸' : '▾') : '·'}</span>
       ${lit.has(n.id) ? '<span class="badge lit" title="in the chat agent’s background">☀</span>' : ''}
+      ${sugFor(n.id) ? `<span class="sugmark" data-sug="${n.id}" title="${sugFor(n.id).kind === 'relight' ? 'the map knows where this belongs — click to approve the move' : 'the map suggests a restructure here — click to see the before/after'}">⟳</span>` : ''}
       ${(S.trimmedLit || []).includes(n.id) ? '<span class="trimwarn" title="lit, but it did NOT fit the agent’s context this turn — only its titles went in. Dim other topics or shrink the lit area to make room.">❗</span>' : ''}
       ${S.home === n.id ? `<span class="badge" title="home page — the home button (top of the map) zooms here">${HOME_ICO}</span>` : ''}
 
@@ -848,34 +876,12 @@ function renderTree() {
     const showToSort = !!(toSort
       && (!zoomed || (toSort.id !== zoomId && !pathOf(zoomId).some(x => x.id === toSort.id))));
     const favs = (S.favorites || []).map((id) => node(id)).filter((n) => n && n.status !== 'removed');
-    const sugRows = [];
-    const seenSug = new Set();
-    for (const sg of (S.suggestions || [])) {
-      const n = node(sg.nodeId);
-      if (!n || n.status === 'removed' || seenSug.has(n.id)) continue;
-      seenSug.add(n.id);
-      sugRows.push({ n, kind: sg.kind });
-    }
     // (2026-10-04, Mark: the "pinned" divider is gone — it lumped content (the tray), navigation (★ favorites) and
     // the map's own proposals (⟳ suggestions) under one jargon label. The tray's own placeholder style is the
     // boundary; favorites and suggestions are moving out of the content tree.)
     if (showToSort) html += row(toSort, 0) + (folded.has(toSort.id) ? '' : walk(toSort.id, 1).join(''));
     // (★ favorites moved to the bookmarks bar under the navigation row — Mark 2026-10-04)
-    {
-      html += `
-      <div class="srow favhead" ${sugRows.length ? 'data-tidyfold="1"' : ''} title="${sugRows.length ? 'every node the map suggests changing — click one to see its before/after; nothing applies without you' : 'nothing to tidy right now — suggestions appear here as you talk (and the map reviews itself every 10 rounds)'}">
-        <span class="caret" title="${sugRows.length ? (tidyOpen ? 'close this folder' : 'open this folder') : 'nothing inside yet'}">${sugRows.length ? (tidyOpen ? '▾' : '▸') : '·'}</span><span class="sstar" style="color:${sugRows.length ? 'var(--danger)' : 'var(--muted)'}">⟳</span><b>to tidy</b>
-        <span class="fold-count">${sugRows.length ? `${sugRows.length} inside` : 'empty'}</span>
-        ${sugRows.length ? `<button class="justdo" data-tidyall="1" title="just do it: apply everything in ⟳ to tidy now — placements and restructures — no review (one ↩ undo)">⚡ tidy all</button>` : ''}
-      </div>`;
-      if (tidyOpen && sugRows.length) for (const { n, kind } of sugRows) {
-        html += `
-        <div class="srow sind" data-sug="${n.id}" title="${kind === 'relight' ? 'placement suggestion: the map knows where this belongs — click to approve the move' : 'the map suggests a restructure here — click to see the before/after'}">
-          <span class="sstar" style="color:var(--danger)">⟳</span>
-          <span class="scontent">${esc(disp(n))}</span>
-        </div>`;
-      }
-    }
+    // (⟳ suggestions left the tree — they show as ⟳ on the node they affect + a count in the status strip — Mark 2026-10-04)
   }
   // (2026-10-04, Mark: "+ add node" removed — users don't hand-file nodes. The filer files new topics as they
   // arise, and the focus picker's "name a new topic" creates, lights and focuses one when you mean to switch.)
@@ -884,7 +890,7 @@ function renderTree() {
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
 }
 
-function renderAll() { applyAutoFold(); renderCrumbs(); renderBookmarks(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); paintAuto(); paintUndo(); }
+function renderAll() { applyAutoFold(); renderCrumbs(); renderBookmarks(); renderSugChip(); renderTree(); renderNudges(); renderSwitchers(); renderMobTop(); paintInfluence(); paintAuto(); paintUndo(); }
 // M88: one server, many projects (each its own map) and many chats (views).
 function renderSwitchers() {
   const ps = $('proj-sel');
@@ -1650,7 +1656,7 @@ function openAutoSettings() {
     ['light', '☀ light', 'light and dim the background for that focus — never a node you lit by hand, never over the budget'],
     ['rename', '✎ rename', 'retitle a node this round changed when its name no longer fits its statement'],
     ['place', '⇢ place', 'move a new "Needs a home" arrival into a home the placement agent names — only when that home is lit'],
-    ['tidy', '⟳ tidy', 'let the periodic review apply its own small, non-destructive proposal (≤ 8 moves, nothing removed, favorites untouched); bigger ones still wait in ⟳ to tidy'],
+    ['tidy', '⟳ tidy', 'let the periodic review apply its own small, non-destructive proposal (≤ 8 moves, nothing removed, favorites untouched); bigger ones wait as ⟳ on their nodes'],
     ['zoom', '◱ zoom', 'follow the focus with the view (this browser only)'],
   ];
   const ov = document.createElement('div'); ov.className = 'overlay';
@@ -2194,7 +2200,6 @@ $('tree').addEventListener('click', async (e) => {
     }
     return;
   }
-  if (t.closest('[data-tidyfold]')) { tidyOpen = !tidyOpen; localStorage.setItem('hm-tidy-open', tidyOpen ? '1' : ''); renderTree(); return; }
   const jumpRow = t.closest('[data-jump]');
   if (jumpRow && !t.closest('.rowbtn')) { setZoom(jumpRow.dataset.jump); return; }
   const relId = t.closest('[data-release]')?.dataset.release;
@@ -2849,7 +2854,7 @@ $('map-check').onclick = async () => {
     const r = await post('/api/mapcheck', {});
     stop();
     $('round-line').textContent = r.count > 0
-      ? `map check: ${r.count} node(s) flagged — see the ⟳ to tidy folder (pinned, bottom of the map). ${r.summary}`
+      ? `map check: ${r.count} node(s) flagged — each flagged node shows ⟳ — click it, or the suggestions count at the bottom of the map. ${r.summary}`
       : `well done — your map is clean! ${r.summary}`;
   } catch (err) { stop(); $('round-line').textContent = `map check failed: ${err.message}`; }
 };
@@ -3621,10 +3626,11 @@ function openLegend() {
         <tr><td>◱ zoom · ↑ zoom out</td><td>view only one branch — nothing else changes. ◐ dim all outside (in ⋯ other) then dims everything you zoomed away from</td></tr>
         <tr><td><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</td><td>always there above the map: zooms to your home page — the whole map by default, or the node you set with the house button on its row</td></tr>
         <tr><td colspan="2"><hr><b>The map speaks, you decide</b></td></tr>
-        <tr><td>★ bookmarks</td><td>your favorites as shortcuts in the bar under the navigation row — the real node, never a copy; click one to zoom to it. ★ on any row adds or removes it. (⟳ to tidy still collects the map's pending suggestions at the bottom of the map until the next update.)</td></tr>
+        <tr><td>★ bookmarks</td><td>your favorites as shortcuts in the bar under the navigation row — the real node, never a copy; click one to zoom to it. ★ on any row adds or removes it.</td></tr>
+        <tr><td>⟳ suggestions</td><td>when the map wants to change something it marks that node with ⟳ — click it for the before/after and approve or dismiss. The count at the bottom of the map lists them all; ⚡ apply all applies every pending one (one ↩ undo). Nothing applies without you.</td></tr>
         <tr><td><span style="color:var(--danger)">●</span> on ⋯</td><td>a suggestion is waiting inside (auto-focus / auto-light); any focus/light action clears it</td></tr>
         <tr><td><span style="color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:0 4px;font-size:9px">new</span> <span style="color:var(--muted);border:1px solid var(--hair);border-radius:3px;padding:0 4px;font-size:9px">changed</span></td><td>the map added/edited this and you haven't touched it — clicking the node clears the mark. Click the status line under the map for the full change list ("clear all marks" lives there)</td></tr>
-        <tr><td>Needs a home</td><td>the holding pen: anything the filer can't place lands here with an arrival note. Leaving: approve its placement in ⟳ to tidy, ↖ pick a parent, ⇧ promote to a topic — or light the destination and the filer moves it home next round</td></tr>
+        <tr><td>Needs a home</td><td>the holding pen: anything the filer can't place lands here with an arrival note. Leaving: approve its placement (the ⟳ on the node), ↖ pick a parent, ⇧ promote to a topic — or light the destination and the filer moves it home next round</td></tr>
         <tr><td colspan="2"><hr><b>On every node</b> (hover the row)</td></tr>
         <tr><td>◱ ▶ ☀ ⋯ ✕</td><td>on every row: zoom · focus · light/dim · ✕ delete. ⋯ unfolds the rest — ★ favorite · <svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home · + add child · ↖ move · ⟳ tidy · ⇢ merge (⇧ promote on to-sort items)</td></tr>
         <tr><td colspan="2"><hr><b>Words your agent knows</b> (say them in Codex or Claude Code)</td></tr>
@@ -3647,7 +3653,7 @@ function openLegend() {
         <tr><td>🐞 send feedback</td><td>tell the developers about a bug or an idea — write it once, then open it as a pre-filled GitHub issue or email; nothing is sent until you press send there</td></tr>
         <tr><td>🔠 text size</td><td>whole-page text size — cycles Small / Normal / Large / Extra large, remembered per browser</td></tr>
         <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">⋯ other — first ＋ more (housekeeping)</td></tr>
-        <tr><td>⟳ tidy map</td><td>review the whole map right now — findings land in the ⟳ to tidy folder, or you get a clean bill (the map also reviews itself every 10 rounds)</td></tr>
+        <tr><td>⟳ tidy map</td><td>review the whole map right now — findings show as ⟳ on each node and in the suggestions count, or you get a clean bill (the map also reviews itself every 10 rounds)</td></tr>
         <tr><td>⟳ tidy top level</td><td>group and clean the top level — the one place the tidy agent may propose domain containers and move top-level threads under them; you approve</td></tr>
         <tr><td>✎ auto-rename</td><td>give every long-named node a short display name (max 6 words) — applies directly, no proposal</td></tr>
         <tr><td>☀ light all / ◐ dim all (this view)</td><td>light or dim every node in the current view at once — the bulk versions of ☀</td></tr>
