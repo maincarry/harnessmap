@@ -44,6 +44,9 @@
           "text": "is the list-vs-dict problem resolved, and what is the new topic? one line"
         },
         {
+          "brainMustNot": "calorie|essay|movie|weekend coding|Past Lives|Paterson|Jane Jacobs|MyFitnessPal|Netlify|rereading|month-long|month of|tangled|example map|ongoing conversation|weight chart|Astro"
+        },
+        {
           "nodeMatching": "接口|interface|requests|调用|api"
         },
         {

@@ -40,6 +40,9 @@
           "text": "what rules has the user set about how you should respond? one line"
         },
         {
+          "brainMustNot": "calorie|essay|movie|weekend coding|Past Lives|Paterson|Jane Jacobs|MyFitnessPal|Netlify|rereading|month-long|month of|tangled|example map|ongoing conversation|weight chart|Astro"
+        },
+        {
           "nodeMatching": "language|beneficial|thinking|语言"
         },
         {

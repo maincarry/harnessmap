@@ -44,6 +44,9 @@
           "text": "what standing rule has the user set? one line"
         },
         {
+          "brainMustNot": "calorie|essay|movie|weekend coding|Past Lives|Paterson|Jane Jacobs|MyFitnessPal|Netlify|rereading|month-long|month of|tangled|example map|ongoing conversation|weight chart|Astro"
+        },
+        {
           "nodeMatching": "rewrite|native|style|explain|reason|改写"
         },
         {

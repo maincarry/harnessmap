@@ -27,6 +27,9 @@
           "text": "is there an instruction the user has had to repeat? one line"
         },
         {
+          "brainMustNot": "calorie|essay|movie|weekend coding|Past Lives|Paterson|Jane Jacobs|MyFitnessPal|Netlify|rereading|month-long|month of|tangled|example map|ongoing conversation|weight chart|Astro"
+        },
+        {
           "nodeMatching": "缺少|删除|missing|deleted|三|third|repeat"
         },
         {

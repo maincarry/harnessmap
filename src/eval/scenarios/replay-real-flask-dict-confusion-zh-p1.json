@@ -14,6 +14,9 @@
           "text": "what is the user trying to do? one line"
         },
         {
+          "brainMustNot": "calorie|essay|movie|weekend coding|Past Lives|Paterson|Jane Jacobs|MyFitnessPal|Netlify|rereading|month-long|month of|tangled|example map|ongoing conversation|weight chart|Astro"
+        },
+        {
           "nodeMatching": "json|dict|list|str|转换|flask|字典"
         },
         {

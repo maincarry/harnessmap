@@ -27,6 +27,9 @@
           "text": "is the debugging tool adb or gdb now? one line"
         },
         {
+          "brainMustNot": "calorie|essay|movie|weekend coding|Past Lives|Paterson|Jane Jacobs|MyFitnessPal|Netlify|rereading|month-long|month of|tangled|example map|ongoing conversation|weight chart|Astro"
+        },
+        {
           "nodeMatching": "gdb|print|参数|misspoke|说错"
         },
         {

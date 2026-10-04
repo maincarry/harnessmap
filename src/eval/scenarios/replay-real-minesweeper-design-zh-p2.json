@@ -44,6 +44,9 @@
           "text": "what are the main parts of this design? one line"
         },
         {
+          "brainMustNot": "calorie|essay|movie|weekend coding|Past Lives|Paterson|Jane Jacobs|MyFitnessPal|Netlify|rereading|month-long|month of|tangled|example map|ongoing conversation|weight chart|Astro"
+        },
+        {
           "nodeMatching": "结构|函数|ui|层|structure|function"
         },
         {
