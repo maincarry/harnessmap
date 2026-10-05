@@ -2064,9 +2064,9 @@ const MENU_GROUPS = [
   ['View', [['sideview-btn', '▯', 'Side view (map only)'], ['font-btn', '🔠', 'Text size'], ['legend-btn', '?', 'Tutorial & reference']]],
   ['Agent', [['auto-btn', '◎', 'Auto mode on / off'], ['auto-settings-btn', '◎', 'Auto mode settings…'], ['agent-view-btn', '👁', 'What the agent sees'], ['ctx-refresh-btn', '⟲', 'Refresh agent context'], ['lit-mgr-btn', '▶☀', 'Manage focus & light'], ['auto-focus', '▶', 'Propose a focus'], ['auto-lit', '☀', 'Propose lighting'], ['auto-zoom', '◱', 'Propose a zoom'], ['lit-all', '☀', 'Light all in this view'], ['dim-all', '◐', 'Dim all in this view'], ['dim-outside', '◐', 'Dim everything outside']]],
   ['Tidy', [['tidy-top', '⟳', 'Tidy this view'], ['map-check', '⟳', 'Check the whole map'], ['auto-rename', '✎', 'Auto-rename long names'], ['enrich-btn', '✚', 'Enrich thin nodes'], ['undo-btn', '↩', 'Undo last change']]],
-  ['Map', [['import-btn', '⇪', 'Import notes, files or a session…'], ['map-save-btn', '⤓', 'Save as .map'], ['map-open-btn', '⤒', 'Open a .map'], ['prefs-btn', '☰', 'Preferences & glossary'], ['mapstatus-btn', '🩺', 'Map status'], ['models-btn', '⚙', 'Models & cost']]],
+  ['Map', [['import-btn', '⇪', 'Import notes, files or a session…'], ['map-save-btn', '⤓', 'Save as .map'], ['map-open-btn', '⤒', 'Open a .map'], ['prefs-btn', '☰', 'Preferences & glossary'], ['mapstatus-btn', '🩺', 'Map status'], ['influence-btn', '⏻', 'Map influence on sessions'], ['models-btn', '⚙', 'Models & cost']]],
   ['Sessions', [['tab-add', '＋', 'New session'], ['sessions-btn', '▦', 'All sessions']]],
-  ['Account', [['authinfo-btn', '🔑', 'Sign-in & billing'], ['update-btn', '⬆', 'Check for updates'], ['influence-btn', '⏻', 'Map influence'], ['feedback-btn', '🐞', 'Send feedback'], ['dev-btn', '🔧', 'Dev mode']]],
+  ['Account', [['authinfo-btn', '🔑', 'Sign-in & billing'], ['update-btn', '⬆', 'Check for updates'], ['feedback-btn', '🐞', 'Send feedback'], ['dev-btn', '🔧', 'Dev mode']]], // Jacob 06:25: map influence belongs under Map
   ['Beta', [['galaxy-btn', '🪐', 'Galaxy view']]], // Jacob 2026-10-05 06:25: "move galaxy view to beta"
 ];
 const CONTROL_SUB = Object.fromEntries(CONTROLS.flatMap((grp) => grp.items.map(([id, , , sub]) => [id, sub])));
