@@ -3760,21 +3760,21 @@ function openLegend() {
     <div class="modal">
       <h3>What the map shows</h3>
       <p id="lg-storage" style="font-size:12px;color:var(--muted)"></p>
-      <p style="font-size:12px;color:var(--muted)">Everything on the map is a NODE: one line of text, an optional category, a status, and children. A bold node is just one whose children matter most. Any node can be zoomed into, focused, lit, and grown. (Replay the guided tutorial anytime with the ? button.)</p>
+      <p style="font-size:12px;color:var(--muted)">Everything on the map is a NODE: one line of text, an optional category, a status, and children. A bold node is just one whose children matter most. Any node can be zoomed into, focused, lit, and grown. (Replay the guided tutorial anytime: ≡ menu → Tutorial &amp; reference.)</p>
       <table class="legend-table">
         <tr><td colspan="2"><b>Seeing &amp; steering</b> — what the chat agent knows, and what it talks about.</td></tr>
         <tr><td>▶ focus</td><td>what the conversation is about — ONE node, bright blue frame in the tree; the ▶ focus pill at the top of the map always points to it (click to jump, offers zoom; amber = the focus is outside your current view)</td></tr>
         <tr><td>☀ light / dim</td><td>the chat agent only sees LIT nodes. ☀ toggles a node + everything under it. Dimmed branches stay visible to you — the chat agent doesn't know them, and the filer can't write into them. The focus's ancestor chain is PROTECTED: focusing lights the path upward, and dimming can't darken it while the focus runs through it</td></tr>
-        <tr><td>◱ zoom · ↑ zoom out</td><td>view only one branch — nothing else changes. ◐ dim all outside (in ⋯ other) then dims everything you zoomed away from</td></tr>
+        <tr><td>zoom · ↑ zoom out</td><td>double-click a row (or ⋯ → View only this branch) to view only that branch — nothing else changes; ↑ above the map zooms back out. ◐ Dim everything outside (≡ menu → Agent) then dims everything you zoomed away from</td></tr>
         <tr><td><svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home</td><td>always there above the map: zooms to your home page — the whole map by default, or the node you set with the house button on its row</td></tr>
         <tr><td colspan="2"><hr><b>The map speaks, you decide</b></td></tr>
-        <tr><td>★ bookmarks</td><td>your favorites as shortcuts in the bar under the navigation row — the real node, never a copy; click one to zoom to it. ★ on any row adds or removes it.</td></tr>
+        <tr><td>★ bookmarks</td><td>your favorites as shortcuts on the line above the map — the real node, never a copy; click one to zoom to it. ⋯ → Favorite on any row adds or removes it.</td></tr>
         <tr><td>⟳ suggestions</td><td>when the map wants to change something it marks that node with ⟳ — click it for the before/after and approve or dismiss. The count at the bottom of the map lists them all; ⚡ apply all applies every pending one (one ↩ undo). Nothing applies without you.</td></tr>
-        <tr><td><span style="color:var(--danger)">●</span> on ⋯</td><td>a suggestion is waiting inside (auto-focus / auto-light); any focus/light action clears it</td></tr>
+        <tr><td><span style="color:var(--danger)">●</span> on ≡ menu</td><td>a suggestion is waiting inside (auto-focus / auto-light); any focus/light action clears it</td></tr>
         <tr><td><span style="color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:0 4px;font-size:9px">new</span> <span style="color:var(--muted);border:1px solid var(--hair);border-radius:3px;padding:0 4px;font-size:9px">changed</span></td><td>the map added/edited this and you haven't touched it — clicking the node clears the mark. Click the status line under the map for the full change list ("clear all marks" lives there)</td></tr>
         <tr><td>Needs a home</td><td>the holding pen: anything the filer can't place lands here with an arrival note. Leaving: approve its placement (the ⟳ on the node), ↖ pick a parent, ⇧ promote to a topic — or light the destination and the filer moves it home next round</td></tr>
         <tr><td colspan="2"><hr><b>On every node</b> (hover the row)</td></tr>
-        <tr><td>◱ ▶ ☀ ⋯ ✕</td><td>on every row: zoom · focus · light/dim · ✕ delete. ⋯ unfolds the rest — ★ favorite · <svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home · + add child · ↖ move · ⟳ tidy · ⇢ merge (⇧ promote on to-sort items)</td></tr>
+        <tr><td>▶ ☀ ⋯ ✕</td><td>on every row: focus · light/dim · ⋯ more · ✕ delete. ⋯ opens a labelled menu — Details · View only this branch · ★ favorite · <svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg> home · + add child · ↖ move · ⟳ tidy · ⇢ merge (⇧ promote on to-sort items)</td></tr>
         <tr><td colspan="2"><hr><b>Words your agent knows</b> (say them in Codex or Claude Code)</td></tr>
         <tr><td>open map</td><td>attach the map to THIS session — it files what you discuss and serves the map to the agent; add a name ("open map thesis") to choose a map</td></tr>
         <tr><td>close map</td><td>detach — nothing is served or filed until someone says open map again</td></tr>
@@ -3784,11 +3784,11 @@ function openLegend() {
         <tr><td colspan="2"><hr><b>Toolbar &amp; sessions</b></td></tr>
         <tr><td>🔍 search</td><td>Ctrl/Cmd+K — find a node, confirm it with parents and children, then light / zoom / focus it</td></tr>
         <tr><td>🗨 talk to map</td><td>ask the map guide anything, or ask for changes in plain words — it proposes, you approve; complex asks become step-by-step plans</td></tr>
-        <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">⋯ other — everyday</td></tr>
+        <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">≡ menu — everyday</td></tr>
         <tr><td>▶ auto-focus</td><td>the focus agent suggests what to talk about next — you confirm</td></tr>
         <tr><td>☀ auto-light</td><td>the lighting agent picks which nodes belong in the background for the current focus — shown as a proposal you approve</td></tr>
         <tr><td>◱ auto-zoom</td><td>the zoom agent suggests which branch to view alone — you confirm; your lighting is untouched</td></tr>
-        <tr><td>◎ auto</td><td>auto mode (header button, beside ▯): after each round the map aims itself — moves the focus when the talk left it, lights and dims for it (never a node you lit by hand, never over the budget), retitles a changed node whose name went stale, and files a new "Needs a home" arrival into a lit home. Optional: let the periodic review apply its small tidies; follow the focus with the view. Every action shows under the map with ↩ undo. Right-click the button to choose</td></tr>
+        <tr><td>◎ auto</td><td>auto mode (the ◎ button in the bar): after each round the map aims itself — moves the focus when the talk left it, lights and dims for it (never a node you lit by hand, never over the budget), retitles a changed node whose name went stale, and files a new "Needs a home" arrival into a lit home. Optional: let the periodic review apply its small tidies; follow the focus with the view. Every action shows under the map with ↩ undo. Right-click the button to choose</td></tr>
         <tr><td>◐ dim all outside</td><td>dim everything outside the zoomed branch in one press — the chat agent stops seeing all of it (zoom in first, so "outside" means something)</td></tr>
         <tr><td>⇪ import</td><td>bring outside material onto the map — paste notes, pick a project document, or a past session (Claude Code or Codex); the import agent proposes one organized subtree you approve</td></tr>
         <tr><td>↩ undo</td><td>undo the last destructive action — delete, merge, tidy, move (Ctrl/Cmd+Z works anywhere)</td></tr>
