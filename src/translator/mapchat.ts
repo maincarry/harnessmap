@@ -286,7 +286,8 @@ export async function answerMapQuestion(
   const focus = chat ? store.getNode(chat.focusContainerId) : null;
   const litSet = chat ? new Set(store.getLit(chatId)) : new Set<string>();
   const dotIds: string[] = [];
-  const otherProjects = store.listProjects().filter((pr) => pr.id !== projectId).map((pr) => ({ id: pr.id, name: pr.name }));
+  const examplePid = store.getSetting('example_project'); // 2026-10-05 (Jacob: the example must not taint the person's map): the Example map is not one of the person's maps to the guide
+  const otherProjects = store.listProjects().filter((pr) => pr.id !== projectId && pr.id !== examplePid).map((pr) => ({ id: pr.id, name: pr.name }));
   const dots = store.getOpenSuggestions(projectId).map((s) => {
     const n = store.getNode(s.nodeId);
     if (n) dotIds.push(n.id);

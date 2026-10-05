@@ -123,6 +123,10 @@ export class Store {
     this.db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
   }
 
+  deleteSetting(key: string): void {
+    this.db.prepare('DELETE FROM settings WHERE key = ?').run(key);
+  }
+
   copyLit(fromChatId: string, toChatId: string): void {
     this.db.prepare('INSERT OR IGNORE INTO lit (chat_id, container_id, lit_by) SELECT ?, container_id, lit_by FROM lit WHERE chat_id = ?').run(toChatId, fromChatId);
     // M277: a view born from another carries what the person set aside there too (found by the live check: a host view

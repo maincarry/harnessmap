@@ -358,6 +358,14 @@ let mainChatId = (() => {
 // map stays the person's own; the example is one dropdown pick away. Why a map: the filer filed real work inside the
 // example (§10#3b) and the brain described it as the person's project (§10#3) — in its own map neither can happen.
 const EXAMPLE_MAP_NAME = 'Example map';
+// A map whose nodes were just changed under it keeps three model-facing judgments in settings — the structure report
+// (mapstatus:), the understanding (understanding:) and the mechanical content scan (contentscan:). They were written
+// against the OLD map and the guide quotes them verbatim ("the oversized Example map container…" came back after the
+// migration, 2026-10-05 05:00). Forget them; the next cycle rebuilds them from the clean map.
+function forgetStoredJudgments(pid: string, why: string): void {
+  let n = 0; for (const k of ['mapstatus', 'understanding', 'contentscan']) { if (store.getSetting(`${k}:${pid}`) !== null) { store.deleteSetting(`${k}:${pid}`); n++; } }
+  if (n) store.audit('judgments_forgotten', { project: pid.slice(0, 8), keys: n, why });
+}
 const isExampleRoot = (n: any) => n.parentId === null && n.author === 'system' && n.status !== 'removed' && (String(n.title ?? '') === EXAMPLE_MAP_NAME || String(n.content ?? '').startsWith('A month of one long'));
 function ensureExampleProject(): void {
   if (store.getSetting('example_project')) return;
@@ -387,6 +395,7 @@ function ensureExampleProject(): void {
     store.applyAlterations(pr.id, doomed.map((d) => ({ op: 'update_node', id: d.id, status: 'removed' } as any)), { kind: 'system' });
     const surfaced = store.getNodes(pr.id).filter((n) => n.parentId === null && n.author !== 'system' && n.status !== 'removed').length;
     store.audit('example_map_migrated', { project: pr.id.slice(0, 8), removed: doomed.length, userTopLevel: surfaced });
+    forgetStoredJudgments(pr.id, 'example_map_migrated');
   }
   store.setSetting('example_project', pid);
   store.setSetting('example_seeded', '1'); // legacy flag — older code paths read it; nothing re-seeds in-map now
@@ -415,6 +424,7 @@ function clearLegacyTutorial(): void {
     store.applyAlterations(pr.id, doomed.map((d) => ({ op: 'update_node', id: d.id, status: 'removed' } as any)), { kind: 'system' });
     const surfaced = store.getNodes(pr.id).filter((n) => n.parentId === null && n.author !== 'system' && n.status !== 'removed').length;
     store.audit('tutorial_cleared', { project: pr.id.slice(0, 8), removed: doomed.length, userTopLevel: surfaced });
+    forgetStoredJudgments(pr.id, 'tutorial_cleared');
   }
   store.setSetting('tutorial_cleared', '1');
 }
