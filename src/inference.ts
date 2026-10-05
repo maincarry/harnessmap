@@ -19,6 +19,20 @@ import { readFileSync as readB, writeFileSync as writeB, mkdirSync as mkB, unlin
 import { homedir as homeB } from 'node:os';
 import { join as joinB } from 'node:path';
 
+
+// 2026-10-05 (excel-name-drift #240, data-platform-zh #295): what a failed `codex exec` leaves on stderr varies — hook lines and the
+// bubblewrap notice around the real error (#240), or a DUMP OF THE PROMPT with the error line somewhere above it (#295, where the
+// "last meaningful lines" were the prompt's tail). Prefer error-shaped lines anywhere in stderr; skip hook/bubblewrap noise and
+// prompt-length lines; fall back to the last short meaningful lines. Pure so it can be tested.
+export function codexExecError(code: number | null, stderr: string): string {
+  const lines = String(stderr ?? '').split('\n').map((l) => l.trim()).filter((l) => l && !/^hook:/i.test(l) && !/bundled bubblewrap/i.test(l));
+  const short = lines.filter((l) => l.length <= 240);
+  const errorish = short.filter((l) => /\b(error|err|failed|failure|exceed(s|ed)?|too (long|large|many)|E2BIG|ENOMEM|ECONN\w*|EPIPE|ETIMEDOUT|timed? ?out|rate.?limit|429|5\d\d|refused|denied|unauthori[sz]ed|panic|fatal|usage:|unknown (option|argument|flag)|invalid)\b/i.test(l));
+  const picked = errorish.length ? [...new Set([...errorish.slice(0, 2), ...short.slice(-2)])] : short.slice(-4);
+  const summary = picked.join(' | ') || String(stderr ?? '').slice(-300);
+  return `codex exec exited ${code}: ${summary.slice(-400)}`;
+}
+
 export type Task =
   | 'filer' | 'memory' | 'relations' | 'title' | 'summary' | 'autolit' | 'recommend' | 'place' | 'mapchat'
   | 'tidy' | 'mapcheck' | 'import' | 'brain' | 'chat';
@@ -377,7 +391,7 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
       if (code !== 0 && /401 Unauthorized|Missing bearer|not logged in|Not signed in/i.test(stderr)) throw new Error('codex is not signed in for this server (OpenAI answered 401) — run `codex login` in the account the map server runs under; the exchange stays in the filing ledger and is retried'); // M342: an actionable error instead of "unexpected status"
       // 2026-10-05 (excel-name-drift #240): the brain's codex exec exited 1 and the 300-char stderr tail held only the bubblewrap
       // notice and codex hook lines — the real error was above them. Report the last meaningful lines instead of raw tail.
-      if (code !== 0 && !text.trim()) { const meaningful = stderr.split('\n').map((l) => l.trim()).filter((l) => l && !/^hook:/i.test(l) && !/bundled bubblewrap/i.test(l)); throw new Error(`codex exec exited ${code}: ${(meaningful.slice(-4).join(' | ') || stderr.slice(-300)).slice(-400)}`); }
+      if (code !== 0 && !text.trim()) throw new Error(codexExecError(code, stderr));
       if (!opts.schema) return text.trim();
       try { const parsed = JSON.parse(text.replace(/^[\s\S]*?(\{)/, '$1').replace(/\}[^}]*$/, '}')); return schemaFile ? stripNulls(parsed) : parsed; } catch (e) { lastErr = String(e).slice(0, 120); }
     }
