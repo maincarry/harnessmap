@@ -1450,7 +1450,10 @@ schedulePrecompute(); // boot: dots that predate a restart get their compute too
 let healBusy = false;
 const longName = (shown: string) => {
   const words = shown.trim().split(/\s+/);
-  return words.length > 6 || shown.length > 48 || words.some((w) => w.length > 18);
+  // M393 (loop #288 python-concurrency-zh): a Chinese title has no spaces, so "overlapped与winapi区别" (20 chars) read as one
+  // 19+ char token and was "broken" forever — re-healed every sweep (the M301 loop). The token rule is for Latin garbage and
+  // URLs; measure it with Han characters removed. The 48-char total rule still bounds CJK names.
+  return words.length > 6 || shown.length > 48 || words.some((w) => w.replace(/\p{Script=Han}/gu, '').length > 18);
 };
 // M301 (loop find, bug under M68): the healer accepted a suggested title that still broke the rule (a nine-word title for a
 // thirty-word statement), so the node stayed "broken" and was re-healed every round. One retry, then clip to six words.
