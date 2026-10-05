@@ -144,9 +144,14 @@ export class Store {
 
   // ---- nodes ----
   createNode(n: Omit<MapNode, 'createdAt' | 'updatedAt'>): void {
+    // M48: titles are minimal by design — an overlong title is a model failure; the node is created
+    // without it (the UI shows the content). M392: the drop is AUDITED (go-html-png-zh #268 — a 90-char
+    // self-narration title vanished with only a console line, invisible to every guard audit).
+    const title = (n.title && n.title.length <= 64) ? n.title : null;
+    if (n.title && !title) this.audit('title_overlong', { id: String(n.id).slice(0, 8), len: n.title.length, head: n.title.slice(0, 40), op: 'create' });
     this.db.prepare(
       'INSERT INTO nodes (id, project_id, parent_id, content, type, status, author, title) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    ).run(n.id, n.projectId, n.parentId, n.content, n.type ?? null, dead(n.status) ?? 'live', n.author, (n.title && n.title.length <= 64) ? n.title : null);
+    ).run(n.id, n.projectId, n.parentId, n.content, n.type ?? null, dead(n.status) ?? 'live', n.author, title);
   }
 
   updateNode(id: string, patch: { content?: string; status?: string; type?: string; title?: string }): void {
@@ -158,6 +163,7 @@ export class Store {
       // failure; keep the previous one rather than store it.
       if (patch.title && patch.title.length > 64) {
         console.log(`[store] rejected overlong title (${patch.title.length} chars)`);
+        this.audit('title_overlong', { id: String(id).slice(0, 8), len: patch.title.length, head: patch.title.slice(0, 40), op: 'update' }); // M392
       } else {
         this.db.prepare("UPDATE nodes SET title = ?, updated_at = datetime('now') WHERE id = ?").run(patch.title, id);
       }
