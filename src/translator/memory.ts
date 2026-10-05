@@ -30,6 +30,7 @@ Maintain the node at THREE LENGTHS. Each length is the WHOLE node — all five o
 - supersede: the numbers of EXISTING details (as numbered in the input) that this exchange overturned or made obsolete.`;
 
 const BATCH_SYSTEM = `You maintain the memories of SEVERAL nodes on a goal map. You get the newest exchange and each node with its existing minimal view, numbered existing details, and legacy memory. For each node, fold in ONLY what this exchange says about that node — different nodes take different things from the same exchange. If the exchange adds nothing for a node, return its layers unchanged (empty details, empty supersede).
+GROUNDED, NEVER INVENTED (M365, Jacob ruled a bug — the same rule the filer keeps): a detail records what the user or the agent SAID in this exchange; never supply what was not. You do not add your own computation, conversion, correction, diagnosis or conclusion — if the agent converted a timestamp wrongly or summed milliseconds wrongly, the detail records the agent's figure as the agent's claim (and the user's objection, if any), never YOUR recomputed value. A number, date or name that appears in no turn of the exchange does not go into a detail. Rephrasing what was said is your job; introducing new substance is not.
 
 ${STRUCTURE_RULES}`;
 
