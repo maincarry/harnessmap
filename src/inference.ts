@@ -375,7 +375,9 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
       let text = ''; try { text = readFileSync(outFile, 'utf8'); } catch {}
       if (!text.trim()) text = stdout;
       if (code !== 0 && /401 Unauthorized|Missing bearer|not logged in|Not signed in/i.test(stderr)) throw new Error('codex is not signed in for this server (OpenAI answered 401) — run `codex login` in the account the map server runs under; the exchange stays in the filing ledger and is retried'); // M342: an actionable error instead of "unexpected status"
-      if (code !== 0 && !text.trim()) throw new Error(`codex exec exited ${code}: ${stderr.slice(-300)}`);
+      // 2026-10-05 (excel-name-drift #240): the brain's codex exec exited 1 and the 300-char stderr tail held only the bubblewrap
+      // notice and codex hook lines — the real error was above them. Report the last meaningful lines instead of raw tail.
+      if (code !== 0 && !text.trim()) { const meaningful = stderr.split('\n').map((l) => l.trim()).filter((l) => l && !/^hook:/i.test(l) && !/bundled bubblewrap/i.test(l)); throw new Error(`codex exec exited ${code}: ${(meaningful.slice(-4).join(' | ') || stderr.slice(-300)).slice(-400)}`); }
       if (!opts.schema) return text.trim();
       try { const parsed = JSON.parse(text.replace(/^[\s\S]*?(\{)/, '$1').replace(/\}[^}]*$/, '}')); return schemaFile ? stripNulls(parsed) : parsed; } catch (e) { lastErr = String(e).slice(0, 120); }
     }
