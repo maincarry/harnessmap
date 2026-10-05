@@ -392,6 +392,33 @@ function ensureExampleProject(): void {
   store.setSetting('example_seeded', '1'); // legacy flag — older code paths read it; nothing re-seeds in-map now
 }
 ensureExampleProject();
+// 2026-10-05 (Jacob: "also drop the getting started node — this can taint user idea flow especially early on"): installs
+// that predate M391 still carry the M178 "getting started" tutorial subtree (system-authored, top level) — the dev box's
+// live map had one beside the Example map. Nothing seeds it any more; this one-shot boot pass removes it from every map
+// (deepest-first; user nodes filed under it surface to the top level), guarded by its own setting so installs that already
+// ran the example migration still get it. After this, the only system-authored node a person's map holds is "to sort".
+function clearLegacyTutorial(): void {
+  if (store.getSetting('tutorial_cleared')) return;
+  const isTutorialRoot = (n: any) => n.parentId === null && n.author === 'system' && n.status !== 'removed' && !String(n.title ?? n.content ?? '').startsWith('to sort') && (/getting started/i.test(String(n.title ?? '')) || /getting started/i.test(String(n.content ?? '').slice(0, 80)));
+  const examplePid = store.getSetting('example_project');
+  for (const pr of store.listProjects()) {
+    if (pr.id === examplePid) continue;
+    const nodes = store.getNodes(pr.id);
+    const roots = nodes.filter(isTutorialRoot);
+    if (!roots.length) continue;
+    const byParent = new Map<string | null, any[]>();
+    for (const n of nodes) { const k = n.parentId ?? null; (byParent.get(k) ?? byParent.set(k, []).get(k)!).push(n); }
+    const doomed: { id: string; depth: number }[] = [];
+    const walk = (id: string, depth: number) => { for (const c of byParent.get(id) ?? []) { if (c.status === 'removed') continue; if (c.author === 'system') { doomed.push({ id: c.id, depth }); walk(c.id, depth + 1); } } };
+    for (const r of roots) { doomed.push({ id: r.id, depth: 0 }); walk(r.id, 1); }
+    doomed.sort((a, b) => b.depth - a.depth);
+    store.applyAlterations(pr.id, doomed.map((d) => ({ op: 'update_node', id: d.id, status: 'removed' } as any)), { kind: 'system' });
+    const surfaced = store.getNodes(pr.id).filter((n) => n.parentId === null && n.author !== 'system' && n.status !== 'removed').length;
+    store.audit('tutorial_cleared', { project: pr.id.slice(0, 8), removed: doomed.length, userTopLevel: surfaced });
+  }
+  store.setSetting('tutorial_cleared', '1');
+}
+clearLegacyTutorial();
 // M271: self-healing after the inner-session storm — views whose host session's first user turn is one of OUR
 // prompts ("SYSTEM INSTRUCTIONS:" is the codex exec prompt's first line) are the map filing itself. Archive those
 // views, forget their sessions, remove the nodes their rounds created (one undo entry). Runs at boot and on demand.
