@@ -2062,9 +2062,9 @@ const CONTROLS = [
 // proxies to the existing hidden button (CONTROLS ids), so every handler, permission and nudge stays exactly as it was.
 const MENU_GROUPS = [
   ['View', [['sideview-btn', '▯', 'Side view (map only)'], ['font-btn', '🔠', 'Text size'], ['legend-btn', '?', 'Tutorial & reference']]],
-  ['Agent', [['auto-btn', '◎', 'Auto mode on / off'], ['auto-settings-btn', '◎', 'Auto mode settings…'], ['agent-view-btn', '👁', 'What the agent sees'], ['ctx-refresh-btn', '⟲', 'Refresh agent context'], ['lit-mgr-btn', '▶☀', 'Manage focus & light'], ['auto-focus', '▶', 'Propose a focus'], ['auto-lit', '☀', 'Propose lighting'], ['auto-zoom', '◱', 'Propose a zoom'], ['lit-all', '☀', 'Light all in this view'], ['dim-all', '◐', 'Dim all in this view'], ['dim-outside', '◐', 'Dim everything outside']]],
+  ['Agent', [['auto-btn', '◎', 'Auto mode on / off'], ['auto-settings-btn', '◎', 'Auto mode settings…'], ['agent-view-btn', '👁', 'What the agent sees'], ['ctx-refresh-btn', '⟲', 'Refresh agent context'], ['lit-mgr-btn', '▶☀', 'Manage focus & light'], ['auto-focus', '▶', 'Propose a focus'], ['auto-lit', '☀', 'Propose lighting'], ['auto-zoom', '◱', 'Propose a zoom'], ['lit-all', '☀', 'Light all in this view'], ['dim-all', '◐', 'Dim all in this view'], ['dim-outside', '◐', 'Dim everything outside'], ['models-btn', '⚙', 'Models & cost']]], // Jacob 06:27: models & cost belong to the agent
   ['Tidy', [['tidy-top', '⟳', 'Tidy this view'], ['map-check', '⟳', 'Check the whole map'], ['auto-rename', '✎', 'Auto-rename long names'], ['enrich-btn', '✚', 'Enrich thin nodes'], ['undo-btn', '↩', 'Undo last change']]],
-  ['Map', [['import-btn', '⇪', 'Import notes, files or a session…'], ['map-save-btn', '⤓', 'Save as .map'], ['map-open-btn', '⤒', 'Open a .map'], ['prefs-btn', '☰', 'Preferences & glossary'], ['mapstatus-btn', '🩺', 'Map status'], ['influence-btn', '⏻', 'Map influence on sessions'], ['models-btn', '⚙', 'Models & cost']]],
+  ['Map', [['import-btn', '⇪', 'Import notes, files or a session…'], ['map-save-btn', '⤓', 'Save as .map'], ['map-open-btn', '⤒', 'Open a .map'], ['prefs-btn', '☰', 'Preferences & glossary'], ['mapstatus-btn', '🩺', 'Map status'], ['influence-btn', '⏻', 'Map influence on sessions']]],
   ['Sessions', [['tab-add', '＋', 'New session'], ['sessions-btn', '▦', 'All sessions']]],
   ['Account', [['authinfo-btn', '🔑', 'Sign-in & billing'], ['update-btn', '⬆', 'Check for updates'], ['feedback-btn', '🐞', 'Send feedback'], ['dev-btn', '🔧', 'Dev mode']]], // Jacob 06:25: map influence belongs under Map
   ['Beta', [['galaxy-btn', '🪐', 'Galaxy view']]], // Jacob 2026-10-05 06:25: "move galaxy view to beta"
@@ -3794,14 +3794,14 @@ function openLegend() {
         <tr><td>↩ undo</td><td>undo the last destructive action — delete, merge, tidy, move (Ctrl/Cmd+Z works anywhere)</td></tr>
         <tr><td>🐞 send feedback</td><td>tell the developers about a bug or an idea — write it once, then open it as a pre-filled GitHub issue or email; nothing is sent until you press send there</td></tr>
         <tr><td>🔠 text size</td><td>whole-page text size — cycles Small / Normal / Large / Extra large, remembered per browser</td></tr>
-        <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">⋯ other — first ＋ more (housekeeping)</td></tr>
+        <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">≡ menu — first ＋ more (housekeeping)</td></tr>
         <tr><td>⟳ tidy map</td><td>review the whole map right now — findings show as ⟳ on each node and in the suggestions count, or you get a clean bill (the map also reviews itself every 10 rounds)</td></tr>
         <tr><td>⟳ tidy top level</td><td>group and clean the top level — the one place the tidy agent may propose domain containers and move top-level threads under them; you approve</td></tr>
         <tr><td>✎ auto-rename</td><td>give every long-named node a short display name (max 6 words) — applies directly, no proposal</td></tr>
         <tr><td>☀ light all / ◐ dim all (this view)</td><td>light or dim every node in the current view at once — the bulk versions of ☀</td></tr>
         <tr><td>☰ map preferences</td><td>standing instructions every map agent follows for this map — how to group, name, clean, what never to touch; edit anytime, or tell the guide a lasting preference and it offers to save it here</td></tr>
         <tr><td>▶☀ manage</td><td>focus and background for the whole map in one list — see and change everything from one panel</td></tr>
-        <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">⋯ other — second ＋ more (rare)</td></tr>
+        <tr><td colspan="2" style="padding-top:10px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">≡ menu — second ＋ more (rare)</td></tr>
         <tr><td>👁 what the agent sees</td><td>the map's contribution to every turn: a composition bar (what fills the space, what's free), the ❗ list if lit topics didn't fit, and the exact text section by section</td></tr>
         <tr><td>▦ sessions</td><td>all sessions on this map in one list, each with its topic and summary — pin the ones you live in, close the rest</td></tr>
         <tr><td>🩺 map status</td><td>a professional structural review of the whole map — balance, depth, whether each topic's story lives in one place; run on demand; the tidy and review agents consult its standing opinion</td></tr>
