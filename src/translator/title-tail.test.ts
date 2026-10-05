@@ -83,3 +83,13 @@ test('an opener behind an unbalanced quote goes too (M397)', () => {
   const r = harness()('Line game task{"', 'The Line game task asks whether the character can reach the end.');
   expect(r.title).toBe('Line game task');
 });
+
+test('a UUID glued to a Chinese name goes (sqlsugar-rollback-zh #348, M398)', () => {
+  const r = harness()('b语句单独处理方案0c4d07f5-2e6f-4d7f-92f4-5ad2e7f4a3e8', '回答提出：若希望不回滚 b，可在执行 b 后将其提交到数据库，再继续执行其他语句。');
+  expect(r.title).toBe('b语句单独处理方案');
+});
+
+test('a UUID glued to an English name goes, a short hex word stays (M398)', () => {
+  expect(harness()('Fix login bug 0c4d07f5-2e6f-4d7f-92f4-5ad2e7f4a3e8', 'The login bug is fixed by refreshing the token.').title).toBe('Fix login bug');
+  expect(harness()('Commit a1b2c3d4 review', 'Review commit a1b2c3d4 before merging.').title).toBe('Commit a1b2c3d4 review');
+});

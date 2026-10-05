@@ -617,6 +617,14 @@ export class Translator {
         this.store.audit('guard_title_schema_token', { id: String(anyA.id ?? '').slice(0, 8), from: from.slice(0, 60), to: cleaned.slice(0, 60) });
         anyA.title = cleaned.length >= 2 ? cleaned : '';
       }
+      // M398 (sqlsugar-rollback-zh #348, codex/luna): the filer glued a UUID to a name — "b语句单独处理方案0c4d07f5-2e6f-4d7f-92f4-5ad2e7f4a3e8" —
+      // and it reached the map until the healer renamed it ~50 s later. An id is never part of a name: any 8-4(-4…) hex run with dashes goes.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[0-9a-f]{8}-[0-9a-f]{4}(?:-[0-9a-f]{4}){0,2}(?:-[0-9a-f]{12})?/i.test(anyA.title)) {
+        const from = anyA.title;
+        const cleaned = anyA.title.replace(/\s*[0-9a-f]{8}-[0-9a-f]{4}(?:-[0-9a-f]{4}){0,2}(?:-[0-9a-f]{12})?/gi, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s.:：;；,，\-–—]+|[\s.:：;；,，\-–—]+$/g, '').trim();
+        this.store.audit('guard_title_uuid', { id: String(anyA.id ?? '').slice(0, 8), from: from.slice(0, 60), to: cleaned.slice(0, 60) });
+        anyA.title = cleaned.length >= 2 ? cleaned : '';
+      }
       // M354 (codex-native hash-table replay): asked to "remember this format" (the person's h(11) = 2 (a) → … layout), the filer wrote a rule
       // "Use the requested JSON map format for every response" — its OWN output instructions, leaked into the person's map. A statement that
       // speaks of JSON, schemas, alterations or the "map/response format" when neither the person nor the agent said any of it is a leak, not a fact.
