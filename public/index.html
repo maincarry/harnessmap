@@ -345,6 +345,21 @@
   .nrow:hover .rowops { visibility: visible; }
   .rowext { display: none; gap: 4px; }
   .nrow.ops-open .rowext { display: inline-flex; }
+  /* ROW ⋯ MENU (Jacob 2026-10-05: "the functioning of the ⋯ is still mysterious… the black box in the middle is just
+     mysterious. Think more coherently, as a UI designer"). Rule: left of the name = what the map KNOWS (badges); right of
+     the name, on hover = what you can DO, exactly four: ▶ focus · ☀ light · ⋯ more · ✕ delete (Jacob 05:53: "details should also be folded. The delete
+     should be out"). Everything else is a LABELLED line in the ⋯ popover (the same elements, so every handler stays):
+     Details first, then zoom, favorite, home, add, the served-depth setting, move, tidy, merge. */
+  .nrow.ops-open { position: relative; }
+  .nrow.ops-open .rowext { position: absolute; right: 4px; top: calc(100% - 2px); z-index: 30; display: flex; flex-direction: column; gap: 1px; min-width: 260px; background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 10px 26px rgba(0,0,0,.16); padding: 6px; }
+  .rowext > .rowbtn, .rowext > .rowext-row { display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; border: none; background: transparent; color: var(--ink); font-size: 13px; font-weight: 400; padding: 6px 8px; border-radius: 6px; text-align: left; cursor: pointer; white-space: nowrap; }
+  .rowext > .rowbtn:hover, .rowext > .rowext-row:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .rowext .ic { width: 18px; flex: none; text-align: center; color: var(--muted); font-size: 12px; display: inline-flex; justify-content: center; }
+  .rowext .ic svg { width: 13px; height: 13px; }
+  .rowext .lbl { flex: 1; }
+  .rowext > .rowbtn.on .lbl { font-weight: 600; }
+  .rowext select.depthsel { margin-left: auto; max-width: 150px; font-size: 12px; }
+  .rowops > .depth { display: none; } /* the served-depth state lives in the ⋯ menu now */
   .rowbtn { border: 1px solid var(--hair); background: var(--panel); color: var(--ink);
             border-radius: 4px; cursor: pointer; font-size: 11px; padding: 0 6px; white-space: nowrap; }
   .rowbtn:hover { border-color: var(--accent); color: var(--accent); }
@@ -653,6 +668,10 @@ let zoomId = localStorage.getItem('hm-zoom') || null;
 let folded = new Set(), userFolded = new Set(), userUnfolded = new Set();
 const opsOpen = new Set(); // rows whose ⋯ actions are expanded — persisted across re-renders so the cluster (depth, move, merge…) doesn't collapse mid-use
 
+// Row ⋯ popover closes on a click anywhere else, after an action inside it, or on Escape (the depth select keeps it open).
+document.addEventListener('click', (e) => { if (!opsOpen.size) return; const t = e.target; if (t.closest && (t.closest('[data-rowmore]') || t.closest('.rowext-row') || t.closest('select.depthsel'))) return; opsOpen.clear(); document.querySelectorAll('.nrow.ops-open').forEach((r) => r.classList.remove('ops-open')); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && opsOpen.size) { opsOpen.clear(); document.querySelectorAll('.nrow.ops-open').forEach((r) => r.classList.remove('ops-open')); } });
+
 const $ = (id) => document.getElementById(id);
 
 // ONE-BAR LAYOUT (Jacob 2026-10-05): the original elements are relocated ONCE, so every id-bound handler, tooltip and
@@ -893,18 +912,19 @@ function renderTree() {
       <span class="rowops">
         <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? (S.focusBy === 'user' ? 'the conversation is focused here — set by you; auto mode holds it until you move it or press ⚡' : 'the conversation is focused here') : 'focus: talk about this (no zoom)'}">▶</button>
         <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? ((chat()?.userLit || []).includes(n.id) ? 'lit by you — auto mode never dims it; click to dim' : 'dim: remove from the chat agent’s background') : ((S.userDim || []).includes(n.id) ? 'set aside by you — auto mode never re-lights it; click to light' : 'light as background (incl. everything under it)')}">☀</button>${(() => { const d = S.served && S.served[n.id]; const pin = S.depthPins && S.depthPins[n.id]; if (d === undefined && pin === undefined) return ''; const names = ['one line', 'summary', 'whole story', 'original words']; const unmet = (S.pinsUnmet || []).includes(n.id); return `<span class="depth${pin !== undefined ? ' pinned' : ''}${unmet ? ' unmet' : ''}" title="${d !== undefined ? `served now at: ${names[d]}` : 'not in the last block'}${pin !== undefined ? ` · pinned by you: ${names[pin]}${unmet ? ' — did not fit this turn (❗)' : ''}` : ''}">${unmet ? '❗' : d !== undefined ? (['▂', '▃', '▅', '▇'][d] ?? '▂') : '⌖'}</span>`; })()}
-        <button class="rowbtn" data-detail="${n.id}" title="details: full text, history, relations, edit (double-click the row to zoom into it)">${INFO_ICO}</button>
         <button class="rowbtn" data-rowmore="${n.id}" title="more actions: favorite, home, add child, move, tidy, merge">⋯</button>
         <span class="rowext">
-        <button class="rowbtn ${(S.favorites || []).includes(n.id) ? 'on' : ''}" data-fav="${n.id}" title="${(S.favorites || []).includes(n.id) ? 'unpin from favorites' : 'favorite: pin this node to the top of search'}">★</button>
-        <button class="rowbtn ${S.home === n.id ? 'on' : ''}" data-sethome="${n.id}" title="${S.home === n.id ? 'this is the home page — click to unset (home falls back to the whole map)' : 'set as the home page — the home button (top of the map) zooms here'}">${HOME_ICO}</button>
-        <button class="rowbtn" data-add="${n.id}" title="add an unnamed sub-node here and focus it — the map names it from what you talk about next">+</button>
-        ${isTray ? '' : `<select class="rowbtn depthsel" data-depth="${n.id}" title="serve at: the depth the agent gets for this node — auto (by closeness to the focus and room), or a depth you pin; a pin is charged first and never changed by auto mode"><option value="">depth: auto</option><option value="0" ${S.depthPins && S.depthPins[n.id] === 0 ? 'selected' : ''}>one line</option><option value="1" ${S.depthPins && S.depthPins[n.id] === 1 ? 'selected' : ''}>summary</option><option value="2" ${S.depthPins && S.depthPins[n.id] === 2 ? 'selected' : ''}>whole story</option><option value="3" ${S.depthPins && S.depthPins[n.id] === 3 ? 'selected' : ''}>original words</option></select>`}
+        <button class="rowbtn" data-detail="${n.id}" title="details: full text, history, relations, edit"><span class="ic">${INFO_ICO}</span><span class="lbl">Details</span></button>
+        ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes) — a double-click on the row does the same"><span class="ic">◱</span><span class="lbl">View only this branch</span></button>`}
+        <button class="rowbtn ${(S.favorites || []).includes(n.id) ? 'on' : ''}" data-fav="${n.id}" title="${(S.favorites || []).includes(n.id) ? 'unpin from favorites' : 'favorite: pin this node to the top of search'}"><span class="ic">★</span><span class="lbl">${(S.favorites || []).includes(n.id) ? 'Unfavorite' : 'Favorite'}</span></button>
+        <button class="rowbtn ${S.home === n.id ? 'on' : ''}" data-sethome="${n.id}" title="${S.home === n.id ? 'this is the home page — click to unset (home falls back to the whole map)' : 'set as the home page — the home button (top of the map) zooms here'}"><span class="ic">${HOME_ICO}</span><span class="lbl">${S.home === n.id ? 'Unset as home' : 'Set as home'}</span></button>
+        <button class="rowbtn" data-add="${n.id}" title="add an unnamed sub-node here and focus it — the map names it from what you talk about next"><span class="ic">+</span><span class="lbl">Add a sub-node</span></button>
+        ${isTray ? '' : `<label class="rowext-row" title="how much of this node the agent is served — auto (by closeness to the focus and room) or a depth you pin"><span class="ic">▅</span><span class="lbl">Depth served to the agent</span><select class="rowbtn depthsel" data-depth="${n.id}" title="serve at: the depth the agent gets for this node — auto (by closeness to the focus and room), or a depth you pin; a pin is charged first and never changed by auto mode"><option value="">depth: auto</option><option value="0" ${S.depthPins && S.depthPins[n.id] === 0 ? 'selected' : ''}>one line</option><option value="1" ${S.depthPins && S.depthPins[n.id] === 1 ? 'selected' : ''}>summary</option><option value="2" ${S.depthPins && S.depthPins[n.id] === 2 ? 'selected' : ''}>whole story</option><option value="3" ${S.depthPins && S.depthPins[n.id] === 3 ? 'selected' : ''}>original words</option></select></label>`}
         ${(() => { const p = node(n.parentId); return p && p.parentId === null && (p.title || p.content).startsWith('to sort')
-          ? `<button class="rowbtn" data-promote="${n.id}" title="make this a real top-level topic">⇧</button>` : ''; })()}
-        ${isTray ? '' : `<button class="rowbtn" data-move="${n.id}" data-name="${esc(disp(n))}" title="move this node somewhere else on the map — search for the new parent, or make it a top-level topic">↖</button>`}
-        ${kids.length && !isTray ? `<button class="rowbtn" data-reorg="${n.id}" data-name="${esc(disp(n))}" title="propose a cleanup of this subtree">⟳</button>` : ''}
-        ${isTray ? '' : `<button class="rowbtn" data-merge="${n.id}" data-name="${esc(disp(n))}" title="merge this node into another — children move to the survivor, this one disappears">⇢</button>`}
+          ? `<button class="rowbtn" data-promote="${n.id}" title="make this a real top-level topic"><span class="ic">⇧</span><span class="lbl">Make a top-level topic</span></button>` : ''; })()}
+        ${isTray ? '' : `<button class="rowbtn" data-move="${n.id}" data-name="${esc(disp(n))}" title="move this node somewhere else on the map — search for the new parent, or make it a top-level topic"><span class="ic">↖</span><span class="lbl">Move to…</span></button>`}
+        ${kids.length && !isTray ? `<button class="rowbtn" data-reorg="${n.id}" data-name="${esc(disp(n))}" title="propose a cleanup of this subtree"><span class="ic">⟳</span><span class="lbl">Tidy this branch</span></button>` : ''}
+        ${isTray ? '' : `<button class="rowbtn" data-merge="${n.id}" data-name="${esc(disp(n))}" title="merge this node into another — children move to the survivor, this one disappears"><span class="ic">⇢</span><span class="lbl">Merge into…</span></button>`}
         </span>
         ${isTray ? '' : `<button class="rowbtn danger" data-ndel="${n.id}" data-name="${esc(disp(n))}" data-count="${subtreeIds(n.id).length - 1}" title="delete this node${kids.length ? ' and everything under it' : ''}">✕</button>`}
       </span>
