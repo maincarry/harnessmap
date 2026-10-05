@@ -608,6 +608,15 @@ export class Translator {
         const head = anyA.title.split(/[。．]|(?<=[？！])(?=[^\s？！?!)）」』"”])/u)[0].replace(/[\s.:：;；,，]+$/u, '').trim();
         if (head.length >= 3 && head !== anyA.title.trim()) { this.store.audit('guard_title_full_stop', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(head.length, head.length + 30) }); anyA.title = head; }
       }
+      // M394 (data-platform-zh #301, codex/luna): the filer glued its own OP NAME to a title — "字段展开超限处理者::create_node" — and it
+      // reached the map (the M354 leak guard reads content only). Sweep 2026-10-05: 1 title / 115 kept maps, 0 false positives, 0 in
+      // content. Strip the op names and the "::" seams from a title; drop the title when nothing meaningful is left (the healer names it).
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\b(create_node|update_node|move_node|create_link|remove_node|suggest_restructure|focus_request)\b|::/.test(anyA.title)) {
+        const from = anyA.title;
+        const cleaned = anyA.title.replace(/\s*::\s*/g, ' ').replace(/\b(create_node|update_node|move_node|create_link|remove_node|suggest_restructure|focus_request)\b/g, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s.:：;；,，\-–—]+|[\s.:：;；,，\-–—]+$/g, '').trim();
+        this.store.audit('guard_title_schema_token', { id: String(anyA.id ?? '').slice(0, 8), from: from.slice(0, 60), to: cleaned.slice(0, 60) });
+        anyA.title = cleaned.length >= 2 ? cleaned : '';
+      }
       // M354 (codex-native hash-table replay): asked to "remember this format" (the person's h(11) = 2 (a) → … layout), the filer wrote a rule
       // "Use the requested JSON map format for every response" — its OWN output instructions, leaked into the person's map. A statement that
       // speaks of JSON, schemas, alterations or the "map/response format" when neither the person nor the agent said any of it is a leak, not a fact.
