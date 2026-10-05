@@ -67,3 +67,19 @@ test('an emoji with its variation selector at the end of a title is stripped lik
   expect(run('Graph range issue \u26A0\uFE0F', 'The chart range is wrong when document IDs are not dates.').title).toBe('Graph range issue');
   expect(run('Deploy checklist \u2705', 'Steps before a release.').title).toBe('Deploy checklist');
 });
+
+test('a JSON opener spill glued to a name goes (py2cpp #344, M397)', () => {
+  const r = harness()('Code and task provided},{', 'The Python code and the Line game contest task were provided for rewriting in C++.');
+  expect(r.title).toBe('Code and task provided');
+  expect(r.tailAudits).toBe(1);
+});
+
+test('a JSON opener spill after balanced full-width parens keeps the parens (Chinese, M397)', () => {
+  const r = harness()('导出前清理空格（trim）},{', '导出前先清理单元格空格（trim），再写入文件。');
+  expect(r.title).toBe('导出前清理空格（trim）');
+});
+
+test('an opener behind an unbalanced quote goes too (M397)', () => {
+  const r = harness()('Line game task{"', 'The Line game task asks whether the character can reach the end.');
+  expect(r.title).toBe('Line game task');
+});

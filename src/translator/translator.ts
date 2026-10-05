@@ -653,7 +653,7 @@ export class Translator {
         let t0 = anyA.title;
         for (let pass = 0; pass < 4; pass++) {
           const before = t0;
-          t0 = t0.replace(/\s*<\/?[a-z][a-z0-9-]*\s*$/i, '') // M348e: "炎性肉芽肿主题初识<table" — an unclosed HTML tag fragment glued to a name goes first
+          t0 = t0.replace(/\s*<\/?[a-z][a-z0-9-]*\s*$/i, '').replace(/\s*(?:\{\}|\[\]|[{\[(（])+\s*$/u, '') /* M397 (py2cpp #344): "Code and task provided},{" — a trailing JSON OPENER (or empty pair) is never part of a name; unbalanced closers are M360 below */ // M348e: "炎性肉芽肿主题初识<table" — an unclosed HTML tag fragment glued to a name goes first
             .replace(/(?:\s+|[\p{S}\p{No}\p{Pd}\p{Pc}\uFE0E\uFE0F\u200D:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '') // 2026-10-05 (kotlin-graph #231): "Graph range issue ⚠️" — an emoji's variation selector (U+FE0F) / ZWJ is a mark, not a symbol, so it shielded the symbol from this strip
             .replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ??" — a doubled mark goes (M360 restored this step: an M348e comment had swallowed it)
           // 2026-10-05 (loop find, leftjoin-zh #184): a lone straight quote/apostrophe glued to the end ("示例表数据'") is a stray too — but only when UNBALANCED ("Rock 'n' Roll" stays).
@@ -663,7 +663,7 @@ export class Translator {
         // M360 (node-xlsx zh): the codex filer leaked its JSON closers into a name — "导出前清理空格（trim）}]}". Closers are Pe, not in the
         // class above, and a balanced ")" or "]" must stay ("[Draft]"), so only UNBALANCED trailing closers go, one at a time.
         const more = (o: string, c: string) => t0.split(c).length > t0.split(o).length;
-        while (/[\]\})）]$/u.test(t0) && ((t0.endsWith(']') && more('[', ']')) || (t0.endsWith('}') && more('{', '}')) || (t0.endsWith(')') && more('(', ')')) || (t0.endsWith('）') && more('（', '）')))) t0 = t0.slice(0, -1).replace(/[\s\p{S}\p{Pd}:;,·•|/\\~*^_+=<>#&@：；，、]+$/u, '').trim();
+        while (/[\]\})）]$/u.test(t0) && ((t0.endsWith(']') && more('[', ']')) || (t0.endsWith('}') && more('{', '}')) || (t0.endsWith(')') && more('(', ')')) || (t0.endsWith('）') && more('（', '）')))) t0 = t0.slice(0, -1).replace(/[\s\p{S}\p{Pd}:;,·•|/\\~*^_+=<>#&@：；，、{\[(（]+$/u, '').trim();
         // M348c: "Face classification task of" — a dangling preposition AFTER A STRIPPED TAIL goes too ("Log in" stays: two words).
         // 2026-10-05 fix (loop find, grammar-quiz #181): this ran unconditionally and turned the quiz option "Didn't have to" into
         // "Didn't have" — a title that legitimately ends in a preposition. It now fires only when THIS guard already stripped a tail
