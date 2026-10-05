@@ -303,6 +303,19 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
 // piece first left that round out of the saved .map three times in one hour. Wait (≤180 s) for the ledger to drain, forcing failed rows
 // through the retry route (the server's own worker only runs every 30 s and only when no live round is queued).
 try { const t0 = Date.now(); for (;;) { const f = await get('/api/filings'); const open = ((f?.items ?? []) as any[]).filter((r) => r.status === 'pending' || r.status === 'failed'); if (!open.length) break; if (Date.now() - t0 > 180_000) { console.log(`filing ledger not drained: ${open.length} left`); notes.push(`ledger: ${open.length} unfiled`); break; } for (const r of open) if (r.status === 'failed' && !r.inFlight) await post(`/api/filings/${r.turnId}/retry`, {}); await sleep(5000); } } catch {}
+// 2026-10-05 (loop find, tk-translate #208): the last round's filer title was blanked by guard_title_script and the healer (M68,
+// healTitles after the round, serialized BEHIND the relations call at concurrency=1) had its title inference in flight when the
+// piece ended 9 s after the filer — the node was exported untitled (invariants: empty_title) although the product would have named it
+// seconds later. Wait (≤40 s) for the healer to settle: no broken display name left (server rule longName: >6 words, >48 chars or a
+// 19+ char token on title||content, user-authored, not "to sort"), or the broken count unchanged for three polls (the healer is idle:
+// what remains is title_heal_stale / an empty suggestion, which IS a product state and stays visible to the invariants).
+try {
+  const longName = (shown: string) => { const w = shown.trim().split(/\s+/); return w.length > 6 || shown.length > 48 || w.some((x) => x.length > 18); };
+  const broken = async () => { const s: any = await get('/api/state'); const ns: any[] = s?.nodes ?? s?.map?.nodes ?? []; return ns.filter((n) => n.status !== 'removed' && n.author !== 'system' && !String(n.content ?? '').startsWith('to sort') && longName(String(n.title || n.content || ''))).length; };
+  const t0 = Date.now(); let last = -1, same = 0, n = await broken();
+  while (n > 0 && Date.now() - t0 < 40_000) { if (n === last) { if (++same >= 3) break; } else { same = 0; last = n; } await sleep(2000); n = await broken(); }
+  const waited = Date.now() - t0; if (waited >= 2000 || n) { console.log(`healer settle ${(waited / 1000).toFixed(0)}s · ${n} broken name(s) left`); if (n) notes.push(`healer: ${n} broken name(s) left`); }
+} catch {}
 let tokens = 0; try { const c = await get('/api/cost?window=24h'); tokens = Number(c?.total?.tokens ?? 0); } catch {}
 // M295 (Jacob: "experiment with speeding up the map updates"): the speed baseline — median round wall time (filing landed, minus the settle) and per-agent latency
 let speed = ''; try { const inf = (await audit('inference')).filter((r: any) => r.detail?.ok); const by: Record<string, number[]> = {}; for (const r of inf) (by[r.detail.task] ??= []).push(Number(r.detail.ms)); const med = (a: number[]) => { const b = [...a].sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; }; speed = `round ${med(roundMs) / 1000 | 0}s · paint ${firstPaintMs.length ? (med(firstPaintMs) / 1000).toFixed(0) : '?'}s · ` + Object.entries(by).map(([t, a]) => `${t} ${Math.round(med(a) / 100) / 10}s×${a.length}`).join(' '); } catch {}
