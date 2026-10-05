@@ -642,7 +642,7 @@ export class Translator {
         for (let pass = 0; pass < 4; pass++) {
           const before = t0;
           t0 = t0.replace(/\s*<\/?[a-z][a-z0-9-]*\s*$/i, '') // M348e: "炎性肉芽肿主题初识<table" — an unclosed HTML tag fragment glued to a name goes first
-            .replace(/(?:\s+|[\p{S}\p{No}\p{Pd}\p{Pc}:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '')
+            .replace(/(?:\s+|[\p{S}\p{No}\p{Pd}\p{Pc}\uFE0E\uFE0F\u200D:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '') // 2026-10-05 (kotlin-graph #231): "Graph range issue ⚠️" — an emoji's variation selector (U+FE0F) / ZWJ is a mark, not a symbol, so it shielded the symbol from this strip
             .replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ??" — a doubled mark goes (M360 restored this step: an M348e comment had swallowed it)
           // 2026-10-05 (loop find, leftjoin-zh #184): a lone straight quote/apostrophe glued to the end ("示例表数据'") is a stray too — but only when UNBALANCED ("Rock 'n' Roll" stays).
           if (/['"]$/.test(t0) && (t0.split(t0.slice(-1)).length - 1) % 2 === 1) t0 = t0.slice(0, -1).trim();

@@ -61,3 +61,9 @@ test('a lone trailing apostrophe is stripped, a balanced pair is kept', () => {
   expect(run("Example table data'", 'The example tables A and B.').title).toBe('Example table data');
   expect(run("Rock 'n' Roll history", 'A short history.').title).toBe("Rock 'n' Roll history");
 });
+
+test('an emoji with its variation selector at the end of a title is stripped like any trailing symbol (kotlin-graph #231)', () => {
+  const run = harness();
+  expect(run('Graph range issue \u26A0\uFE0F', 'The chart range is wrong when document IDs are not dates.').title).toBe('Graph range issue');
+  expect(run('Deploy checklist \u2705', 'Steps before a release.').title).toBe('Deploy checklist');
+});
