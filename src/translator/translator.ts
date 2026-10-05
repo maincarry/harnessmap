@@ -105,7 +105,12 @@ export function dropCorrectionTwins(alterations: any[], nodes: { title?: string 
   const rewritten = alterations.filter((a) => a.op === 'update_node' && typeof a.content === 'string' && a.content.trim());
   if (!rewritten.length) return alterations;
   const df = new Map<string, number>();
-  const toks = (t: string) => new Set((t ?? '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 3));
+  // 2026-10-05 (loop find, scene-detect-zh / industry40 sweep: 5 drops in 105 kept maps, the Chinese one a plain miss): the old
+  // tokenizer kept only [a-z0-9] runs, so on a Chinese statement it saw nothing but the Latin identifiers — "使用 ffmpeg-scene-change-
+  // detector 需要基本的编程、命令行和 FFmpeg 知识" reduced to {ffmpeg, scene, change, detector}, all in the rewritten node, and a distinct
+  // prerequisite was dropped as a "restatement". Words are now any letter/digit run; a Han run (no spaces) contributes its character
+  // bigrams so Chinese prose counts like English prose does. Latin/other words still need 4+ letters.
+  const toks = (t: string) => { const s = new Set<string>(); for (const m of (t ?? '').toLowerCase().match(/\p{Script=Han}+|[\p{L}\p{N}]+/gu) ?? []) { if (/\p{Script=Han}/u.test(m)) { if (m.length === 1) s.add(m); for (let i = 0; i + 1 < m.length; i++) s.add(m.slice(i, i + 2)); } else if (m.length > 3) s.add(m); } return s; };
   for (const n of nodes) for (const w of toks(`${n.title ?? ''} ${n.content}`)) df.set(w, (df.get(w) ?? 0) + 1);
   const rare = (w: string) => (df.get(w) ?? 0) <= Math.max(2, Math.ceil(nodes.length * 0.05));
   const out: any[] = [];
