@@ -574,10 +574,19 @@ export class Translator {
           else if ((/\b(unresolved|unsolved|open question|pending|still (failing|broken|wrong)|not (yet )?(fixed|working|resolved)|failing|blocked|missing)\b/i.test(cur.title) || /未解决|尚未解决|待解决|待定|仍(然)?(失败|报错|出错)|未修复|尚未修复|仍未/.test(cur.title)) && (/^(answered|done|resolved|decided|accepted|fixed|closed)$/i.test(String(anyA.status ?? '')) || /\b(was|is|has been|now) (fixed|resolved|solved|working|corrected|complete[d]?)\b/i.test(String(anyA.content)) || /已(经)?(修复|解决|完成|搞定)|修好了|解决了|(现在|目前)(可以|正常)(运行|工作)/.test(String(anyA.content)))) { anyA.title = ''; this.store.audit('guard_stale_title', { id: String(anyA.id).slice(0, 8), gone: ['(resolved)'] }); }
         }
       }
+      // M399 (echarts-gantt-drift-zh #350, data-platform-zh): the codex filer IMITATED the harness's own provenance note inside a
+      // statement — "…账号及密码。（arrived while focus was: ECharts 甘特图）" in full-width parens — and the ASCII-only regexes (M311 below,
+      // the server's cleanups) never saw it: the node was promoted out of "to sort" with the note still in it. The note is the
+      // harness's to write (it appends its own, ASCII, after the guards); a filer-written one, any paren width, goes.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string' && /[（(]\s*arrived while focus was:[^)）]*[)）]/i.test(anyA.content)) {
+        const cleaned = anyA.content.replace(/\s*[（(]\s*arrived while focus was:[^)）]*[)）]\s*/gi, ' ').replace(/\s{2,}/g, ' ').trim();
+        this.store.audit('guard_prov_note_leak', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.content.slice(-60) });
+        anyA.content = cleaned;
+      }
       // M311 (loop find, guard under M278/M77): a NEW node the filer parked in "to sort" without the provenance note and without
       // a dim branch it could belong to is a misfiled topic ("Chongqing attractions" went to to sort while the only dim branch was
       // the home network) — the top level is ordinary; it goes there.
-      if (a.op === 'create_node' && toSortId && anyA.parentId === toSortId && typeof anyA.content === 'string' && !/\(arrived while/i.test(anyA.content) && !alterations.some((o: any) => o.op === 'suggest_relight' && o.nodeId === anyA.id && /\[[0-9a-f]{6,}\]/i.test(String(o.note ?? '')))) { // only a placement note that names a branch [id] holds it in to sort
+      if (a.op === 'create_node' && toSortId && anyA.parentId === toSortId && typeof anyA.content === 'string' && !/[（(]arrived while/i.test(anyA.content) && !alterations.some((o: any) => o.op === 'suggest_relight' && o.nodeId === anyA.id && /\[[0-9a-f]{6,}\]/i.test(String(o.note ?? '')))) { // only a placement note that names a branch [id] holds it in to sort
         const words = (t: string) => new Set((t.toLowerCase().match(/[a-z][a-z'-]{4,}|[\u4e00-\u9fff]{2,}/g) ?? []).filter((w) => !STOP.has(w)));
         const mine = words(anyA.content);
         const dimNodes = map.nodes.filter((n) => n.status !== 'removed' && !live.has(n.id) && n.parentId !== null && n.id !== toSortId);
