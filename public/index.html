@@ -211,6 +211,39 @@
                        font-size: 11px; cursor: pointer; padding: 1px 8px; }
 
   #tree { flex: 1; overflow-y: auto; padding: 10px 12px; }
+  /* ONE-BAR LAYOUT (Jacob 2026-10-05: "Having three rows at the top is very confusing and ugly" → "Let the one-bar layout be
+     the only layout"). One 44px bar: brand (wordmark stays — Jacob) + health dot · map switcher · search · ⋯ (which absorbs
+     ?, side view, auto, chat-agent view and everything else). Below it ONE quiet context line inside the map area: ⌂ ↑ the focus
+     chip LEFT of the zoom trail (Jacob 2026-10-04) and the ★ favorites as a single strip that never wraps. "talk to map" is a
+     floating button anchored bottom-right of the tree, under dialogs (z 20 < .overlay 40), so it never appears to move. */
+  #map-pane > header { padding: 0 12px; height: 44px; min-height: 44px; gap: 10px; }
+  #map-pane > header .brandmark { width: 26px; height: 26px; }
+  #map-pane > header .htitle { font-size: 20px; }
+  #map-pane > header #beat { display: none; }
+  #map-pane > header #lag { font-size: 0; width: 8px; height: 8px; border-radius: 50%; background: #2fa34d; margin: 0 0 0 -4px; flex: none; }
+  #map-pane > header #lag.behind { background: var(--warn); }
+  #map-pane > header { overflow: hidden; }
+  #map-pane > header .htitle { flex: none; }
+  #map-pane > header #proj-sel { flex: 1 1 60px; min-width: 60px; max-width: 180px; font-weight: 600; color: var(--ink); font-size: 13px; }
+  #header-right { flex: none; }
+  #map-pane #crumbs #trail { flex: 0 0 auto; max-width: 40%; }
+  #map-pane #crumbs > #bookmarks { flex: 1 1 100px; }
+  #header-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  #header-right > button, #header-right #other-btn { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px; font-size: 12px; cursor: pointer; padding: 3px 9px; white-space: nowrap; }
+  #other-top { display: flex; flex-direction: column; gap: 4px; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--hair); }
+  #other-top button { text-align: left; }
+  #zoom-tools { display: none; }
+  #map-pane #crumbs { background: transparent; padding: 5px 12px 6px; border-bottom: 1px solid var(--hair); }
+  #map-pane #crumbs > #bookmarks { flex: 1 1 200px; min-width: 0; margin-left: auto; padding: 0; border: none; background: transparent; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent); mask-image: linear-gradient(90deg, #000 90%, transparent); }
+  #map-pane #crumbs > #bookmarks::-webkit-scrollbar { display: none; }
+  #map-pane #crumbs > #bookmarks[hidden] { display: none; }
+  #tree-wrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .info-ico { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; vertical-align: -2px; }
+  .info-ico .dot { fill: currentColor; stroke: none; }
+  #tree-wrap > #map-chat { position: absolute; right: 16px; bottom: 14px; z-index: 20; display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; border: none; box-shadow: 0 6px 18px rgba(0,0,0,.18); cursor: pointer; transition: transform .15s; }
+  #tree-wrap > #map-chat:hover { transform: translateY(-2px); }
+  #tree-wrap > #map-chat .brandmark-mono { width: 20px; height: 20px; margin: 0; vertical-align: middle; }
+  body.mobile #tree-wrap > #map-chat { display: none; } /* the mobile shell has its own guide composer (M135) */
   .nrow { display: flex; align-items: stretch; gap: 5px; padding: 1px 4px; border-radius: 5px; }
   .nrow > *, .folded-line > * { align-self: baseline; }
   /* One depth step = the caret column (34px + 5px row gap), so each guide
@@ -621,7 +654,33 @@ let folded = new Set(), userFolded = new Set(), userUnfolded = new Set();
 const opsOpen = new Set(); // rows whose ⋯ actions are expanded — persisted across re-renders so the cluster (depth, move, merge…) doesn't collapse mid-use
 
 const $ = (id) => document.getElementById(id);
+
+// ONE-BAR LAYOUT (Jacob 2026-10-05): the original elements are relocated ONCE, so every id-bound handler, tooltip and
+// drawer row keeps working — nothing is re-implemented. header ← search + ⋯; ⋯ ← ?, side view, auto, chat-agent view;
+// the context line (#crumbs) ← ★ favorites; the tree gets a wrapper that hosts the floating "talk to map".
+(function oneBarLayout() {
+  const header = document.querySelector('#map-pane > header'); if (!header || $('header-right')) return;
+  const right = document.createElement('div'); right.id = 'header-right';
+  const search = $('search-btn'); if (search) right.appendChild(search);
+  const other = $('other-wrap'); if (other) { other.style.marginLeft = ''; right.appendChild(other); }
+  header.appendChild(right);
+  const menu = $('other-menu');
+  if (menu) {
+    const top = document.createElement('div'); top.id = 'other-top';
+    for (const id of ['legend-btn', 'sideview-btn', 'auto-btn', 'ctx-btn']) { const b = $(id); if (b) { b.classList.remove('hbtn'); top.appendChild(b); } }
+    const lb = $('legend-btn'); if (lb && lb.textContent.trim() === '?') lb.textContent = '? tutorial';
+    const sv = $('sideview-btn'); if (sv && sv.textContent.trim() === '▯') sv.textContent = '▯ side view (map only)';
+    menu.prepend(top);
+  }
+  const bm = $('bookmarks'), cr = $('crumbs'); if (bm && cr) cr.appendChild(bm);
+  const tree = $('tree'), mc = $('map-chat');
+  if (tree && mc && !$('tree-wrap')) { const wrap = document.createElement('div'); wrap.id = 'tree-wrap'; tree.parentNode.insertBefore(wrap, tree); wrap.appendChild(tree); wrap.appendChild(mc); }
+  const lag = $('lag'), ht = document.querySelector('#map-pane > header .htitle');
+  if (lag) { const mirror = () => { lag.title = `map status: ${lag.textContent || ''}`; }; mirror(); new MutationObserver(mirror).observe(lag, { childList: true, characterData: true, subtree: true }); if (ht) ht.after(lag); }
+})();
+
 const HOME_ICO = '<svg class="home-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8.2 8 3.2l5.5 5"/><path d="M4.2 7.4V12.8h7.6V7.4"/></svg>';
+const INFO_ICO = '<svg class="info-ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3"/><path d="M8 7.3v4.2"/><circle class="dot" cx="8" cy="4.9" r=".75"/></svg>'; // details button (Jacob 2026-10-05) — inline SVG, no symbol-font dependence
 const chat = () => S.chats.find(c => c.id === S.mainChatId);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // M167 (Jacob): our own dialog boxes replace the browser's native popups —
@@ -832,9 +891,9 @@ function renderTree() {
       <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
       ${isTray && kids.length ? `<button class="justdo" data-sortall="1" title="just do it: sort everything in “Needs a home” into the homes the map names now, no review (one ↩ undo)">⚡ sort all</button>` : ''}
       <span class="rowops">
-        ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes)">◱</button>`}
         <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? (S.focusBy === 'user' ? 'the conversation is focused here — set by you; auto mode holds it until you move it or press ⚡' : 'the conversation is focused here') : 'focus: talk about this (no zoom)'}">▶</button>
         <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? ((chat()?.userLit || []).includes(n.id) ? 'lit by you — auto mode never dims it; click to dim' : 'dim: remove from the chat agent’s background') : ((S.userDim || []).includes(n.id) ? 'set aside by you — auto mode never re-lights it; click to light' : 'light as background (incl. everything under it)')}">☀</button>${(() => { const d = S.served && S.served[n.id]; const pin = S.depthPins && S.depthPins[n.id]; if (d === undefined && pin === undefined) return ''; const names = ['one line', 'summary', 'whole story', 'original words']; const unmet = (S.pinsUnmet || []).includes(n.id); return `<span class="depth${pin !== undefined ? ' pinned' : ''}${unmet ? ' unmet' : ''}" title="${d !== undefined ? `served now at: ${names[d]}` : 'not in the last block'}${pin !== undefined ? ` · pinned by you: ${names[pin]}${unmet ? ' — did not fit this turn (❗)' : ''}` : ''}">${unmet ? '❗' : d !== undefined ? (['▂', '▃', '▅', '▇'][d] ?? '▂') : '⌖'}</span>`; })()}
+        <button class="rowbtn" data-detail="${n.id}" title="details: full text, history, relations, edit (double-click the row to zoom into it)">${INFO_ICO}</button>
         <button class="rowbtn" data-rowmore="${n.id}" title="more actions: favorite, home, add child, move, tidy, merge">⋯</button>
         <span class="rowext">
         <button class="rowbtn ${(S.favorites || []).includes(n.id) ? 'on' : ''}" data-fav="${n.id}" title="${(S.favorites || []).includes(n.id) ? 'unpin from favorites' : 'favorite: pin this node to the top of search'}">★</button>
@@ -2335,11 +2394,21 @@ $('tree').addEventListener('click', async (e) => {
     if (nt !== null && nt.trim() !== (n?.type ?? '')) await post(`/api/nodes/${retype}`, { type: nt.trim(), chatId: S.mainChatId });
     return;
   }
+  // Jacob 2026-10-05 ("double click zooms in, and detail becomes a button right to light and focus"): ⓘ opens the
+  // details; a single click on the text only marks it seen, so a double-click can zoom without first opening a dialog.
+  const det = t.closest('[data-detail]')?.dataset.detail;
+  if (det) { if ((S.recency || {})[det]) post(`/api/nodes/${det}/seen`, {}).catch(() => {}); openNodeDetail(det); return; }
   const editId = t.closest('[data-edit]')?.dataset.edit;
   if (editId) {
     if ((S.recency || {})[editId]) post(`/api/nodes/${editId}/seen`, {}).catch(() => {});
-    openNodeDetail(editId); return;
+    return;
   }
+});
+document.getElementById('tree').addEventListener('dblclick', (e) => {
+  const row = e.target.closest('.nrow'); if (!row || row.classList.contains('tosort')) return;
+  if (e.target.closest('button, [data-fold], input, textarea, select')) return;
+  const id = row.querySelector('[data-edit]')?.dataset.edit;
+  if (id && id !== zoomId) { if (window.getSelection) window.getSelection()?.removeAllRanges(); setZoom(id); }
 });
 
 // ---- place picker (M52+M53): the map agent fetches candidate homes; the
@@ -3936,10 +4005,10 @@ const TOUR = [
   { sel: '#tree', title: 'Your map', body: 'Everything you and Claude discuss files itself here — topics, decisions, questions. You never take notes; the map takes them for you.' },
   { find: () => document.querySelector('.nrow.focused') ?? document.querySelector('.nrow'), title: '▶ Focus — talk about this', body: 'One node is what the conversation is about right now. Press ▶ on any row and Claude talks about that instead.' },
   { find: () => document.querySelector('.nrow'), title: '☀ Light — keep it in mind', body: 'Claude only sees what\u2019s lit ☀. Dim a branch and Claude forgets it — you still see everything. You decide what it knows.' },
-  { find: () => document.querySelector('.nrow'), title: '◱ Zoom — view only this', body: '◱ shows just one branch on your screen. It changes what YOU see, never what Claude sees.' },
-  { find: () => document.querySelector('.nrow.tosort'), title: 'Needs a home', body: 'Arrivals the filer couldn\u2019t place yet wait here so nothing is lost \u2014 approve a placement or move one home. Your \u2605 favorites now live in the bookmarks bar under the navigation row.' },
+  { find: () => document.querySelector('.nrow'), title: '◱ Zoom — view only this', body: 'Double-click a node to show just that branch on your screen (↑ at the top zooms back out). It changes what YOU see, never what Claude sees.' },
+  { find: () => document.querySelector('.nrow.tosort'), title: 'Needs a home', body: 'Arrivals the filer couldn\u2019t place yet wait here so nothing is lost \u2014 approve a placement or move one home. Your \u2605 favorites sit on the location line above the map.' },
   { sel: '#tabbar', title: 'Sessions', body: 'Each tab is one of your Claude Code or Codex sessions on this map — say \u201copen map\u201d in a session to attach it, or start one here with ＋ session. What you say there files here.' },
-  { sel: '#legend-btn', title: 'That\u2019s it', body: 'Three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (view only this). Everything else hides under ⋯ · 🗨 talk to map does anything in plain words · Ctrl/Cmd+Z undoes. Details: the reference card (next).' },
+  { sel: '#other-btn', title: 'That\u2019s it', body: 'Three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (double-click: view only this). Everything else hides under ⋯ · 🗨 talk to map does anything in plain words · Ctrl/Cmd+Z undoes. Details: the reference card (next).' },
 ];
 let tourAt = -1;
 function tourStop() {
