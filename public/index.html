@@ -1810,7 +1810,7 @@ $('sideview-btn').onclick = () => {
   const next = !sideViewOn();
   try { if (next) localStorage.setItem('hm-sideview', '1'); else localStorage.removeItem('hm-sideview'); } catch {}
   checkMobile();
-  $('round-line').textContent = next ? 'side view on: map only, remembered in this browser — ⋯ other → side view turns it off' : 'side view off: the conversation pane is back (a narrow window still shows the map only)';
+  $('round-line').textContent = next ? 'side view on: map only, remembered in this browser — ≡ menu → side view turns it off' : 'side view off: the conversation pane is back (a narrow window still shows the map only)';
 };
 $('influence-btn').onclick = async () => {
   $('other-menu').hidden = true;
@@ -3524,7 +3524,7 @@ function openMapChat(seed) {
       card.textContent = `proposal: save a standing preference — “${a.instruction}” (every map agent will follow it)`;
       const b = btn('✎ approve — save preference');
       b.onclick = async () => {
-        try { await post('/api/prefs', { append: a.instruction }); done('✓ saved — see ☰ map preferences in ⋯ other'); }
+        try { await post('/api/prefs', { append: a.instruction }); done('✓ saved — see Preferences & glossary in ≡ menu'); }
         catch (e) { done(`failed: ${e.message}`); }
       };
       card.appendChild(b);
