@@ -212,8 +212,8 @@
 
   #tree { flex: 1; overflow-y: auto; padding: 10px 12px; }
   /* ONE-BAR LAYOUT (Jacob 2026-10-05: "Having three rows at the top is very confusing and ugly" → "Let the one-bar layout be
-     the only layout"). One 44px bar: brand (wordmark stays — Jacob) + health dot · map switcher · search · ⋯ (which absorbs
-     ?, side view, auto, chat-agent view and everything else). Below it ONE quiet context line inside the map area: ⌂ ↑ the focus
+     the only layout"). One 44px bar: brand (wordmark stays — Jacob) + health dot · map switcher · ◎ auto · search · ≡ menu (which absorbs
+     ?, side view, chat-agent view and everything else). Below it ONE quiet context line inside the map area: ⌂ ↑ the focus
      chip LEFT of the zoom trail (Jacob 2026-10-04) and the ★ favorites as a single strip that never wraps. "talk to map" is a
      floating button anchored bottom-right of the tree, under dialogs (z 20 < .overlay 40), so it never appears to move. */
   #map-pane > header { padding: 0 12px; height: 44px; min-height: 44px; gap: 10px; }
@@ -226,6 +226,7 @@
   #map-pane > header .htitle { flex: none; }
   #map-pane > header #proj-sel { flex: 1 1 60px; min-width: 60px; max-width: 180px; font-weight: 600; color: var(--ink); font-size: 13px; }
   #header-right { flex: none; }
+  #map-pane > header #auto-btn { white-space: nowrap; flex: none; }
   #map-pane #crumbs #trail { flex: 0 0 auto; max-width: 40%; }
   #map-pane #crumbs > #bookmarks { flex: 1 1 100px; }
   #header-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
@@ -238,6 +239,19 @@
   #map-pane #crumbs > #bookmarks::-webkit-scrollbar { display: none; }
   #map-pane #crumbs > #bookmarks[hidden] { display: none; }
   #tree-wrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  /* ≡ menu popover (replaces the controls board) */
+  #hm-menu { position: absolute; right: 10px; top: 48px; z-index: 45; width: 440px; max-width: calc(100% - 20px); background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.18); padding: 10px 12px 10px; font-size: 13px; color: var(--ink); text-align: left; font-weight: 400; }
+  #hm-menu.wide { width: 660px; }
+  #hm-menu .hm-search { width: 100%; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 8px; padding: 6px 10px; font-size: 13px; margin-bottom: 6px; background: var(--bg); color: var(--ink); }
+  #hm-menu .hm-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 18px; }
+  #hm-menu.wide .hm-cols { grid-template-columns: 1fr 1fr 1fr; }
+  #hm-menu .hm-g { break-inside: avoid; }
+  #hm-menu h4 { margin: 8px 0 2px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  #hm-menu .hm-it { display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 4px 6px; border: none; background: transparent; color: var(--ink); border-radius: 6px; cursor: pointer; white-space: nowrap; font-size: 13px; text-align: left; }
+  #hm-menu .hm-it:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  #hm-menu .hm-it[hidden] { display: none; }
+  #hm-menu .hm-it .ic { width: 20px; text-align: center; color: var(--muted); font-size: 12px; flex: none; }
+  #hm-menu .hm-foot { margin-top: 8px; font-size: 11px; color: var(--muted); }
   .info-ico { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; vertical-align: -2px; }
   .info-ico .dot { fill: currentColor; stroke: none; }
   #tree-wrap > #map-chat { position: absolute; right: 16px; bottom: 14px; z-index: 20; display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; border: none; box-shadow: 0 6px 18px rgba(0,0,0,.18); cursor: pointer; transition: transform .15s; }
@@ -593,7 +607,7 @@
       <button id="zoom-out" title="zoom out one level, to the parent node">↑ zoom out</button>
       <button id="search-btn" title="find a node (Ctrl/Cmd+K) — confirm it with its parents and children, then light, zoom, or focus it">🔍 search</button>
       <div id="other-wrap" style="position:relative;margin-left:auto">
-        <button id="other-btn" title="all other map functions">⋯ other<span class="nudge-dot" hidden>●</span></button>
+        <button id="other-btn" title="menu: every map function, grouped — type to find one">≡ menu<span class="nudge-dot" hidden>●</span></button>
         <div id="other-menu" hidden>
           <div style="display:flex;gap:4px"><button id="auto-focus" style="flex:1" title="the focus agent suggests what to talk about next — you confirm">▶ auto-focus<span class="nudge-dot" hidden>●</span></button><button class="justdo" data-do="focus" title="just do it: re-aim the focus now, no proposal (one ↩ undo)">⚡</button></div>
           <div style="display:flex;gap:4px"><button id="auto-lit" style="flex:1" title="the lighting agent picks which nodes belong in the background for the current focus">☀ auto-light<span class="nudge-dot" hidden>●</span></button><button class="justdo" data-do="light" title="just do it: re-light for the focus now, no proposal (one ↩ undo)">⚡</button></div>
@@ -686,7 +700,8 @@ const $ = (id) => document.getElementById(id);
   const menu = $('other-menu');
   if (menu) {
     const top = document.createElement('div'); top.id = 'other-top';
-    for (const id of ['legend-btn', 'sideview-btn', 'auto-btn', 'ctx-btn']) { const b = $(id); if (b) { b.classList.remove('hbtn'); top.appendChild(b); } }
+    for (const id of ['legend-btn', 'sideview-btn', 'ctx-btn']) { const b = $(id); if (b) { b.classList.remove('hbtn'); top.appendChild(b); } }
+    { const ab = $('auto-btn'), ps = $('proj-sel'); if (ab && ps) ps.after(ab); } // Jacob 06:19 "where did the auto mode button go?" — the mode toggle stays in the bar
     const lb = $('legend-btn'); if (lb && lb.textContent.trim() === '?') lb.textContent = '? tutorial';
     const sv = $('sideview-btn'); if (sv && sv.textContent.trim() === '▯') sv.textContent = '▯ side view (map only)';
     menu.prepend(top);
@@ -2041,22 +2056,38 @@ const CONTROLS = [
     ['dev-btn', '🔧', 'dev mode', 'record every agent call; the agent network; for the developers'],
   ] },
 ];
+// ≡ MENU (Jacob 2026-10-05: "the functioning of the ⋯ is still mysterious" → "Yes this is good implement"): the controls board
+// (M229, a full-screen wall of 25 tiles with paragraph descriptions) becomes a compact menu anchored under the ≡ button —
+// a filter box on top, short verb-first items in six groups by what you want to do, descriptions on hover. Every item still
+// proxies to the existing hidden button (CONTROLS ids), so every handler, permission and nudge stays exactly as it was.
+const MENU_GROUPS = [
+  ['View', [['sideview-btn', '▯', 'Side view (map only)'], ['galaxy-btn', '🪐', 'Galaxy view'], ['font-btn', '🔠', 'Text size'], ['legend-btn', '?', 'Tutorial & reference']]],
+  ['Agent', [['auto-btn', '◎', 'Auto mode on / off'], ['auto-settings-btn', '◎', 'Auto mode settings…'], ['agent-view-btn', '👁', 'What the agent sees'], ['ctx-refresh-btn', '⟲', 'Refresh agent context'], ['lit-mgr-btn', '▶☀', 'Manage focus & light'], ['auto-focus', '▶', 'Propose a focus'], ['auto-lit', '☀', 'Propose lighting'], ['auto-zoom', '◱', 'Propose a zoom'], ['lit-all', '☀', 'Light all in this view'], ['dim-all', '◐', 'Dim all in this view'], ['dim-outside', '◐', 'Dim everything outside']]],
+  ['Tidy', [['tidy-top', '⟳', 'Tidy this view'], ['map-check', '⟳', 'Check the whole map'], ['auto-rename', '✎', 'Auto-rename long names'], ['enrich-btn', '✚', 'Enrich thin nodes'], ['undo-btn', '↩', 'Undo last change']]],
+  ['Map', [['import-btn', '⇪', 'Import notes, files or a session…'], ['map-save-btn', '⤓', 'Save as .map'], ['map-open-btn', '⤒', 'Open a .map'], ['prefs-btn', '☰', 'Preferences & glossary'], ['mapstatus-btn', '🩺', 'Map status'], ['models-btn', '⚙', 'Models & cost']]],
+  ['Sessions', [['tab-add', '＋', 'New session'], ['sessions-btn', '▦', 'All sessions']]],
+  ['Account', [['authinfo-btn', '🔑', 'Sign-in & billing'], ['update-btn', '⬆', 'Check for updates'], ['influence-btn', '⏻', 'Map influence'], ['feedback-btn', '🐞', 'Send feedback'], ['dev-btn', '🔧', 'Dev mode']]],
+];
+const CONTROL_SUB = Object.fromEntries(CONTROLS.flatMap((grp) => grp.items.map(([id, , , sub]) => [id, sub])));
 function openControlsBoard() {
-  const ov = document.createElement('div'); ov.className = 'overlay';
-  const tile = ([id, g, label, sub]) => $(id) ? `<button class="cb-tile" data-cb="${id}" data-text="${esc((label + ' ' + sub).toLowerCase())}"><span class="g">${g}</span><b>${esc(label)}</b><small>${esc(sub)}</small></button>` : '';
-  ov.innerHTML = `<div class="modal cb-modal"><h3>⋯ all controls</h3>
-    <input class="cb-search" id="cb-search" placeholder="find a control… (type to filter)" autocomplete="off">
-    ${CONTROLS.map((grp) => `<div class="cb-group" data-cbg><h4>${esc(grp.g)}${grp.sub ? ` <span style="text-transform:none;letter-spacing:0;font-weight:400">— ${esc(grp.sub)}</span>` : ''}</h4><div class="cb-grid">${grp.items.map(tile).join('')}</div></div>`).join('')}
-    <div class="actions"><button id="cb-close">close</button></div></div>`;
-  document.body.appendChild(ov);
-  const close = () => ov.remove();
-  ov.onclick = (e) => { if (e.target === ov) close(); };
-  ov.querySelector('#cb-close').onclick = close;
-  ov.querySelectorAll('.cb-tile').forEach((b) => { b.onclick = () => { const id = b.dataset.cb; close(); const target = $(id); if (target) target.click(); }; });
-  const q = ov.querySelector('#cb-search');
-  q.oninput = () => { const v = q.value.trim().toLowerCase(); ov.querySelectorAll('.cb-tile').forEach((b) => { b.hidden = !!v && !b.dataset.text.includes(v); }); ov.querySelectorAll('[data-cbg]').forEach((grp) => { grp.hidden = ![...grp.querySelectorAll('.cb-tile')].some((b) => !b.hidden); }); };
-  q.onkeydown = (e) => { if (e.key === 'Escape') close(); if (e.key === 'Enter') { const first = [...ov.querySelectorAll('.cb-tile')].find((b) => !b.hidden); if (first) first.click(); } };
-  setTimeout(() => q.focus(), 30);
+  const old = $('hm-menu'); if (old) { old.remove(); return; }
+  const host = $('map-pane') || document.body; // not inside the header: it clips overflow
+  const m = document.createElement('div'); m.id = 'hm-menu';
+  const wide = (document.getElementById('map-pane')?.getBoundingClientRect().width ?? 0) > 760;
+  m.classList.toggle('wide', wide);
+  const item = ([id, g, label]) => $(id) ? `<button class="hm-it" data-cb="${id}" data-text="${esc((label + ' ' + (CONTROL_SUB[id] || '')).toLowerCase())}" title="${esc(CONTROL_SUB[id] || label)}"><span class="ic">${g}</span><span class="lbl">${esc(label)}</span></button>` : '';
+  m.innerHTML = `<input class="hm-search" id="hm-search" placeholder="type to find anything — “dim”, “import”, “text size”…" autocomplete="off">
+    <div class="hm-cols">${MENU_GROUPS.map(([g, items]) => `<div class="hm-g" data-hmg><h4>${esc(g)}</h4>${items.map(item).join('')}</div>`).join('')}</div>
+    <div class="hm-foot">hover an item for what it does · Esc closes</div>`;
+  host.appendChild(m);
+  const close = () => m.remove();
+  m.querySelectorAll('.hm-it').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); const id = b.dataset.cb; close(); const target = $(id); if (target) target.click(); }; });
+  const q = m.querySelector('#hm-search');
+  q.oninput = () => { const v = q.value.trim().toLowerCase(); m.querySelectorAll('.hm-it').forEach((b) => { b.hidden = !!v && !b.dataset.text.includes(v); }); m.querySelectorAll('[data-hmg]').forEach((grp) => { grp.hidden = ![...grp.querySelectorAll('.hm-it')].some((b) => !b.hidden); }); };
+  q.onkeydown = (e) => { if (e.key === 'Escape') { close(); e.stopPropagation(); } if (e.key === 'Enter') { const first = [...m.querySelectorAll('.hm-it')].find((b) => !b.hidden); if (first) first.click(); } };
+  m.onclick = (e) => e.stopPropagation();
+  setTimeout(() => { q.focus(); document.addEventListener('click', function away(e) { if (!m.isConnected) { document.removeEventListener('click', away); return; } if (!m.contains(e.target)) { close(); document.removeEventListener('click', away); } }); }, 0);
+  const esc_ = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc_, true); } }; document.addEventListener('keydown', esc_, true);
 }
 
 $('other-more-btn').onclick = (e) => { e.stopPropagation(); $('other-more').hidden = false; $('other-more-btn').hidden = true; };
@@ -4028,7 +4059,7 @@ const TOUR = [
   { find: () => document.querySelector('.nrow'), title: '◱ Zoom — view only this', body: 'Double-click a node to show just that branch on your screen (↑ at the top zooms back out). It changes what YOU see, never what Claude sees.' },
   { find: () => document.querySelector('.nrow.tosort'), title: 'Needs a home', body: 'Arrivals the filer couldn\u2019t place yet wait here so nothing is lost \u2014 approve a placement or move one home. Your \u2605 favorites sit on the location line above the map.' },
   { sel: '#tabbar', title: 'Sessions', body: 'Each tab is one of your Claude Code or Codex sessions on this map — say \u201copen map\u201d in a session to attach it, or start one here with ＋ session. What you say there files here.' },
-  { sel: '#other-btn', title: 'That\u2019s it', body: 'Three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (double-click: view only this). Everything else hides under ⋯ · 🗨 talk to map does anything in plain words · Ctrl/Cmd+Z undoes. Details: the reference card (next).' },
+  { sel: '#other-btn', title: 'That\u2019s it', body: 'Three moves: ▶ focus (talk about this) · ☀ light (keep in mind) · ◱ zoom (double-click: view only this). Everything else is in ≡ menu · 🗨 talk to map does anything in plain words · Ctrl/Cmd+Z undoes. Details: the reference card (next).' },
 ];
 let tourAt = -1;
 function tourStop() {
