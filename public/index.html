@@ -3311,6 +3311,37 @@ function openMapChat(seed) {
       </div>
     </div>`;
   document.body.appendChild(ov);
+  // M395 (Jacob 2026-10-05, "make the browser widget also moveable"): the dialog is draggable by its
+  // title bar; the position is remembered per browser (localStorage) and dropped when it no longer
+  // fits the window. Phones keep the full-screen sheet (body.mobile) — nothing to drag there.
+  {
+    const modal = ov.querySelector('.modal'), bar = ov.querySelector('h3');
+    if (!document.body.classList.contains('mobile') && modal && bar) {
+      const KEY = 'hm.mapchat.pos';
+      const place = (x, y) => {
+        const r = modal.getBoundingClientRect();
+        x = Math.max(0, Math.min(x, innerWidth - Math.min(r.width, innerWidth)));
+        y = Math.max(0, Math.min(y, innerHeight - Math.min(r.height, 120)));
+        modal.style.position = 'fixed'; modal.style.left = x + 'px'; modal.style.top = y + 'px'; modal.style.margin = '0';
+        return { x, y };
+      };
+      try { const p = JSON.parse(localStorage.getItem(KEY) || 'null'); if (p && Number.isFinite(p.x) && Number.isFinite(p.y) && p.x < innerWidth - 80 && p.y < innerHeight - 80) place(p.x, p.y); } catch {}
+      bar.style.cursor = 'grab'; bar.title = 'drag to move';
+      bar.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 || e.target.closest('button')) return;
+        const r = modal.getBoundingClientRect(); const dx = e.clientX - r.left, dy = e.clientY - r.top; let last = null;
+        try { bar.setPointerCapture(e.pointerId); } catch {}
+        bar.style.cursor = 'grabbing'; e.preventDefault();
+        const move = (ev) => { last = place(ev.clientX - dx, ev.clientY - dy); };
+        const up = () => {
+          bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); bar.removeEventListener('pointercancel', up);
+          bar.style.cursor = 'grab';
+          if (last) { try { localStorage.setItem(KEY, JSON.stringify(last)); } catch {} }
+        };
+        bar.addEventListener('pointermove', move); bar.addEventListener('pointerup', up); bar.addEventListener('pointercancel', up);
+      });
+    }
+  }
   const log = ov.querySelector('#mc-log'), input = ov.querySelector('#mc-input');
   const push = (who, text) => {
     const d = document.createElement('div');
