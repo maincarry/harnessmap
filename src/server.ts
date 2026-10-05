@@ -106,11 +106,10 @@ function ensureToSort(pid: string): void {
   store.audit('tosort_ensured', { project: pid.slice(0, 8) });
 }
 
-// M391/M394 (Jacob): the example map — seeded on a fresh map's first run, AND
-// back-filled once into existing installs at startup (Jacob: "push the example map
-// for every user"), so every user sees it, not just brand-new installs. Guarded by
-// the `example_seeded` setting so it is added exactly once and never re-added after
-// the user deletes it. Returns the created node ids so the caller can light them.
+// M391/M394 (Jacob): the example map, seeded once for every user (Jacob: "push the example map
+// for every user"). 2026-10-05 (Jacob: "Example map should be a map, not a node"): it is seeded
+// into ITS OWN map by ensureExampleProject, never beside the person's root. Returns the created
+// node ids so the caller can light them.
 function seedExampleMap(pid: string): string[] {
   const ops: any[] = [];
   const lit: string[] = [];   // nodes to light (the rest are born, then left DIM = set aside)
@@ -199,13 +198,12 @@ function bootstrapProject(pid: string): string {
   // outgrown the moment real work arrives. Later maps (the user knows the
   // product by then) start with one root named after the map. Tutorial nodes
   // carry author 'system' so project adoption still sees a pristine map.
-  const first = store.listProjects().length <= 1;
   const seedIds: string[] = [rootId];
   // M278 (Jacob: "why do everything keep going into the getting started node? it should be a tutorial node such that user
-  // starts a new node anew"): every new map starts with an EMPTY focused top-level node — the first round names it (M114) —
-  // and the tutorial, on the first map only, is one more top-level node beside it, not the root of everything.
+  // starts a new node anew"): every new map starts with an EMPTY focused top-level node — the first round names it (M114).
+  // 2026-10-05 (Jacob: "Example map should be a map, not a node"): the example no longer sits beside it — it is its own
+  // map (ensureExampleProject), so the user's map holds only the user's work and the filer/brain never see the tutorial.
   store.applyAlterations(pid, [{ op: 'create_node', id: rootId, parentId: null, content: 'untitled', status: 'live', author: 'user' }], { kind: 'system' });
-  if (first) { seedIds.push(...seedExampleMap(pid)); store.setSetting('example_seeded', '1'); }
   const chatId = randomUUID();
   store.createChat({ id: chatId, projectId: pid, focusContainerId: rootId, sdkSessionId: null });
   for (const id of seedIds) store.setLit(chatId, id, true);
@@ -352,16 +350,48 @@ let mainChatId = (() => {
   store.setSetting(`active_chat:${projectId}`, id);
   return id;
 })();
-// M394 (Jacob "push the example map for every user"): existing installs that predate the
-// example never saw it (first-run only seeds a fresh DB). Back-fill it ONCE into the active
-// map here — guarded by `example_seeded` (a fresh install set it during bootstrap above) and
-// a belt-and-braces check for an example already present, so it is never doubled or re-added
-// after the user deletes it.
-if (!store.getSetting('example_seeded')) {
-  const hasExample = store.getNodes(projectId).some((n: any) => String(n.title ?? '') === 'Example map' || String(n.content ?? '').startsWith('A month of one long'));
-  if (!hasExample) { try { for (const id of seedExampleMap(projectId)) store.setLit(mainChatId, id, true); } catch {} }
-  store.setSetting('example_seeded', '1');
+// 2026-10-05 (Jacob: "Example map should be a map, not a node"; supersedes M394's in-map back-fill): the example is its own
+// map named "Example map" in the map switcher. Created ONCE (setting `example_project` holds its id; never re-created after
+// the person merges it away), and on the same first boot every existing map is migrated: the system-authored example
+// subtree M391/M394 had seeded beside the person's root is removed there (soft, deepest-first — the store re-homes any
+// user-authored node filed under it to the top level, so nothing of the person's is lost), audited per map. The active
+// map stays the person's own; the example is one dropdown pick away. Why a map: the filer filed real work inside the
+// example (§10#3b) and the brain described it as the person's project (§10#3) — in its own map neither can happen.
+const EXAMPLE_MAP_NAME = 'Example map';
+const isExampleRoot = (n: any) => n.parentId === null && n.author === 'system' && n.status !== 'removed' && (String(n.title ?? '') === EXAMPLE_MAP_NAME || String(n.content ?? '').startsWith('A month of one long'));
+function ensureExampleProject(): void {
+  if (store.getSetting('example_project')) return;
+  let pid = store.listProjects().find((p) => p.name === EXAMPLE_MAP_NAME)?.id;
+  if (!pid) {
+    pid = store.createProject(EXAMPLE_MAP_NAME);
+    ensureToSort(pid);
+    const lit = seedExampleMap(pid);
+    const root = store.getNodes(pid).find(isExampleRoot)?.id ?? lit[0];
+    const chatId = randomUUID();
+    store.createChat({ id: chatId, projectId: pid, focusContainerId: root, sdkSessionId: null });
+    for (const id of lit) store.setLit(chatId, id, true);
+    store.setSetting(`active_chat:${pid}`, chatId);
+    store.audit('example_map_created', { project: pid.slice(0, 8), nodes: store.getNodes(pid).length });
+  }
+  for (const pr of store.listProjects()) {
+    if (pr.id === pid) continue;
+    const nodes = store.getNodes(pr.id);
+    const roots = nodes.filter(isExampleRoot);
+    if (!roots.length) continue;
+    const byParent = new Map<string | null, any[]>();
+    for (const n of nodes) { const k = n.parentId ?? null; (byParent.get(k) ?? byParent.set(k, []).get(k)!).push(n); }
+    const doomed: { id: string; depth: number }[] = [];
+    const walk = (id: string, depth: number) => { for (const c of byParent.get(id) ?? []) { if (c.status === 'removed') continue; if (c.author === 'system') { doomed.push({ id: c.id, depth }); walk(c.id, depth + 1); } } };
+    for (const r of roots) { doomed.push({ id: r.id, depth: 0 }); walk(r.id, 1); }
+    doomed.sort((a, b) => b.depth - a.depth); // children first: the store re-homes live children of a removed node to its parent, so user nodes surface to the top level
+    store.applyAlterations(pr.id, doomed.map((d) => ({ op: 'update_node', id: d.id, status: 'removed' } as any)), { kind: 'system' });
+    const surfaced = store.getNodes(pr.id).filter((n) => n.parentId === null && n.author !== 'system' && n.status !== 'removed').length;
+    store.audit('example_map_migrated', { project: pr.id.slice(0, 8), removed: doomed.length, userTopLevel: surfaced });
+  }
+  store.setSetting('example_project', pid);
+  store.setSetting('example_seeded', '1'); // legacy flag — older code paths read it; nothing re-seeds in-map now
 }
+ensureExampleProject();
 // M271: self-healing after the inner-session storm — views whose host session's first user turn is one of OUR
 // prompts ("SYSTEM INSTRUCTIONS:" is the codex exec prompt's first line) are the map filing itself. Archive those
 // views, forget their sessions, remove the nodes their rounds created (one undo entry). Runs at boot and on demand.
