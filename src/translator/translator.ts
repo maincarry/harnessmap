@@ -561,14 +561,17 @@ export class Translator {
       if (a.op === 'update_node' && anyA.id && typeof anyA.content === 'string' && anyA.title === undefined && this.store.getSetting(`titleBy:${anyA.id}`) !== 'user') {
         const cur = map.nodes.find((n) => n.id === anyA.id);
         if (cur?.title && cur.content.trim() !== anyA.content.trim()) {
-          const tok = (t: string) => new Set((t.toLowerCase().match(/[a-z][a-z'-]{3,}/g) ?? []).filter((w) => !STOP.has(w)));
+          // 2026-10-05 (CJK audit of the guards, after 0.9.156): this tokenizer saw Latin words only, so on a Chinese map a correction
+          // that changed the statement never cleared the stale Chinese title — the guard was inert there. Han runs now contribute
+          // sliding character bigrams (a title phrase that still appears verbatim in the statement keeps every bigram present).
+          const tok = (t: string) => { const out = new Set<string>((t.toLowerCase().match(/[a-z][a-z'-]{3,}/g) ?? []).filter((w) => !STOP.has(w))); for (const run of t.match(/[\u4e00-\u9fff]+/g) ?? []) for (let i = 0; i + 1 < run.length; i++) out.add(run.slice(i, i + 2)); return out; };
           const oldC = tok(cur.content), newC = tok(anyA.content);
           const gone = [...tok(cur.title)].filter((w) => oldC.has(w) && !newC.has(w));
           if (gone.length) { anyA.title = ''; this.store.audit('guard_stale_title', { id: String(anyA.id).slice(0, 8), gone }); }
           // M341 (real ring-buffer replay): "off-by-one error unresolved" over a statement that now says it was fixed — the stale word
           // was never in the old statement, so the rule above could not see it. A title that says unresolved/open/pending/failing on
           // an update whose status or statement says answered/done/resolved/fixed is blanked for the healer.
-          else if (/\b(unresolved|unsolved|open question|pending|still (failing|broken|wrong)|not (yet )?(fixed|working|resolved)|failing|blocked|missing)\b/i.test(cur.title) && (/^(answered|done|resolved|decided|accepted|fixed|closed)$/i.test(String(anyA.status ?? '')) || /\b(was|is|has been|now) (fixed|resolved|solved|working|corrected|complete[d]?)\b/i.test(String(anyA.content)))) { anyA.title = ''; this.store.audit('guard_stale_title', { id: String(anyA.id).slice(0, 8), gone: ['(resolved)'] }); }
+          else if ((/\b(unresolved|unsolved|open question|pending|still (failing|broken|wrong)|not (yet )?(fixed|working|resolved)|failing|blocked|missing)\b/i.test(cur.title) || /未解决|尚未解决|待解决|待定|仍(然)?(失败|报错|出错)|未修复|尚未修复|仍未/.test(cur.title)) && (/^(answered|done|resolved|decided|accepted|fixed|closed)$/i.test(String(anyA.status ?? '')) || /\b(was|is|has been|now) (fixed|resolved|solved|working|corrected|complete[d]?)\b/i.test(String(anyA.content)) || /已(经)?(修复|解决|完成|搞定)|修好了|解决了|(现在|目前)(可以|正常)(运行|工作)/.test(String(anyA.content)))) { anyA.title = ''; this.store.audit('guard_stale_title', { id: String(anyA.id).slice(0, 8), gone: ['(resolved)'] }); }
         }
       }
       // M311 (loop find, guard under M278/M77): a NEW node the filer parked in "to sort" without the provenance note and without
