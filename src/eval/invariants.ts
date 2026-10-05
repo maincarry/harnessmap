@@ -113,6 +113,11 @@ for (const f of files) {
     const cyrTitles = titled.filter((n: any) => /\p{Script=Cyrillic}/u.test(String(n.title))).length;
     if (convoCyr > 0.5 && titled.length >= 2 && cyrTitles / titled.length < 0.5) hit('map_language_mismatch', tag, `conversation ${Math.round(convoCyr * 100)}% Cyrillic but only ${cyrTitles}/${titled.length} titles contain Cyrillic — the map answered in another language`, out);
   } catch {}
+  // 5s (vba-header-zh #170, luna): the map's own vocabulary in a user-facing title — "配置执行按钮结点" ("configure the execute-button NODE");
+  // the self_leak guard reads English CONTENT only, so a schema word in a CJK title passes. Rule: a title contains a map word
+  // (节点/结点 or "node(s)"/"subtree") that the node's content does not — swept 105 kept maps: 4 titles carry such a word, 3 have it in the
+  // content too (node-xlsx, SPICE "Ground node", "steal node") and are NOT flagged; 1 hit, 0 false positives.
+  try { const MAPWORD = /(节点|结点|\bnodes?\b|\bsubtree\b)/i; for (const n of live) { if (n.author === 'system' || !n.title) continue; const t = String(n.title); const m = t.match(MAPWORD); if (m && !MAPWORD.test(String(n.content ?? ''))) hit('title_map_word', tag, `${String(n.id).slice(0, 8)} "${t.slice(0, 60)}" — map word "${m[1]}" in the title but not in the content (5s)`, out); } } catch {}
   // 5r (go-html-png-zh #150, luna): a CJK title clipped mid-clause — "curl 页面转 PNG并" ("curl page to PNG and"), a conjunction glued to the
   // last Latin token with nothing after it (the same node came out "curl 页面转 PNG探讨" on #32: unstable tail). Rule: the title ends in a
   // one-char conjunction/particle glued to a Latin/digit token, or in a two-char conjunction anywhere. Swept 105 kept maps: 1 hit, 0 false
