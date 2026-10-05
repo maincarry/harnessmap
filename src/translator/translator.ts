@@ -640,7 +640,13 @@ export class Translator {
         // class above, and a balanced ")" or "]" must stay ("[Draft]"), so only UNBALANCED trailing closers go, one at a time.
         const more = (o: string, c: string) => t0.split(c).length > t0.split(o).length;
         while (/[\]\})）]$/u.test(t0) && ((t0.endsWith(']') && more('[', ']')) || (t0.endsWith('}') && more('{', '}')) || (t0.endsWith(')') && more('(', ')')) || (t0.endsWith('）') && more('（', '）')))) t0 = t0.slice(0, -1).replace(/[\s\p{S}\p{Pd}:;,·•|/\\~*^_+=<>#&@：；，、]+$/u, '').trim();
-        const t = t0.split(/\s+/).length >= 3 ? t0.replace(/\s+(?:of|for|to|and|or|with|in|on|by|the|a|an|at|from)$/i, '').trim() : t0; // M348c: "Face classification task of" — a dangling preposition after a stripped tail goes too ("Log in" stays: two words)
+        // M348c: "Face classification task of" — a dangling preposition AFTER A STRIPPED TAIL goes too ("Log in" stays: two words).
+        // 2026-10-05 fix (loop find, grammar-quiz #181): this ran unconditionally and turned the quiz option "Didn't have to" into
+        // "Didn't have" — a title that legitimately ends in a preposition. It now fires only when THIS guard already stripped a tail
+        // from the title, and never when the content carries the title verbatim (a quoted phrase is not a dangling preposition).
+        const strippedTail = t0 !== anyA.title.trim();
+        const quotedInContent = typeof anyA.content === 'string' && anyA.content.toLowerCase().includes(t0.toLowerCase());
+        const t = strippedTail && !quotedInContent && t0.split(/\s+/).length >= 3 ? t0.replace(/\s+(?:of|for|to|and|or|with|in|on|by|the|a|an|at|from)$/i, '').trim() : t0;
         if (t !== anyA.title && t.length >= 3) { this.store.audit('guard_title_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-12) }); anyA.title = t; }
       }
       // M349 (codex-native panorama replay): "Float target shape values te4a1b6c", "Image dimensions differata1b6c" — a glitch token with
