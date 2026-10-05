@@ -106,12 +106,19 @@ export function renderSubtreeLit(store: Store, nodeId: string, lit: Set<string>,
 }
 
 // One-paragraph brief of a node: its line + direct-children one-liners (lit view).
-export function renderNodeBrief(store: Store, nodeId: string): string {
+// M396 (demo sanity check, 2026-10-05): the brief listed EVERY child's full statement whatever the light — the chat agent's
+// WIDER FRAME (the focus's ancestors) therefore served a dimmed sibling of the focus in full ("Read English newspapers,
+// books, articles…"), the same leak M291/M320/M321 closed in memory, parent and relation text. With `lit` given, a child
+// outside the light is a name marked set aside (M46/M195/M253: dim = withheld, name only); no `lit` = the old full brief.
+export function renderNodeBrief(store: Store, nodeId: string, lit?: Set<string>): string {
   const n = store.getNode(nodeId);
   if (!n) return '';
   const kids = store.childrenOf(nodeId)
     .filter((k) => !['removed', 'dropped', 'rejected', 'retracted'].includes(k.status));
-  const parts = kids.slice(0, 12).map((k) => nodeLine(k));
+  const parts = kids.slice(0, 12).map((k) => {
+    if (lit && !lit.has(k.id)) { const name = k.title || (k.content.length > 40 ? `${k.content.slice(0, 40)}…` : k.content); return `${name} (set aside by the user)`; }
+    return nodeLine(k);
+  });
   return `${n.content} — ${parts.join(' · ') || 'nothing under it yet'}`;
 }
 

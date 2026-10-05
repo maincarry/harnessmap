@@ -101,12 +101,12 @@ export function composeParts(store: Store, chatId: string, manipulations: string
   const frame = ancestors(store, focusId);
   const constraints = nodes.filter((n) => n.type === 'constraint' && ['active', 'hard'].includes(n.status));
 
+  const litNow = new Set(store.getLit(chatId));
   const fixed: string[] = ['[map state — the current structure of this work]'];
   if (frame.length > 0) {
     fixed.push('WIDER FRAME:');
-    for (const f of frame) fixed.push(`  • ${renderNodeBrief(store, f.id)}`);
+    for (const f of frame) fixed.push(`  • ${renderNodeBrief(store, f.id, litNow)}`); // M396: the frame obeys the light too
   }
-  const litNow = new Set(store.getLit(chatId));
   let redactedN = 0; // M291
   // M291 (loop find): a dimmed node's statement leaked through its PARENT's memory text ("Pilot wave: thirty respondents
   // in Lisbon…, run by Ana" inside the chapter's summary). M253 says a set-aside node is never served — so any served
