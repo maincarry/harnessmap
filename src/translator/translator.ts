@@ -180,6 +180,11 @@ const SCRIPTS: Array<[string, RegExp]> = [
   ['hebrew', /\p{Script=Hebrew}/u], ['hangul', /\p{Script=Hangul}/u], ['hiragana', /\p{Script=Hiragana}/u], ['katakana', /\p{Script=Katakana}/u],
   ['han', /\p{Script=Han}/u], ['devanagari', /\p{Script=Devanagari}/u], ['bengali', /\p{Script=Bengali}/u], ['tamil', /\p{Script=Tamil}/u],
   ['georgian', /\p{Script=Georgian}/u], ['armenian', /\p{Script=Armenian}/u], ['ethiopic', /\p{Script=Ethiopic}/u], ['khmer', /\p{Script=Khmer}/u],
+  // 2026-10-05 (loop find, leftjoin-zh #184): "示例表数据ੋം" — a Gurmukhi vowel sign and a Malayalam anusvara (combining MARKS of scripts
+  // missing from this table) survived in a live title. The Script property covers marks, so listing the scripts is the whole fix.
+  ['gurmukhi', /\p{Script=Gurmukhi}/u], ['gujarati', /\p{Script=Gujarati}/u], ['oriya', /\p{Script=Oriya}/u], ['telugu', /\p{Script=Telugu}/u],
+  ['kannada', /\p{Script=Kannada}/u], ['malayalam', /\p{Script=Malayalam}/u], ['sinhala', /\p{Script=Sinhala}/u], ['lao', /\p{Script=Lao}/u],
+  ['tibetan', /\p{Script=Tibetan}/u], ['myanmar', /\p{Script=Myanmar}/u], ['mongolian', /\p{Script=Mongolian}/u],
 ];
 const STOP = new Set(['this','that','with','from','into','have','been','were','they','them','their','than','then','will','would','should','could','about','after','before','along','also','only','some','such','very','more','most','goes','need','needs','still','over','under','when','where','which','while','what','your','there','these','those','does','done','just','like','make','made','much','many','each','both','same','other','every','next','last','first'])
 
@@ -634,6 +639,8 @@ export class Translator {
           t0 = t0.replace(/\s*<\/?[a-z][a-z0-9-]*\s*$/i, '') // M348e: "炎性肉芽肿主题初识<table" — an unclosed HTML tag fragment glued to a name goes first
             .replace(/(?:\s+|[\p{S}\p{No}\p{Pd}\p{Pc}:;,·•|/\\~*^_+=<>#&@：；，、]+)+$/u, '')
             .replace(/\s*[?!？！]{2,}$/u, '').trim(); // "Thinkers here ??" — a doubled mark goes (M360 restored this step: an M348e comment had swallowed it)
+          // 2026-10-05 (loop find, leftjoin-zh #184): a lone straight quote/apostrophe glued to the end ("示例表数据'") is a stray too — but only when UNBALANCED ("Rock 'n' Roll" stays).
+          if (/['"]$/.test(t0) && (t0.split(t0.slice(-1)).length - 1) % 2 === 1) t0 = t0.slice(0, -1).trim();
           if (t0 === before) break;
         }
         // M360 (node-xlsx zh): the codex filer leaked its JSON closers into a name — "导出前清理空格（trim）}]}". Closers are Pe, not in the

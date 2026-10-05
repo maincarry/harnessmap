@@ -40,3 +40,24 @@ test('a plain title ending in a preposition with no stray tail is kept', () => {
   expect(r.title).toBe('Things to watch out for');
   expect(r.tailAudits).toBe(0);
 });
+
+// v0.9.155 (leftjoin-zh #184): foreign combining MARKS and a lone trailing apostrophe.
+test('a Gurmukhi vowel sign + Malayalam anusvara glued to a Han title are strays for title_script', () => {
+  const audits: { kind: string; d: any }[] = [];
+  const store: any = new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string, d: any) => audits.push({ kind, d }); if (k === 'getSetting') return () => undefined; return () => undefined; } });
+  const t = new Translator(store);
+  const parent = { id: 'p1', parentId: null, content: 'SQL 问题', title: 'SQL 问题', status: 'live', author: 'user', type: null, createdAt: '2026-10-05T00:00:00Z', updatedAt: '2026-10-05T00:00:00Z' };
+  const map: any = { nodes: [parent], links: [], projectId: 'proj' };
+  const alt = { op: 'create_node', id: 'n1', parentId: 'p1', content: '示例表 A 与表 B 的数据如下。', title: '示例表数据ੋം', status: 'noted', author: 'agent', type: 'evidence' };
+  const out = (t as any).guardScope([alt], new Set(['p1']), map, { chatId: 'c', focusContainerId: 'p1', userText: '', assistantText: '' });
+  const got = out.find((a: any) => a.op === 'create_node');
+  const sa = audits.find((a) => a.kind === 'guard_title_script');
+  expect(sa?.d.stray).toEqual(['gurmukhi', 'malayalam']);
+  expect(got?.title).toBe(''); // blanked for the title stage, as with any foreign stray on a new node
+});
+
+test('a lone trailing apostrophe is stripped, a balanced pair is kept', () => {
+  const run = harness();
+  expect(run("Example table data'", 'The example tables A and B.').title).toBe('Example table data');
+  expect(run("Rock 'n' Roll history", 'A short history.').title).toBe("Rock 'n' Roll history");
+});
