@@ -8,7 +8,10 @@ for (const f of files) {
   let db: Database; try { db = new Database(f, { readonly: true }); } catch (e) { console.log(tag, 'OPEN FAIL', String(e)); continue; }
   const out: string[] = [];
   try {
-  const nodes = db.query('select * from nodes').all() as any[];
+  // 2026-10-05 (v0.9.157: the Example map is its own project in every DB): judge the ACTIVE project only — the example map's
+  // own 'to sort' and system nodes otherwise read as tosort_count / sibling_twin / system-node noise in every run.
+  const activePid = (db.query("select value from settings where key = 'active_project'").get() as any)?.value ?? null;
+  const nodes = (db.query('select * from nodes').all() as any[]).filter((n) => !activePid || n.project_id === activePid);
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const live = nodes.filter((n) => n.status !== 'removed');
   // 1. cycles / self parent / depth
@@ -22,7 +25,7 @@ for (const f of files) {
   if (ts.length !== 1) hit('tosort_count', tag, `${ts.length}`, out);
   for (const t of ts) { if (t.status === 'removed') hit('tosort_removed', tag, t.id.slice(0, 8), out); if (t.parent_id) hit('tosort_moved', tag, `${t.id.slice(0, 8)} under ${t.parent_id.slice(0, 8)}`, out); if (t.title && t.title !== 'to sort') hit('tosort_renamed', tag, t.title, out); }
   // 3. events: replay for parity, root rewrites, demotions
-  const events = db.query('select seq, alteration, source_kind, created_at from map_events order by seq').all() as any[];
+  const events = (db.query('select seq, alteration, source_kind, created_at, project_id from map_events order by seq').all() as any[]).filter((e) => !activePid || !e.project_id || e.project_id === activePid); /* active project only (v0.9.157) */
   const sim = new Map<string, { parent: string | null; removed: boolean; content: string; origin: string; originParent: string | null }>();
   for (const e of events) {
     let a: any; try { a = JSON.parse(e.alteration); } catch { hit('event_unparsable', tag, `seq ${e.seq}`, out); continue; }
