@@ -134,6 +134,7 @@ for (const f of files) {
       if (n.author === 'system' || !n.title) continue; const id8 = String(n.id).slice(0, 8); if (!tailIds.has(id8)) continue;
       const t = String(n.title); const m = t.match(/([A-Za-z]{6,})\s*$/); if (!m) continue;
       const w = m[1].toLowerCase(); if (String(n.content ?? '').toLowerCase().includes(w) || t.slice(0, m.index).toLowerCase().includes(w)) continue;
+      if (/(?:ed|ing|ly|tion|sion|ness|ment|ance|ence|able|ible|ous|ive|ful|less)$/.test(w)) continue; /* 5q refinement (sklearn #182 "fix needed" — a regularly inflected English word is not a garble; "accesseline" still hits; no dictionary on the box) */
       hit('title_tail_fused', tag, `${id8} "${t.slice(0, 60)}" — title_tail healed this title but its last word "${m[1]}" is in neither content nor the rest of the title (5q)`, out);
     }
   } catch {}
