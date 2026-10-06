@@ -1318,7 +1318,26 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         const noted = store.getOpenSuggestions(pid).find((sg) => sg.kind === 'relight' && sg.nodeId === id);
         const notedHome = noted ? (String((noted as any).note ?? (noted as any).text ?? '').match(/\[([0-9a-f]{6,})\]/)?.[1] ?? null) : null;
         const notedNode = notedHome ? store.getNodes(pid).find((x) => x.id.startsWith(notedHome) && x.status !== 'removed') : null;
-        if (notedNode && !litNow.has(notedNode.id)) { store.audit('auto_place_skip', { id: id.slice(0, 8), why: 'noted home is dim', home: notedNode.id.slice(0, 8) }); keptDim++; continue; }
+        if (notedNode && !litNow.has(notedNode.id)) {
+          store.audit('auto_place_skip', { id: id.slice(0, 8), why: 'noted home is dim', home: notedNode.id.slice(0, 8) });
+          // M416b (LONG #396): the SAME stranding by the other door — the filer's note named a home that stays dim, so the item
+          // waited for the person's light (M312) while a 20-node thread grew under it in "to sort" (the VPS runner, 11 rounds). A
+          // dot waiting for a light is one thing; a thread is a topic of its own. Same rule as M416: twice, or once with ≥ 2 live
+          // children, → own top-level topic.
+          const misses = Number(store.getSetting(`auto_place_misses:${id}`) ?? 0) + 1; store.setSetting(`auto_place_misses:${id}`, String(misses));
+          const liveKids = store.childrenOf(id).filter((k: any) => k.status !== 'removed').length;
+          if (!shouldPromoteStranded(misses, liveKids)) { keptDim++; continue; }
+          const cleaned0 = n.content.replace(/\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/, '');
+          const palts = [{ op: 'move_node', id, parentId: null } as any, ...(cleaned0 !== n.content ? [{ op: 'update_node', id, content: cleaned0 } as any] : [])];
+          const pinv = inverseOfAlterations(palts);
+          store.applyAlterations(pid, palts, { kind: 'system' });
+          store.pushUndo(pid, `auto mode: made "${nodeName(n)}" its own topic (its home stayed dim)`, pinv, null);
+          store.audit('auto_place_promoted', { id: id.slice(0, 8), misses, liveKids, dimHome: notedNode.id.slice(0, 8) });
+          for (const sg of store.getOpenSuggestions(pid)) if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
+          chats.noteMapChange(chatId, `auto mode made "${nodeName(n)}" its own top-level topic — its home "${nodeName(notedNode)}" stayed dim`);
+          lines.push(`"${nodeName(n)}" → own topic (its home stayed dim)`);
+          continue;
+        }
         const r = await suggestHomes(store, pid, id); if ('error' in r) { noHome++; continue; }
         const isBareRoot = (nid: string) => { const x = store.getNode(nid); return !!x && x.parentId === null && (x.content.trim() === 'untitled' || x.content.startsWith('to sort')); };
         const home = r.candidates.find((c) => litNow.has(c.nodeId) && !blocked.has(c.nodeId) && !isBareRoot(c.nodeId) && (!notedNode || c.nodeId === notedNode.id || descendantNodes(store, notedNode.id).includes(c.nodeId)));
