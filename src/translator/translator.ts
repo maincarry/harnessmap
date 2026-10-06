@@ -674,6 +674,20 @@ export class Translator {
         this.store.audit('guard_title_uuid', { id: String(anyA.id ?? '').slice(0, 8), from: from.slice(0, 60), to: cleaned.slice(0, 60) });
         anyA.title = cleaned.length >= 2 ? cleaned : '';
       }
+      // M406 (android-picker-mb7 #372): "MainActivity implementation fielding_restructure" — a snake_case pseudo-op token glued to a name
+      // (a mutated suggest_restructure); M394 strips only the seven exact op names, so it reached the map until the healer renamed it.
+      // Any snake_case token (2+ segments) that appears in neither the statement nor the person's words is schema-shaped noise, not a
+      // name part; code identifiers (activity_main, item_photo) stay because the statement carries them.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\b[a-z]+(?:_[a-z0-9]+)+\b/i.test(anyA.title)) {
+        const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}\n${params.assistantText ?? ''}`.toLowerCase();
+        const stray = (anyA.title.match(/\b[a-z]+(?:_[a-z0-9]+)+\b/gi) ?? []).filter((t: string) => !hay.includes(t.toLowerCase()));
+        if (stray.length) {
+          let t2 = anyA.title; for (const t of stray) t2 = t2.replace(t, ' ');
+          t2 = t2.replace(/\s{2,}/g, ' ').replace(/^[\s.:：;；,，\-–—]+|[\s.:：;；,，\-–—]+$/g, '').trim();
+          this.store.audit('guard_title_snake_token', { id: String(anyA.id ?? '').slice(0, 8), stray: stray.slice(0, 3), from: anyA.title.slice(0, 60) });
+          anyA.title = t2.length >= 2 ? t2 : '';
+        }
+      }
       // M354 (codex-native hash-table replay): asked to "remember this format" (the person's h(11) = 2 (a) → … layout), the filer wrote a rule
       // "Use the requested JSON map format for every response" — its OWN output instructions, leaked into the person's map. A statement that
       // speaks of JSON, schemas, alterations or the "map/response format" when neither the person nor the agent said any of it is a leak, not a fact.

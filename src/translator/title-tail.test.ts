@@ -97,3 +97,12 @@ test('a UUID glued to an English name goes, a short hex word stays (M398)', () =
 test('a round-talk lead on a name goes (sqlsugar-nested-zh "本轮回滚结论", M402b)', () => {
   expect(harness()('本轮回滚结论', 'B 的提交对外层 A 不可见；如果 A 回滚，B 也会回滚，整个事务恢复到初始状态。').title).toBe('回滚结论');
 });
+
+test('a snake_case pseudo-op token glued to a name goes when neither the statement nor the turn carries it (android-picker #372, M406)', () => {
+  expect(harness()('MainActivity implementation fielding_restructure', 'The provided MainActivity.kt initializes the recyclerview, PhotoAdapter, and photoList.').title).toBe('MainActivity implementation');
+  expect(harness()('字段展开超限处理者 fielding_restructure', '字段展开超过上限时由处理者截断并记录。').title).toBe('字段展开超限处理者');
+});
+
+test('a snake_case code identifier the statement carries stays (M406)', () => {
+  expect(harness()('activity_main layout', 'The provided activity_main.xml defines a ConstraintLayout with a RecyclerView.').title).toBe('activity_main layout');
+});
