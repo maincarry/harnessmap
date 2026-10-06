@@ -93,3 +93,7 @@ test('a UUID glued to an English name goes, a short hex word stays (M398)', () =
   expect(harness()('Fix login bug 0c4d07f5-2e6f-4d7f-92f4-5ad2e7f4a3e8', 'The login bug is fixed by refreshing the token.').title).toBe('Fix login bug');
   expect(harness()('Commit a1b2c3d4 review', 'Review commit a1b2c3d4 before merging.').title).toBe('Commit a1b2c3d4 review');
 });
+
+test('a round-talk lead on a name goes (sqlsugar-nested-zh "本轮回滚结论", M402b)', () => {
+  expect(harness()('本轮回滚结论', 'B 的提交对外层 A 不可见；如果 A 回滚，B 也会回滚，整个事务恢复到初始状态。').title).toBe('回滚结论');
+});

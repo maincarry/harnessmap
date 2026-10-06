@@ -34,3 +34,9 @@ test('"该问题已回答为：" goes too; a plain Chinese statement is untouche
   expect(r.content).toBe('程序引用的 Excel 文件需要随 EXE 一起部署，并在代码中正确处理文件路径。');
   expect(r.trims).toBe(0);
 });
+
+test('round-talk leads inside a statement go, the fact stays (excel-name-drift-zh #359, M402)', () => {
+  expect(harness()('本轮回答认为，B 的提交对外层 A 不可见；如果 A 回滚，B 也会回滚。').content).toBe('B 的提交对外层 A 不可见；如果 A 回滚，B 也会回滚。');
+  expect(harness()('本轮提供了使用 Python socket 和 Tkinter 实现 TCP 客户端 GUI 的代码方案。').content).toBe('使用 Python socket 和 Tkinter 实现 TCP 客户端 GUI 的代码方案。');
+  expect(harness()('使用填充柄不能直接把 A3:A10 批量设置为对应的 Range.Name；本轮回答改用 VBA 宏按选择顺序设置名称。').content).toBe('使用填充柄不能直接把 A3:A10 批量设置为对应的 Range.Name；改用 VBA 宏按选择顺序设置名称。');
+});
