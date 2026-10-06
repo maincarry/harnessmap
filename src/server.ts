@@ -14,6 +14,7 @@ import { composeParts } from './seed/composer.js';
 import { loadMap, descendantNodes, renderSubtreeFull, renderTree } from './map/render.js';
 import { matchNodes, rareTokens, coverageOf, kinOf } from './map/match.js';
 import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
+import { dedupeTitleAgainstSiblings } from './translator/title-dedupe.js';
 import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
 import { listMinds, getAreaAdvice } from './translator/governors.js';
 import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit, aimCascade, roundLeftFocus } from './translator/autolit.js';
@@ -1491,9 +1492,14 @@ async function healTitles(cap = 5, pid = projectId): Promise<{ renamed: number; 
       // from the OLD statement over the filer's fresh one ("Trellis beans east fence" over "…west fence"). Re-read before writing.
       const now = store.getNode(n.id);
       if (!now || now.status === 'removed' || now.content !== n.content || (now.title ?? '') !== (n.title ?? '')) { store.audit('title_heal_stale', { id: n.id.slice(0, 8) }); continue; }
-      if (title) {
-        store.applyAlterations(pid, [{ op: 'update_node', id: n.id, title } as any], { kind: 'system' });
-        store.audit('title_healed', { id: n.id.slice(0, 8), title });
+      // M415 (LONG #394): the title model names one node at a time and gave three sibling options the same "Coffee and Toast";
+      // a healed title must not duplicate a live sibling's — fall back to the node's own opening words (title-dedupe.ts).
+      const sibTitles = store.getNodes(pid).filter((s) => s.id !== now.id && s.parentId === now.parentId && s.status !== 'removed' && s.title).map((s) => s.title as string);
+      const dd = title ? dedupeTitleAgainstSiblings(title, now.content, sibTitles) : { title: null, deduped: false };
+      if (dd.deduped) store.audit('title_heal_sibling_dupe', { id: n.id.slice(0, 8), from: title, to: dd.title });
+      if (dd.title) {
+        store.applyAlterations(pid, [{ op: 'update_node', id: n.id, title: dd.title } as any], { kind: 'system' });
+        store.audit('title_healed', { id: n.id.slice(0, 8), title: dd.title });
         renamed++;
       }
     }
