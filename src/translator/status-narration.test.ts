@@ -41,6 +41,12 @@ test('round-talk leads inside a statement go, the fact stays (excel-name-drift-z
   expect(harness()('使用填充柄不能直接把 A3:A10 批量设置为对应的 Range.Name；本轮回答改用 VBA 宏按选择顺序设置名称。').content).toBe('使用填充柄不能直接把 A3:A10 批量设置为对应的 Range.Name；改用 VBA 宏按选择顺序设置名称。');
 });
 
+test('a Chinese agent-narration lead goes, the proposal stays (js-focus-nav-zh #384, M411)', () => {
+  expect(harness()('代理提出：将 HTML 和 querySelectorAll 中的类名字符从“–”替换为普通连字符“-”，以修正焦点元素选择器。').content).toBe('将 HTML 和 querySelectorAll 中的类名字符从“–”替换为普通连字符“-”，以修正焦点元素选择器。');
+  expect(harness()('助手建议在 getFocusableElements 中按行分组元素。').content).toBe('在 getFocusableElements 中按行分组元素。');
+  expect(harness()('代理服务器建议使用 8080 端口并开启 keep-alive。').content).toBe('代理服务器建议使用 8080 端口并开启 keep-alive。');
+});
+
 test('bare 回答-narration without the 本轮 lead goes, the fact stays (go-html-png-zh #382, M409)', () => {
   expect(harness()('除 os/exec 外，回答还提到 gorun、sh 和 ishell 等执行外部命令的库。').content).toBe('除 os/exec 外，gorun、sh 和 ishell 等执行外部命令的库。');
   expect(harness()('回答指出，省略第一个参数时 Excel 通常根据写入值的类型进行推断。').content).toBe('省略第一个参数时 Excel 通常根据写入值的类型进行推断。');
