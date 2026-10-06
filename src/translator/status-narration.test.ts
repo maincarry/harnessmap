@@ -54,3 +54,10 @@ test('progress narration "X is being reviewed for Y" becomes a subject (cpp-cont
   expect(harness()('The transformer model implementation is being reviewed for correctness.').content).toBe('Review of the transformer model implementation correctness.');
   expect(harness()('The queue is being drained by two workers.').content).toBe('The queue is being drained by two workers.');
 });
+
+test('stative progress narration "X is under review; …" becomes a subject (transformer-review #381, M408)', () => {
+  expect(harness()("The transformer model implementation is under review; one identified issue is the constructor's `super()` call.").content).toBe("Review of the transformer model implementation; one identified issue is the constructor's `super()` call.");
+  expect(harness()('The payment flow is currently under investigation for duplicate charges.').content).toBe('Investigation of the payment flow duplicate charges.');
+  expect(harness()('The bridge is under construction until spring.').content).toBe('The bridge is under construction until spring.');
+  expect(harness()('Items under review must carry a ticket id.').content).toBe('Items under review must carry a ticket id.');
+});
