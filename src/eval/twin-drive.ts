@@ -49,6 +49,10 @@ prog('booting server');
 let up = false; for (let i = 0; i < 30; i++) { try { await get('/api/state'); up = true; break; } catch { await sleep(500); } }
 if (!up) { console.error('server never came up — see', join(TMP, 'server.log')); process.exit(1); }
 prog('server up');
+// M417b (TWIN LONG #397): the first long drive ran in MANUAL mode — nothing enabled auto, so the focus never moved, nothing dimmed
+// and the placer never ran; the twin's "map" was a manual map while the brief said auto. Auto mode is the product default the
+// twins are meant to judge (the e2e harness sets it the same way); --manual keeps the old behaviour.
+if (!argv.includes('--manual')) { try { const r = await post('/api/auto', { on: true }); prog(`auto mode on (${r.status})`); } catch (e) { prog(`auto mode FAILED ${String(e).slice(0, 80)}`); } }
 
 // Render the map as a real user would see it at a glance: an indented outline, the focus, and the bottom strip.
 function mapView(s: any): string {
