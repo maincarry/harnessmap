@@ -86,6 +86,9 @@
           "brainMust": "kotlin|android|安卓"
         },
         {
+          "brainMustNot": "current target is c\\+\\+|target(?:ing)? (?:is |remains |still )?c\\+\\+|c\\+\\+ (?:is|remains) the (?:current |main )?target"
+        },
+        {
           "countUnder": "proj",
           "max": 23
         }
