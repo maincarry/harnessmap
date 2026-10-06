@@ -20,6 +20,7 @@ export interface TwinPersonaDef {
   locale: string;          // the language they type in (the map should read in it)
   cli: string;             // which AI coding CLI / OS they live in
   agentExperience: 'new' | 'some' | 'seasoned';
+  tier: 'primary' | 'secondary' | 'edge'; // Jacob 2026-10-06 07:26 "You decide": primary = works inside an AI coding CLI daily (weight 3); secondary = in the audience, a narrower lens (2); edge = reads the map but does not work in the CLI, or hobby use (1). Nobody is out of scope.
   sessionShape: string;    // how a typical session of theirs looks
   values: string;          // what they want from a companion map
   severeWhen: string;      // what makes THIS person give up / distrust / fail
@@ -31,6 +32,7 @@ const P = (d: TwinPersonaDef): TwinPersonaDef => d;
 export const TWIN_PERSONAS: TwinPersonaDef[] = [
   P({
     id: 'maya-staff-backend',
+    tier: 'primary',
     name: 'Maya, 38, staff backend engineer',
     tagline: 'Fifteen years of Go and Kubernetes; lives in tmux; wants "what did we decide" at a glance.',
     locale: 'English',
@@ -43,6 +45,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'liang-cs-student-zh',
+    tier: 'primary',
     name: '梁 (Liang), 21, CS undergraduate in Hangzhou',
     tagline: 'Types Chinese; course project plus LeetCode; wants the map to look organized for the professor.',
     locale: 'Chinese (Simplified)',
@@ -55,6 +58,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'dmitri-backend-debugger-ru',
+    tier: 'primary',
     name: 'Дмитрий (Dmitri), 27, backend developer in Moscow',
     tagline: 'Terse Russian; pastes tracebacks; pushes back hard; distrusts anything that "summarizes" him.',
     locale: 'Russian',
@@ -67,6 +71,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'priya-data-scientist',
+    tier: 'primary',
     name: 'Priya, 31, data scientist',
     tagline: 'pandas and sklearn in Jupyter plus Claude Code; many drifting questions; the numbers must survive.',
     locale: 'English (Indian)',
@@ -79,6 +84,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'tom-pm-reads-the-map',
+    tier: 'edge',
     name: 'Tom, 44, product manager',
     tagline: 'Low code fluency; uses the CLI for specs and SQL; reads the map MORE than the chat.',
     locale: 'English',
@@ -91,6 +97,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'aiko-indie-founder-ja',
+    tier: 'primary',
     name: '愛子 (Aiko), 29, solo SaaS founder',
     tagline: 'One product for months; Japanese and English mixed; continuity across days is everything.',
     locale: 'Japanese with English code terms',
@@ -103,6 +110,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'carlos-sre-oncall-es',
+    tier: 'secondary',
     name: 'Carlos, 35, SRE on call in Madrid',
     tagline: 'Spanish; 2 a.m. incident sessions; zero tolerance for distraction; values the map only afterwards.',
     locale: 'Spanish',
@@ -115,6 +123,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'grace-professor-compbio',
+    tier: 'secondary',
     name: 'Grace, 52, professor of computational biology',
     tagline: 'R and Python for papers; tolerant of slowness; intolerant of invented content; wants provenance.',
     locale: 'English',
@@ -127,6 +136,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'ravi-bootcamp-first-job',
+    tier: 'primary',
     name: 'Ravi, 24, bootcamp graduate in his first job',
     tagline: 'New to agents; leans on them heavily; gives up quietly rather than complain.',
     locale: 'English',
@@ -139,6 +149,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'hannah-adhd-fullstack',
+    tier: 'primary',
     name: 'Hannah, 33, full-stack developer with ADHD',
     tagline: 'High context-switch cost; loves the idea of an external memory; motion and flashing cost her.',
     locale: 'English',
@@ -151,6 +162,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'wei-ml-engineer-zh',
+    tier: 'primary',
     name: '伟 (Wei), 34, ML engineer in Shenzhen',
     tagline: 'Chinese with English code terms; PyTorch training logs; dense information preferred.',
     locale: 'Chinese (Simplified) with English technical terms',
@@ -163,6 +175,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'olga-tech-writer-ru',
+    tier: 'secondary',
     name: 'Ольга (Olga), 40, technical writer',
     tagline: 'Russian; uses the agent for docs and shell; a garbled title is severe to HER; the map is her draft outline.',
     locale: 'Russian',
@@ -175,6 +188,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'jamal-appsec-privacy',
+    tier: 'secondary',
     name: 'Jamal, 37, application security engineer',
     tagline: 'First question: where does my code go? Silent network behaviour is severe; otherwise appreciative.',
     locale: 'English',
@@ -187,6 +201,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'sofia-designer-codes-pt',
+    tier: 'secondary',
     name: 'Sofia, 28, product designer in São Paulo',
     tagline: 'Portuguese; prototypes in React and Tailwind; judges the map by its typography and density first.',
     locale: 'Portuguese (Brazil)',
@@ -199,6 +214,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'ken-eng-manager-reviews',
+    tier: 'edge',
     name: 'Ken, 46, engineering manager',
     tagline: 'Rarely codes; reads his reports\' maps for decisions and open questions; the project name must be right.',
     locale: 'English',
@@ -211,6 +227,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'yuki-hobby-gamedev',
+    tier: 'edge',
     name: 'Yuki, 19, hobbyist game developer',
     tagline: 'Evenings in Godot; playful, forgiving, low attention; stops using anything that needs setup.',
     locale: 'English with occasional Japanese',
@@ -223,6 +240,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'amir-embedded-firmware',
+    tier: 'primary',
     name: 'Amir, 41, embedded firmware engineer',
     tagline: 'STM32 and C; registers, milliamps and hertz everywhere; constraints must be kept as rules.',
     locale: 'English with Persian asides',
@@ -235,6 +253,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'nadia-freelance-multiclient',
+    tier: 'primary',
     name: 'Nadia, 36, freelance consultant with four clients',
     tagline: 'Switches topics constantly; drift must become separate topics; client A must never nest under client B.',
     locale: 'English and French',
@@ -247,6 +266,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'ben-unix-skeptic',
+    tier: 'secondary',
     name: 'Ben, 58, Unix veteran',
     tagline: 'Emacs; hostile to "AI note-takers"; trial under protest; one wrong fact and he is gone.',
     locale: 'English',
@@ -259,6 +279,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'mei-lin-screenreader-dev',
+    tier: 'secondary',
     name: 'Mei-Lin, 30, backend developer who uses a screen reader',
     tagline: 'NVDA and the terminal; structure must be exposed as headings and lists; unlabeled icons are severe.',
     locale: 'English',
@@ -272,6 +293,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
 ];
 
 export const TWIN_PERSONA_IDS = TWIN_PERSONAS.map((p) => p.id);
+export const TIER_WEIGHT: Record<TwinPersonaDef['tier'], number> = { primary: 3, secondary: 2, edge: 1 };
 
 export function findTwinPersona(id: string): TwinPersonaDef | undefined {
   const k = id.trim().toLowerCase();

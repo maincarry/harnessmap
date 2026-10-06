@@ -14,6 +14,7 @@ test('M407: every persona is fully described', () => {
     for (const k of ['name', 'tagline', 'cli', 'sessionShape', 'values', 'severeWhen', 'calibration'] as const) expect(p[k].trim().length, `${p.id}.${k}`).toBeGreaterThan(8);
     expect(p.locale.trim().length, `${p.id}.locale`).toBeGreaterThan(3);
     expect(['new', 'some', 'seasoned']).toContain(p.agentExperience);
+    expect(['primary', 'secondary', 'edge']).toContain(p.tier);
     expect(p.calibration.length, `${p.id} calibration too short`).toBeGreaterThan(300);
   }
 });
@@ -24,6 +25,7 @@ test('M407: the panel is distinct — no two personas share a role line, and it 
   expect(locales.size).toBeGreaterThanOrEqual(6);                       // English, Chinese, Russian, Japanese, Spanish, Portuguese…
   expect(new Set(TWIN_PERSONAS.map((p) => p.agentExperience)).size).toBe(3);
   expect(TWIN_PERSONAS.filter((p) => p.agentExperience === 'new').length).toBeGreaterThanOrEqual(3);
+  expect(TWIN_PERSONAS.filter((p) => p.tier === 'primary').length).toBe(10);   // Jacob's "You decide" 2026-10-06: ten daily-CLI developers carry the panel
 });
 
 test('M407: the twin resolves a persona id to its own calibration and still honours the two dials', () => {

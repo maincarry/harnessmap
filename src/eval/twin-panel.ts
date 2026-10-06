@@ -12,7 +12,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { runTwin, type TwinReport, type TwinPersona } from '../twin.js';
-import { TWIN_PERSONAS, TWIN_PERSONA_IDS, findTwinPersona } from '../twin-personas.js';
+import { TWIN_PERSONA_IDS, TIER_WEIGHT, findTwinPersona } from '../twin-personas.js';
 
 const argv = process.argv.slice(2);
 const flagVal = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
@@ -87,9 +87,15 @@ for (const r of rows) for (const t of r.top) {
 clusters.sort((a, b) => b.personas.size - a.personas.size);
 
 let md = `# User Twin panel — ${label}\n\n_${new Date().toISOString().slice(0, 16).replace('T', ' ')}Z · ${ids.length} persona(s), each a separate codex run; src/eval/twin-panel.ts (M407)._\n\n`;
-md += `| # | persona | who | severe | moderate | minor | would return | verdict |\n|---|---|---|---|---|---|---|---|\n`;
-rows.forEach((r, i) => { md += `| ${i + 1} | \`${r.id}\` | ${r.who} | ${r.severe} | ${r.moderate} | ${r.minor} | ${r.would} | ${r.error ? `FAILED: ${r.error.slice(0, 80)}` : r.verdict.replace(/\|/g, '/')} |\n`; });
+md += `| # | persona | tier | who | severe | moderate | minor | would return | verdict |\n|---|---|---|---|---|---|---|---|---|\n`;
+rows.forEach((r, i) => { md += `| ${i + 1} | \`${r.id}\` | ${findTwinPersona(r.id)?.tier ?? '-'} | ${r.who} | ${r.severe} | ${r.moderate} | ${r.minor} | ${r.would} | ${r.error ? `FAILED: ${r.error.slice(0, 80)}` : r.verdict.replace(/\|/g, '/')} |\n`; });
 const okRows = rows.filter((r) => !r.error);
+// Weighted would-return (Jacob 2026-10-06 "You decide"): primary ×3, secondary ×2, edge ×1; yes=1, maybe=0.5, no=0.
+const wOf = (id: string) => TIER_WEIGHT[findTwinPersona(id)?.tier ?? 'edge'];
+const wSum = okRows.reduce((s, r) => s + wOf(r.id), 0) || 1;
+const wScore = okRows.reduce((s, r) => s + wOf(r.id) * (r.would === 'yes' ? 1 : r.would === 'maybe' ? 0.5 : 0), 0) / wSum;
+const tierLine = (['primary', 'secondary', 'edge'] as const).map((t) => { const rs = okRows.filter((r) => findTwinPersona(r.id)?.tier === t); return `${t} ${rs.filter((r) => r.would === 'yes').length}y/${rs.filter((r) => r.would === 'maybe').length}m/${rs.filter((r) => r.would === 'no').length}n of ${rs.length}`; }).join(' · ');
+md += `\n**Weighted would-return:** ${(100 * wScore).toFixed(0)}% (primary ×3, secondary ×2, edge ×1; yes 1 · maybe ½ · no 0) — ${tierLine}\n`;
 md += `\n**Totals:** ${okRows.length}/${rows.length} reports · severe ${okRows.reduce((s, r) => s + r.severe, 0)} · moderate ${okRows.reduce((s, r) => s + r.moderate, 0)} · would return yes ${okRows.filter((r) => r.would === 'yes').length} / maybe ${okRows.filter((r) => r.would === 'maybe').length} / no ${okRows.filter((r) => r.would === 'no').length}\n\n`;
 md += `## Frictions raised by more than one persona (robust findings)\n\n`;
 const multi = clusters.filter((c) => c.personas.size > 1);
