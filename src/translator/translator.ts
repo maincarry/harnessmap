@@ -767,6 +767,27 @@ export class Translator {
           if (chunks.length && !chunks.some((c: string) => hay.includes(c))) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: last }); anyA.title = words.slice(0, -1).join(' '); }
         }
       }
+      // M419 (TWIN LONG #397 — Nadia: "Marchetti billing noteaming base?" read as "garbled… corrupted", a SEVERE moment; the (U) class
+      // the long runs kept logging: "3×4 board layout thingy?", "Read link documentation explained?", "Free VPS servers specified?"). A title
+      // that ends in "?" whose last word — plain Latin letters, 2–10 long, not an ordinary short question word — is in neither the statement,
+      // the person's words, nor the rest of the title is an invented tail: up to two such words go, and the "?" with them. Sweep of 135 kept
+      // maps before shipping: 8 titles, 0 false positives, 1 bad residue ("…tasks only if changed?") — a residue that would end in a function
+      // word leaves the title untouched.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\?\s*$/.test(anyA.title)) {
+        const QOK = new Set('why how now yet who what when where which next more done ok yes no then too also else here this that them one two it is or and not out off up on in to do go so as at by if of be an am are was can did has had get got set run use try end new old all any via per etc api app ui db id io os js ts css sql url uri dom jvm jni sdk cli gui exe pdf csv xml json npm git ssh tcp udp ip dns aws gcp mac win pc ide cpu gpu ram rom led usb vm vpn vba vbs php cs py ios ai ml nlp ocr rgb hex png jpg gif svg mp3 mp4 wav pcm fft pid mcu rtc gps nfc ble sim esp stm work works working fix fixed bug bugs error errors test tests file files code data list mode rule rules step steps link links page pages name names type types value values size time times user users again first last same other right wrong ready safe valid null empty default'.split(' '));
+        const FUNC = /^(?:if|of|for|to|and|or|with|in|on|by|the|a|an|at|from|only|is|are|was|be|not|no|as|into|than|then|that|this|it|its|but|so|nor|yet|while|when|because)$/i;
+        const content0 = typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '');
+        const hay = `${content0}\n${params.userText ?? ''}`.toLowerCase();
+        let words = anyA.title.trim().replace(/\?+\s*$/, '').trim().split(/\s+/); let dropped = 0;
+        while (dropped < 2 && words.length >= 3) {
+          const w = words[words.length - 1]; const x = w.toLowerCase();
+          if (!/^[a-z]{2,10}$/.test(x) || QOK.has(x)) break;
+          if (dropped === 1 && x.length < 7) break; // a second word goes only when it is long and invented-looking ("noteaming"), not a real word the statement happens not to repeat ("layout")
+          const rx = new RegExp(`\\b${x}\\b`); if (rx.test(hay) || rx.test(words.slice(0, -1).join(' ').toLowerCase())) break;
+          words = words.slice(0, -1); dropped++;
+        }
+        if (dropped && words.length >= 2 && !FUNC.test(words[words.length - 1])) { const to = words.join(' '); this.store.audit('guard_title_qtail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-30), to: to.slice(-30) }); anyA.title = to; }
+      }
       // M327c (codex-native replays): the codex filer ends TITLES with a period; a title is a name.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[.。]+$/.test(anyA.title)) anyA.title = anyA.title.replace(/[.。]+$/, '');
       // M343 (codex-native pyomo replay): the codex filer wrote "exception type errorอบué?" over an English statement — stray

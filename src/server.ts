@@ -32,7 +32,7 @@ import { mergeNodeText } from './translator/merge.js';
 import { proposeImport, proposeImportLarge, extractTranscript, importPreviewRoots, outlineWithIds } from './translator/importer.js';
 import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_GROUPS, modelCatalog, defaultModelFor, estimateUsd, setModelResolver, setEffortResolver, defaultEffortFor, effortFor, backendName, backendSource, setBackend, type Backend } from './inference.js';
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
-import { sliceRound, codexSessionMeta, stripHostScaffold, looksLikeScaffold, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice } from './agent/harness-adapter.js';
+import { sliceRound, codexSessionMeta, stripHostScaffold, looksLikeScaffold, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice, touchSession } from './agent/harness-adapter.js';
 import { sessionIsIdle } from './host-liveness.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync, openSync, readSync, closeSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -4083,7 +4083,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     if (path === '/api/harness/observe' && req.method === 'POST') {
       const body = await req.json() as { session_id?: string; transcript_path?: string; last_assistant_message?: string; user_text?: string; assistant_text?: string; cwd?: string };
       ensureSessionBound(body.session_id, body.cwd, (body as any).harness, (body as any).forked_from ?? null, (body as any).map ?? null);
-      if (body.session_id) { recordHarness(body.session_id, (body as any).harness, body.transcript_path); refreshHostTitle(body.session_id); } // M251/M252: the tab carries the harness and its own thread title
+      if (body.session_id) { recordHarness(body.session_id, (body as any).harness, body.transcript_path); touchSession(store, body.session_id); refreshHostTitle(body.session_id); } // M420: every observed turn is activity for the idle check // M251/M252: the tab carries the harness and its own thread title
       let userText = body.user_text ?? '';
       let assistantText = body.assistant_text ?? '';
       let slice: RoundSlice | null = null;

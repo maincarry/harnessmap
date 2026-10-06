@@ -299,3 +299,10 @@ export function recordProvenance(store: Store, roundId: string, sessionId: strin
   (store as any).db.prepare('INSERT OR REPLACE INTO provenance (round_id, session_id, message_uuids, tool_refs, file_paths, urls) VALUES (?, ?, ?, ?, ?, ?)')
     .run(roundId, sessionId, JSON.stringify(slice.messageUuids), JSON.stringify(slice.toolRefs), JSON.stringify(slice.filePaths), JSON.stringify(slice.urls));
 }
+
+// M420 (TWIN LONG #397): the status strip said "session is quiet — it may no longer be attached" from minute 30 of a session that filed
+// a turn every minute — an observe without a transcript path never touched last_active (only session start, transcript advance and the
+// injection anchors did), so the M375 idle check aged out a live session. Every observed turn is activity.
+export function touchSession(store: Store, sessionId: string): void {
+  (store as any).db.prepare("UPDATE harness_sessions SET last_active = datetime('now') WHERE session_id = ?").run(sessionId);
+}
