@@ -40,3 +40,11 @@ test('round-talk leads inside a statement go, the fact stays (excel-name-drift-z
   expect(harness()('本轮提供了使用 Python socket 和 Tkinter 实现 TCP 客户端 GUI 的代码方案。').content).toBe('使用 Python socket 和 Tkinter 实现 TCP 客户端 GUI 的代码方案。');
   expect(harness()('使用填充柄不能直接把 A3:A10 批量设置为对应的 Range.Name；本轮回答改用 VBA 宏按选择顺序设置名称。').content).toBe('使用填充柄不能直接把 A3:A10 批量设置为对应的 Range.Name；改用 VBA 宏按选择顺序设置名称。');
 });
+
+test('topic-talk leads at the start of a statement go, the subject stays (hash-table #362, M403)', () => {
+  expect(harness()('This topic covers reference formatting for a LaTeX report, including BibTeX and manual bibliographies.').content).toBe('Reference formatting for a LaTeX report, including BibTeX and manual bibliographies.');
+  expect(harness()('This branch covers debugging a C++17 contest solution.').content).toBe('Debugging a C++17 contest solution.');
+  expect(harness()('This topic contains the hash table homework and its answers for collision resolution and deletion.').content).toBe('The hash table homework and its answers for collision resolution and deletion.');
+  expect(harness()('Tkinter 图形界面开发主题，当前聚焦于按钮输出文本并控制文本对齐。').content).toBe('Tkinter 图形界面开发主题，按钮输出文本并控制文本对齐。');
+  expect(harness()('The topic sentence of a paragraph states its main idea.').content).toBe('The topic sentence of a paragraph states its main idea.');
+});
