@@ -25,7 +25,7 @@ import { CAST_GRAPH } from './translator/cast.js';
 import { recordUserWords, learnFromRename, parseGlossaryLine, addGlossary, removeGlossary, glossary, userWords } from './map/vocab.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend, HARNESSES, harnessAvailability } from './term.js';
 import { codexBin } from './harness-bins.js';
-import { suggestHomes } from './translator/place.js';
+import { suggestHomes, shouldPromoteStranded } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories, nodeFull } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
@@ -1320,8 +1320,25 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         const r = await suggestHomes(store, pid, id); if ('error' in r) { noHome++; continue; }
         const isBareRoot = (nid: string) => { const x = store.getNode(nid); return !!x && x.parentId === null && (x.content.trim() === 'untitled' || x.content.startsWith('to sort')); };
         const home = r.candidates.find((c) => litNow.has(c.nodeId) && !blocked.has(c.nodeId) && !isBareRoot(c.nodeId) && (!notedNode || c.nodeId === notedNode.id || descendantNodes(store, notedNode.id).includes(c.nodeId)));
-        if (!home) { store.audit('auto_place_skip', { id: id.slice(0, 8), candidates: r.candidates.length }); if (r.candidates.length) keptDim++; else noHome++; continue; }
         const cleaned = n.content.replace(/\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/, '');
+        if (!home) {
+          store.audit('auto_place_skip', { id: id.slice(0, 8), candidates: r.candidates.length });
+          if (r.candidates.length) { keptDim++; continue; }
+          // M416 (LONG #395): nothing on the map fits — twice, or once with a thread already growing under the item — and the
+          // item becomes its own top-level topic (M311's rule, applied by the placer instead of leaving a 20-node thread in "to sort").
+          const misses = Number(store.getSetting(`auto_place_misses:${id}`) ?? 0) + 1; store.setSetting(`auto_place_misses:${id}`, String(misses));
+          const liveKids = store.childrenOf(id).filter((k: any) => k.status !== 'removed').length;
+          if (!shouldPromoteStranded(misses, liveKids)) { noHome++; continue; }
+          const palts = [{ op: 'move_node', id, parentId: null } as any, ...(cleaned !== n.content ? [{ op: 'update_node', id, content: cleaned } as any] : [])];
+          const pinv = inverseOfAlterations(palts);
+          store.applyAlterations(pid, palts, { kind: 'system' });
+          store.pushUndo(pid, `auto mode: made "${nodeName(n)}" its own topic (nothing on the map fits it)`, pinv, null);
+          store.audit('auto_place_promoted', { id: id.slice(0, 8), misses, liveKids });
+          for (const sg of store.getOpenSuggestions(pid)) if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
+          chats.noteMapChange(chatId, `auto mode made "${nodeName(n)}" its own top-level topic — nothing on the map fit it`);
+          lines.push(`"${nodeName(n)}" → own topic (nothing fits it)`);
+          continue;
+        }
         const alts = [{ op: 'move_node', id, parentId: home.nodeId } as any, ...(cleaned !== n.content ? [{ op: 'update_node', id, content: cleaned } as any] : [])];
         const inverse = inverseOfAlterations(alts);
         store.applyAlterations(pid, alts, { kind: 'system' });

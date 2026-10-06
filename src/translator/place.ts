@@ -43,3 +43,14 @@ export async function suggestHomes(store: Store, projectId: string, nodeId: stri
     return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
   }
 }
+
+// M416 (LONG #395 long-en-d, 84 rounds): two whole threads (tic-tac-toe, 20 nodes; the panorama merge, 19 nodes) lived in
+// "to sort" for the rest of the run. The placer asks the model for homes and the model, rightly, finds NOTHING on the map for
+// a new topic (candidates 0); the item is retried thirty minutes later, finds nothing again, and stays — while the filer keeps
+// growing the thread under it, and the aim (M275) can never make a to-sort node the focus, so the focus stayed on the first
+// thread and the brain's "right now" answered with it. M311 already says a stray with no kin on the map belongs at the top
+// level — at create time. This is the same rule applied by the placer: nothing fits twice, or nothing fits once and a thread
+// is already growing under the item, and the item becomes its own top-level topic.
+export function shouldPromoteStranded(misses: number, liveChildren: number): boolean {
+  return misses >= 2 || (misses >= 1 && liveChildren >= 2);
+}
