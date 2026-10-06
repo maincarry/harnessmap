@@ -64,6 +64,9 @@
         },
         {
           "brainMust": "yes|mistake|error|no email|没有|错误|orders|join"
+        },
+        {
+          "brainMustNot": "^\\s*no\\b|does not record|not record|没有记录|未记录|no mistake"
         }
       ]
     }
