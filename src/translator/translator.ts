@@ -521,6 +521,32 @@ export class Translator {
       // M302 (loop find, bug under M64/M271): a narrated move ("User requested to resume discussing internet setup") is not a fact —
       // the transcript's job, and the focus already records it. Dropped mechanically; the prompt says the same.
       if (a.op === 'create_node' && typeof anyA.content === 'string' && /^(the )?(user|person|they) (asked|requested|wants?|wanted|would like|decided|needs?) (to (resume|return|switch|go back|come back|pick (it |this )?back|talk|discuss|set aside|move on|understand|know|learn)|(for )?(detailed |more )?(information|details|info) (about|on))/i.test(anyA.content.trim())) { this.store.audit('guard_narration', { content: anyA.content.slice(0, 80) }); continue; }
+      // M401 (bar-anniversary-zh #356, codex/luna): the filer's output carried U+FFFD replacement characters — "与���一起成长" for the
+      // assistant's "与您一起成长" (the codex side emitted them; our reads decode whole buffers). The transcript still has the real
+      // text: a title/statement with a replacement run is matched against the turn with the run as a wildcard and repaired when
+      // the match is unique; otherwise it is left as written and audited (never silently shortened). Sweep: 1 node / 115 maps.
+      if ((a.op === 'create_node' || a.op === 'update_node')) {
+        const said = `${params.userText ?? ''}\n${params.assistantText ?? ''}`;
+        const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        for (const field of ['title', 'content'] as const) {
+          const v = anyA[field]; if (typeof v !== 'string' || !/\uFFFD/.test(v)) continue;
+          // Each run is matched on a short window around it (the whole statement rarely appears verbatim in the turn — the filer
+          // rephrases, the assistant's list has its own prefix): up to 8 characters either side, the run as a 1–3 character wildcard.
+          let out2 = v, ok = true;
+          for (const m of [...v.matchAll(/\uFFFD+/g)].reverse()) {
+            const i = m.index!, j = i + m[0].length;
+            let fill: string | null = null;
+            // The filer's own lead ("标题方向：") is not in the turn, so the window shrinks on either side until a unique match appears
+            // (never below 4 characters of context in total).
+            for (const lw of [8, 4, 2, 1]) { for (const rw of [8, 4, 2]) { if (lw + rw < 4 || fill !== null) continue; const left = v.slice(Math.max(0, i - lw), i), right = v.slice(j, j + rw);
+              try { const ms = [...said.matchAll(new RegExp(esc(left) + '(.{1,3})' + esc(right), 'gu'))].map((x) => x[1]); const uniq = [...new Set(ms)]; if (uniq.length === 1) fill = uniq[0]; } catch {} } }
+            if (fill === null) { ok = false; break; }
+            out2 = out2.slice(0, i) + fill + out2.slice(j);
+          }
+          this.store.audit('guard_mojibake', { id: String(anyA.id ?? '').slice(0, 8), field, from: v.slice(0, 60), repaired: ok });
+          if (ok) anyA[field] = out2;
+        }
+      }
       // M305b (loop find, same rule): a narrating clause inside an otherwise fine statement ("Rocket design: user wants to talk about it; angle
       // not yet narrowed") is cut out, never the node — dropping it would be the over-skip Jacob reported (M302b).
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string') {
