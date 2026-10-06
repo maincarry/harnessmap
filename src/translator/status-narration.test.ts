@@ -47,6 +47,16 @@ test('a Chinese agent-narration lead goes, the proposal stays (js-focus-nav-zh #
   expect(harness()('代理服务器建议使用 8080 端口并开启 keep-alive。').content).toBe('代理服务器建议使用 8080 端口并开启 keep-alive。');
 });
 
+test('determiner + 回答 narration and Chinese topic-talk leads go (go-howto-mix #387, M412)', () => {
+  expect(harness()('Go 是否有将 curl 命令转换为 HTTP 请求逻辑的现成库？当前回答认为没有现成库，并给出了两种实现方式。').content).toBe('Go 是否有将 curl 命令转换为 HTTP 请求逻辑的现成库？没有现成库，并给出了两种实现方式。');
+  expect(harness()('如何使用 Go 将 PDF 文件逐页转换为 PNG 图片？当前回答给出了使用第三方库读取 PDF 的方案。').content).toBe('如何使用 Go 将 PDF 文件逐页转换为 PNG 图片？给出了使用第三方库读取 PDF 的方案。');
+  expect(harness()('转换格式的流程包括打开图片、另存为并保存；该回答称可以选择多个图片进行处理。').content).toBe('转换格式的流程包括打开图片、另存为并保存；可以选择多个图片进行处理。');
+  expect(harness()('讨论 Go 是否有将 curl 命令转换为 HTTP 请求逻辑的库，以及在没有现成库时的实现方法。').content).toBe('Go 是否有将 curl 命令转换为 HTTP 请求逻辑的库，以及在没有现成库时的实现方法。');
+  expect(harness()('围绕 SQL 问题，重点理解 LEFT JOIN 的连接示例、匹配结果和未匹配记录处理。').content).toBe('SQL 问题，重点理解 LEFT JOIN 的连接示例、匹配结果和未匹配记录处理。');
+  expect(harness()('讨论区的帖子需要先经过审核才会显示。').content).toBe('讨论区的帖子需要先经过审核才会显示。');
+  expect(harness()('项目围绕用户画像、推荐算法和离线评估三部分展开。').content).toBe('项目围绕用户画像、推荐算法和离线评估三部分展开。');
+});
+
 test('bare 回答-narration without the 本轮 lead goes, the fact stays (go-html-png-zh #382, M409)', () => {
   expect(harness()('除 os/exec 外，回答还提到 gorun、sh 和 ishell 等执行外部命令的库。').content).toBe('除 os/exec 外，gorun、sh 和 ishell 等执行外部命令的库。');
   expect(harness()('回答指出，省略第一个参数时 Excel 通常根据写入值的类型进行推断。').content).toBe('省略第一个参数时 Excel 通常根据写入值的类型进行推断。');
