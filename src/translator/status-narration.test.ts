@@ -47,6 +47,12 @@ test('a Chinese agent-narration lead goes, the proposal stays (js-focus-nav-zh #
   expect(harness()('代理服务器建议使用 8080 端口并开启 keep-alive。').content).toBe('代理服务器建议使用 8080 端口并开启 keep-alive。');
 });
 
+test('a Chinese "this is the topic used to organise X" root statement becomes X (LONG #392, M414)', () => {
+  expect(harness()('这是用于整理 WebRTC 学习内容的主题。').content).toBe('WebRTC 学习内容');
+  expect(harness()('用于记录项目决策与未决问题的节点').content).toBe('项目决策与未决问题');
+  expect(harness()('该脚本用于整理日志文件并按日期归档。').content).toBe('该脚本用于整理日志文件并按日期归档。');
+});
+
 test('determiner + 回答 narration and Chinese topic-talk leads go (go-howto-mix #387, M412)', () => {
   expect(harness()('Go 是否有将 curl 命令转换为 HTTP 请求逻辑的现成库？当前回答认为没有现成库，并给出了两种实现方式。').content).toBe('Go 是否有将 curl 命令转换为 HTTP 请求逻辑的现成库？没有现成库，并给出了两种实现方式。');
   expect(harness()('如何使用 Go 将 PDF 文件逐页转换为 PNG 图片？当前回答给出了使用第三方库读取 PDF 的方案。').content).toBe('如何使用 Go 将 PDF 文件逐页转换为 PNG 图片？给出了使用第三方库读取 PDF 的方案。');

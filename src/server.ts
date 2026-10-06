@@ -1320,7 +1320,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         const isBareRoot = (nid: string) => { const x = store.getNode(nid); return !!x && x.parentId === null && (x.content.trim() === 'untitled' || x.content.startsWith('to sort')); };
         const home = r.candidates.find((c) => litNow.has(c.nodeId) && !blocked.has(c.nodeId) && !isBareRoot(c.nodeId) && (!notedNode || c.nodeId === notedNode.id || descendantNodes(store, notedNode.id).includes(c.nodeId)));
         if (!home) { store.audit('auto_place_skip', { id: id.slice(0, 8), candidates: r.candidates.length }); if (r.candidates.length) keptDim++; else noHome++; continue; }
-        const cleaned = n.content.replace(/\s*[（(]arrived while focus was:[^)）]*[)）]\s*$/, '');
+        const cleaned = n.content.replace(/\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/, '');
         const alts = [{ op: 'move_node', id, parentId: home.nodeId } as any, ...(cleaned !== n.content ? [{ op: 'update_node', id, content: cleaned } as any] : [])];
         const inverse = inverseOfAlterations(alts);
         store.applyAlterations(pid, alts, { kind: 'system' });
@@ -2398,11 +2398,11 @@ const server = Bun.serve({
       store.clearMark(n.id);
       store.pushUndo(projectId, `moved "${nodeName(n)}"`, [
         { op: 'move_node', id: n.id, parentId: n.parentId },
-        ...(/ ?[（(]arrived while focus was: ?[^)）]*[)）]$/.test(n.content) ? [{ op: 'update_node', id: n.id, content: n.content }] : []),
+        ...(/ ?[（(]arrived while focus was: ?(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]$/.test(n.content) ? [{ op: 'update_node', id: n.id, content: n.content }] : []),
       ], null);
       store.applyAlterations(projectId, [{ op: 'move_node', id: n.id, parentId: parentId ?? null } as any], { kind: 'user_edit' });
       // Moving out of to-sort by hand: strip the provenance note, like the filer does.
-      const prov = / ?[（(]arrived while focus was: ?[^)）]*[)）]$/;
+      const prov = / ?[（(]arrived while focus was: ?(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]$/;
       if (prov.test(n.content)) store.applyAlterations(projectId, [{ op: 'update_node', id: n.id, content: n.content.replace(prov, '') } as any], { kind: 'user_edit' });
       touch([n.id]);
       chats.noteMapChange(mainChatId, `moved "${nodeName(n)}" ${dst ? `under "${nodeName(dst)}"` : 'to the top level'}`);
@@ -3448,7 +3448,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         if ('error' in r) { noHome++; continue; }
         const home = r.candidates.find((c) => c.nodeId !== it.id && c.nodeId !== toSort!.id && !isBareRoot(c.nodeId) && store.getNode(c.nodeId)?.status !== 'removed' && !descendantNodes(store, it.id).includes(c.nodeId));
         if (!home) { noHome++; continue; }
-        const cleaned = it.content.replace(/\s*[（(]arrived while focus was:[^)）]*[)）]\s*$/, '');
+        const cleaned = it.content.replace(/\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/, '');
         alts.push({ op: 'move_node', id: it.id, parentId: home.nodeId });
         if (cleaned !== it.content) alts.push({ op: 'update_node', id: it.id, content: cleaned });
         placedIds.push(it.id); placed.push(`"${nodeName(it)}" → "${home.name}"`);
@@ -3477,7 +3477,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
         const homeId = String((sg as any).note ?? (sg as any).text ?? '').match(/\[([0-9a-f]{6,})\]/)?.[1] ?? null;
         const home = homeId ? store.getNodes(projectId).find((x) => x.id.startsWith(homeId) && x.status !== 'removed') : null;
         if (!home || home.id === sg.nodeId) { skipped++; continue; }
-        const cleaned = n.content.replace(/\s*[（(]arrived while focus was:[^)）]*[)）]\s*$/, '');
+        const cleaned = n.content.replace(/\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/, '');
         alts.push({ op: 'move_node', id: sg.nodeId, parentId: home.id });
         if (cleaned !== n.content) alts.push({ op: 'update_node', id: sg.nodeId, content: cleaned });
         touched.add(sg.nodeId); doneIds.push(sg.id); placements++;
@@ -3925,7 +3925,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
           cur = cur.parentId ? store.getNode(cur.parentId) : null;
         }
       }
-      const cleaned = n.content.replace(/\s*[（(]arrived while focus was:[^)）]*[)）]\s*$/, '');
+      const cleaned = n.content.replace(/\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/, '');
       const destName = parentId ? nodeName(store.getNode(parentId)) : null;
       const placeLabel = parentId ? `placed "${nodeName(n)}" under "${destName}"` : `promoted "${nodeName(n)}" to the top level`;
       // M263b: leaving "to sort" by hand is undoable like a move (it was not — Jacob: "the undo is a bit bad")

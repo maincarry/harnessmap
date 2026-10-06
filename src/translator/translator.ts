@@ -565,6 +565,7 @@ export class Translator {
           .replace(/(^|[。；？！;]\s*)(?:代理|助手|AI ?助手|模型|机器人)(?:提出|建议|认为|指出|提到|给出|回答|回复|说明|表示|推荐)[：:，,]?\s*/g, '$1') // M411 (js-focus-nav-zh #384; content sweep 1 statement / 115 maps / 0 FP): the Chinese form of the 0.9.153 "The agent proposed …" lead — "代理提出：将 HTML 和 querySelectorAll 中的类名字符…" → the proposal itself; the verb must follow the subject directly, so 代理服务器 (a proxy) is untouched
           .replace(/(^|[。；？！;，,：:]\s*)(?:当前|本次|此次|该|这个|最新)(?:的)?(?:回答|回复)(?:中|里)?(?:还|也|则|亦)?(?:提到|指出|声称|认为|称|说明|表示)[，,：:]?\s*/g, '$1') // M412 (go-howto-mix #387, image-convert-zh; content sweep 3 statements / 2 maps / 0 FP): M409 with a determiner — "？当前回答认为没有现成库，并给出了…" → "？没有现成库，并给出了…"; "该回答称可以选择多个图片" → "可以选择多个图片"
           .replace(/(^|[。；？！;，,：:]\s*)(?:当前|本次|此次|该|这个|最新)(?:的)?(?:回答|回复)(?:中|里)?(?=(?:还|也|则|亦)?(?:建议|给出|推荐|列出|提供))/g, '$1') // M412b: before 建议/给出/推荐/列出/提供 only the subject goes ("当前回答给出了使用第三方库…" → "给出了使用第三方库…")
+          .replace(/^(?:这是|这个主题是|本主题是|该主题是)?(?:用于|用来)(?:整理|记录|收集|汇总|归纳)\s*(.{2,60}?)\s*的(?:主题|节点|内容|区域)\s*[。.]?$/u, '$1') // M414 (LONG #392 root; content sweep incl. long maps 1 / 118, 0 FP): the Chinese "This is the topic used to organise X" meta-statement — "这是用于整理 WebRTC 学习内容的主题。" → "WebRTC 学习内容" (the 用于记录/已记录 family named in B2 since #320)
           .replace(/^(?:讨论|探讨)(?![区组会帖串中])(?=.{4,})/u, '') // M412c (go-howto-mix #387 root, threejs-texture-zh; sweep 5 roots / 5 maps / 0 FP): the Chinese M403 topic-talk lead — "讨论 Go 是否有…的库，以及…" → "Go 是否有…的库，以及…"; 讨论区/讨论组 (nouns) untouched
           .replace(/^围绕(?:着)?(?=[^，,。；]{2,30}[，,])/u, '') // M412d (leftjoin-zh, container-baseline-zh, nacos-yaml-zh roots): "围绕 SQL 问题，重点理解 LEFT JOIN…" → "SQL 问题，重点理解 LEFT JOIN…" — only the LEAD form with a comma clause; "X围绕A、B展开" (the summary flavour, B2) is untouched
           .replace(/(^|[。；？！;，,：:]\s*)(?:回答|回复)(?:中|里)?(?:还|也|则|亦)?(?:提到|指出|声称|认为|称|说明|表示)[，,：:]?\s*/g, '$1') // M409 (go-html-png-zh #382; content sweep 7 statements / 5 maps / 0 FP): bare ROUND-TALK without the 本轮 lead — "除 os/exec 外，回答还提到 gorun、sh 和 ishell" / "回答指出，省略第一个参数时…" / "回答中提到可使用 BACKUP LOG" — the reporting verb goes, the fact stays
@@ -580,7 +581,7 @@ export class Translator {
           .replace(/(^|[.;?!]\s*)(the )?(agent|assistant) (asked for clarification|redirected (the user|them) to)[^.;\n]*[.;]?\s*/gi, '$1')
           ;
         trimmed = finishNarrationTrim(src, trimmed); // 2026-10-04 bug fix: tidy + sentence-case ONLY after a real trim, never an identifier (node-xlsx, os/exec, .NET) — see narration-trim.ts
-        if (trimmed && trimmed !== src && trimmed.length >= 12) { this.store.audit('guard_narration_trim', { from: anyA.content.slice(0, 80), to: trimmed.slice(0, 80) }); anyA.content = trimmed; }
+        if (trimmed && trimmed !== src && (trimmed.length >= 12 || (/[\u4e00-\u9fff]/.test(trimmed) && trimmed.length >= 6))) { this.store.audit('guard_narration_trim', { from: anyA.content.slice(0, 80), to: trimmed.slice(0, 80) }); anyA.content = trimmed; } // M414b: CJK text is denser — a 6–11-char Chinese remainder ("WebRTC 学习内容") is a whole topic, not a fragment
       }
       // M315 (loop find, guard under "integrate, don't append; update-don't-duplicate" and M286 "choosing never erases"): the filer
       // replaced a chapter's founding statement ("Chapter 2: results") with the round's one fact ("Response rate came in at 62%"),
@@ -620,10 +621,11 @@ export class Translator {
       }
       // M399 (echarts-gantt-drift-zh #350, data-platform-zh): the codex filer IMITATED the harness's own provenance note inside a
       // statement — "…账号及密码。（arrived while focus was: ECharts 甘特图）" in full-width parens — and the ASCII-only regexes (M311 below,
+      // M413 (LONG #392): a focus name with its own parentheses — "（arrived while focus was: zipfile.write() 内部路径）" — ended the [^)）]* class early and left " 内部路径）" behind; one level of inner parens is now allowed (here and in the six server.ts cleanups).
       // the server's cleanups) never saw it: the node was promoted out of "to sort" with the note still in it. The note is the
       // harness's to write (it appends its own, ASCII, after the guards); a filer-written one, any paren width, goes.
-      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string' && /[（(]\s*arrived while focus was:[^)）]*[)）]/i.test(anyA.content)) {
-        const cleaned = anyA.content.replace(/\s*[（(]\s*arrived while focus was:[^)）]*[)）]\s*/gi, ' ').replace(/\s{2,}/g, ' ').trim();
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string' && /[（(]\s*arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]/i.test(anyA.content)) {
+        const cleaned = anyA.content.replace(/\s*[（(]\s*arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*/gi, ' ').replace(/\s{2,}/g, ' ').trim();
         this.store.audit('guard_prov_note_leak', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.content.slice(-60) });
         anyA.content = cleaned;
       }

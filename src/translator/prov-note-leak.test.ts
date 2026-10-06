@@ -22,6 +22,14 @@ function harness() {
   };
 }
 
+
+test('M413: a focus name with its own parentheses does not break the provenance-note strip (LONG #392 "zipfile.write() 内部路径")', () => {
+  const r = harness()('Visual Studio 运行时报错：对象或库文件是使用与其他对象不同的编译器版本创建的。（arrived while focus was: zipfile.write() 内部路径）');
+  expect(r.content).toBe('Visual Studio 运行时报错：对象或库文件是使用与其他对象不同的编译器版本创建的。');
+  const r2 = harness()('前端通过 Nginx 反向代理访问 POST 接口，以解决跨域请求错误。 (arrived while focus was: Couchbase 函数索引主题 (FTS))');
+  expect(r2.content).toBe('前端通过 Nginx 反向代理访问 POST 接口，以解决跨域请求错误。');
+});
+
 test('a filer-written full-width provenance note goes (echarts-gantt-drift-zh #350, M399)', () => {
   const r = harness()('Git 操作可通过 SSH Key 和 SSH 远程仓库地址避免每次输入账号及密码。（arrived while focus was: ECharts 甘特图）');
   expect(r.content).toBe('Git 操作可通过 SSH Key 和 SSH 远程仓库地址避免每次输入账号及密码。');
