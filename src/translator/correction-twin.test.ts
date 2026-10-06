@@ -43,4 +43,24 @@ describe('dropCorrectionTwins', () => {
     expect(dropped.out).toHaveLength(1);
     expect(dropped.audits[0].dropped).toContain('Deployment happens');
   });
+  test('a constraint carrying a NUMBER the rewrite lacks is not a twin (fft-impedance-zh #363, M404)', () => {
+    const nodes = map('MATLAB任务需要基于电压和电流数据分析1 Hz电化学阻抗。', '原始数据验证', '英文引号', '示例数据代码', '方法限制');
+    const alts = [
+      { op: 'update_node', id: 'root', content: 'MATLAB任务需要基于充放电过程中的电压和电流数据分析1 Hz电化学阻抗，并考虑叠加在EIS信号上的1 Hz方波电流激励。' },
+      { op: 'create_node', id: 'c1', type: 'constraint', content: 'EIS信号叠加了1 Hz方波电流激励，激励幅值为500 mA。' },
+    ];
+    const { out, audits } = run(alts, nodes);
+    expect(out).toHaveLength(2);
+    expect(audits).toHaveLength(0);
+  });
+  test('the same constraint IS a twin once the rewrite carries the number too (M404)', () => {
+    const nodes = map('MATLAB任务需要基于电压和电流数据分析1 Hz电化学阻抗。', '原始数据验证', '英文引号', '示例数据代码', '方法限制');
+    const alts = [
+      { op: 'update_node', id: 'root', content: 'MATLAB任务需要基于充放电过程中的电压和电流数据分析1 Hz电化学阻抗，并考虑叠加在EIS信号上的1 Hz方波电流激励，幅值为500 mA。' },
+      { op: 'create_node', id: 'c1', type: 'constraint', content: 'EIS信号叠加了1 Hz方波电流激励，激励幅值为500 mA。' },
+    ];
+    const { out, audits } = run(alts, nodes);
+    expect(out).toHaveLength(1);
+    expect(audits).toHaveLength(1);
+  });
 });

@@ -118,7 +118,11 @@ export function dropCorrectionTwins(alterations: any[], nodes: { title?: string 
   for (const a of alterations) {
     if (a.op === 'create_node' && (a.type === 'decision' || a.type === 'constraint')) {
       const cw = [...toks(`${a.title ?? ''} ${a.content ?? ''}`)].filter(rare);
-      const dup = rewritten.find((r) => { const rw = toks(r.content); const shared = cw.filter((w) => rw.has(w)).length; return cw.length > 0 && shared >= 2 && shared / cw.length >= 0.6; });
+      // M404 (fft-impedance-zh #363): "EIS信号叠加了1 Hz方波电流激励，激励幅值为500 mA" was dropped as a twin of a rewrite that carried the
+      // square wave but NOT the 500 mA — the tokenizer ignores runs under 4 characters, so the number never counted, and the user's
+      // amplitude vanished from the map (no node, no detail). A statement whose NUMBERS are not all in the rewrite is not a restatement.
+      const nums = (t: string) => (t ?? '').match(/\d+(?:[.,]\d+)?/g) ?? [];
+      const dup = rewritten.find((r) => { const rw = toks(r.content); const shared = cw.filter((w) => rw.has(w)).length; const rtext = `${r.title ?? ''} ${r.content}`; return cw.length > 0 && shared >= 2 && shared / cw.length >= 0.6 && nums(`${a.title ?? ''} ${a.content ?? ''}`).every((n) => rtext.includes(n)); });
       if (dup) { audit({ dropped: String(a.content ?? '').slice(0, 80), rewrote: dup.id }); if (a.id) remap.set(String(a.id), String(dup.id)); continue; }
     }
     out.push(a);
