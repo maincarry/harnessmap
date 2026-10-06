@@ -41,6 +41,14 @@ test('round-talk leads inside a statement go, the fact stays (excel-name-drift-z
   expect(harness()('使用填充柄不能直接把 A3:A10 批量设置为对应的 Range.Name；本轮回答改用 VBA 宏按选择顺序设置名称。').content).toBe('使用填充柄不能直接把 A3:A10 批量设置为对应的 Range.Name；改用 VBA 宏按选择顺序设置名称。');
 });
 
+test('bare 回答-narration without the 本轮 lead goes, the fact stays (go-html-png-zh #382, M409)', () => {
+  expect(harness()('除 os/exec 外，回答还提到 gorun、sh 和 ishell 等执行外部命令的库。').content).toBe('除 os/exec 外，gorun、sh 和 ishell 等执行外部命令的库。');
+  expect(harness()('回答指出，省略第一个参数时 Excel 通常根据写入值的类型进行推断。').content).toBe('省略第一个参数时 Excel 通常根据写入值的类型进行推断。');
+  expect(harness()('清理数据库日志可以将日志文件大小减少到合理范围；回答中提到可使用 BACKUP LOG WITH TRUNCATE_ONLY。').content).toBe('清理数据库日志可以将日志文件大小减少到合理范围；可使用 BACKUP LOG WITH TRUNCATE_ONLY。');
+  expect(harness()('如果请求页面发生一次或多次 HTTP 重定向，回答建议针对每次重定向的 URL 分别调用 getCurlPage。').content).toBe('如果请求页面发生一次或多次 HTTP 重定向，建议针对每次重定向的 URL 分别调用 getCurlPage。');
+  expect(harness()('用户需要在表单中回答三个问题后才能提交。').content).toBe('用户需要在表单中回答三个问题后才能提交。');
+});
+
 test('topic-talk leads at the start of a statement go, the subject stays (hash-table #362, M403)', () => {
   expect(harness()('This topic covers reference formatting for a LaTeX report, including BibTeX and manual bibliographies.').content).toBe('Reference formatting for a LaTeX report, including BibTeX and manual bibliographies.');
   expect(harness()('This branch covers debugging a C++17 contest solution.').content).toBe('Debugging a C++17 contest solution.');

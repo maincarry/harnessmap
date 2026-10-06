@@ -196,6 +196,7 @@ const SCRIPTS: Array<[string, RegExp]> = [
   ['tibetan', /\p{Script=Tibetan}/u], ['myanmar', /\p{Script=Myanmar}/u], ['mongolian', /\p{Script=Mongolian}/u],
 ];
 const STOP = new Set(['this','that','with','from','into','have','been','were','they','them','their','than','then','will','would','should','could','about','after','before','along','also','only','some','such','very','more','most','goes','need','needs','still','over','under','when','where','which','while','what','your','there','these','those','does','done','just','like','make','made','much','many','each','both','same','other','every','next','last','first'])
+const CJK_FUNC_BIGRAM = /[的了是在和或与并将把被对从到为有能可也都就还很会要不没这那些个中上下时前后已仍待问题当其该此并及其如何]/u; // M410: a 2-char CJK token containing one of these is a function/filer-vocabulary bigram, not a content word, for the rewrite_to_child overlap test
 
 export class Translator {
   constructor(private store: Store) {}
@@ -561,6 +562,8 @@ export class Translator {
           .replace(/(^|[.;?!]\s*)(The user|User|The person|The agent|Agent|The assistant|Assistant) (is |then |also )?(selected|chose|picked|explor(ed|ing)|confirmed|noticed|flagged|clarified|restated|switched to|offered|explained|suggested|proposed|answered|redirected|described|listed|recommended|provided|gave|acknowledged|noted|insists?|insisted|demands?|demanded|maintains?|maintained|argues?|argued|believes?|believed|thinks?|thought|feels?|felt|says?|said|states?|stated|claims?|claimed|reports?|reported|mentions?|mentioned|asserts?|asserted|contends?|contended|suspects?|suspected|wonders?|wondered):? (that )?/g, '$1') /* M331: the person's own claim stays as a claim ("User insists Claude made a decision" -> "Claude made a decision") */ // the narrating subject and verb go, the object stays (a fact inside "User confirmed the tiler for the 20th" is kept)
           .replace(/(^|[.;?!]\s*)(The user|User|The person) (asked|demanded|insisted|wanted to know|wants to know|asks):\s*/g, '$1') // M326: the colon form ("User asked: How did…") — the lead goes, the question stays
           .replace(/(^|[。；？！]\s*)(用户|使用者|开发者)(问|询问|要求|说|指出|提问|想知道|反馈)[：:]\s*/g, '$1') // M326b: the same lead in Chinese ("用户问：为什么…")
+          .replace(/(^|[。；？！;，,：:]\s*)(?:回答|回复)(?:中|里)?(?:还|也|则|亦)?(?:提到|指出|声称|认为|称|说明|表示)[，,：:]?\s*/g, '$1') // M409 (go-html-png-zh #382; content sweep 7 statements / 5 maps / 0 FP): bare ROUND-TALK without the 本轮 lead — "除 os/exec 外，回答还提到 gorun、sh 和 ishell" / "回答指出，省略第一个参数时…" / "回答中提到可使用 BACKUP LOG" — the reporting verb goes, the fact stays
+          .replace(/(^|[。；？！;，,：:]\s*)(?:回答|回复)(?:中|里)?(?=(?:还|也|则|亦)?(?:建议|给出|推荐|列出))/g, '$1') // M409b: before 建议/给出/推荐/列出 only the subject goes ("回答建议针对每次重定向…" → "建议针对每次重定向…")
           .replace(/(^|[。；？！;]\s*)(?:本轮|这一轮|此轮|上一轮)(?:的)?(?:回答|回复)?(?:认为|指出|提到|给出的|提供了|提供的|中)?[，,：:]?\s*/g, '$1') // M402 (excel-name-drift-zh #359 + content sweep 4 maps / 0 FP): ROUND-TALK inside a statement — "本轮回答认为，B 的提交…", "本轮提供了…方案", "本轮给出的“…”被指出有误" — the lead goes, the fact stays
           .replace(/^(?:This|The|That) (?:broader )?(?:topic|area|branch|node|subtree|section) (?:contains|covers|includes|is about|groups|holds|is)\s+/i, '') // M403 (hash-table #362 + content sweep 8 maps / 0 FP): TOPIC-TALK at the start of a statement — "This topic covers reference formatting…", "This branch covers debugging…", "The broader topic is analysis of…" — the lead goes, the subject stays (finishNarrationTrim sentence-cases it)
           .replace(/(^|[，,。；])\s*当前聚焦于\s*/g, '$1') // M403b
@@ -580,7 +583,7 @@ export class Translator {
       // the old statement is not a correction (corrections keep most words); it becomes a child of that node, the statement stays.
       if (a.op === 'update_node' && anyA.id && typeof anyA.content === 'string' && this.store.getSetting(`titleBy:${anyA.id}`) !== 'user') {
         const cur = map.nodes.find((n) => n.id === anyA.id);
-        const tok = (t: string) => new Set((t.toLowerCase().match(/[a-z][a-z'-]{3,}|[\u4e00-\u9fff]{2}/g) ?? []).filter((w) => !STOP.has(w)));
+        const tok = (t: string) => new Set((t.toLowerCase().match(/[a-z][a-z'-]{3,}|[\u4e00-\u9fff]{2}/g) ?? []).filter((w) => !STOP.has(w) && !CJK_FUNC_BIGRAM.test(w))); // M410 (go-html-png-zh #382): a CJK bigram holding a particle/aux/status char (的库, 当前, 可靠, 可以, 需要…) is not a content word — three such bigrams let an answered shell-library question be REWRITTEN into an HTML→PNG question (its children dragged along) with shared=3
         if (cur && !cur.content.startsWith('to sort') && cur.parentId !== null) {
           const oldW = tok(cur.content), newW = tok(anyA.content);
           const shared = [...newW].filter((w) => oldW.has(w)).length;
