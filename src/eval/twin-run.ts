@@ -8,7 +8,8 @@
 // The twin is a synthetic consumer that reacts as a real user (Layer A) and names the behavioral-science mechanism
 // behind any discomfort (Layer B). It finds UX friction the correctness e2e's can't see. See src/twin.ts.
 import { readFileSync } from 'node:fs';
-import { runTwin, type TwinReport } from '../twin.js';
+import { runTwin, type TwinReport, type TwinPersona } from '../twin.js';
+import { twinPersonaRoster } from '../twin-personas.js';
 
 const argv = process.argv.slice(2);
 const flagVal = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
@@ -36,9 +37,11 @@ function experienceFromScenario(path: string): string {
   ].filter(Boolean).join('\n\n');
 }
 
+if (argv.includes('--list-personas')) { console.log(twinPersonaRoster()); process.exit(0); }
 const flow = flagVal('--flow');
 const flowFile = flagVal('--flow-file');
-const scenarioPath = argv.find((a) => !a.startsWith('--') && a !== flow && a !== flowFile);
+const personaArg = flagVal('--persona');
+const scenarioPath = argv.find((a) => !a.startsWith('--') && a !== flow && a !== flowFile && a !== personaArg);
 
 let experience: string;
 let label: string;
@@ -49,7 +52,7 @@ else { console.error('usage: twin-run.ts (--flow "..." | --flow-file <path> | <s
 
 const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
 
-const persona = (flagVal('--persona') as 'normal' | 'critic') ?? 'normal';   // Jacob 2026-09-27: default = the NORMAL user; 'critic' is an opt-in stress test.
+const persona = (flagVal('--persona') ?? 'normal') as TwinPersona;   // Jacob 2026-09-27: default = the NORMAL user; 'critic' is an opt-in stress test; M407: or a persona id (--list-personas).
 const t0 = Date.now();
 const r: TwinReport = await runTwin(experience, { persona });
 const secs = ((Date.now() - t0) / 1000).toFixed(1);

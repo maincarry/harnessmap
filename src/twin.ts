@@ -8,6 +8,7 @@
 // first as A, then explains as B, with a severity and a concrete fix per friction point. Runs on the same
 // inference path as every other agent (task 'brain' → the strong tier; overridable).
 import { call } from './inference.js';
+import { findTwinPersona, personaCalibration, TWIN_PERSONA_IDS } from './twin-personas.js';
 
 export const TWIN_SYSTEM = `You are the USER TWIN: a digital twin of a real consumer of a software product, holding TWO layers in one mind.
 
@@ -32,8 +33,8 @@ You will be given a REAL SESSION: what the user did, and what the product showed
 // the experience of a NORMAL user"). The dial anchors HOW CRITICAL the twin is and — crucially — what a severity
 // actually MEANS, so a report is never mistaken for the other kind. 'normal' is the default (the real experience);
 // 'critic' is an opt-in stress test. The report's `persona` line always says which ran.
-export type TwinPersona = 'normal' | 'critic';
-export const PERSONA_CALIBRATION: Record<TwinPersona, string> = {
+export type TwinPersona = 'normal' | 'critic' | (string & {}); // 'normal' | 'critic' | a persona id from src/twin-personas.ts (M407)
+export const PERSONA_CALIBRATION: Record<'normal' | 'critic', string> = {
   normal: `
 YOUR CALIBRATION — the NORMAL USER = the AVERAGE user of our target audience (this is the DEFAULT and the whole point of the test: the REAL, representative experience). You are NOT defined by being forgiving or lenient — you are defined by being TYPICAL. Do not hunt for problems (that is the critic), and do NOT excuse them either — an over-forgiving user is just as UNREPRESENTATIVE as a hypercritical one. React exactly as a representative member of our target would: no more critical, no more tolerant. If the average user really would be bothered, you are bothered; if they truly would not notice, you do not.
 - WHO YOU ARE (the target): a developer / knowledge worker who works inside an AI coding CLI (Codex, Claude Code) and is trying a companion "map" that auto-captures their work. You have the normal patterns of that population — you skim, you satisfice, you protect your flow, you judge quickly — and NORMAL patience: not infinite, not zero.
@@ -97,6 +98,16 @@ const SCHEMA = {
 
 // M378 — DRIVING mode. The twin operates a live product turn by turn: given its goal and what it currently sees,
 // it decides its next move AS THIS USER and reports how it feels right now. Interaction model (Jacob's ruling,
+// M407 — resolve a persona name to its calibration block: the two dials ('normal' / 'critic') or one of the twenty
+// named potential users in src/twin-personas.ts. An unknown name is an error, never a silent fallback to 'normal'
+// (a report must say exactly who ran).
+export function calibrationFor(persona: TwinPersona): string {
+  if (persona === 'normal' || persona === 'critic') return PERSONA_CALIBRATION[persona as 'normal' | 'critic'];
+  const p = findTwinPersona(persona);
+  if (!p) throw new Error(`unknown twin persona "${persona}" — use normal, critic, or one of: ${TWIN_PERSONA_IDS.join(', ')}`);
+  return personaCalibration(p);
+}
+
 // 2026-09-27): the user works in their coding CLI and the map only WATCHES — the user does NOT command the map
 // from the coding chat. So the twin's moves are: 'work' (say the next thing to its coding agent — it supplies both
 // what it typed and a plausible agent reply, since it is role-playing the whole session), or 'stop' (goal met, or
@@ -162,7 +173,7 @@ export async function twinStep(goal: string, mapView: string, history: string[],
   const out = await call({
     task: 'brain',
     modelOverride: opts.modelOverride,
-    system: TWIN_SYSTEM + PERSONA_CALIBRATION[opts.persona ?? 'normal'] + DRIVE_ADDENDUM,
+    system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal') + DRIVE_ADDENDUM,
     user,
     maxTokens: opts.maxTokens ?? 700,
     timeoutMs: opts.timeoutMs ?? 90_000,
@@ -177,11 +188,11 @@ export interface TwinOpts { persona?: TwinPersona; modelOverride?: string; maxTo
 // Run the twin over a described session/experience and return its structured friction report.
 export async function runTwin(experience: string, opts: TwinOpts = {}): Promise<TwinReport> {
   const persona = opts.persona ?? 'normal';
-  const user = `${experience}\n\nNow walk this session as the user twin (${persona} calibration). React first (Layer A), explain second (Layer B). Include steps where nothing was wrong (severity "none") so the report is honest, not a hunt for problems. In the "persona" field, state plainly which calibration you ran (normal user vs hypercritical stress test). Return the JSON report.`;
+  const user = `${experience}\n\nNow walk this session as the user twin (${persona} calibration). React first (Layer A), explain second (Layer B). Include steps where nothing was wrong (severity "none") so the report is honest, not a hunt for problems. In the "persona" field, state plainly which calibration you ran (normal user, hypercritical stress test, or the named persona's id and who they are). Return the JSON report.`;
   const out = await call({
     task: 'brain',
     modelOverride: opts.modelOverride,
-    system: TWIN_SYSTEM + PERSONA_CALIBRATION[persona],
+    system: TWIN_SYSTEM + calibrationFor(persona),
     user,
     maxTokens: opts.maxTokens ?? 1600,
     timeoutMs: opts.timeoutMs ?? 120_000,

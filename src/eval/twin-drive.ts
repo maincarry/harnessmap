@@ -12,7 +12,7 @@ const argv = process.argv.slice(2);
 const flagVal = (n: string, d?: string) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
 const GOAL = flagVal('--goal', 'Get a small command-line tool started with your coding agent: sketch what it should do, then get a first module and a couple of tests going. You want the map to quietly keep track so you can see where you are.')!;
 const STEPS = Number(flagVal('--steps', '5'));
-const PERSONA = (flagVal('--persona') as 'normal' | 'critic') ?? 'normal';  // Jacob 2026-09-27: default = NORMAL user; 'critic' = opt-in stress test.
+const PERSONA = (flagVal('--persona') ?? 'normal') as import('../twin.js').TwinPersona;  // Jacob 2026-09-27: default = NORMAL user; 'critic' = opt-in stress test; M407: or a persona id.
 const engine = process.env.HARNESSMAP_INFERENCE === 'codex' || process.env.E2E_ENGINE === 'codex';
 
 const PORT = Number(process.env.TWIN_PORT ?? 8795); const BASE = `http://127.0.0.1:${PORT}`;
