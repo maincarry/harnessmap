@@ -183,6 +183,22 @@ export async function twinStep(goal: string, mapView: string, history: string[],
   return out as TwinStep;
 }
 
+// M417 (Jacob 2026-10-06 16:00 "Are the digital twin consumers running these long runs?"): the long-session recall check
+// from the USER's side — shown only the map as it stands, can the twin find a thing it did many turns ago, in one glance?
+const RECALL_SCHEMA = { type: 'object', additionalProperties: false, required: ['found', 'where', 'felt', 'severity', 'mechanism'], properties: { found: { type: 'boolean' }, where: { type: 'string' }, felt: { type: 'string' }, severity: { type: 'string', enum: ['none', 'minor', 'moderate', 'severe'] }, mechanism: { type: 'string' } } };
+export interface TwinRecall { found: boolean; where: string; felt: string; severity: 'none' | 'minor' | 'moderate' | 'severe'; mechanism: string; }
+export async function twinRecall(goal: string, mapView: string, earlierTurn: string, stepsAgo: number, opts: TwinOpts = {}): Promise<TwinRecall> {
+  const user = [
+    `YOUR GOAL (the whole session): ${goal}`,
+    `A GLANCE TEST. About ${stepsAgo} turns ago you typed this to your agent: "${earlierTurn}". You now want to get back to THAT piece of work. Look ONLY at what the map shows right now and say whether you can find where it lives (found true/false), WHERE on the map it is (quote the row), how that felt, and why (mechanism).`,
+    `WHAT THE MAP SHOWS RIGHT NOW:
+${mapView}`,
+    `Return strict JSON only.`,
+  ].join('\n\n');
+  const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: opts.maxTokens ?? 500, timeoutMs: opts.timeoutMs ?? 90_000, schema: RECALL_SCHEMA, audit: opts.audit });
+  return out as TwinRecall;
+}
+
 export interface TwinOpts { persona?: TwinPersona; modelOverride?: string; maxTokens?: number; timeoutMs?: number; audit?: (k: string, d: Record<string, unknown>) => void; paintMs?: number /* perceived latency (ms) of the PREVIOUS turn — time to first visible FILED result; drives the twin's speed reaction */; ackMs?: number /* time (ms) to first ACKNOWLEDGEMENT of the previous turn — the "filing…" ghost row; perceived responsiveness even when filing is slow */ }
 
 // Run the twin over a described session/experience and return its structured friction report.

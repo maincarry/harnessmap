@@ -6,11 +6,20 @@
 // Usage: HARNESSMAP_INFERENCE=codex CODEX_HOME=~/.codex bun run src/eval/twin-drive.ts [--goal "..."] [--steps 5]
 import { rmSync, mkdirSync, symlinkSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { twinStep, type TwinStep } from '../twin.js';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { twinStep, twinRecall, type TwinStep, type TwinRecall } from '../twin.js';
 
 const argv = process.argv.slice(2);
 const flagVal = (n: string, d?: string) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
-const GOAL = flagVal('--goal', 'Get a small command-line tool started with your coding agent: sketch what it should do, then get a first module and a couple of tests going. You want the map to quietly keep track so you can see where you are.')!;
+// M417 LONG DRIVE (Jacob 2026-10-06 16:00): a whole afternoon, not five turns — a multi-project brief (--goal-file), checkpoints
+// every N steps where (a) the PRODUCT's brain is asked "right now?" / "first?" and judged against what the twin actually typed,
+// and (b) the TWIN is asked to find, in one glance at the map, a thing it did ~15 turns earlier (twinRecall). --out writes the
+// full record as JSON for the ledger. Older history entries are shortened so the twin's prompt stays within reason at 60 steps.
+const GOAL_FILE = flagVal('--goal-file');
+const GOAL_TEXT = GOAL_FILE ? readFileSync(GOAL_FILE, 'utf8').trim() : null;
+const CHECKPOINT = Number(flagVal('--checkpoint', '0'));
+const OUT = flagVal('--out');
+const GOAL = GOAL_TEXT ?? flagVal('--goal', 'Get a small command-line tool started with your coding agent: sketch what it should do, then get a first module and a couple of tests going. You want the map to quietly keep track so you can see where you are.')!;
 const STEPS = Number(flagVal('--steps', '5'));
 const PERSONA = (flagVal('--persona') ?? 'normal') as import('../twin.js').TwinPersona;  // Jacob 2026-09-27: default = NORMAL user; 'critic' = opt-in stress test; M407: or a persona id.
 const engine = process.env.HARNESSMAP_INFERENCE === 'codex' || process.env.E2E_ENGINE === 'codex';
@@ -88,6 +97,11 @@ console.log(`goal: ${GOAL}\n`);
 
 const steps: TwinStep[] = [];
 const history: string[] = [];
+const checkpoints: { step: number; brainNow?: string; brainFirst?: string; nowOk?: boolean; firstOk?: boolean; recall?: TwinRecall & { target: string; stepsAgo: number } }[] = [];
+const words = (t: string) => new Set((t.toLowerCase().match(/[a-z][a-z0-9_'-]{3,}|[\u4e00-\u9fff]{2,}/g) ?? []).filter((w) => !/^(that|this|with|from|have|will|just|what|when|then|them|they|your|into|about|some|also|like|make|made|need|want|does|done|here|there|okay|please|could|would|should|still|again|only|more|very|really|thing|things)$/.test(w)));
+const overlap = (a: string, b: string) => { const A = words(a), B = words(b); let n = 0; for (const w of A) if (B.has(w)) n++; return n; };
+const shortHistory = () => history.map((h, i) => (history.length - i > 20 ? h.slice(0, 90) + (h.length > 90 ? '…' : '') : h));
+const brainAsk = async (text: string): Promise<string> => { try { const r = await post('/api/map-status/chat', { text }); const b: any = r.body; return String(b?.reply ?? b?.text ?? b?.answer ?? ''); } catch (e) { return `(brain error: ${String(e).slice(0, 80)})`; } };
 let lastPaintMs: number | undefined; // perceived latency of the previous turn (time to first visible FILED node) — fed to the next twinStep so the persona judges speed (Jacob 2026-10-04)
 let lastAckMs: number | undefined; // time to the ghost acknowledgement of the previous turn (map echoes the turn before the filer finishes) — the perceived-responsiveness signal (Jacob "ghost row")
 const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
@@ -97,7 +111,7 @@ for (let i = 0; i < STEPS; i++) {
   const view = mapView(s);
   let step: TwinStep;
   prog(`step ${i + 1}: calling twinStep`);
-  try { step = await twinStep(GOAL, view, history, { persona: PERSONA, paintMs: lastPaintMs, ackMs: lastAckMs }); }
+  try { step = await twinStep(GOAL, view, shortHistory(), { persona: PERSONA, paintMs: lastPaintMs, ackMs: lastAckMs }); }
   catch (e) { prog(`step ${i + 1}: twinStep FAILED ${String(e).slice(0, 120)}`); console.error(`step ${i + 1} twin call failed:`, String(e).slice(0, 200)); break; }
   prog(`step ${i + 1}: twinStep returned (${step.severity}, ${step.action.kind})`);
   steps.push(step);
@@ -131,6 +145,25 @@ for (let i = 0; i < STEPS; i++) {
   if (paint != null) console.log(`   (perceived: map first showed the FILED result in ~${(paint / 1000).toFixed(0)}s)`);
   prog(`step ${i + 1}: round filed`);
   console.log('');
+  // M417 checkpoint: the product's memory of the session (brain) vs what the twin actually typed, and the twin's own glance-recall.
+  if (CHECKPOINT > 0 && (i + 1) % CHECKPOINT === 0 && history.length >= 2) {
+    prog(`checkpoint at step ${i + 1}`);
+    const cp: (typeof checkpoints)[number] = { step: i + 1 };
+    const lastTyped = history[history.length - 1].split(' → agent:')[0].replace(/^you: /, '');
+    const firstTyped = history[0].split(' → agent:')[0].replace(/^you: /, '');
+    cp.brainNow = await brainAsk('What is the user working on RIGHT NOW, most recently? one line');
+    cp.brainFirst = await brainAsk('What was the FIRST thing the user worked on in this session? one line');
+    cp.nowOk = overlap(cp.brainNow, lastTyped) >= 2; cp.firstOk = overlap(cp.brainFirst, firstTyped) >= 2;
+    console.log(`── checkpoint ${i + 1} ──\n   brain NOW:   ${cp.brainNow.slice(0, 160)}  [${cp.nowOk ? 'matches' : 'DOES NOT match'} your last turn]\n   brain FIRST: ${cp.brainFirst.slice(0, 160)}  [${cp.firstOk ? 'matches' : 'DOES NOT match'} your first turn]`);
+    const back = Math.min(15, history.length - 1); const target = history[history.length - 1 - back].split(' → agent:')[0].replace(/^you: /, '');
+    try {
+      const st = await get('/api/state'); const r = await twinRecall(GOAL, mapView(st), target, back, { persona: PERSONA });
+      cp.recall = { ...r, target, stepsAgo: back };
+      console.log(`   glance-recall (${back} turns back: "${target.slice(0, 70)}"): ${r.found ? 'FOUND' : 'NOT FOUND'} — ${r.where.slice(0, 120)}\n   ${sev(r.severity)} [${r.severity}] ${r.felt.slice(0, 160)}`);
+    } catch (e) { console.log(`   glance-recall failed: ${String(e).slice(0, 120)}`); }
+    checkpoints.push(cp);
+    console.log('');
+  }
 }
 
 // Compile the friction report from the driven session (each step's reaction is a real moment).
@@ -141,6 +174,12 @@ console.log(`══ FRICTION FROM THE DRIVEN SESSION ══`);
 if (!bad.length) console.log('no moderate/severe friction — the map kept up quietly.');
 for (const [i, f] of bad.entries()) console.log(`  ${i + 1}. [${f.severity}] ${f.felt}\n     why: ${f.mechanism}`);
 console.log(`\ndrove ${steps.length} step(s) · worst friction: ${worst} · would return: ${wouldReturn}`);
+if (checkpoints.length) {
+  const nowOk = checkpoints.filter((c) => c.nowOk).length, firstOk = checkpoints.filter((c) => c.firstOk).length, found = checkpoints.filter((c) => c.recall?.found).length, asked = checkpoints.filter((c) => c.recall).length;
+  console.log(`checkpoints ${checkpoints.length}: brain RIGHT NOW right ${nowOk}/${checkpoints.length} · brain FIRST right ${firstOk}/${checkpoints.length} · twin found its earlier work at a glance ${found}/${asked}`);
+}
+console.log(`map db: ${join(TMP, 'twin.sqlite')}`);
+if (OUT) { try { writeFileSync(OUT, JSON.stringify({ persona: PERSONA, goal: GOAL, steps, history, checkpoints, worst, wouldReturn, db: join(TMP, 'twin.sqlite') }, null, 2)); console.log(`report: ${OUT}`); } catch (e) { console.error('could not write --out:', String(e).slice(0, 120)); } }
 
 // The spawned server keeps the event loop alive; kill it and exit cleanly so stdout flushes (a SIGTERM at
 // timeout loses piped, block-buffered stdout — that's why early runs looked like they produced nothing).
