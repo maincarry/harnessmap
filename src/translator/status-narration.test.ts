@@ -48,3 +48,9 @@ test('topic-talk leads at the start of a statement go, the subject stays (hash-t
   expect(harness()('Tkinter 图形界面开发主题，当前聚焦于按钮输出文本并控制文本对齐。').content).toBe('Tkinter 图形界面开发主题，按钮输出文本并控制文本对齐。');
   expect(harness()('The topic sentence of a paragraph states its main idea.').content).toBe('The topic sentence of a paragraph states its main idea.');
 });
+
+test('progress narration "X is being reviewed for Y" becomes a subject (cpp-contest #365, M405)', () => {
+  expect(harness()('The submitted C++17 code is being reviewed for compilation and logical correctness.').content).toBe('Review of the submitted C++17 code compilation and logical correctness.');
+  expect(harness()('The transformer model implementation is being reviewed for correctness.').content).toBe('Review of the transformer model implementation correctness.');
+  expect(harness()('The queue is being drained by two workers.').content).toBe('The queue is being drained by two workers.');
+});
