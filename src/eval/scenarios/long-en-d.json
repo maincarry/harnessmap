@@ -47,7 +47,7 @@
         "name": "panorama-homography",
         "pieces": 3,
         "rounds": 12,
-        "recall": "panorama|homograph"
+        "recall": "panorama|homograph|stitch"
       }
     ]
   },
@@ -902,7 +902,7 @@
           "_thread": "quizlet-drifts"
         },
         {
-          "brainMust": "panorama|homograph",
+          "brainMust": "panorama|homograph|stitch",
           "_thread": "panorama-homography"
         },
         {
@@ -918,7 +918,7 @@
           "text": "What is the user working on RIGHT NOW, most recently? one line"
         },
         {
-          "brainMust": "panorama|homograph",
+          "brainMust": "panorama|homograph|stitch",
           "_thread": "panorama-homography (latest)"
         }
       ]

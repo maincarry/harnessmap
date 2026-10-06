@@ -64,7 +64,7 @@ const CURATED: Record<string, string> = {
   // regexes name the topic in both scripts; the check is for the topic, not the language it is told in.
   'random-numbers': 'random|dice|shuffle|随机',
   'grammar-quiz': 'grammar|quiz|语法',
-  'panorama-homography': 'panorama|homograph',
+  'panorama-homography': 'panorama|homograph|stitch',  // LONG #396: the brain called it "image-stitching"
   'webrtc-zh': 'webrtc|音视频|推流',
   'mysql-json-zh': 'mysql|json',
   'nginx-cors-zh': 'nginx|cors|跨域',
