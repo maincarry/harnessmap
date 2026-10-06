@@ -57,7 +57,7 @@ const STOP = new Set('replay real wildchat english chinese piece the a an and of
 // Curated recall regexes for threads whose name line does not yield good nouns (the fallback extractor picks adjectives like "small").
 const CURATED: Record<string, string> = {
   'tictactoe': 'tic[ -]?tac[ -]?toe|connect ?four',
-  'react-eslint': 'react|eslint|setStep|step function',
+  'react-eslint': 'react|eslint|setStep|step[ -]?function|implied[ -]?eval|lint',  // LONG #395: the brain listed the thread as "Step-function improvement" and "no-implied-eval linting"
   'quizlet-drifts': 'quizlet|quizizz|vps|unity',
   // LONG #394 (mixed-language map): the brain answers recall in the MAP's dominant language — an English thread on a
   // Chinese-led map came back as "Python随机数…" / "英语…语法选择", and "first" as "how to charge a 2015 Qin DM". The

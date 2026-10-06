@@ -35,7 +35,7 @@
         "name": "react-eslint",
         "pieces": 4,
         "rounds": 16,
-        "recall": "react|eslint|setStep|step function"
+        "recall": "react|eslint|setStep|step[ -]?function|implied[ -]?eval|lint"
       },
       {
         "name": "quizlet-drifts",
@@ -894,7 +894,7 @@
           "_thread": "tictactoe"
         },
         {
-          "brainMust": "react|eslint|setStep|step function",
+          "brainMust": "react|eslint|setStep|step[ -]?function|implied[ -]?eval|lint",
           "_thread": "react-eslint"
         },
         {
