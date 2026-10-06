@@ -19,22 +19,27 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 const [tag, ...names] = process.argv.slice(2);
 if (!tag || !names.length) { console.error('usage: long-run.ts <tag> <scenario-name> […]'); process.exit(2); }
 
+const base = (n: string) => n.split('@')[0];
 const KEYED = new Set(['countUnder', 'underKey', 'topLevelMatching']);
 const KEYED_DO = new Set(['focus', 'light', 'dim', 'release', 'pin', 'title', 'statement', 'zoom', 'favorite']);
 
 type Round = { user: string; assistant?: string; then?: any[]; [k: string]: any };
 const threads: { name: string; pieces: string[]; rounds: Round[]; desc: string; seed?: any; focus?: any; auto?: any; recall: string[]; rule?: string }[] = [];
 
-for (const name of names) {
+for (const spec of names) {
+  // "name" = all pieces; "name@2-3" = pieces 2..3 only; "name@4" = piece 4 — lets a thread RETURN after a drift (tictactoe@1-2 react-eslint tictactoe@3-4).
+  const m = spec.match(/^([a-z0-9-]+?)(?:@(\d+)(?:-(\d+))?)?$/i);
+  if (!m) { console.error(`bad spec ${spec}`); process.exit(2); }
+  const name = m[1]; const from = m[2] ? parseInt(m[2], 10) : 1; const to = m[3] ? parseInt(m[3], 10) : (m[2] ? from : 9);
   const pieces: string[] = [];
-  for (let i = 1; i <= 9; i++) { const f = `src/eval/scenarios/replay-real-${name}-p${i}.json`; if (existsSync(f)) pieces.push(f); else break; }
+  for (let i = from; i <= to; i++) { const f = `src/eval/scenarios/replay-real-${name}-p${i}.json`; if (existsSync(f)) pieces.push(f); else if (!m[2]) break; }
   if (!pieces.length) { console.error(`no pieces for ${name}`); process.exit(2); }
-  const t: (typeof threads)[number] = { name, pieces, rounds: [], desc: '', recall: [] };
+  const t: (typeof threads)[number] = { name: m[2] ? spec : name, pieces, rounds: [], desc: '', recall: [] };
   pieces.forEach((f, pi) => {
     const sc = JSON.parse(readFileSync(f, 'utf8'));
     if (pi === 0) { t.desc = String(sc.name ?? name); t.seed = sc.seed; t.focus = sc.focus; t.auto = sc.auto; }
     for (const r of sc.rounds ?? []) {
-      const first = threads.length === 0; // steps keyed on the FIRST thread's seed keys are kept
+      const first = threads.length === 0 || base(name) === base(threads[0].name); // steps keyed on the FIRST thread's seed keys are kept (also for a later segment of the SAME thread — same key names)
       const then = (r.then ?? []).filter((s: any) => {
         if (first) return true;
         if (s.do && KEYED_DO.has(s.do)) return false;
@@ -76,8 +81,8 @@ const rounds: Round[] = [];
 for (const t of threads) rounds.push(...t.rounds);
 
 // Final recall round: a neutral closing exchange so the brain checks run on the finished map.
-const topics = threads.map((t) => ({ name: t.name, keys: CURATED[t.name] ? [CURATED[t.name]] : kw(t.desc) }));
-const rxOf = (t: { name: string; keys: string[] }) => CURATED[t.name] ? CURATED[t.name] : t.keys.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+const topics = threads.map((t) => ({ name: t.name, keys: CURATED[base(t.name)] ? [CURATED[base(t.name)]] : kw(t.desc) }));
+const rxOf = (t: { name: string; keys: string[] }) => CURATED[base(t.name)] ? CURATED[base(t.name)] : t.keys.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
 const recallThen: any[] = [
   { do: 'brainChat', text: 'List every distinct topic or project the user has worked on in this whole session, one short line each.' },
   { brainMustNot: 'calorie|essay|movie|weekend coding|Past Lives|Paterson|Jane Jacobs|MyFitnessPal|Netlify|rereading|month-long|month of|tangled|example map|ongoing conversation|weight chart|Astro' },
