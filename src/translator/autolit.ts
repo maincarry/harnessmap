@@ -260,3 +260,17 @@ export function roundLeftFocus(store: Store, focusId: string | null, alterations
   const inside = new Set([focusId, ...descendantNodes(store, focusId)]);
   return touched.some((id) => !inside.has(id));
 }
+
+// M418 (LONG #395/#396): the M316 redirect "a newborn's focus settles on its home — never a root" refused 26 of 38 redirects on an
+// 84-round map and 15 of 20 on its re-run: a thread that drifts into its OWN top-level topic has a root for a home, so the
+// focus could never land on the new thread; it stayed on the first thread for hours and the brain's "right now" followed it.
+// A root is a fine focus when it is one topic among several (the whole-map root case stays refused — roundLeftFocus treats a
+// sole root as "unaimed"); bare/to-sort roots and roots born this round stay refused.
+export function newbornHomeOk(home: { status?: string; parentId: string | null; content: string } | null | undefined, bornNow: Set<string> | undefined, homeId: string | undefined, topLevelTopics: number): boolean {
+  if (!home || !homeId) return false;
+  if (home.status === 'removed') return false;
+  if (home.content.startsWith('to sort') || home.content.trim() === 'untitled') return false;
+  if (bornNow?.has(homeId)) return false;
+  if (home.parentId !== null) return true;
+  return topLevelTopics >= 2;
+}

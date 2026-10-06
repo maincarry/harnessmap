@@ -17,7 +17,7 @@ import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
 import { dedupeTitleAgainstSiblings } from './translator/title-dedupe.js';
 import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
 import { listMinds, getAreaAdvice } from './translator/governors.js';
-import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit, aimCascade, roundLeftFocus } from './translator/autolit.js';
+import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit, aimCascade, roundLeftFocus, newbornHomeOk } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion, suggestedQueries } from './translator/mapchat.js';
@@ -1173,8 +1173,10 @@ function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit:
   if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && opts.bornNow?.has(r.focus)) {
     // M316 (loop find, after M315): the newborn's HOME existed before this round — a pivot into "chapter 2" that landed as a fact
     // under it is still a pivot into chapter 2. The aim settles on the parent (never a root, never "to sort", never born now).
-    const nb = store.getNode(r.focus); const home = nb?.parentId ? store.getNode(nb.parentId) : null;
-    const homeOk = !!home && home.status !== 'removed' && home.parentId !== null && !home.content.startsWith('to sort') && !opts.bornNow?.has(home.id);
+    const nb = store.getNode(r.focus); const home = nb?.parentId ? store.getNode(nb.parentId) : null; const pid0 = store.getChat(chatId)!.projectId;
+    // M418: a top-level topic is an acceptable home when it is one among several (see autolit.ts newbornHomeOk).
+    const topLevelTopics = store.getNodes(pid0).filter((n) => n.parentId === null && n.status !== 'removed' && n.author !== 'system' && !n.content.startsWith('to sort') && n.content.trim() !== 'untitled').length;
+    const homeOk = newbornHomeOk(home, opts.bornNow, home?.id, topLevelTopics);
     store.audit('guard_focus_newborn', { id: r.focus.slice(0, 8), ...(homeOk ? { to: home!.id.slice(0, 8) } : {}) });
     r = homeOk ? { ...r, focus: home!.id, focusName: nodeName(home!) } : { ...r, focus: undefined, focusName: undefined };
   }
