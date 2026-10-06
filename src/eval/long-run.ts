@@ -59,14 +59,17 @@ const CURATED: Record<string, string> = {
   'tictactoe': 'tic[ -]?tac[ -]?toe|connect ?four',
   'react-eslint': 'react|eslint|setStep|step function',
   'quizlet-drifts': 'quizlet|quizizz|vps|unity',
-  'random-numbers': 'random|dice|shuffle',
-  'grammar-quiz': 'grammar|quiz',
+  // LONG #394 (mixed-language map): the brain answers recall in the MAP's dominant language — an English thread on a
+  // Chinese-led map came back as "Python随机数…" / "英语…语法选择", and "first" as "how to charge a 2015 Qin DM". The
+  // regexes name the topic in both scripts; the check is for the topic, not the language it is told in.
+  'random-numbers': 'random|dice|shuffle|随机',
+  'grammar-quiz': 'grammar|quiz|语法',
   'panorama-homography': 'panorama|homograph',
   'webrtc-zh': 'webrtc|音视频|推流',
   'mysql-json-zh': 'mysql|json',
   'nginx-cors-zh': 'nginx|cors|跨域',
   'time-clock-zh': '时钟|clock|时间',
-  'thirteen-questions-zh': '充电|汽车|car|charging',
+  'thirteen-questions-zh': '充电|汽车|\\bcar\\b|charg',
   'vba-header-zh': 'vba|表头|excel',
 };
 const kw = (desc: string) => {

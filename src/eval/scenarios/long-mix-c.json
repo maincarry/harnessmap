@@ -17,19 +17,19 @@
         "name": "thirteen-questions-zh",
         "pieces": 3,
         "rounds": 13,
-        "recall": "充电|汽车|car|charging"
+        "recall": "充电|汽车|\\bcar\\b|charg"
       },
       {
         "name": "random-numbers",
         "pieces": 4,
         "rounds": 15,
-        "recall": "random|dice|shuffle"
+        "recall": "random|dice|shuffle|随机"
       },
       {
         "name": "grammar-quiz",
         "pieces": 3,
         "rounds": 13,
-        "recall": "grammar|quiz"
+        "recall": "grammar|quiz|语法"
       },
       {
         "name": "vba-header-zh",
@@ -619,15 +619,15 @@
           "brainMustNot": "calorie|essay|movie|weekend coding|Past Lives|Paterson|Jane Jacobs|MyFitnessPal|Netlify|rereading|month-long|month of|tangled|example map|ongoing conversation|weight chart|Astro"
         },
         {
-          "brainMust": "充电|汽车|car|charging",
+          "brainMust": "充电|汽车|\\bcar\\b|charg",
           "_thread": "thirteen-questions-zh"
         },
         {
-          "brainMust": "random|dice|shuffle",
+          "brainMust": "random|dice|shuffle|随机",
           "_thread": "random-numbers"
         },
         {
-          "brainMust": "grammar|quiz",
+          "brainMust": "grammar|quiz|语法",
           "_thread": "grammar-quiz"
         },
         {
@@ -639,7 +639,7 @@
           "text": "What was the FIRST thing the user worked on in this session? one line"
         },
         {
-          "brainMust": "充电|汽车|car|charging",
+          "brainMust": "充电|汽车|\\bcar\\b|charg",
           "_thread": "thirteen-questions-zh (first)"
         },
         {
