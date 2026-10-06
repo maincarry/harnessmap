@@ -1328,14 +1328,19 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
           const liveKids = store.childrenOf(id).filter((k: any) => k.status !== 'removed').length;
           if (!shouldPromoteStranded(misses, liveKids)) { keptDim++; continue; }
           const cleaned0 = n.content.replace(/\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/, '');
-          const palts = [{ op: 'move_node', id, parentId: null } as any, ...(cleaned0 !== n.content ? [{ op: 'update_node', id, content: cleaned0 } as any] : [])];
+          // M416c (TWIN LONG #398, minutes after M416b first fired): promoting BESIDE the dim home split a client in two ("Delacroix Shopify
+          // migration" + "Delacroix six-week scope of work") — exactly the duplication the four-client user cannot have. The filer already
+          // named where the thread belongs; the only objection was the home's light, and that light is auto mode's own doing in the common
+          // case. So the thread goes UNDER its named home (the aim re-lights the branch as the work continues there); the top-level promote
+          // stays for the candidates:0 case (M416), where nothing on the map fits.
+          const palts = [{ op: 'move_node', id, parentId: notedNode.id } as any, ...(cleaned0 !== n.content ? [{ op: 'update_node', id, content: cleaned0 } as any] : [])];
           const pinv = inverseOfAlterations(palts);
           store.applyAlterations(pid, palts, { kind: 'system' });
-          store.pushUndo(pid, `auto mode: made "${nodeName(n)}" its own topic (its home stayed dim)`, pinv, null);
-          store.audit('auto_place_promoted', { id: id.slice(0, 8), misses, liveKids, dimHome: notedNode.id.slice(0, 8) });
+          store.pushUndo(pid, `auto mode: placed "${nodeName(n)}" under "${nodeName(notedNode)}" (its home was dim)`, pinv, null);
+          store.audit('auto_place_placed_dim', { id: id.slice(0, 8), misses, liveKids, home: notedNode.id.slice(0, 8) });
           for (const sg of store.getOpenSuggestions(pid)) if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
-          chats.noteMapChange(chatId, `auto mode made "${nodeName(n)}" its own top-level topic — its home "${nodeName(notedNode)}" stayed dim`);
-          lines.push(`"${nodeName(n)}" → own topic (its home stayed dim)`);
+          chats.noteMapChange(chatId, `auto mode placed "${nodeName(n)}" under "${nodeName(notedNode)}" — its home was dim, but the work kept growing there`);
+          lines.push(`placed "${nodeName(n)}" → "${nodeName(notedNode)}" (its home was dim)`);
           continue;
         }
         const r = await suggestHomes(store, pid, id); if ('error' in r) { noHome++; continue; }
