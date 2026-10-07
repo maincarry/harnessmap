@@ -593,9 +593,16 @@ export class Translator {
         if (cur && !cur.content.startsWith('to sort') && cur.parentId !== null) {
           const oldW = tok(cur.content), newW = tok(anyA.content);
           const shared = [...newW].filter((w) => oldW.has(w)).length;
-          if (oldW.size >= 2 && newW.size >= 2 && shared === 0) { // "Chapter 2: results" has two content words
+          // M425 (LONG #407 → PANEL #408, four personas: "the 3×4 tic-tac-toe episode is filed under Connect Four"): the filer UPDATED the finished
+          // 3x4 game's container (eight moves under it) into "Play Connect Four on an empty 6-row by 7-column board" — two generic words shared
+          // ("play", "board"), so the zero-overlap rule let the overwrite through and the old game's moves now sit under the new game's name.
+          // A node that already holds a thread (≥ 2 live children) is an episode; a rewrite sharing under a third of its words is the NEXT
+          // episode, not a correction of this one — it becomes a child, like the zero-overlap case.
+          const kids = map.nodes.filter((k) => k.parentId === cur.id && k.status !== 'removed').length;
+          const ratio = shared / Math.max(1, Math.min(oldW.size, newW.size));
+          if (oldW.size >= 2 && newW.size >= 2 && (shared === 0 || (kids >= 2 && oldW.size >= 4 && newW.size >= 4 && ratio < 0.34))) { // "Chapter 2: results" has two content words
             const child: any = { op: 'create_node', id: randomUUID(), parentId: cur.id, content: anyA.content, status: anyA.status ?? 'live', author: anyA.author ?? 'agent', ...(anyA.type ? { type: anyA.type } : {}), ...(anyA.title ? { title: anyA.title } : {}) };
-            this.store.audit('guard_rewrite_to_child', { id: String(anyA.id).slice(0, 8), from: cur.content.slice(0, 60), to: anyA.content.slice(0, 60) });
+            this.store.audit('guard_rewrite_to_child', { id: String(anyA.id).slice(0, 8), from: cur.content.slice(0, 60), to: anyA.content.slice(0, 60), shared, kids });
             alterations.push(child); continue; // M421a (LONG #403 "Disc colors decided?"): the child joins the batch and walks the REST of the chain (M419 and the other title guards never saw it when it went straight to out)
           }
         }
@@ -801,6 +808,18 @@ export class Translator {
           words = words.slice(0, -1); dropped++;
         }
         if (dropped && words.length >= 2 && !FUNC.test(words[words.length - 1])) { const to = words.join(' '); this.store.audit('guard_title_qtail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-30), to: to.slice(-30) }); anyA.title = to; }
+      }
+      // M424 (LONG #407 → PANEL #408, three personas: "odd artifacts such as ✨src"): the filer glued an invented source marker onto two
+      // titles ("Apply lint guidance: no-implied-eval ✨src", "No implied eval guidance ✨src") — nothing in the product writes one, and no
+      // pictograph appears in the statement or the person's words. Such a pictograph goes, with a short token glued to it; a pictograph
+      // the person typed stays. Sweep of 22 kept maps: those two titles, none legitimate.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\p{Extended_Pictographic}/u.test(anyA.title)) {
+        const seen = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`;
+        const picto = [...anyA.title.matchAll(/\p{Extended_Pictographic}/gu)].map((m) => m[0]);
+        if (picto.length && picto.every((p) => !seen.includes(p))) {
+          const to = anyA.title.replace(/\s*(?:\p{Extended_Pictographic}|\uFE0F)+(?:[A-Za-z]{1,4})?(?=\s|$|[,.;:])/gu, '').replace(/\s{2,}/g, ' ').trim();
+          if (to.length >= 2 && to !== anyA.title) { this.store.audit('guard_title_pictograph', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-20) }); anyA.title = to; }
+        }
       }
       // M327c (codex-native replays): the codex filer ends TITLES with a period; a title is a name.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[.。]+$/.test(anyA.title)) anyA.title = anyA.title.replace(/[.。]+$/, '');
