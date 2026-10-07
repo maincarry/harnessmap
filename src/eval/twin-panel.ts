@@ -101,7 +101,12 @@ const STOP = new Set('the a an and or of to in on for with is are was it its thi
 const words = (t: string) => new Set(t.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 3 && !STOP.has(w)));
 type Cluster = { key: Set<string>; texts: string[]; personas: Set<string> };
 const clusters: Cluster[] = [];
+// Jacob 2026-10-07 05:12 UTC: "ignore stupid complaints like language compatibility. Leave actual useful feedbacks." — frictions about
+// the map's language (English chrome/titles/status words for non-English users, localization asks) are set aside, not clustered.
+const LANG = /\b(?:language|locali[sz]|translat|in (?:natural |polished |plain )?(?:chinese|russian|spanish|portuguese|japanese|english)\b|(?:chinese|russian|spanish|portuguese|japanese)[- ](?:first|speaking|workflow|headings?|outline|summar|timeline|labels?|map|status)|english (?:labels?|titles?|chrome|workflow|map|headings?|status|words?|terms?|instead)|not (?:in )?(?:my|the user'?s?) (?:working )?language|bilingual)/i;
+const setAside: { id: string; text: string }[] = [];
 for (const r of rows) for (const t of r.top) {
+  if (LANG.test(t)) { setAside.push({ id: r.id, text: t }); continue; }
   const w = words(t); let placed = false;
   for (const c of clusters) { const shared = [...w].filter((x) => c.key.has(x)).length; if (shared >= 3) { c.texts.push(t); c.personas.add(r.id); for (const x of w) c.key.add(x); placed = true; break; } }
   if (!placed) clusters.push({ key: w, texts: [t], personas: new Set([r.id]) });
@@ -124,6 +129,8 @@ const multi = clusters.filter((c) => c.personas.size > 1);
 md += multi.length ? multi.map((c) => `- **${c.personas.size} personas** (${[...c.personas].join(', ')}):\n${c.texts.map((t) => `  - ${t}`).join('\n')}`).join('\n') + '\n' : '_none — every top friction was raised by a single persona_\n';
 md += `\n## Frictions raised by one persona only\n\n`;
 md += clusters.filter((c) => c.personas.size === 1).map((c) => `- (${[...c.personas][0]}) ${c.texts[0]}`).join('\n') + '\n';
+md += `\n## Set aside — language compatibility (Jacob 2026-10-07: not useful feedback)\n\n`;
+md += setAside.length ? setAside.map((x) => `- (${x.id}) ${x.text}`).join('\n') + '\n' : '_none_\n';
 writeFileSync(join(out, 'PANEL.md'), md);
 console.log(`\n${md}`);
 console.error(`[twin-panel] ${okRows.length}/${rows.length} reports → ${out}/PANEL.md`);
