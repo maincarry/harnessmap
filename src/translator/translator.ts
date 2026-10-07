@@ -202,6 +202,9 @@ const CJK_FUNC_BIGRAM = /[的了是在和或与并将把被对从到为有能可
 // A leading imperative verb is not a name ("Revise Northwind's clause" → Northwind); a mid-turn mention is not a subject.
 const CLIENT_STOP = new Set('Python Postgres Node React Shopify WooCommerce Redis Docker Git GitHub Linux Windows Mac The This That Here There What When Where Why How Can Could Should Would Let Make Add Fix Check Show Give Write Create Update Remove Use Try Help Switch Back Okay Yes PATCH GET POST API CSV PDF SQL JSON HTML CSS VAT EC2 AWS Codex Claude Today Tomorrow Monday Tuesday Wednesday Thursday Friday'.split(' '));
 const CLIENT_VERBS = new Set('Revise Start Run Save Draft Fix Update Check Rewrite Summarize Reproduce Show Give Make Add Remove Switch Back Compare Review Prepare Build Write Create Find List Explain Tell Help Confirm Keep Send Reply Debug Inspect Test Deploy Open Close Finish Continue Resume Move Rename Delete Generate Convert Export Import Set Get Put Read Look Take Try Use Ask Answer Note Log Mark Plan Design Implement Refactor Clean Merge Cut Drop Fetch Pull Push Commit'.split(' '));
+// M439: an assistant reply that DELIVERS the asked-for work — a fenced code block, or an explicit delivery phrase.
+export const DELIVERS = /```|\bhere(?:'s| is) (?:the |an? |your )?(?:updated |revised |rewritten |fixed |complete |full |new )?(?:code|function|version|implementation|script|component|test|tests|rewrite|fix|file)\b|\bI(?:'ve| have)? (?:updated|added|implemented|fixed|created|rewritten|refactored|changed|written)\b|\b(?:updated|rewritten|refactored|revised) (?:version|function|code|script)\b/i;
+
 export function clientNameOfTurn(text: string): string | null {
   const s = String(text ?? '').trim();
   const pats = [
@@ -369,6 +372,7 @@ export class Translator {
       alterations = this.guardCorrectionRetire(alterations, map, params);
       alterations = this.guardResolutionClose(alterations, map, params);
       if (process.env.HARNESSMAP_GUARD_REJECTION !== '0') alterations = this.guardUserRejection(alterations, map, params); // M358c: on by default since 0.9.69 (HARNESSMAP_GUARD_REJECTION=0 switches it off) — proven on the scene-detect thread: the two URL nodes reopened, the tool-name list card untouched
+      alterations = this.guardTaskDelivered(alterations, params); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
       alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
       alterations = this.guardAgentTaskStatus(alterations); // M437 (PANEL #422): an agent-listed step is a proposal, not the person's todo
       alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
@@ -422,6 +426,22 @@ export class Translator {
   // word, the title is prefixed "Name — title". Only the first such root per round; the statement is untouched. Sweep of the kept maps
   // (scratchpad/sweep-clientname.ts): 14 root titlings in client-naming turns, 1 lacking the name (this one), 0 false positives after
   // excluding leading verbs ("Revise Northwind's clause") and mid-turn mentions ("summarize separately for Marchetti, Orbit …").
+  // M439 (Jacob 2026-10-07 23:08, on "a row stays todo/active after the agent delivered it in the same turn" — PANEL #416 9/13 "Choose step
+  // direction [todo]", Hannah/Nadia closing rows by hand: "This is literally a bug"): a TASK the person asked for, filed todo/doing in a
+  // round whose assistant reply DELIVERS it — a fenced code block, or "here is the updated …" / "I've updated/added/implemented/fixed …" —
+  // is done at filing. The person's later "it doesn't work" reopens it (M358/M422). Sweep of the kept maps (scratchpad/sweep-delivered.ts):
+  // 147 user tasks filed todo/doing, 19 with a delivering reply in the same round, every one a delivered rewrite/implementation.
+  private guardTaskDelivered(alterations: any[], params: { assistantText?: string }): any[] {
+    const at = String(params.assistantText ?? '');
+    if (at.length < 40 || !DELIVERS.test(at)) return alterations;
+    for (const a of alterations) {
+      if (a?.op !== 'create_node' || a.author !== 'user' || a.type !== 'task' || !/^(todo|doing)$/.test(String(a.status ?? ''))) continue;
+      this.store.audit('guard_task_delivered', { id: String(a.id ?? '').slice(0, 8), from: a.status, title: String(a.title ?? a.content ?? '').slice(0, 40) });
+      a.status = 'done';
+    }
+    return alterations;
+  }
+
   private guardRootClientName(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
     const name = clientNameOfTurn(params.userText ?? '');
     if (!name) return alterations;

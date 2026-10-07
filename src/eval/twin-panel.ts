@@ -39,18 +39,34 @@ function experienceFromScenario(path: string): string {
 // END-OF-SESSION tree (titles, statuses, nesting; "to sort" included) from a kept run of the same scenario, so the twin judges the
 // map it would actually have glanced at. (Mid-session glances are not reconstructed here — twin-drive M417 covers the live case.)
 function endMapFromSqlite(path: string): string {
+  // M430d (Jacob 2026-10-07 23:08 "I thought this is literally what zoom is for" — the panel had read the WHOLE tree flat; the UI's default
+  // fold collapses every parent except the focus path, and zoom narrows further): mirror the UI — parents folded as "▸ (N inside)" unless
+  // on the focus path; and (23:08 "show them the info") every row says who said it: [you] / [agent].
   const { Database } = require('bun:sqlite');
   const db = new Database(path, { readonly: true });
   const activePid = (db.query("select value from settings where key='active_project'").get() as any)?.value ?? null;
   const rows = (db.query("select id,parent_id,title,content,author,project_id,status from nodes order by rowid").all() as any[]).filter((n) => n.status !== 'removed' && (!activePid || n.project_id === activePid));
+  let focusId: string | null = null; try { const ch = db.query("select focus_container_id f from chats where focus_container_id is not null order by rowid limit 1").get() as any; focusId = ch?.f ?? null; } catch {}
+  db.close();
   const kids = new Map<string | null, any[]>(); for (const r of rows) { const k = r.parent_id ?? null; (kids.get(k) ?? kids.set(k, []).get(k)!).push(r); }
   const byId = new Map(rows.map((r) => [r.id, r]));
+  const focusPath = new Set<string>(); for (let id: string | null = focusId; id; id = byId.get(id)?.parent_id ?? null) focusPath.add(id);
+  const who = (n: any) => n.author === 'user' ? '[you] ' : n.author === 'agent' ? '[agent] ' : '';
+  const label = (n: any) => `${who(n)}${n.title || String(n.content || '').slice(0, 60)}${n.status && !['live', 'noted', 'answered'].includes(n.status) ? ` [${n.status}]` : ''}`;
+  const count = (id: string): number => { let c = 0; for (const k of kids.get(id) ?? []) { if (k.author === 'system') continue; c += 1 + count(k.id); } return c; };
   const lines: string[] = []; let shown = 0;
-  const label = (n: any) => `${n.title || String(n.content || '').slice(0, 60)}${n.status && !['live', 'noted', 'answered'].includes(n.status) ? ` [${n.status}]` : ''}`;
-  const walk = (pid: string | null, d: number) => { for (const n of kids.get(pid) ?? []) { if (n.author === 'system') continue; if (shown++ < 260) lines.push(`${'  '.repeat(d)}- ${label(n)}`); walk(n.id, d + 1); } };
-  for (const r of rows.filter((r) => !r.parent_id || !byId.has(r.parent_id))) { if (r.author === 'system') continue; lines.push(`- ${label(r)}`); shown++; walk(r.id, 1); }
-  db.close();
-  return `WHAT THE MAP SHOWED AT THE END of the session (the tree you could glance at — one line per item, nested as displayed, a status in brackets where it is not plain; ${rows.filter((r) => r.author !== 'system').length} items${shown > 260 ? ', first 260 shown' : ''}):\n${lines.join('\n')}`;
+  const walk = (pid: string | null, d: number) => {
+    for (const n of kids.get(pid) ?? []) {
+      if (n.author === 'system') continue;
+      const ks = (kids.get(n.id) ?? []).filter((k) => k.author !== 'system');
+      const folded = ks.length > 0 && !focusPath.has(n.id);
+      if (shown++ < 260) lines.push(`${'  '.repeat(d)}- ${n.id === focusId ? '▶ ' : ''}${label(n)}${folded ? ` ▸ (${count(n.id)} inside)` : ''}`);
+      if (ks.length && !folded) walk(n.id, d + 1);
+    }
+  };
+  walk(null, 0);
+  const total = rows.filter((r) => r.author !== 'system').length;
+  return `WHAT THE MAP SHOWED AT THE END of the session, as the UI shows it by default: one line per visible row; [you] = you said it, [agent] = the coding agent proposed or answered it; a thread you were not in is FOLDED to its name with "▸ (N inside)" — one click opens it, and ZOOM narrows the view to one thread; a status in brackets where it is not plain; ${total} items in all, ${lines.length} visible:\n${lines.join('\n')}`;
 }
 
 // M426 (Jacob 2026-10-07 05:13: "are these persona using the talking to map function at all? Some of their complaints seems to be

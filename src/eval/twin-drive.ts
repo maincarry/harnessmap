@@ -88,7 +88,8 @@ function mapView(s: any, expanded: Set<string> = new Set()): string {
       const st = n.status && !['live'].includes(n.status) ? ` (${n.status})` : '';
       const ks = kids(n.id);
       const folded = ks.length > 0 && !focusPath.has(n.id) && !expanded.has(n.id); // collapsed unless on the focus path or opened by the twin (M427)
-      lines.push(`${'  '.repeat(depth)}- ${mark}${nm(n)}${st}${folded ? ` ▸ (${subtreeCount(n.id)} inside)` : ''}`);
+      const who = n.author === 'user' ? '[you] ' : n.author === 'agent' ? '[agent] ' : ''; // M430d (Jacob 23:08 "show them the info"): who said it, on every row
+      lines.push(`${'  '.repeat(depth)}- ${mark}${who}${nm(n)}${st}${folded ? ` ▸ (${subtreeCount(n.id)} inside)` : ''}`);
       if (ks.length && !folded && depth < 6) walk(n.id, depth + 1);
     }
   };

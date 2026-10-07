@@ -1,0 +1,25 @@
+{
+  "name": "M439 proof (Jacob 2026-10-07 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done at filing — 'please improve this function' + the rewritten function = done, not todo",
+  "seed": [{ "key": "proj", "content": "React step wizard — the step state updater" }],
+  "focus": "proj",
+  "auto": { "on": true },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "rewrite the previous function in a way where i can choose whether to go a step backwards (-1) or forwards (+1)",
+      "assistant": "Here is the updated function:\n```ts\nconst handleStep = (direction: 1 | -1) => setStep((currStep) => currStep + direction);\n```\nCall handleStep(1) to go forward and handleStep(-1) to go back.",
+      "then": [
+        { "nodeMatching": "step|direction" },
+        { "notStatus": "step|direction", "statuses": "todo|doing" }
+      ]
+    },
+    {
+      "user": "now learn this documentation https://eslint.org/docs/rules/consistent-return and tell me if the function follows it",
+      "assistant": "The consistent-return rule requires every code path of a function to either always return a value or never return one. Your handleStep always returns the result of setStep, so it follows the rule.",
+      "then": [
+        { "notStatus": "step direction|choose.*direction|handleStep", "statuses": "todo|doing" },
+        { "nodeMatching": "consistent-return|consistent return" }
+      ]
+    }
+  ]
+}

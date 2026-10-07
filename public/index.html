@@ -67,6 +67,10 @@
   body.mobile .nrow.heading .ncontent { font-weight: 600; }
   body.mobile .nrow.focused { border: none; border-left: 3px solid var(--accent); border-radius: 0; background: none; }
   body.mobile .nrow.focused .ncontent { color: var(--accent); }
+  /* M440 (Jacob 2026-10-07 23:08 "show them the info" — who said it on every row): a quiet tag before the text; you = the person, agent = the coding agent */
+  .nrow .nwho { font-size: 9px; line-height: 1; letter-spacing: .02em; padding: 1px 4px; border-radius: 4px; margin-right: 4px; color: var(--muted); border: 1px solid var(--hair); background: var(--bg); flex: 0 0 auto; }
+  .nrow .nwho.you { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--hair)); }
+  .nrow.dim .nwho { opacity: .6; }
   body.mobile .fold-count { border: none; background: none; padding: 0; font-size: 13px; color: var(--muted); }
   body.mobile .chip-new { border: none; padding: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); overflow: hidden; color: transparent; }
   body.mobile .chip-new.changed { background: var(--muted); }
@@ -919,6 +923,7 @@ function renderTree() {
       ${S.home === n.id ? `<span class="badge" title="home page — the home button (top of the map) zooms here">${HOME_ICO}</span>` : ''}
 
       ${n.id === focus ? '<span class="fmark" title="the conversation is talking about this">▶</span>' : ''}
+      ${n.author === 'user' ? '<span class="nwho you" title="you said, asked or decided this">you</span>' : n.author === 'agent' ? '<span class="nwho agent" title="the coding agent proposed, answered or claimed this">agent</span>' : ''}
       <span class="ncontent" data-edit="${n.id}" title="${esc(isTray ? 'the filer couldn’t tell where these belong yet — they wait here so nothing is lost; approve a placement or move one home' : (n.title && n.title !== n.content ? n.content : 'click to edit'))}">${esc(disp(n))}${isTray ? '<small class="tray-sub">arrivals the filer couldn’t place yet</small>' : ''}</span>
       ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
       ${recChip(n.id)}
