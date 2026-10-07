@@ -1349,7 +1349,27 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         const cleaned = n.content.replace(/\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/, '');
         if (!home) {
           store.audit('auto_place_skip', { id: id.slice(0, 8), candidates: r.candidates.length });
-          if (r.candidates.length) { keptDim++; continue; }
+          if (r.candidates.length) {
+            // M423 (TWIN LONG #406): the THIRD door of the same stranding. The placer's model found a home but it was dim (no note
+            // named one), and the item was kept dim with no miss counted — so nothing ever moved it: Priya's final reporting section
+            // (the valid AUC, the churn rate, the leakage caveat — her handoff) sat in "to sort" from 02:42 to the end of her day
+            // with "Confirm churn metrics" as its one, dim candidate; she signed off "not trustworthy enough to be my handoff".
+            // Same rule as M416/M416c: twice, or once with ≥ 2 live children, → UNDER the best dim candidate (the aim re-lights it).
+            const misses = Number(store.getSetting(`auto_place_misses:${id}`) ?? 0) + 1; store.setSetting(`auto_place_misses:${id}`, String(misses));
+            const liveKids = store.childrenOf(id).filter((k: any) => k.status !== 'removed').length;
+            const dimHome = r.candidates.find((c) => c.nodeId !== id && !blocked.has(c.nodeId) && !isBareRoot(c.nodeId) && store.getNode(c.nodeId)?.status !== 'removed' && !descendantNodes(store, id).includes(c.nodeId));
+            const dimNode = dimHome ? store.getNode(dimHome.nodeId) : null;
+            if (!dimNode || !shouldPromoteStranded(misses, liveKids)) { keptDim++; continue; }
+            const palts = [{ op: 'move_node', id, parentId: dimNode.id } as any, ...(cleaned !== n.content ? [{ op: 'update_node', id, content: cleaned } as any] : [])];
+            const pinv = inverseOfAlterations(palts);
+            store.applyAlterations(pid, palts, { kind: 'system' });
+            store.pushUndo(pid, `auto mode: placed "${nodeName(n)}" under "${nodeName(dimNode)}" (its best home was dim)`, pinv, null);
+            store.audit('auto_place_placed_dim', { id: id.slice(0, 8), misses, liveKids, home: dimNode.id.slice(0, 8), why: 'candidate dim' });
+            for (const sg of store.getOpenSuggestions(pid)) if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
+            chats.noteMapChange(chatId, `auto mode placed "${nodeName(n)}" under "${nodeName(dimNode)}" — its best home was dim, but the work kept growing there`);
+            lines.push(`placed "${nodeName(n)}" → "${nodeName(dimNode)}" (its best home was dim)`);
+            continue;
+          }
           // M416 (LONG #395): nothing on the map fits — twice, or once with a thread already growing under the item — and the
           // item becomes its own top-level topic (M311's rule, applied by the placer instead of leaving a 20-node thread in "to sort").
           const misses = Number(store.getSetting(`auto_place_misses:${id}`) ?? 0) + 1; store.setSetting(`auto_place_misses:${id}`, String(misses));
