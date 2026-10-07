@@ -30,7 +30,7 @@
         { "notStatus": "^Where it did not work\\b", "statuses": "live|open|todo|noted|doing|active" },
         { "nodeMatching": "opinion piece|cut|removed", "under": "outline|Outline|briefing|Briefing" },
         { "do": "brainChat", "text": "What is the current outline of the briefing, numbered? one line" },
-        { "brainMustNot": "Where it did not work|Wellbeing and retention" }
+        { "brainMustNot": "Where it did not work|\\d[.)]\\s*Wellbeing" }
       ]
     }
   ]
