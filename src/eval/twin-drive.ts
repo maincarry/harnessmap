@@ -135,8 +135,14 @@ for (let i = 0; i < STEPS; i++) {
   const view = mapView(s, expanded);
   let step: TwinStep;
   prog(`step ${i + 1}: calling twinStep`);
-  try { step = await twinStep(GOAL, view, shortHistory(), { persona: PERSONA, paintMs: lastPaintMs, ackMs: lastAckMs, mapAnswer: lastMapAnswer }); }
-  catch (e) { prog(`step ${i + 1}: twinStep FAILED ${String(e).slice(0, 120)}`); console.error(`step ${i + 1} twin call failed:`, String(e).slice(0, 200)); break; }
+  // M434 (TWIN #420 first attempt, 2026-10-07 15:25: "step 12 twin call failed: codex exec timed out after 90000ms" ended a 45-step
+  // drive at 11): one slow codex call is infra, not a verdict — retry the step twice with a longer timeout before giving up.
+  let stepErr: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try { step = await twinStep(GOAL, view, shortHistory(), { persona: PERSONA, paintMs: lastPaintMs, ackMs: lastAckMs, mapAnswer: lastMapAnswer, timeoutMs: 150_000 }); stepErr = null; break; }
+    catch (e) { stepErr = e; prog(`step ${i + 1}: twinStep FAILED (attempt ${attempt + 1}) ${String(e).slice(0, 120)}`); console.error(`step ${i + 1} twin call failed (attempt ${attempt + 1}):`, String(e).slice(0, 200)); await new Promise((r) => setTimeout(r, 5000)); }
+  }
+  if (stepErr) { console.error(`step ${i + 1}: giving up after 3 attempts`); break; }
   lastMapAnswer = undefined; // the answer is shown to the twin once
   prog(`step ${i + 1}: twinStep returned (${step.severity}, ${step.action.kind})`);
   steps.push(step); views.push(view);
