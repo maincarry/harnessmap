@@ -17,8 +17,8 @@ test('an open item last touched 70 rounds ago is marked; a fresh one and a done 
   expect(ageTag('open', '2026-10-07T10:09:30Z', [])).toBeNull();
 });
 
-test('nodeLine appends the age after the status', () => {
+test('nodeLine leads with the age mark', () => {
   const n = mk({ content: 'rand_num issue', status: 'open', author: 'user', updatedAt: '2026-10-07T10:09:30Z' });
-  expect(nodeLine(n as any, { who: true, age: (x: any) => ageTag(x.status, x.updatedAt, rounds) })).toBe('○ [you] rand_num issue (open) · untouched for 70 turns');
+  expect(nodeLine(n as any, { who: true, age: (x: any) => ageTag(x.status, x.updatedAt, rounds) })).toBe('[untouched for 70 turns] ○ [you] rand_num issue (open)');
   expect(nodeLine(n as any, { who: true })).toBe('○ [you] rand_num issue (open)');
 });

@@ -33,8 +33,8 @@ export function nodeLine(n: MapNode, opts: { ids?: boolean; who?: boolean; age?:
   // candidate — typed by the person or listed by the agent — and its chosen/dropped status is the agent's pick, so the roster tags it
   // [candidate] whoever typed it; the brain is told a chosen [candidate] is "the agent picked …", never "settled by you".
   const whoTag = opts.who ? (n.type === 'option' ? '[candidate] ' : n.author === 'user' ? '[you] ' : n.author === 'agent' ? '[agent] ' : n.author === 'system' ? '[map] ' : `[${n.author}] `) : '';
-  const ageTag = opts.age ? (() => { const a = opts.age!(n); return a ? ` · ${a}` : ''; })() : ''; // M435: "untouched for N turns" on open items the person left behind
-  return `${g ? `${g} ` : ''}${whoTag}${typeTag}${n.content}${idTag}${statusTag}${ageTag}`.trim();
+  const ageTag = opts.age ? (() => { const a = opts.age!(n); return a ? `[${a}] ` : ''; })() : ''; // M435: "[untouched for N turns]" LEADS the line for open items the person left behind (a trailing mark was read past — v0.9.209 proof)
+  return `${ageTag}${g ? `${g} ` : ''}${whoTag}${typeTag}${n.content}${idTag}${statusTag}`.trim();
 }
 
 export function renderTree(map: MapView, opts: { focusId?: string; ids?: boolean; who?: boolean; age?: (n: MapNode) => string | null } = {}): string {
