@@ -868,6 +868,31 @@ export class Translator {
           if (to.length >= 2 && to !== anyA.title) { this.store.audit('guard_title_pictograph', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-20) }); anyA.title = to; }
         }
       }
+      // M432 (LONG #418 → PANEL #419, three personas: "Improve title divider componentaųtybq [doing]"): the filer glued a run of letters
+      // onto a real word — a decoding slip the tail guard (which strips punctuation) and M424 (pictographs) do not see. A Latin title
+      // token that appears nowhere in the statement, the person's words or the rest of the title, whose longest prefix (≥ 5 letters) IS
+      // such a word, and whose remainder (2–8 letters) carries a non-ASCII letter or no vowel at all, is cut back to the word. Second
+      // sighting of the fused-garbage class ("questionances", LONG #403 — ASCII with vowels, deliberately left alone: an inflection
+      // the statement does not repeat is not a slip). Sweep of the kept maps before shipping: see the M432 ledger entry.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\p{Script=Latin}/u.test(anyA.title)) {
+        const seen = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
+        const words = new Set((seen.replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2').toLowerCase().match(/\p{L}+/gu) ?? []));
+        const toks: string[] = String(anyA.title).split(/\s+/); let changed = false;
+        for (let i = 0; i < toks.length; i++) {
+          const m = toks[i].match(/^([\p{L}]+)([^\p{L}]*)$/u); if (!m) continue;
+          const core = m[1], tail = m[2], low = core.toLowerCase();
+          if (core.length < 8 || words.has(low) || !/\p{Script=Latin}/u.test(core)) continue;
+          if (toks.some((t, j) => j !== i && t.toLowerCase().replace(/[^\p{L}]/gu, '') === low)) continue;
+          let cut = '';
+          for (let k = core.length - 2; k >= 5; k--) {
+            const pre = low.slice(0, k), rest = low.slice(k);
+            if (!words.has(pre) || rest.length > 8 || !/^\p{Script=Latin}+$/u.test(rest)) continue; // the remainder must be Latin letters only — a Latin word glued to Han ('randrange随机整数') is a bilingual title, not a slip
+            if (/[^\x00-\x7F]/.test(rest) || !/[aeiouy]/.test(rest)) { cut = core.slice(0, k); break; }
+          }
+          if (cut) { this.store.audit('guard_title_glued_tail', { id: String(anyA.id ?? '').slice(0, 8), from: core, to: cut }); toks[i] = cut + tail; changed = true; }
+        }
+        if (changed) anyA.title = toks.join(' ').replace(/\s{2,}/g, ' ').trim();
+      }
       // M327c (codex-native replays): the codex filer ends TITLES with a period; a title is a name.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[.。]+$/.test(anyA.title)) anyA.title = anyA.title.replace(/[.。]+$/, '');
       // M343 (codex-native pyomo replay): the codex filer wrote "exception type errorอบué?" over an English statement — stray

@@ -28,3 +28,13 @@ test('no user-authored rule → the user line says so instead of borrowing the a
   const lines = brainRulesLines([mk({ content: 'Prefer axios-retry', status: 'accepted', author: 'agent' })]);
   expect(lines.split('\n')[0]).toContain('nothing filed as the user');
 });
+
+test('M433 (PANEL #419): an option the user typed as a candidate but the agent picked is not "what the user decided"', () => {
+  const lines = brainRulesLines([
+    mk({ content: 'Keep the invoice run on Fridays', status: 'decided', author: 'user', type: 'decision' }),
+    mk({ content: 'I usually have some coffee and toast for my breakfast', status: 'chosen', author: 'user', type: 'option' }),
+  ]);
+  const [mine, theirs] = lines.split('\n');
+  expect(mine).toContain('Keep the invoice run on Fridays'); expect(mine).not.toContain('coffee and toast');
+  expect(theirs).toContain('coffee and toast'); expect(theirs).toContain("the agent's pick among candidates");
+});
