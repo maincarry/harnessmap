@@ -30,7 +30,7 @@ function experienceFromScenario(path: string): string {
     `THE SETUP: You are working in your usual AI coding CLI. Beside it runs "the map" — a companion that silently takes notes on your work and organizes them into a tree you can glance at. You did not ask it questions; you just worked, and it watched. Auto mode is on (it decides on its own what to highlight).`,
     seed.length ? `WHAT THE MAP ALREADY SHOWED when you started (a small tree):\n${seedLines}` : '',
     `WHAT YOU DID, step by step:\n${roundLines}`,
-    `You glance at the map now and then between turns — you do not study it.`,
+    `You glance at the map now and then between turns — you do not study it. You know (Jacob 2026-10-07 10:23 "they know they can edit nodes right?") that any row can be fixed in one click, the way you would fix a note: rename it, drag it under another row or to the top, mark it done or todo, delete it, fold or unfold a branch, star it, undo — and that you can type a question to the map in plain words in its "talk to map" box. In THIS session you did not; you just worked. When something on the map bothers you, say honestly whether you would simply fix it yourself (and whether you would bother) or whether the map should have got it right.`,
   ].filter(Boolean).join('\n\n');
 }
 
@@ -191,7 +191,7 @@ const allF: F[] = [];
 for (const r of okRows) if (r.probe) for (const f of r.probe.findings) allF.push({ ...f, id: r.id, severity: '' });
 const qkey = (f: F) => (f.quote.trim() ? f.quote : f.moment).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().slice(0, 50);
 const groupBy = (fs: F[]) => { const g = new Map<string, F[]>(); for (const f of fs) { const k = qkey(f); if (!g.has(k)) g.set(k, []); g.get(k)!.push(f); } return [...g.values()].sort((a, b) => b.length - a.length); };
-const fmtGroup = (fs: F[]) => `- **${new Set(fs.map((f) => f.id)).size} persona(s)** (${[...new Set(fs.map((f) => f.id))].join(', ')})${fs.some((f) => f.decides) ? ' — DECIDES a verdict' : ''}\n  - row/answer: "${fs[0].quote.trim() ? fs[0].quote.replace(/\n/g, ' ').slice(0, 200) : `(no specific row) ${fs[0].moment.slice(0, 120)}`}"\n${fs.map((f) => `  - ${f.id}: expected — ${f.expected.replace(/\n/g, ' ').slice(0, 220)}; one change — ${f.one_change.replace(/\n/g, ' ').slice(0, 160)}`).join('\n')}`;
+const fmtGroup = (fs: F[]) => `- **${new Set(fs.map((f) => f.id)).size} persona(s)** (${[...new Set(fs.map((f) => f.id))].join(', ')})${fs.some((f) => f.decides) ? ' — DECIDES a verdict' : ''}${fs.filter((f) => f.self_fix).length ? ` — ${fs.filter((f) => f.self_fix).length} would fix it themselves in one click` : ''}\n  - row/answer: "${fs[0].quote.trim() ? fs[0].quote.replace(/\n/g, ' ').slice(0, 200) : `(no specific row) ${fs[0].moment.slice(0, 120)}`}"\n${fs.map((f) => `  - ${f.id}: expected — ${f.expected.replace(/\n/g, ' ').slice(0, 220)}; one change — ${f.one_change.replace(/\n/g, ' ').slice(0, 160)}`).join('\n')}`;
 const isLang = (f: F) => LANG.test(f.quote) || LANG.test(f.expected) || LANG.test(f.moment);
 const actionable = allF.filter((f) => f.needed === 'needed' && f.blame === 'map' && !isLang(f));
 const noticed = allF.filter((f) => f.needed === 'noticed' && f.blame === 'map' && !isLang(f));

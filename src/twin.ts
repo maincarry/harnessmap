@@ -249,12 +249,12 @@ export async function twinNeed(sessionLine: string, mapOnly: string, opts: TwinO
   return out as TwinNeed;
 }
 
-export interface TwinFinding { moment: string; quote: string; expected: string; needed: 'needed' | 'noticed'; blame: 'map' | 'agent' | 'me'; decides: boolean; one_change: string; }
+export interface TwinFinding { moment: string; quote: string; expected: string; needed: 'needed' | 'noticed'; blame: 'map' | 'agent' | 'me'; self_fix: boolean; decides: boolean; one_change: string; }
 export interface TwinProbe { findings: TwinFinding[]; would_return_after_interview: 'yes' | 'maybe' | 'no'; }
 const PROBE_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['findings', 'would_return_after_interview'],
   properties: {
-    findings: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['moment', 'quote', 'expected', 'needed', 'blame', 'decides', 'one_change'], properties: { moment: { type: 'string' }, quote: { type: 'string' }, expected: { type: 'string' }, needed: { type: 'string', enum: ['needed', 'noticed'] }, blame: { type: 'string', enum: ['map', 'agent', 'me'] }, decides: { type: 'boolean' }, one_change: { type: 'string' } } } },
+    findings: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['moment', 'quote', 'expected', 'needed', 'blame', 'self_fix', 'decides', 'one_change'], properties: { moment: { type: 'string' }, quote: { type: 'string' }, expected: { type: 'string' }, needed: { type: 'string', enum: ['needed', 'noticed'] }, blame: { type: 'string', enum: ['map', 'agent', 'me'] }, self_fix: { type: 'boolean' }, decides: { type: 'boolean' }, one_change: { type: 'string' } } } },
     would_return_after_interview: { type: 'string', enum: ['yes', 'maybe', 'no'] },
   },
 };
@@ -263,6 +263,7 @@ export async function twinProbe(material: string, frictions: { moment: string; r
   const user = [
     `A SHORT INTERVIEW about what you just reported. The founders read your complaints and found them vague ("statuses are unreliable", "the tree is too large") — they cannot act on a sentence like that. For EACH moment below, answer like a person being asked "show me":`,
     `- "moment": repeat its number and a few words.\n- "quote": copy the EXACT row title, status word, or answer sentence from the material that caused it, verbatim (character for character — the founders will search for it). If you cannot point at a specific row or sentence, leave it empty and say so in "expected".\n- "expected": one plain line of what that row or answer should have shown instead.\n- "needed": "needed" if you actually needed this to do YOUR work that day (you went looking for it, or you would have acted on it), "noticed" if you only noticed it while looking around. Be honest — most things people notice they did not need.\n- "blame": "map" if the MAP did this (filed it wrong, summarized it wrong, wrong status, lost it, credited the wrong person); "agent" if the content itself was the agent's mistake and the map merely recorded what was said (the map is not a fact checker); "me" if you told the agent something wrong or unclear.
+- "self_fix": true if you would simply have fixed this yourself in one click (rename, move, mark done, delete) and moved on — and you would actually bother; false if you expect the map to get it right or you would not bother to fix it by hand.
 - "decides": true only if this one thing, alone, would change whether you come back.\n- "one_change": the single smallest change to the map that would have made this moment fine (not a wish list).`,
     `Then "would_return_after_interview": your verdict again, now that you have separated what you needed from what you noticed.`,
     `YOUR MOMENTS:\n${list}`,
