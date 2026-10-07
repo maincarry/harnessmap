@@ -59,7 +59,7 @@ function endMapFromSqlite(path: string): string {
 const ASK_QUESTIONS = [
   'What is the user working on RIGHT NOW, most recently? one line',
   'What is still OPEN or unresolved in this session? a short list',
-  'What did the user DECIDE in this session? a short list',
+  'What is settled in this session, and what is still open? a short list of each', // Jacob 2026-10-07 07:02: "nodes are not decisions" — the earlier "what did the user DECIDE" baited the brain into decision voice
   'Summarize this session in five lines for someone coming back tomorrow.',
 ];
 async function mapAnswers(path: string): Promise<string> {
