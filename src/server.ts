@@ -1296,7 +1296,12 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
       announceAuto(pid, chatId, `auto mode: ${[...lines, ...quiet].join(' · ')}`, { undo: true, zoom: a.zoom ? parent : undefined });
       lines.length = 0; quiet.length = 0; announced = true;
     }
-    if (lag > 0) { store.audit('auto_housekeeping_deferred', { lag }); return; } // the next round is waiting: placement and titles wait for a quieter round
+    // M428 (TWIN LONG #409 — Nadia's third NO, and the most frequent SEVERE across all drives: the one-round "to sort" lag): when the next
+    // round is already waiting, housekeeping used to be skipped whole, so THIS round's to-sort arrival sat visibly in "to sort" until a
+    // quieter round placed it (05:54:01 arrival → 05:56:36 placement, two of her turns: "it appears to have disappeared into to sort").
+    // Under lag the backlog and the titles still wait, but this round's own arrivals are placed now (at most two, one short call each).
+    const deferred = lag > 0;
+    if (deferred) store.audit('auto_housekeeping_deferred', { lag, arrivals: 'placed now' });
     // 2. place: this round's to-sort arrivals go to a LIT home the placement agent names; a dim home stays a dot.
     if (a.place && !importPending(pid)) {
       const toSort = toSortRootOf(pid);
@@ -1305,7 +1310,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
       const arrivals = toSort ? alterations.filter((x) => (x.op === 'create_node' || x.op === 'move_node') && x.parentId === toSort.id && x.id).map((x) => x.id as string) : [];
       const backlog = toSort ? store.childrenOf(toSort.id).filter((k: any) => k.status !== 'removed' && !arrivals.includes(k.id)).sort((x: any, y: any) => String(x.createdAt ?? '').localeCompare(String(y.createdAt ?? ''))).map((k: any) => k.id as string) : [];
       const dueNow = (id: string) => Date.now() - Number(store.getSetting(`auto_place_tried:${id}`) ?? 0) > 1_800_000;
-      const queue = [...arrivals, ...backlog.filter(dueNow)].slice(0, 3);
+      const queue = deferred ? arrivals.slice(0, 2) : [...arrivals, ...backlog.filter(dueNow)].slice(0, 3); // M428: under lag, this round's arrivals only
       const blocked = new Set(store.getOpenSuggestions(pid).filter((sg) => sg.kind !== 'relight').map((sg) => sg.nodeId));
       let keptDim = 0, noHome = 0;
       for (const id of queue) {
@@ -1397,6 +1402,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
       if (keptDim) quiet.push(`${keptDim} in "to sort" kept — their home is dimmed (light it and auto mode files them)`);
       if (noHome) quiet.push(`${noHome} in "to sort" have no home on the map yet`);
     }
+    if (deferred) { if (lines.length) announceAuto(pid, chatId, `auto mode: ${[...lines, ...quiet].join(' · ')}`, { undo: true }); return; } // M428: the backlog and the titles wait for a quieter round
     // 3. rename (last, cosmetic): a touched node whose title no longer matches its statement gets a fresh one (mechanical staleness test first, one cheap call only when it fails).
     if (a.rename) {
       const words = (t: string) => new Set(t.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3));
