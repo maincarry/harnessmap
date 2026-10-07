@@ -1,0 +1,118 @@
+{
+  "name": "M442/M442a/M443/M444 proof (TWIN LONG #426, Noor): her own turns — the credit decision is hers (author user, decided); the agent's drafted clauses are never born accepted; the return to Northwind at 9 months lands under the Northwind thread, not in 'to sort'; the recap turn creates no mirrored commitment rows",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Noor — founder operations"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "Harbor & Finch emailed:\n\n“Hi Noor — we noticed we were charged for 12 seats last month, but only 10 were in use. Could you refund the two unused seats?”\n\nSummarize what they’re asking for and what I need to decide.",
+      "assistant": "They’re asking for a refund for two unused seats from last month. You need to decide whether unused seats qualify under your refund policy and, if not, whether to make an exception.",
+      "then": [
+        {
+          "nodeMatching": "refund|unused seats"
+        }
+      ]
+    },
+    {
+      "user": "Let’s make a one-time exception as an account credit for the two unused seats, not a cash refund. Draft a short reply that states the normal policy without sounding defensive.",
+      "assistant": "Subject: Re: Unused seats\n\nHi — our standard policy doesn’t provide refunds for unused seats during an active billing period, but I’m happy to make a one-time exception and apply a credit for the two unused seats to your account. You’ll see it on your next invoice.\n\nBest,\nNoor",
+      "then": [
+        {
+          "nodeMatching": "one-time|credit"
+        },
+        {
+          "authorOf": "one-time.*credit|credit.*unused seats",
+          "is": "user"
+        },
+        {
+          "statusOf": "one-time.*credit|credit.*unused seats",
+          "is": "decided"
+        }
+      ]
+    },
+    {
+      "user": "Northwind Logistics wants the liability cap in their annual contract raised from 1× to 3× annual fees. Draft a clean replacement clause at 3×, and flag the practical risk to us in one sentence.",
+      "assistant": "Draft clause: “Except for liabilities that cannot legally be limited, each party’s aggregate liability arising out of or relating to this Agreement will not exceed three times the fees paid or payable by Customer under this Agreement during the twelve months preceding the event giving rise to the claim.”\n\nPractical risk: moving from 1× to 3× triples your maximum contractual exposure without increasing the contract value.",
+      "then": [
+        {
+          "nodeMatching": "liability|Northwind"
+        },
+        {
+          "notStatus": "liability cap|liability clause|three times|3×|replacement clause",
+          "statuses": "accepted|decided|chosen"
+        }
+      ]
+    },
+    {
+      "user": "Revise the Northwind clause to cap liability at 2× annual fees, but carve out liability arising from a data breach. Keep it balanced and concise.",
+      "assistant": "“Except for liabilities that cannot legally be limited and liability arising from a party’s breach of its data-security obligations, each party’s aggregate liability arising out of or relating to this Agreement will not exceed two times the fees paid or payable by Customer during the twelve months preceding the event giving rise to the claim. Liability arising from a breach of data-security obligations remains uncapped.”",
+      "then": [
+        {
+          "notStatus": "liability cap|liability clause|two times|2×|data.?breach|replacement clause",
+          "statuses": "accepted|decided|chosen"
+        }
+      ]
+    },
+    {
+      "user": "Add a 12-month written notice term for non-renewal to the Northwind language. Keep the 2× cap and data-breach carve-out unchanged, and make the two provisions read cleanly together.",
+      "assistant": "“Except for liabilities that cannot legally be limited and liability arising from a party’s breach of its data-security obligations, each party’s aggregate liability arising out of or relating to this Agreement will not exceed two times the fees paid or payable by Customer during the twelve months preceding the event giving rise to the claim. Liability arising from a breach of data-security obligations remains uncapped.\n\nEither party may elect not to renew this Agreement by providing the other party at least twelve months’ written notice before the end of the then-current term.”",
+      "then": [
+        {
+          "nodeMatching": "notice|non-renewal"
+        },
+        {
+          "notStatus": "liability cap|liability clause|two times|2×|data.?breach",
+          "statuses": "accepted|decided|chosen"
+        }
+      ]
+    },
+    {
+      "user": "The Team plan is going from $49 to $59 per seat per month on November 1. Existing customers stay at $49 until their next renewal. Rewrite the pricing-page copy so the new price and grandfather rule are unambiguous.",
+      "assistant": "Team — $59 per seat/month starting November 1.\n\nExisting Team customers will continue at $49 per seat/month until their next renewal, when the new $59 rate will take effect.",
+      "then": [
+        {
+          "nodeMatching": "Team|\\$59|pricing"
+        },
+        {
+          "topLevelMatching": "Team|pricing"
+        }
+      ]
+    },
+    {
+      "user": "Northwind’s lawyer accepts the 2× liability cap with the data-breach carve-out, but wants 6 months’ notice instead of 12. I’m willing to settle at 9 months. Draft the final liability and non-renewal wording with that change.",
+      "assistant": "Final wording:\n\n“Except for liabilities that cannot legally be limited and liability arising from a party’s breach of its data-security obligations, each party’s aggregate liability arising out of or relating to this Agreement will not exceed two times the fees paid or payable by Customer during the twelve months preceding the event giving rise to the claim. Liability arising from a breach of data-security obligations remains uncapped.\n\nEither party may elect not to renew this Agreement by providing the other party at least nine months’ written notice before the end of the then-current term.”",
+      "then": [
+        {
+          "nodeMatching": "nine months|9 months"
+        },
+        {
+          "notInToSort": "nine months|9 months|Northwind"
+        },
+        {
+          "noAudit": "auto_place_skip"
+        }
+      ]
+    },
+    {
+      "user": "List every commitment I made today, grouped by who it is for, with exactly what I promised and any deadline. Then list what is still open. Include Harbor & Finch, Northwind, the Team pricing change, and the large-project export customer.",
+      "assistant": "Commitments made today:\n\n- Harbor & Finch: apply a one-time account credit for two unused seats; reduce the account from 12 to 10 seats starting next billing cycle; confirm the downgrade by Friday.\n- Northwind Logistics: offer a 2× annual-fees liability cap with an uncapped data-breach carve-out and propose nine months’ written notice for non-renewal.\n- Team customers: increase Team pricing from $49 to $59 per seat/month on November 1; existing customers remain at $49 until their next renewal.\n- Large-project export customer: ship the timeout and chunking fix this week and notify them when it is live.\n\nStill open: apply the Harbor credit, schedule the 10-seat downgrade and confirm it by Friday; send/finalize the Northwind terms; publish the pricing update and announcement; deploy the export fix this week and notify the affected customer after release.",
+      "then": [
+        {
+          "atMostTitles": "commitments",
+          "max": 0
+        },
+        {
+          "noNodeMatching": "commitments:"
+        }
+      ]
+    }
+  ]
+}

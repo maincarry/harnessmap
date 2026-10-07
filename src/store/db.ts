@@ -154,7 +154,10 @@ export class Store {
     ).run(n.id, n.projectId, n.parentId, n.content, n.type ?? null, dead(n.status) ?? 'live', n.author, title);
   }
 
-  updateNode(id: string, patch: { content?: string; status?: string; type?: string; title?: string }): void {
+  updateNode(id: string, patch: { content?: string; status?: string; type?: string; title?: string; author?: string }): void {
+    if (patch.author === 'user' || patch.author === 'agent') { // M442: a guard may re-attribute a node the person decided in their own words
+      this.db.prepare("UPDATE nodes SET author = ?, updated_at = datetime('now') WHERE id = ?").run(patch.author, id);
+    }
     if (patch.content !== undefined) {
       this.db.prepare("UPDATE nodes SET content = ?, updated_at = datetime('now') WHERE id = ?").run(patch.content, id);
     }
@@ -936,7 +939,7 @@ export class Store {
           break;
         }
         case 'update_node':
-          this.updateNode(a.id, { content: a.content, status: a.status, type: a.type, title: (a as any).title });
+          this.updateNode(a.id, { content: a.content, status: a.status, type: a.type, title: (a as any).title, author: (a as any).author });
           break;
         case 'move_node': {
           // Cycle guard (found live: a tidy proposal moved a container under

@@ -1328,6 +1328,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
       const queue = deferred ? arrivals.slice(0, 2) : [...arrivals, ...backlog.filter(dueNow)].slice(0, 3); // M428: under lag, this round's arrivals only
       const blocked = new Set(store.getOpenSuggestions(pid).filter((sg) => sg.kind !== 'relight').map((sg) => sg.nodeId));
       let keptDim = 0, noHome = 0;
+      const isBareRootId = (nid: string) => { const x = store.getNode(nid); return !!x && x.parentId === null && (x.content.trim() === 'untitled' || x.content.startsWith('to sort')); };
       for (const id of queue) {
         const n = store.getNode(id); if (!n || n.status === 'removed' || n.parentId !== toSort!.id) continue;
         store.setSetting(`auto_place_tried:${id}`, String(Date.now()));
@@ -1338,6 +1339,24 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         const noted = store.getOpenSuggestions(pid).find((sg) => sg.kind === 'relight' && sg.nodeId === id);
         const notedHome = noted ? (String((noted as any).note ?? (noted as any).text ?? '').match(/\[([0-9a-f]{6,})\]/)?.[1] ?? null) : null;
         const notedNode = notedHome ? store.getNodes(pid).find((x) => x.id.startsWith(notedHome) && x.status !== 'removed') : null;
+        // M444 (TWIN LONG #426, Noor: the Northwind return — "I'm willing to settle at 9 months" — went to "to sort" with the note
+        // "belongs under Northwind contract terms", was kept there because that home was unlit (one miss, one child), and the 30-minute
+        // retry never came in a 25-minute day; the end-of-day answer then read the stale 12-month row as "your accepted term" and she
+        // stopped). A home that is unlit only because auto mode did not light it is NOT set aside by the person: the item is placed
+        // under it at once (the aim re-lights the branch as the work continues there). Only a HAND-dimmed home still waits (M312).
+        const handDimmed = new Set(store.getUserDim(chatId));
+        if (notedNode && !litNow.has(notedNode.id) && !handDimmed.has(notedNode.id) && !isBareRootId(notedNode.id)) {
+          const cleanedA = n.content.replace(/\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/, '');
+          const palts = [{ op: 'move_node', id, parentId: notedNode.id } as any, ...(cleanedA !== n.content ? [{ op: 'update_node', id, content: cleanedA } as any] : [])];
+          const pinv = inverseOfAlterations(palts);
+          store.applyAlterations(pid, palts, { kind: 'system' });
+          store.pushUndo(pid, `auto mode: placed "${nodeName(n)}" under "${nodeName(notedNode)}" (its home was unlit, not set aside)`, pinv, null);
+          store.audit('auto_place_placed_unlit', { id: id.slice(0, 8), home: notedNode.id.slice(0, 8) });
+          for (const sg of store.getOpenSuggestions(pid)) if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
+          chats.noteMapChange(chatId, `auto mode placed "${nodeName(n)}" under "${nodeName(notedNode)}"`);
+          lines.push(`placed "${nodeName(n)}" → "${nodeName(notedNode)}"`);
+          continue;
+        }
         if (notedNode && !litNow.has(notedNode.id)) {
           store.audit('auto_place_skip', { id: id.slice(0, 8), why: 'noted home is dim', home: notedNode.id.slice(0, 8) });
           // M416b (LONG #396): the SAME stranding by the other door — the filer's note named a home that stays dim, so the item

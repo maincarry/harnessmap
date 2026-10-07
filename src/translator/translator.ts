@@ -204,6 +204,17 @@ const CJK_FUNC_BIGRAM = /[的了是在和或与并将把被对从到为有能可
 const CLIENT_STOP = new Set('Python Postgres Node React Shopify WooCommerce Redis Docker Git GitHub Linux Windows Mac The This That Here There What When Where Why How Can Could Should Would Let Make Add Fix Check Show Give Write Create Update Remove Use Try Help Switch Back Okay Yes PATCH GET POST API CSV PDF SQL JSON HTML CSS VAT EC2 AWS Codex Claude Today Tomorrow Monday Tuesday Wednesday Thursday Friday'.split(' '));
 const CLIENT_VERBS = new Set('Revise Start Run Save Draft Fix Update Check Rewrite Summarize Reproduce Show Give Make Add Remove Switch Back Compare Review Prepare Build Write Create Find List Explain Tell Help Confirm Keep Send Reply Debug Inspect Test Deploy Open Close Finish Continue Resume Move Rename Delete Generate Convert Export Import Set Get Put Read Look Take Try Use Ask Answer Note Log Mark Plan Design Implement Refactor Clean Merge Cut Drop Fetch Pull Push Commit'.split(' '));
 // M439: an assistant reply that DELIVERS the asked-for work — a fenced code block, or an explicit delivery phrase.
+// M442 (TWIN LONG #426, Noor): "Let's make a one-time exception as an account credit" was filed on the agent-authored question node
+// as a [decided] decision — the author stayed "agent", and the end-of-day answer said "the one-time credit is recorded as an agent-made
+// decision, not a commitment you personally made" (she stopped the day). A decision the person states in their own words is theirs:
+// when the user's turn carries a first-person commitment and the node's statement shares the turn's words, the author is "user".
+export const FIRST_PERSON = /\b(?:let'?s|I'?ll|I will|we'?ll|we will|I'?m (?:willing|going|happy) to|I want|I(?:'ve| have)? decided|we(?:'ve| have)? decided|go with|settle (?:at|on|for)|I'?d (?:rather|prefer)|say (?:we|I|that we)|tell (?:them|him|her|the customer)|make (?:it|that|a) )/i;
+// M443 (TWIN LONG #426, Noor, step 29 "List every commitment I made today, grouped by who it is for"): the recap turn filed two new
+// containers ("Harbor commitments", "Team pricing commitments") with six mirrored task rows restating rows the map already held — and
+// the next answer listed "mirrored commitment rows" as still open. A recap turn restates; it creates nothing the map already has.
+export const RECAP = /\b(?:list|summari[sz]e|recap|go over|run through|what (?:did|have) (?:I|we)|what'?s (?:still )?open|everything (?:I|we))\b[\s\S]{0,100}\b(?:commitments?|promises?|promised|decisions?|decided|deadlines?|open|today|so far|this session|agreed|owe)\b/i;
+const STOP_TOKENS = new Set('that this with from into then than have will would could should their there these those about which when what where while after before because being been were they them your also just only over under more most some such very into onto each other another every'.split(' '));
+export const distinctiveTokens = (t: string): Set<string> => new Set((String(t ?? '').toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? []).filter((w) => !STOP_TOKENS.has(w)));
 export const DELIVERS = /```|\bhere(?:'s| is) (?:the |an? |your )?(?:updated |revised |rewritten |fixed |complete |full |new )?(?:code|function|version|implementation|script|component|test|tests|rewrite|fix|file)\b|\bI(?:'ve| have)? (?:updated|added|implemented|fixed|created|rewritten|refactored|changed|written)\b|\b(?:updated|rewritten|refactored|revised) (?:version|function|code|script)\b/i;
 
 export function clientNameOfTurn(text: string): string | null {
@@ -373,6 +384,9 @@ export class Translator {
       alterations = this.guardCorrectionRetire(alterations, map, params);
       alterations = this.guardResolutionClose(alterations, map, params);
       if (process.env.HARNESSMAP_GUARD_REJECTION !== '0') alterations = this.guardUserRejection(alterations, map, params); // M358c: on by default since 0.9.69 (HARNESSMAP_GUARD_REJECTION=0 switches it off) — proven on the scene-detect thread: the two URL nodes reopened, the tool-name list card untouched
+      alterations = this.guardRecapMirror(alterations, map, params); // M443 (TWIN #426): a recap turn creates nothing the map already holds
+      alterations = this.guardDecisionAuthor(alterations, map, params); // M442 (TWIN #426): a decision stated in the person's own words is theirs
+      alterations = this.guardAgentSolidStatus(alterations); // M442a (TWIN #426): an agent-authored row is never born accepted/decided
       alterations = this.guardTaskDelivered(alterations, params); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
       alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
       alterations = this.guardAgentTaskStatus(alterations); // M437 (PANEL #422): an agent-listed step is a proposal, not the person's todo
@@ -432,6 +446,83 @@ export class Translator {
   // round whose assistant reply DELIVERS it — a fenced code block, or "here is the updated …" / "I've updated/added/implemented/fixed …" —
   // is done at filing. The person's later "it doesn't work" reopens it (M358/M422). Sweep of the kept maps (scratchpad/sweep-delivered.ts):
   // 147 user tasks filed todo/doing, 19 with a delivering reply in the same round, every one a delivered rewrite/implementation.
+  // M442 (TWIN LONG #426): see FIRST_PERSON. For a create_node or update_node that sets a solid status (decided/accepted/chosen/done)
+  // or is typed decision/constraint, when the person's turn carries a first-person commitment and the statement shares at least three
+  // distinctive words (and 30 %) with that turn, the author becomes "user". Audit guard_decision_author {id, from, shared}.
+  private guardDecisionAuthor(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const ut = String(params.userText ?? '');
+    if (ut.length < 20 || !FIRST_PERSON.test(ut)) return alterations;
+    const turn = distinctiveTokens(ut);
+    if (turn.size < 4) return alterations;
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    for (const a of alterations) {
+      if (!(a?.op === 'create_node' || a?.op === 'update_node')) continue;
+      const cur = a.op === 'update_node' ? byId.get(String(a.id)) : undefined;
+      const author = a.op === 'create_node' ? (a.author ?? 'agent') : (cur?.author ?? 'agent');
+      if (author !== 'agent') continue;
+      const status = String(a.status ?? '');
+      const type = String(a.type ?? cur?.type ?? '');
+      if (!/^(decided|accepted|chosen|done)$/.test(status) && !/^(decision|constraint)$/.test(type)) continue;
+      const text = `${a.title ?? ''} ${a.content ?? cur?.content ?? ''}`;
+      const mine = distinctiveTokens(text);
+      if (mine.size < 4) continue;
+      let shared = 0; for (const w of mine) if (turn.has(w)) shared++;
+      if (shared < 3 || shared / mine.size < 0.3) continue;
+      this.store.audit('guard_decision_author', { id: String(a.id ?? '').slice(0, 8), from: author, shared, title: String(a.title ?? a.content ?? '').slice(0, 40) });
+      a.author = 'user';
+    }
+    return alterations;
+  }
+
+  // M442a (TWIN LONG #426: the agent's drafted liability clause filed [accepted] — "Both clauses should have been marked proposed
+  // because Northwind had not accepted them"): the prompt's own rule ("things the AGENT merely proposes enter floated/noted") enforced —
+  // an agent-authored creation with status accepted/decided/chosen is filed floated. Tasks are M437's (proposed). Audit guard_agent_solid.
+  private guardAgentSolidStatus(alterations: any[]): any[] {
+    for (const a of alterations) {
+      if (a?.op !== 'create_node' || a.author !== 'agent' || a.type === 'task' || !/^(accepted|decided|chosen)$/.test(String(a.status ?? ''))) continue;
+      this.store.audit('guard_agent_solid', { id: String(a.id ?? '').slice(0, 8), from: a.status, title: String(a.title ?? a.content ?? '').slice(0, 40) });
+      a.status = 'floated';
+    }
+    return alterations;
+  }
+
+  // M443 (TWIN LONG #426): see RECAP. In a recap round, a create_node whose distinctive words are half or more contained in one existing
+  // node's title+statement is a mirror — dropped, its references re-pointed at the row it mirrors; a container created this round whose
+  // name says "commitments"/"summary"/"recap" and that ends up with no surviving child is dropped too. Audit guard_recap_mirror.
+  private guardRecapMirror(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const ut = String(params.userText ?? '');
+    if (!RECAP.test(ut)) return alterations;
+    const existing = map.nodes.filter((n) => n.status !== 'removed' && n.author !== 'system').map((n) => ({ id: n.id, toks: distinctiveTokens(`${n.title ?? ''} ${n.content ?? ''}`) }));
+    const drop = new Map<string, string | null>(); // dropped create id → the row it mirrors (null = recap container)
+    for (const a of alterations) {
+      if (a?.op !== 'create_node' || !a.id) continue;
+      const mine = distinctiveTokens(`${a.title ?? ''} ${a.content ?? ''}`);
+      if (mine.size < 4) continue;
+      let best: { id: string; frac: number } | null = null;
+      for (const e of existing) { let sh = 0; for (const w of mine) if (e.toks.has(w)) sh++; const frac = sh / mine.size; if (frac >= 0.5 && (!best || frac > best.frac)) best = { id: e.id, frac }; }
+      if (best) { drop.set(String(a.id), best.id); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), of: best.id.slice(0, 8), frac: Math.round(best.frac * 100) / 100, title: String(a.title ?? a.content ?? '').slice(0, 40) }); }
+    }
+    if (!drop.size) return alterations;
+    // recap containers left empty by the drops
+    for (const a of alterations) {
+      if (a?.op !== 'create_node' || !a.id || drop.has(String(a.id)) || a.type) continue;
+      if (!/\b(commitments?|summary|recap|promises)\b/i.test(`${a.title ?? ''} ${a.content ?? ''}`)) continue;
+      const kids = alterations.filter((o: any) => o?.op === 'create_node' && o.parentId === a.id && !drop.has(String(o.id)));
+      if (kids.length) continue;
+      drop.set(String(a.id), null); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), container: true, title: String(a.title ?? a.content ?? '').slice(0, 40) });
+    }
+    const out: any[] = [];
+    for (const a of alterations) {
+      if (a?.op === 'create_node' && drop.has(String(a.id))) continue;
+      if ((a?.op === 'update_node' || a?.op === 'move_node') && drop.has(String(a.id))) continue;
+      if (a?.op === 'create_link' && (drop.has(String(a.fromItemId)) || drop.has(String(a.toId)))) continue;
+      if (a?.op === 'create_node' && a.parentId && drop.has(String(a.parentId))) { const to = drop.get(String(a.parentId)); if (!to) continue; a.parentId = to; }
+      if (a?.op === 'move_node' && a.parentId && drop.has(String(a.parentId))) { const to = drop.get(String(a.parentId)); if (!to) continue; a.parentId = to; }
+      out.push(a);
+    }
+    return out;
+  }
+
   private guardTaskDelivered(alterations: any[], params: { assistantText?: string }): any[] {
     const at = String(params.assistantText ?? '');
     if (at.length < 40 || !DELIVERS.test(at)) return alterations;
