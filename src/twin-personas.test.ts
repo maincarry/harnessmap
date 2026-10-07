@@ -1,6 +1,6 @@
 // M407 — the twin persona panel: twenty distinct, well-formed potential users, each resolvable by the twin.
 import { test, expect } from 'bun:test';
-import { TWIN_PERSONAS, TWIN_PERSONA_IDS, findTwinPersona, personaCalibration } from './twin-personas.js';
+import { DEFAULT_PANEL_IDS, TWIN_PERSONAS, TWIN_PERSONA_IDS, findTwinPersona, personaCalibration } from './twin-personas.js';
 import { calibrationFor, PERSONA_CALIBRATION } from './twin.js';
 
 test('M407: exactly twenty personas with unique, stable ids', () => {
@@ -37,4 +37,14 @@ test('M407: the twin resolves a persona id to its own calibration and still hono
   expect(calibrationFor('normal')).toBe(PERSONA_CALIBRATION.normal);
   expect(calibrationFor('critic')).toBe(PERSONA_CALIBRATION.critic);
   expect(() => calibrationFor('nobody-here')).toThrow(/unknown twin persona/);
+});
+
+
+test('the default panel is thirteen known personas: eight primary (six developers, two non-developers), five secondary, no edge (Jacob 2026-10-07)', () => {
+  expect(DEFAULT_PANEL_IDS.length).toBe(13);
+  const tiers = DEFAULT_PANEL_IDS.map((id) => findTwinPersona(id)?.tier);
+  expect(tiers.filter((t) => t === 'primary').length).toBe(8);
+  expect(tiers.filter((t) => t === 'secondary').length).toBe(5);
+  expect(tiers.filter((t) => t === 'edge').length).toBe(0);
+  expect(tiers.every(Boolean)).toBe(true);
 });

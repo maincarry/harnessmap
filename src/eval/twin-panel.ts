@@ -12,7 +12,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, mkdtempSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runTwin, type TwinReport, type TwinPersona } from '../twin.js';
-import { TWIN_PERSONA_IDS, TIER_WEIGHT, findTwinPersona } from '../twin-personas.js';
+import { TWIN_PERSONA_IDS, DEFAULT_PANEL_IDS, TIER_WEIGHT, findTwinPersona } from '../twin-personas.js';
 
 const argv = process.argv.slice(2);
 const flagVal = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
@@ -99,8 +99,8 @@ if (mapPath && argv.includes('--ask')) { experience += `\n\n${await mapAnswers(m
 if (argv.includes('--dry')) { console.log(experience); process.exit(0); }
 
 const want = (flagVal('--personas') ?? 'all').trim();
-const ids: string[] = want === 'all' ? [...TWIN_PERSONA_IDS] : want.split(',').map((s) => s.trim()).filter(Boolean);
-for (const id of ids) if (!findTwinPersona(id) && id !== 'normal' && id !== 'critic') { console.error(`unknown persona "${id}"; known: normal, critic, ${TWIN_PERSONA_IDS.join(', ')}`); process.exit(2); }
+const ids: string[] = want === 'all' || want === 'default' ? [...DEFAULT_PANEL_IDS] : want === 'extended' ? [...TWIN_PERSONA_IDS] : want.split(',').map((s) => s.trim()).filter(Boolean); // Jacob 2026-10-07: 'all' = the default panel of 10; 'extended' = every persona in the file
+for (const id of ids) if (!findTwinPersona(id) && id !== 'normal' && id !== 'critic') { console.error(`unknown persona "${id}"; known: normal, critic, default, extended, ${TWIN_PERSONA_IDS.join(', ')}`); process.exit(2); }
 const out = flagVal('--out') ?? `twin-panel-${Date.now()}`;
 if (!existsSync(out)) mkdirSync(out, { recursive: true });
 

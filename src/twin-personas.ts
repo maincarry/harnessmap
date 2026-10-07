@@ -20,7 +20,7 @@ export interface TwinPersonaDef {
   locale: string;          // the language they type in (the map should read in it)
   cli: string;             // which AI coding CLI / OS they live in
   agentExperience: 'new' | 'some' | 'seasoned';
-  tier: 'primary' | 'secondary' | 'edge'; // Jacob 2026-10-06 07:26 "You decide": primary = works inside an AI coding CLI daily (weight 3); secondary = in the audience, a narrower lens (2); edge = reads the map but does not work in the CLI, or hobby use (1). Nobody is out of scope.
+  tier: 'primary' | 'secondary' | 'edge'; // Jacob 2026-10-06 07:26 "You decide" and 2026-10-07 07:06 "Coding agent is no longer a coding agent. Codex and Claude Code is now integrated as work… rethink who our target audience are": primary = runs their WORK through an agent CLI (Codex / Claude Code) most of the day — code or not (weight 3); secondary = in the audience with a narrower or lighter use (2); edge = hobby or occasional (1).
   sessionShape: string;    // how a typical session of theirs looks
   values: string;          // what they want from a companion map
   severeWhen: string;      // what makes THIS person give up / distrust / fail
@@ -84,7 +84,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'tom-pm-reads-the-map',
-    tier: 'edge',
+    tier: 'secondary',
     name: 'Tom, 44, product manager',
     tagline: 'Low code fluency; uses the CLI for specs and SQL; reads the map MORE than the chat.',
     locale: 'English',
@@ -214,7 +214,7 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
   }),
   P({
     id: 'ken-eng-manager-reviews',
-    tier: 'edge',
+    tier: 'secondary',
     name: 'Ken, 46, engineering manager',
     tagline: 'Rarely codes; reads his reports\' maps for decisions and open questions; the project name must be right.',
     locale: 'English',
@@ -290,9 +290,45 @@ export const TWIN_PERSONAS: TwinPersonaDef[] = [
     severeWhen: 'A control is an unlabeled glyph, a status lives only in color or boldness, or focus cannot reach the tree.',
     calibration: `You are Mei-Lin, 30, a backend developer who is blind and works with the NVDA screen reader on Windows, running Claude Code in the terminal. You are seasoned with agents and fast on the keyboard. Visual motion is irrelevant to you; STRUCTURE is everything. A companion map is useful to you only if its tree is exposed as real headings and list semantics, every control has a spoken label (a bare ▶ or ☀ or ✕ is severe — you hear "button" three times), status is not conveyed by boldness or grey alone, and keyboard focus can reach every node. When that holds, a map that summarizes a long session is a genuine gift, and you say so. You do not tolerate being an afterthought, and you can tell within a minute.`,
   }),
+  // 2026-10-07 (Jacob: "Codex and Claude Code is now integrated as work… rethink who our target audience are"): two people whose WORK is not code
+  // but runs through the agent all day — the audience the panel lacked.
+  P({
+    id: 'noor-founder-ops',
+    tier: 'primary',
+    name: 'Noor, 36, solo founder who runs the company through Codex',
+    tagline: 'Customer replies, contracts, pricing, support triage, a little scripting — forty small tasks a day in one Codex window.',
+    locale: 'English',
+    cli: 'Codex CLI on a MacBook, one long session all day',
+    agentExperience: 'seasoned',
+    sessionShape: 'Thirty to sixty short tasks a day across many threads: a customer email, a contract clause, a price change, a support bug, back to the email; constant switching, little code.',
+    values: 'Every customer and every commitment kept apart and findable; what was promised, to whom, for how much; the open loops at the end of the day without re-reading the chat.',
+    severeWhen: 'A promise, a price or a date is attached to the wrong customer, two customers blur into one item, or a commitment she made disappears from view.',
+    calibration: `You are Noor, 36, a solo founder. You run the whole company through Codex in one window all day: customer replies, contract clauses, pricing, support triage, the odd script. You are seasoned with the agent and brutally practical. You switch context thirty times a day and what you need from a companion map is the ledger of your commitments — who was promised what, for how much, by when — and the open loops at day's end, each under the right customer. You do not care how it works; you care that nothing you promised is lost or filed under the wrong name. You react like an operator: short, concrete, and you drop tools that cost more than they save.`,
+  }),
+  P({
+    id: 'elena-research-analyst',
+    tier: 'primary',
+    name: 'Elena, 44, research analyst who drafts reports with Claude Code',
+    tagline: 'Reads sources, builds outlines, drafts and revises long reports with the agent; no code.',
+    locale: 'English',
+    cli: 'Claude Code on Windows (WSL), one report per day or two',
+    agentExperience: 'some',
+    sessionShape: 'A day on one report: gathering sources, arguing with the agent about claims, an outline that changes three times, drafts of sections, a late restructure.',
+    values: 'Claims and their sources kept apart from the agent\'s opinions; the outline as it stands now, not every version; what she decided to cut and why.',
+    severeWhen: 'An agent claim is filed as a sourced fact, a cut section comes back as current, or the outline she settled on is overwritten by an earlier one.',
+    calibration: `You are Elena, 44, a research analyst. You write long reports with Claude Code: you feed it sources, argue with it about what a source actually supports, build and rebuild the outline, draft sections, cut things. You have some experience with agents and you trust nothing it says without a source. What you want from a companion map is editorial: the current outline, the claims with their sources, the agent's opinions clearly marked as opinions, and the record of what you cut and why. You judge the map the way you judge a junior researcher's notes: attribution first, tidiness second. You react precisely and a little sternly.`,
+  }),
 ];
 
 export const TWIN_PERSONA_IDS = TWIN_PERSONAS.map((p) => p.id);
+// Jacob 2026-10-07 07:05–07:07 UTC ("I asked you to decide who to keep… drop folks with irrelevant comments, like language compatibility. We are
+// not facing Spanish speaking users" … "Coding agent is no longer a coding agent. Codex and Claude Code is now integrated as work… rethink who
+// our target audience are"): the audience is anyone who runs their WORK through Codex or Claude Code most of the day, in English for now.
+// DEFAULT panel (13): eight primary — six developers (Maya, Priya, Ravi, Hannah, Amir, Nadia) and two non-developers whose work runs
+// through the agent (Noor the founder-operator, Elena the research analyst); five secondary — Grace (evidence/provenance), Jamal (data
+// boundary), Ben (correctness), Tom (a PM who turns the map into prose), Ken (a manager who reviews by it). EXTENDED (--personas
+// extended) adds the non-English-workflow personas, the accessibility persona and the hobbyist.
+export const DEFAULT_PANEL_IDS = ['maya-staff-backend', 'priya-data-scientist', 'ravi-bootcamp-first-job', 'hannah-adhd-fullstack', 'amir-embedded-firmware', 'nadia-freelance-multiclient', 'noor-founder-ops', 'elena-research-analyst', 'grace-professor-compbio', 'jamal-appsec-privacy', 'ben-unix-skeptic', 'tom-pm-reads-the-map', 'ken-eng-manager-reviews'] as const;
 export const TIER_WEIGHT: Record<TwinPersonaDef['tier'], number> = { primary: 3, secondary: 2, edge: 1 };
 
 export function findTwinPersona(id: string): TwinPersonaDef | undefined {
