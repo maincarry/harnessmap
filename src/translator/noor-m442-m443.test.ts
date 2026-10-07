@@ -63,3 +63,19 @@ test('M443: a recap turn creates nothing the map already holds; a genuinely new 
   expect(RECAP.test('Summarize every commitment I made today by customer or audience, with the deadline')).toBe(true);
   expect(RECAP.test('Write a one-line changelog entry for the Team price change.')).toBe(false);
 });
+test('M443b: a recap row restating several rows at once is a mirror by the union rule; a new item with map words is not', () => {
+  const { t, audits } = harness();
+  const map = { nodes: [
+    node('d1', 'Harbor & Finch will receive a one-time account credit for the two unused seats as a discretionary exception; no cash refund will be issued.', { status: 'decided', type: 'decision', title: 'Credit exception instead of refund' }),
+    node('t1', 'Downgrade Harbor & Finch from 12 seats to 10 seats starting with the next billing cycle.', { status: 'todo', type: 'task', title: 'Downgrade seats' }),
+    node('t2', 'Confirm the Harbor & Finch seat change by Friday.', { status: 'todo', type: 'task', title: 'Confirm by Friday' }),
+  ] };
+  const user = 'List every commitment I made today, grouped by who it is for, with exactly what I promised and any deadline.';
+  const alts = [
+    { op: 'create_node', id: 'k1', parentId: 'h', author: 'agent', status: 'provisional', title: 'Harbor & Finch commitments', content: 'Harbor & Finch commitments: apply a one-time account credit for two unused seats, reduce the account from 12 to 10 seats starting next billing cycle, and confirm the downgrade by Friday. These commitments remain open.' },
+    { op: 'create_node', id: 'n2', parentId: 'h', author: 'user', type: 'task', status: 'todo', title: 'Renewal call', content: 'Schedule a renewal call with the Harbor & Finch account owner about their annual contract pricing tiers and onboarding timeline.' },
+  ];
+  const out = t.guardRecapMirror(alts, map, { userText: user });
+  expect(out.map((a: any) => a.id)).toEqual(['n2']);
+  expect(audits[0].d.union).toBeGreaterThanOrEqual(0.7);
+});

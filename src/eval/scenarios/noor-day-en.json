@@ -71,6 +71,9 @@
         {
           "notStatus": "liability cap|liability clause|two times|2×|data.?breach",
           "statuses": "accepted|decided|chosen"
+        },
+        {
+          "atMostRoots": 1
         }
       ]
     },
@@ -83,6 +86,9 @@
         },
         {
           "topLevelMatching": "Team|pricing"
+        },
+        {
+          "atMostRoots": 2
         }
       ]
     },
@@ -111,6 +117,9 @@
         },
         {
           "noNodeMatching": "commitments:"
+        },
+        {
+          "atMostRoots": 3
         }
       ]
     }
