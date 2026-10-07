@@ -1,0 +1,37 @@
+{
+  "name": "M431 proof (TWIN #417 Elena): an outline's section rows follow the person's own merge and cut — 'merge X into Y' moves X under Y; 'cut “X”' retires the row (dropped) while the outline statement and the why-note stay",
+  "seed": [{ "key": "proj", "content": "Four-day week briefing for a client's HR leadership — does a four-day week raise or lower output in knowledge-work firms" }],
+  "focus": "proj",
+  "auto": { "on": true },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "Give me a first outline for the briefing: 1 Summary, 2 What the trials measured, 3 Output results, 4 Wellbeing and retention, 5 Where it did not work, 6 Caveats, 7 Recommendation.",
+      "assistant": "Here is the first outline.\n1. Summary — the overall answer in one paragraph.\n2. What the trials measured — output, revenue, productivity, retention.\n3. Output results — the measured numbers from each trial with caveats attached.\n4. Wellbeing and retention — the secondary outcomes.\n5. Where it did not work — contexts and roles where output did not improve.\n6. Caveats — self-selection, trial length, no control groups.\n7. Recommendation — what the client should do.",
+      "then": [
+        { "nodeMatching": "^Where it did not work|where it did not work", "under": "outline|Outline|briefing|Briefing" },
+        { "nodeMatching": "^Wellbeing and retention|wellbeing and retention" },
+        { "nodeMatching": "^Output results|output results" }
+      ]
+    },
+    {
+      "user": "Merge section 4, Wellbeing and retention, into section 3, Output results—the client mainly cares about output, so wellbeing only needs a paragraph there. The working outline should now have six sections.",
+      "assistant": "Done. The working outline is now six sections: 1 Summary, 2 What the trials measured, 3 Output results (with a supporting paragraph on wellbeing and retention), 4 Where it did not work, 5 Caveats, 6 Recommendation.",
+      "then": [
+        { "nodeMatching": "^Wellbeing", "under": "^Output results" },
+        { "notStatus": "^Wellbeing and retention|wellbeing and retention", "statuses": "removed" }
+      ]
+    },
+    {
+      "user": "Cut “Where it did not work” from the briefing. The only evidence for it is Source 6, which is an opinion piece rather than a study, so it does not justify a standalone section. Keep a note that we cut it and why.",
+      "assistant": "Cut. The outline is now five sections: 1 Summary, 2 What the trials measured, 3 Output results, 4 Caveats, 5 Recommendation. Noted: 'Where it did not work' was removed because its only support was Source 6, an opinion piece.",
+      "then": [
+        { "statusOf": "^Where it did not work\\b", "is": "dropped|removed|parked|superseded|rejected" },
+        { "notStatus": "^Where it did not work\\b", "statuses": "live|open|todo|noted|doing|active" },
+        { "nodeMatching": "opinion piece|cut|removed", "under": "outline|Outline|briefing|Briefing" },
+        { "do": "brainChat", "text": "What is the current outline of the briefing, numbered? one line" },
+        { "brainMustNot": "Where it did not work|Wellbeing and retention" }
+      ]
+    }
+  ]
+}

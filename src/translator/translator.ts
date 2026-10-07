@@ -348,6 +348,7 @@ export class Translator {
       alterations = this.guardCorrectionRetire(alterations, map, params);
       alterations = this.guardResolutionClose(alterations, map, params);
       if (process.env.HARNESSMAP_GUARD_REJECTION !== '0') alterations = this.guardUserRejection(alterations, map, params); // M358c: on by default since 0.9.69 (HARNESSMAP_GUARD_REJECTION=0 switches it off) — proven on the scene-detect thread: the two URL nodes reopened, the tool-name list card untouched
+      alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
       const prior = this.store.roundForTurn(params.turnId);
@@ -377,6 +378,52 @@ export class Translator {
   // when the user's turn is an explicit correction of the question ("I mean…", "not what I asked", "我说的是…", "我问的是…") and this
   // round touched nothing in a card the PREVIOUS round created, that card is parked — it answered a misreading. Cards this round
   // updated or extended are left alone (a correction of a detail, not of the question). Prompts guide, guards enforce.
+  // M431 (TWIN LONG #417, Elena the research analyst, 2026-10-07): the first outline turn filed seven section rows under "Briefing
+  // outline"; when she said "Merge section 4, Wellbeing and retention, into section 3, Output results" and later "Cut “Where it did
+  // not work” from the briefing", the filer rewrote the outline's statement and added a note that the section was cut — but the two
+  // original rows stayed LIVE under the outline for the rest of the day (22 severe steps; she asked the map three times, never deleted
+  // them by hand). Guard: when the person's own turn names a live row by its title and says it is cut / removed / dropped / deleted, the
+  // row is retired (status dropped — the statement and the "why" note stay); when the turn says "merge X into Y" and both are live rows,
+  // X moves under Y. Only exact title matches (normalized), never a root, at most three rows a round; the filer's own writes to those
+  // rows win. Audit guard_user_retires {id, title, how, was}.
+  private guardUserRetires(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const ut = (params.userText ?? '').trim();
+    if (!ut || ut.length > 700) return alterations;
+    if (!/\b(cut|remove|drop|delete|merge)\b|删除|去掉|合并/i.test(ut)) return alterations;
+    const norm = (x: string) => x.toLowerCase().replace(/[“”"‘’'`]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    const live = map.nodes.filter((n) => n.parentId !== null && !/^(removed|dropped|done|rejected|superseded|parked|merged)$/.test(n.status) && norm(n.title ?? '').length >= 3);
+    const find = (name: string): MapNode[] => { const k = norm(name); return k.length < 3 ? [] : live.filter((n) => norm(n.title ?? '') === k); };
+    // The filer's own writes win only where they conflict: a status it set this round blocks the retire; a move or a create this round
+    // blocks the merge-move. A content/title rewrite does not — that is exactly what the filer did to Elena's merged section while
+    // leaving the row where it was (proof run 1: "Wellbeing and retention" renamed to "Wellbeing paragraph", still a sibling).
+    const statused = new Set(alterations.filter((a) => a?.op === 'update_node' && a.status && typeof a.id === 'string').map((a) => a.id as string));
+    const movedOrNew = new Set(alterations.filter((a) => (a?.op === 'move_node' || a?.op === 'create_node') && typeof a.id === 'string').map((a) => a.id as string));
+    const touched = new Set<string>();
+    const under = (id: string, root: string) => { for (let c: MapNode | undefined = byId.get(id); c; c = c.parentId ? byId.get(c.parentId) : undefined) if (c.id === root) return true; return false; };
+    const out = [...alterations]; let n = 0;
+    const retire = (node: MapNode, how: string) => {
+      if (n >= 3 || touched.has(node.id) || statused.has(node.id) || movedOrNew.has(node.id)) return; n++; touched.add(node.id);
+      out.push({ op: 'update_node', id: node.id, status: 'dropped' });
+      this.store.audit('guard_user_retires', { id: node.id.slice(0, 8), title: (node.title ?? '').slice(0, 40), how, was: node.status });
+    };
+    // "cut “X”" / "remove 'X'" / "delete the section “X”" — the quoted form, in English or Chinese.
+    for (const m of ut.matchAll(/(?:\b(?:cut|remove|drop|delete|scrap)\b[^“"‘'\n]{0,40}?|(?:删除|去掉|删掉)\s*)[“"‘'「]([^”"’'」\n]{3,80})[”"’'」]/giu)) for (const node of find(m[1])) retire(node, 'cut-quoted');
+    // "cut section 5, X" / "remove item 3 (X)" — a numbered part named right after the number.
+    for (const m of ut.matchAll(/\b(?:cut|remove|drop|delete)\s+(?:the\s+)?(?:section|item|part|chapter|step)\s+\d+\s*[,(:：]\s*([^,.;:()\n]{3,60})/giu)) for (const node of find(m[1])) retire(node, 'cut-numbered');
+    // "merge (section 4,) X into (section 3,) Y" — X moves under Y.
+    for (const m of ut.matchAll(/\bmerge\s+(?:the\s+)?(?:section\s+\d+\s*,?\s*)?[“"]?([^“”",\n]{3,60}?)[”"]?\s*,?\s+into\s+(?:the\s+)?(?:section\s+\d+\s*,?\s*)?[“"]?([^“”",.;—\n]{3,60}?)[”"]?\s*(?:[,.;—:]|$)/giu)) {
+      const xs = find(m[1]), ys = find(m[2]);
+      if (xs.length !== 1 || ys.length !== 1) continue;
+      const [x] = xs, [y] = ys;
+      if (x.id === y.id || under(y.id, x.id) || x.parentId === y.id || touched.has(x.id) || movedOrNew.has(x.id) || n >= 3) continue;
+      n++; touched.add(x.id);
+      out.push({ op: 'move_node', id: x.id, parentId: y.id });
+      this.store.audit('guard_user_retires', { id: x.id.slice(0, 8), title: (x.title ?? '').slice(0, 40), how: 'merged-into', into: y.id.slice(0, 8) });
+    }
+    return out;
+  }
+
   private guardCorrectionRetire(alterations: any[], map: { nodes: MapNode[] }, params: { chatId: string; userText?: string }): any[] {
     const ut = (params.userText ?? '').trim();
     if (!ut || ut.length > 400) return alterations;
