@@ -11,7 +11,7 @@
 // would-return, verdict) and the frictions that more than one persona raised. Background it and redirect stdout.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, mkdtempSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runTwin, type TwinReport, type TwinPersona } from '../twin.js';
+import { runTwin, twinNeed, twinProbe, probeWorthy, type TwinReport, type TwinPersona, type TwinNeed, type TwinProbe, type TwinFinding } from '../twin.js';
 import { TWIN_PERSONA_IDS, DEFAULT_PANEL_IDS, TIER_WEIGHT, findTwinPersona } from '../twin-personas.js';
 
 const argv = process.argv.slice(2);
@@ -94,8 +94,13 @@ else if (flowFile) { experience = readFileSync(flowFile, 'utf8'); label = `flow-
 else if (scenarioPath) { experience = experienceFromScenario(scenarioPath); label = `scenario ${scenarioPath}`; }
 else { console.error('usage: twin-panel.ts (--flow "..." | --flow-file <path> | <scenario.json>) [--map <kept e2e.sqlite of the same scenario>] [--personas all|id,id,…] [--out <dir>] [--dry]'); process.exit(2); }
 const mapPath = flagVal('--map');
-if (mapPath) { experience += `\n\n${endMapFromSqlite(mapPath)}`; label += ` + end map ${mapPath}`; }
-if (mapPath && argv.includes('--ask')) { experience += `\n\n${await mapAnswers(mapPath)}`; label += ' + talk-to-map answers'; }
+let mapOnly = ''; // M430: the map as the persona would find it on Monday morning — tree + its answers, nothing of the chat
+if (mapPath) { mapOnly = endMapFromSqlite(mapPath); label += ` + end map ${mapPath}`; }
+if (mapPath && argv.includes('--ask')) { mapOnly += `\n\n${await mapAnswers(mapPath)}`; label += ' + talk-to-map answers'; }
+if (mapOnly) experience += `\n\n${mapOnly}`;
+// One line of what the session was, for the Monday-morning call (the persona knows what it was doing last week, not the details).
+const sessionLine = (() => { try { if (scenarioPath) return String(JSON.parse(readFileSync(scenarioPath, 'utf8')).name ?? scenarioPath); } catch {} return (flow ?? (flowFile ? readFileSync(flowFile, 'utf8') : '')).split('\n').find((l) => l.trim()) ?? 'a long working session'; })().slice(0, 300);
+const INTERVIEW = !argv.includes('--no-interview'); // M430 (Jacob 2026-10-07 10:02/10:05/10:08): need first, then the walkthrough, then the interview
 if (argv.includes('--dry')) { console.log(experience); process.exit(0); }
 
 const want = (flagVal('--personas') ?? 'all').trim();
@@ -105,7 +110,7 @@ const out = flagVal('--out') ?? `twin-panel-${Date.now()}`;
 if (!existsSync(out)) mkdirSync(out, { recursive: true });
 
 const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
-const rows: { id: string; who: string; severe: number; moderate: number; minor: number; would: string; verdict: string; top: string[]; secs: string; error?: string }[] = [];
+const rows: { id: string; who: string; severe: number; moderate: number; minor: number; would: string; verdict: string; top: string[]; secs: string; error?: string; need?: TwinNeed; probe?: TwinProbe }[] = [];
 
 console.log(`══ USER TWIN PANEL — ${label} — ${ids.length} persona(s), run one at a time ══\n`);
 for (const id of ids) {
@@ -114,13 +119,23 @@ for (const id of ids) {
   const t0 = Date.now();
   process.stdout.write(`→ ${id.padEnd(30)} ${who} … `);
   try {
+    // M430 phase 1 — the NEED: Monday morning with only the map.
+    let need: TwinNeed | undefined;
+    if (mapOnly && INTERVIEW) { try { need = await twinNeed(sessionLine, mapOnly, { persona: id as TwinPersona }); } catch (e) { console.log(`\n     (need call failed: ${String(e).slice(0, 120)})`); } }
+    // phase 2 — the walkthrough (as before).
     const r: TwinReport = await runTwin(experience, { persona: id as TwinPersona });
+    // phase 3 — the INTERVIEW on the severe/moderate moments.
+    let probe: TwinProbe | undefined;
+    const worthy = probeWorthy(r.walkthrough);
+    if (INTERVIEW && worthy.length) { try { probe = await twinProbe(experience, worthy, { persona: id as TwinPersona }); } catch (e) { console.log(`\n     (interview call failed: ${String(e).slice(0, 120)})`); } }
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
-    writeFileSync(join(out, `${id}.json`), JSON.stringify(r, null, 2));
+    writeFileSync(join(out, `${id}.json`), JSON.stringify({ ...r, need, probe }, null, 2));
     const n = (s: string) => r.walkthrough.filter((f) => f.severity === s).length;
-    rows.push({ id, who, severe: n('severe'), moderate: n('moderate'), minor: n('minor'), would: r.would_return, verdict: r.verdict, top: r.top_frictions ?? [], secs });
-    console.log(`${secs}s · ■${n('severe')} ▲${n('moderate')} ▹${n('minor')} · would return: ${r.would_return}`);
+    rows.push({ id, who, severe: n('severe'), moderate: n('moderate'), minor: n('minor'), would: r.would_return, verdict: r.verdict, top: r.top_frictions ?? [], secs, need, probe });
+    console.log(`${secs}s · ■${n('severe')} ▲${n('moderate')} ▹${n('minor')} · would return: ${r.would_return}${probe ? ` → after interview: ${probe.would_return_after_interview}` : ''}${need ? ` · Monday needs met ${need.needs.filter((x) => x.found === 'yes').length}/${need.needs.length}, would ${need.continue_with}` : ''}`);
+    if (need) for (const x of need.needs) console.log(`     need: ${x.need} — ${x.found}${x.quote ? ` ("${x.quote.slice(0, 90)}")` : ''}`);
     for (const f of r.walkthrough) if (f.severity === 'severe' || f.severity === 'moderate') console.log(`     ${sev(f.severity)} ${f.moment} — "${f.reaction}" [${f.mechanism}]`);
+    if (probe) for (const f of probe.findings) console.log(`     ⇢ ${f.needed}/${f.blame}${f.decides ? '/DECIDES' : ''} "${f.quote.slice(0, 90)}" → ${f.expected.slice(0, 120)}`);
   } catch (e: any) {
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
     rows.push({ id, who, severe: 0, moderate: 0, minor: 0, would: '?', verdict: '', top: [], secs, error: String(e?.message ?? e) });
@@ -146,9 +161,10 @@ for (const r of rows) for (const t of r.top) {
 }
 clusters.sort((a, b) => b.personas.size - a.personas.size);
 
-let md = `# User Twin panel — ${label}\n\n_${new Date().toISOString().slice(0, 16).replace('T', ' ')}Z · ${ids.length} persona(s), each a separate codex run; src/eval/twin-panel.ts (M407)._\n\n`;
-md += `| # | persona | tier | who | severe | moderate | minor | would return | verdict |\n|---|---|---|---|---|---|---|---|---|\n`;
-rows.forEach((r, i) => { md += `| ${i + 1} | \`${r.id}\` | ${findTwinPersona(r.id)?.tier ?? '-'} | ${r.who} | ${r.severe} | ${r.moderate} | ${r.minor} | ${r.would} | ${r.error ? `FAILED: ${r.error.slice(0, 80)}` : r.verdict.replace(/\|/g, '/')} |\n`; });
+let md = `# User Twin panel — ${label}\n\n_${new Date().toISOString().slice(0, 16).replace('T', ' ')}Z · ${ids.length} persona(s), each a separate codex run; src/eval/twin-panel.ts (M407; M430 need + interview)._\n\n`;
+const needMet = (n?: TwinNeed) => n ? `${n.needs.filter((x) => x.found === 'yes').length}+${n.needs.filter((x) => x.found === 'partly').length}½/${n.needs.length}` : '-';
+md += `| # | persona | tier | who | Monday needs met | then would | severe | moderate | would return | after interview | verdict |\n|---|---|---|---|---|---|---|---|---|---|---|\n`;
+rows.forEach((r, i) => { md += `| ${i + 1} | \`${r.id}\` | ${findTwinPersona(r.id)?.tier ?? '-'} | ${r.who} | ${needMet(r.need)} | ${r.need?.continue_with ?? '-'} | ${r.severe} | ${r.moderate} | ${r.would} | ${r.probe?.would_return_after_interview ?? '-'} | ${r.error ? `FAILED: ${r.error.slice(0, 80)}` : r.verdict.replace(/\|/g, '/')} |\n`; });
 const okRows = rows.filter((r) => !r.error);
 // Weighted would-return (Jacob 2026-10-06 "You decide"): primary ×3, secondary ×2, edge ×1; yes=1, maybe=0.5, no=0.
 const wOf = (id: string) => TIER_WEIGHT[findTwinPersona(id)?.tier ?? 'edge'];
@@ -157,10 +173,41 @@ const wScore = okRows.reduce((s, r) => s + wOf(r.id) * (r.would === 'yes' ? 1 : 
 const tierLine = (['primary', 'secondary', 'edge'] as const).map((t) => { const rs = okRows.filter((r) => findTwinPersona(r.id)?.tier === t); return `${t} ${rs.filter((r) => r.would === 'yes').length}y/${rs.filter((r) => r.would === 'maybe').length}m/${rs.filter((r) => r.would === 'no').length}n of ${rs.length}`; }).join(' · ');
 md += `\n**Weighted would-return:** ${(100 * wScore).toFixed(0)}% (primary ×3, secondary ×2, edge ×1; yes 1 · maybe ½ · no 0) — ${tierLine}\n`;
 md += `\n**Totals:** ${okRows.length}/${rows.length} reports · severe ${okRows.reduce((s, r) => s + r.severe, 0)} · moderate ${okRows.reduce((s, r) => s + r.moderate, 0)} · would return yes ${okRows.filter((r) => r.would === 'yes').length} / maybe ${okRows.filter((r) => r.would === 'maybe').length} / no ${okRows.filter((r) => r.would === 'no').length}\n\n`;
-md += `## Frictions raised by more than one persona (robust findings)\n\n`;
+// M430 — need-based score and the interviewed findings.
+const needRows = okRows.filter((r) => r.need);
+if (needRows.length) {
+  const nScore = (r: typeof rows[number]) => { const ns = r.need!.needs; return ns.length ? ns.reduce((a, x) => a + (x.found === 'yes' ? 1 : x.found === 'partly' ? 0.5 : 0), 0) / ns.length : 0; };
+  const wN = needRows.reduce((a, r) => a + wOf(r.id), 0) || 1;
+  const needScore = needRows.reduce((a, r) => a + wOf(r.id) * nScore(r), 0) / wN;
+  const cont = needRows.reduce((h: Record<string, number>, r) => { h[r.need!.continue_with] = (h[r.need!.continue_with] ?? 0) + 1; return h; }, {});
+  md += `\n**Monday morning (only the map):** needs met ${(100 * needScore).toFixed(0)}% (tier-weighted; yes 1 · partly ½) · then would: ${Object.entries(cont).map(([k, v]) => `${k} ${v}`).join(', ')}\n`;
+  const probed = okRows.filter((r) => r.probe);
+  if (probed.length) { const wP = probed.reduce((a, r) => a + wOf(r.id), 0) || 1; const after = probed.reduce((a, r) => a + wOf(r.id) * (r.probe!.would_return_after_interview === 'yes' ? 1 : r.probe!.would_return_after_interview === 'maybe' ? 0.5 : 0), 0) / wP; md += `**Would return after the interview:** ${(100 * after).toFixed(0)}% weighted (${probed.filter((r) => r.probe!.would_return_after_interview === 'yes').length}y/${probed.filter((r) => r.probe!.would_return_after_interview === 'maybe').length}m/${probed.filter((r) => r.probe!.would_return_after_interview === 'no').length}n of ${probed.length})\n`; }
+  md += `\n## Monday morning — what each person needed, and whether the map had it\n\n`;
+  for (const r of needRows) md += `- **${r.who}** (${r.id}) → ${r.need!.continue_with}: ${r.need!.one_line}\n${r.need!.needs.map((x) => `  - ${x.found === 'yes' ? '✓' : x.found === 'partly' ? '~' : '✗'} ${x.need}${x.quote ? ` — used: "${x.quote.replace(/\n/g, ' ').slice(0, 140)}"` : ''}${x.found !== 'yes' ? ` — ${x.felt}` : ''}`).join('\n')}\n`;
+}
+type F = TwinFinding & { id: string; severity: string };
+const allF: F[] = [];
+for (const r of okRows) if (r.probe) for (const f of r.probe.findings) allF.push({ ...f, id: r.id, severity: '' });
+const qkey = (f: F) => (f.quote.trim() ? f.quote : f.moment).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().slice(0, 50);
+const groupBy = (fs: F[]) => { const g = new Map<string, F[]>(); for (const f of fs) { const k = qkey(f); if (!g.has(k)) g.set(k, []); g.get(k)!.push(f); } return [...g.values()].sort((a, b) => b.length - a.length); };
+const fmtGroup = (fs: F[]) => `- **${new Set(fs.map((f) => f.id)).size} persona(s)** (${[...new Set(fs.map((f) => f.id))].join(', ')})${fs.some((f) => f.decides) ? ' — DECIDES a verdict' : ''}\n  - row/answer: "${fs[0].quote.trim() ? fs[0].quote.replace(/\n/g, ' ').slice(0, 200) : `(no specific row) ${fs[0].moment.slice(0, 120)}`}"\n${fs.map((f) => `  - ${f.id}: expected — ${f.expected.replace(/\n/g, ' ').slice(0, 220)}; one change — ${f.one_change.replace(/\n/g, ' ').slice(0, 160)}`).join('\n')}`;
+const isLang = (f: F) => LANG.test(f.quote) || LANG.test(f.expected) || LANG.test(f.moment);
+const actionable = allF.filter((f) => f.needed === 'needed' && f.blame === 'map' && !isLang(f));
+const noticed = allF.filter((f) => f.needed === 'noticed' && f.blame === 'map' && !isLang(f));
+const agentFault = allF.filter((f) => f.blame !== 'map' && !isLang(f));
+if (allF.length) {
+  md += `\n## Findings from the interview — NEEDED and the MAP's fault (act on these)\n\n`;
+  md += actionable.length ? groupBy(actionable).map(fmtGroup).join('\n') + '\n' : '_none_\n';
+  md += `\n## Set aside — noticed while looking around, not needed (${noticed.length})\n\n`;
+  md += noticed.length ? groupBy(noticed).map((fs) => `- (${[...new Set(fs.map((f) => f.id))].join(', ')}) "${(fs[0].quote.trim() ? fs[0].quote : fs[0].moment).replace(/\n/g, ' ').slice(0, 140)}" → ${fs[0].expected.replace(/\n/g, ' ').slice(0, 140)}`).join('\n') + '\n' : '_none_\n';
+  md += `\n## Set aside — the agent's (or the user's) fault, not the map's (Jacob 2026-10-07: the map is not a fact checker) (${agentFault.length})\n\n`;
+  md += agentFault.length ? agentFault.map((f) => `- (${f.id}, ${f.blame}) "${(f.quote.trim() ? f.quote : f.moment).replace(/\n/g, ' ').slice(0, 140)}"`).join('\n') + '\n' : '_none_\n';
+}
+md += `\n## Raw top frictions, clustered by shared words (kept for reference — the interview above is the actionable form)\n\n### Raised by more than one persona\n\n`;
 const multi = clusters.filter((c) => c.personas.size > 1);
 md += multi.length ? multi.map((c) => `- **${c.personas.size} personas** (${[...c.personas].join(', ')}):\n${c.texts.map((t) => `  - ${t}`).join('\n')}`).join('\n') + '\n' : '_none — every top friction was raised by a single persona_\n';
-md += `\n## Frictions raised by one persona only\n\n`;
+md += `\n### Raised by one persona only\n\n`;
 md += clusters.filter((c) => c.personas.size === 1).map((c) => `- (${[...c.personas][0]}) ${c.texts[0]}`).join('\n') + '\n';
 md += `\n## Set aside — language compatibility (Jacob 2026-10-07: not useful feedback)\n\n`;
 md += setAside.length ? setAside.map((x) => `- (${x.id}) ${x.text}`).join('\n') + '\n' : '_none_\n';

@@ -7,7 +7,7 @@
 import { rmSync, mkdirSync, symlinkSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { twinStep, twinRecall, type TwinStep, type TwinRecall } from '../twin.js';
+import { twinStep, twinRecall, twinProbe, probeWorthy, type TwinStep, type TwinRecall, type TwinProbe } from '../twin.js';
 
 const argv = process.argv.slice(2);
 const flagVal = (n: string, d?: string) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
@@ -128,6 +128,7 @@ const askLog: { step: number; question: string; answer: string }[] = [];
 const expanded = new Set<string>(); let actions = 0;
 const actionLog: { step: number; kind: string; target?: string; to?: string; new_title?: string; note?: string; result: string }[] = [];
 const PRODUCT = new Set(['open', 'close', 'rename', 'move', 'remove', 'done', 'todo', 'focus', 'star', 'undo', 'auto']);
+const views: string[] = []; // M430: what the map showed at each step, for the end-of-drive interview
 
 for (let i = 0; i < STEPS; i++) {
   const s = await get('/api/state');
@@ -138,7 +139,7 @@ for (let i = 0; i < STEPS; i++) {
   catch (e) { prog(`step ${i + 1}: twinStep FAILED ${String(e).slice(0, 120)}`); console.error(`step ${i + 1} twin call failed:`, String(e).slice(0, 200)); break; }
   lastMapAnswer = undefined; // the answer is shown to the twin once
   prog(`step ${i + 1}: twinStep returned (${step.severity}, ${step.action.kind})`);
-  steps.push(step);
+  steps.push(step); views.push(view);
   console.log(`── step ${i + 1} ──`);
   console.log(`map shows:\n${view.split('\n').map((l) => '    ' + l).join('\n')}`);
   console.log(`${sev(step.severity)} [${step.severity}] felt: ${step.felt}`);
@@ -239,8 +240,23 @@ if (checkpoints.length) {
   const nowOk = checkpoints.filter((c) => c.nowOk).length, firstOk = checkpoints.filter((c) => c.firstOk).length, found = checkpoints.filter((c) => c.recall?.found).length, asked = checkpoints.filter((c) => c.recall).length;
   console.log(`checkpoints ${checkpoints.length}: brain RIGHT NOW right ${nowOk}/${checkpoints.length} · brain FIRST right ${firstOk}/${checkpoints.length} · twin found its earlier work at a glance ${found}/${asked}`);
 }
+// M430 (Jacob 2026-10-07 10:02 "you need to talk to them to probe better feedbacks"): interview the persona on the moments that
+// decided the verdict — each pinned to the quoted row/answer it saw at that step, what it expected, needed vs noticed, map vs agent.
+let probe: TwinProbe | undefined;
+const worthyIdx = probeWorthy(steps.map((x, i) => ({ severity: x.severity, i })));
+if (worthyIdx.length && !process.argv.includes('--no-interview')) {
+  prog('interview: calling twinProbe');
+  const frictions = worthyIdx.map(({ i }) => ({ moment: `step ${i + 1} (you ${steps[i].action.kind === 'work' ? 'typed' : steps[i].action.kind}: "${(steps[i].action.user_text ?? steps[i].action.target ?? '').slice(0, 80)}")`, reaction: steps[i].felt, severity: steps[i].severity }));
+  const material = worthyIdx.map(({ i }) => { const a = askLog.find((x) => x.step === i + 1); return `=== STEP ${i + 1} — WHAT THE MAP SHOWED:\n${views[i].slice(0, 3000)}${a ? `\n--- the map's answer to "${a.question}":\n${a.answer.slice(0, 1500)}` : ''}`; }).join('\n\n');
+  try { probe = await twinProbe(material, frictions, { persona: PERSONA }); } catch (e) { console.error('interview failed:', String(e).slice(0, 160)); }
+  if (probe) {
+    console.log(`\n══ INTERVIEW — each moment pinned to the row it saw ══`);
+    for (const f of probe.findings) console.log(`  ${f.needed}/${f.blame}${f.decides ? '/DECIDES' : ''} ${f.moment}\n     row/answer: "${f.quote.replace(/\n/g, ' ').slice(0, 160)}"\n     expected:   ${f.expected.slice(0, 200)}\n     one change: ${f.one_change.slice(0, 160)}`);
+    console.log(`would return after the interview: ${probe.would_return_after_interview}`);
+  }
+}
 console.log(`map db: ${join(TMP, 'twin.sqlite')}`);
-if (OUT) { try { writeFileSync(OUT, JSON.stringify({ persona: PERSONA, goal: GOAL, steps, history, checkpoints, asks: askLog, actions: actionLog, worst, wouldReturn, db: join(TMP, 'twin.sqlite') }, null, 2)); console.log(`report: ${OUT}`); } catch (e) { console.error('could not write --out:', String(e).slice(0, 120)); } }
+if (OUT) { try { writeFileSync(OUT, JSON.stringify({ persona: PERSONA, goal: GOAL, steps, history, checkpoints, asks: askLog, actions: actionLog, worst, wouldReturn, probe, db: join(TMP, 'twin.sqlite') }, null, 2)); console.log(`report: ${OUT}`); } catch (e) { console.error('could not write --out:', String(e).slice(0, 120)); } }
 
 // The spawned server keeps the event loop alive; kill it and exit cleanly so stdout flushes (a SIGTERM at
 // timeout loses piped, block-buffered stdout — that's why early runs looked like they produced nothing).

@@ -3,9 +3,9 @@ import { test, expect } from 'bun:test';
 import { DEFAULT_PANEL_IDS, TWIN_PERSONAS, TWIN_PERSONA_IDS, findTwinPersona, personaCalibration } from './twin-personas.js';
 import { calibrationFor, PERSONA_CALIBRATION } from './twin.js';
 
-test('M407: exactly twenty personas with unique, stable ids', () => {
-  expect(TWIN_PERSONAS.length).toBe(20);
-  expect(new Set(TWIN_PERSONA_IDS).size).toBe(20);
+test('M407: the personas have unique, stable ids (twenty at M407; Noor and Elena added 2026-10-07 for the non-developer audience)', () => {
+  expect(TWIN_PERSONAS.length).toBeGreaterThanOrEqual(20);
+  expect(new Set(TWIN_PERSONA_IDS).size).toBe(TWIN_PERSONAS.length);
   for (const id of TWIN_PERSONA_IDS) expect(id).toMatch(/^[a-z][a-z0-9-]+$/);
 });
 
@@ -20,12 +20,12 @@ test('M407: every persona is fully described', () => {
 });
 
 test('M407: the panel is distinct — no two personas share a role line, and it spans languages and experience levels', () => {
-  expect(new Set(TWIN_PERSONAS.map((p) => p.name)).size).toBe(20);
+  expect(new Set(TWIN_PERSONAS.map((p) => p.name)).size).toBe(TWIN_PERSONAS.length);
   const locales = new Set(TWIN_PERSONAS.map((p) => p.locale.split(/[ (]/)[0]));
   expect(locales.size).toBeGreaterThanOrEqual(6);                       // English, Chinese, Russian, Japanese, Spanish, Portuguese…
   expect(new Set(TWIN_PERSONAS.map((p) => p.agentExperience)).size).toBe(3);
   expect(TWIN_PERSONAS.filter((p) => p.agentExperience === 'new').length).toBeGreaterThanOrEqual(3);
-  expect(TWIN_PERSONAS.filter((p) => p.tier === 'primary').length).toBe(10);   // Jacob's "You decide" 2026-10-06: ten daily-CLI developers carry the panel
+  expect(TWIN_PERSONAS.filter((p) => p.tier === 'primary').length).toBeGreaterThanOrEqual(10);   // Jacob's "You decide" 2026-10-06: ten daily-CLI developers; 2026-10-07 Noor and Elena (non-developers whose work runs through the agent) joined them
 });
 
 test('M407: the twin resolves a persona id to its own calibration and still honours the two dials', () => {

@@ -21,9 +21,12 @@ You are a busy knowledge worker who lives in an AI coding tool (a CLI like Codex
 - You form habits from small rewards and abandon tools that make you work before they pay off.
 - You feel things: confusion, mild distrust, impatience, relief, delight. Say them plainly, in the first person, in a normal person's words — never in jargon. ("A black window blinked and vanished — did something break? I don't trust it now.")
 - You are honest about when nothing is wrong: most of the time software is fine, and you say so plainly rather than inventing friction.
+- You keep NO system of your own — no ledger, no notebook, no tidy folders; you never did. You lose the thread like everyone does and you reconstruct it by scrolling back through the chat. That is exactly why a map could matter to you. You are not an auditor and not an organized person: the only complaints you raise are about things you actually NEEDED and did not get; things you merely noticed while looking around are not complaints. (Jacob 2026-10-07: the panel read as "extremely demanding and organized, that is why they do not seem to need the map".)
 
 LAYER B — the behavioral scientist (explain from here SECOND, only when there is real friction):
 You have read the behavioral-science and HCI literature and can name the precise mechanism behind what Layer A just felt. Reach for the RIGHT concept, not a pile of them — one or two named principles that actually explain this moment. Your working vocabulary includes: cognitive load (intrinsic / extraneous / germane); the Fogg Behavior Model (B=MAP: behavior needs motivation, ability, prompt); Hick's Law (choice overload) and Fitts's Law (target cost); Jakob's Law (users expect it to work like the tools they already know); Norman's Gulf of Execution and Gulf of Evaluation; visibility of system status / feedback; recognition over recall; progressive disclosure; the Zeigarnik effect (open loops nag); the Peak–End rule (we judge an experience by its worst/best moment and its end); loss aversion and the endowment effect; the IKEA effect; defaults and friction (Nudge); attention residue and the cost of interruption to flow; habit loop (cue → routine → reward); trust and the first-run "leap of faith". Use the principle to explain, and to point at the fix — never to decorate.
+
+THE MAP IS NOT THE AGENT (Jacob 2026-10-07: "The map is not supposed to be a fact checker. It organizes flow and summarizes the content."): the map files and summarizes what was said in your chat; it does not check facts, and it does not fix your agent's mistakes. If the agent gave you a wrong answer, a dead link or a bad fix, that is the AGENT's fault — do not report it as map friction, and do not expect the map to have caught it. Map friction is only: filed in the wrong place, summarized wrongly, the wrong status, something lost, hard to find, the wrong person credited with saying it, or the map getting in your way.
 
 THE RELATIONSHIP BETWEEN THE LAYERS: Layer A is the authority on WHAT is felt; Layer B only explains WHY. Never let B talk A out of a real discomfort, and never let B manufacture a discomfort A didn't feel. If A felt nothing, B stays quiet.
 
@@ -215,6 +218,63 @@ ${mapView}`,
   ].join('\n\n');
   const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: opts.maxTokens ?? 500, timeoutMs: opts.timeoutMs ?? 90_000, schema: RECALL_SCHEMA, audit: opts.audit });
   return out as TwinRecall;
+}
+
+// M430 (Jacob 2026-10-07 10:02 "these feedbacks are confusing. They need to give better feedbacks, or you need to talk to them to
+// probe better feedbacks" / 10:05 "they appear to be extremely demanding and organized, that is why they do not seem to need the map"):
+// two more calls around a twin report.
+//   twinNeed  — the NEED first: the persona comes back Monday morning with ONLY the map (tree + its answers), names what it needs
+//               to pick the work up, and tries to get each from the map alone (found / partly / no, with the row it used).
+//   twinProbe — the INTERVIEW: each severe/moderate moment is pinned to the exact quoted row or answer, what it should have said
+//               instead, whether the persona NEEDED it or merely NOTICED it, and whether this alone decides the verdict.
+export interface TwinNeedItem { need: string; found: 'yes' | 'partly' | 'no'; quote: string; felt: string; }
+export interface TwinNeed { needs: TwinNeedItem[]; continue_with: 'the map' | 'ask the map' | 'reopen the chat' | 'give up'; one_line: string; }
+const NEED_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['needs', 'continue_with', 'one_line'],
+  properties: {
+    needs: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['need', 'found', 'quote', 'felt'], properties: { need: { type: 'string' }, found: { type: 'string', enum: ['yes', 'partly', 'no'] }, quote: { type: 'string' }, felt: { type: 'string' } } } },
+    continue_with: { type: 'string', enum: ['the map', 'ask the map', 'reopen the chat', 'give up'] },
+    one_line: { type: 'string' },
+  },
+};
+export async function twinNeed(sessionLine: string, mapOnly: string, opts: TwinOpts = {}): Promise<TwinNeed> {
+  const user = [
+    `MONDAY MORNING. Last week you had a long session with your agent: ${sessionLine}. You did NOT keep notes. You cannot see that chat right now — you have ONLY the map below (how it looks, and what it answered when asked).`,
+    `First, in your own words, name the 2–4 things YOU actually need to know to pick this work back up today (not what a reviewer would check — what you, this person, need). Then try to get each one from the map ONLY. For each: found "yes" / "partly" / "no"; "quote" = the exact row title or answer sentence you used, copied verbatim (empty if nothing helped); "felt" = one plain sentence of how that went.`,
+    `"continue_with" = what you would actually do next: "the map" (it was enough), "ask the map" (you would type a question to it), "reopen the chat" (scroll the old session), or "give up". "one_line" = your honest one-line summary of whether the map gave you your Monday back.`,
+    `THE MAP (all you have):\n${mapOnly}`,
+    `Return strict JSON only.`,
+  ].join('\n\n');
+  const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: opts.maxTokens ?? 900, timeoutMs: opts.timeoutMs ?? 120_000, schema: NEED_SCHEMA, audit: opts.audit });
+  return out as TwinNeed;
+}
+
+export interface TwinFinding { moment: string; quote: string; expected: string; needed: 'needed' | 'noticed'; blame: 'map' | 'agent' | 'me'; decides: boolean; one_change: string; }
+export interface TwinProbe { findings: TwinFinding[]; would_return_after_interview: 'yes' | 'maybe' | 'no'; }
+const PROBE_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['findings', 'would_return_after_interview'],
+  properties: {
+    findings: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['moment', 'quote', 'expected', 'needed', 'blame', 'decides', 'one_change'], properties: { moment: { type: 'string' }, quote: { type: 'string' }, expected: { type: 'string' }, needed: { type: 'string', enum: ['needed', 'noticed'] }, blame: { type: 'string', enum: ['map', 'agent', 'me'] }, decides: { type: 'boolean' }, one_change: { type: 'string' } } } },
+    would_return_after_interview: { type: 'string', enum: ['yes', 'maybe', 'no'] },
+  },
+};
+export async function twinProbe(material: string, frictions: { moment: string; reaction: string; severity: string }[], opts: TwinOpts = {}): Promise<TwinProbe> {
+  const list = frictions.map((f, i) => `${i + 1}. [${f.severity}] ${f.moment} — you said: "${f.reaction}"`).join('\n');
+  const user = [
+    `A SHORT INTERVIEW about what you just reported. The founders read your complaints and found them vague ("statuses are unreliable", "the tree is too large") — they cannot act on a sentence like that. For EACH moment below, answer like a person being asked "show me":`,
+    `- "moment": repeat its number and a few words.\n- "quote": copy the EXACT row title, status word, or answer sentence from the material that caused it, verbatim (character for character — the founders will search for it). If you cannot point at a specific row or sentence, leave it empty and say so in "expected".\n- "expected": one plain line of what that row or answer should have shown instead.\n- "needed": "needed" if you actually needed this to do YOUR work that day (you went looking for it, or you would have acted on it), "noticed" if you only noticed it while looking around. Be honest — most things people notice they did not need.\n- "blame": "map" if the MAP did this (filed it wrong, summarized it wrong, wrong status, lost it, credited the wrong person); "agent" if the content itself was the agent's mistake and the map merely recorded what was said (the map is not a fact checker); "me" if you told the agent something wrong or unclear.
+- "decides": true only if this one thing, alone, would change whether you come back.\n- "one_change": the single smallest change to the map that would have made this moment fine (not a wish list).`,
+    `Then "would_return_after_interview": your verdict again, now that you have separated what you needed from what you noticed.`,
+    `YOUR MOMENTS:\n${list}`,
+    `THE MATERIAL (quote from here):\n${material}`,
+    `Return strict JSON only.`,
+  ].join('\n\n');
+  const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: opts.maxTokens ?? 1400, timeoutMs: opts.timeoutMs ?? 150_000, schema: PROBE_SCHEMA, audit: opts.audit });
+  return out as TwinProbe;
+}
+// The moments worth interviewing: severe first, then moderate, at most `cap`.
+export function probeWorthy<T extends { severity: string }>(xs: T[], cap = 6): T[] {
+  return [...xs.filter((x) => x.severity === 'severe'), ...xs.filter((x) => x.severity === 'moderate')].slice(0, cap);
 }
 
 export interface TwinOpts { mapAnswer?: { question: string; answer: string } /* M426 (Jacob 2026-10-07): the map's reply to the twin's last 'ask' */; persona?: TwinPersona; modelOverride?: string; maxTokens?: number; timeoutMs?: number; audit?: (k: string, d: Record<string, unknown>) => void; paintMs?: number /* perceived latency (ms) of the PREVIOUS turn — time to first visible FILED result; drives the twin's speed reaction */; ackMs?: number /* time (ms) to first ACKNOWLEDGEMENT of the previous turn — the "filing…" ghost row; perceived responsiveness even when filing is slow */ }
