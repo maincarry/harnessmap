@@ -110,14 +110,18 @@ const brainAsk = async (text: string): Promise<string> => { let last = ''; for (
 let lastPaintMs: number | undefined; // perceived latency of the previous turn (time to first visible FILED node) — fed to the next twinStep so the persona judges speed (Jacob 2026-10-04)
 let lastAckMs: number | undefined; // time to the ghost acknowledgement of the previous turn (map echoes the turn before the filer finishes) — the perceived-responsiveness signal (Jacob "ghost row")
 const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
+// M426 (Jacob 2026-10-07 05:13 "are these persona using the talking to map function at all?"): the twin may ASK the map; the answer is fed to its next step.
+let asks = 0; let lastMapAnswer: { question: string; answer: string } | undefined;
+const askLog: { step: number; question: string; answer: string }[] = [];
 
 for (let i = 0; i < STEPS; i++) {
   const s = await get('/api/state');
   const view = mapView(s);
   let step: TwinStep;
   prog(`step ${i + 1}: calling twinStep`);
-  try { step = await twinStep(GOAL, view, shortHistory(), { persona: PERSONA, paintMs: lastPaintMs, ackMs: lastAckMs }); }
+  try { step = await twinStep(GOAL, view, shortHistory(), { persona: PERSONA, paintMs: lastPaintMs, ackMs: lastAckMs, mapAnswer: lastMapAnswer }); }
   catch (e) { prog(`step ${i + 1}: twinStep FAILED ${String(e).slice(0, 120)}`); console.error(`step ${i + 1} twin call failed:`, String(e).slice(0, 200)); break; }
+  lastMapAnswer = undefined; // the answer is shown to the twin once
   prog(`step ${i + 1}: twinStep returned (${step.severity}, ${step.action.kind})`);
   steps.push(step);
   console.log(`── step ${i + 1} ──`);
@@ -125,6 +129,15 @@ for (let i = 0; i < STEPS; i++) {
   console.log(`${sev(step.severity)} [${step.severity}] felt: ${step.felt}`);
   if (step.severity !== 'none' && step.mechanism) console.log(`   why: ${step.mechanism}`);
   if (step.action.kind === 'stop') { console.log(`   → STOP: ${step.action.note ?? ''}\n`); break; }
+  if (step.action.kind === 'ask') {
+    const q = step.action.user_text ?? ''; console.log(`   → asks the map: "${q}"`);
+    prog(`step ${i + 1}: asking the map`);
+    const ans = await brainAsk(q); asks++; askLog.push({ step: i + 1, question: q, answer: ans });
+    console.log(`   map answered: ${ans.slice(0, 500)}\n`);
+    history.push(`you asked the map: ${q} → map: ${ans.slice(0, 300)}`);
+    lastMapAnswer = { question: q, answer: ans }; lastPaintMs = undefined; lastAckMs = undefined;
+    continue;
+  }
   console.log(`   → works: "${step.action.user_text ?? ''}"`);
   history.push(`you: ${step.action.user_text ?? ''}${step.action.assistant_text ? ` → agent: ${step.action.assistant_text}` : ''}`);
   // apply the turn to the live product (the map files it); measure PERCEIVED latency (time to first visible
@@ -178,13 +191,13 @@ const wouldReturn = worst === 'severe' ? 'no' : worst === 'moderate' ? 'maybe' :
 console.log(`══ FRICTION FROM THE DRIVEN SESSION ══`);
 if (!bad.length) console.log('no moderate/severe friction — the map kept up quietly.');
 for (const [i, f] of bad.entries()) console.log(`  ${i + 1}. [${f.severity}] ${f.felt}\n     why: ${f.mechanism}`);
-console.log(`\ndrove ${steps.length} step(s) · worst friction: ${worst} · would return: ${wouldReturn}`);
+console.log(`\ndrove ${steps.length} step(s) · asked the map ${asks} time(s) · worst friction: ${worst} · would return: ${wouldReturn}`);
 if (checkpoints.length) {
   const nowOk = checkpoints.filter((c) => c.nowOk).length, firstOk = checkpoints.filter((c) => c.firstOk).length, found = checkpoints.filter((c) => c.recall?.found).length, asked = checkpoints.filter((c) => c.recall).length;
   console.log(`checkpoints ${checkpoints.length}: brain RIGHT NOW right ${nowOk}/${checkpoints.length} · brain FIRST right ${firstOk}/${checkpoints.length} · twin found its earlier work at a glance ${found}/${asked}`);
 }
 console.log(`map db: ${join(TMP, 'twin.sqlite')}`);
-if (OUT) { try { writeFileSync(OUT, JSON.stringify({ persona: PERSONA, goal: GOAL, steps, history, checkpoints, worst, wouldReturn, db: join(TMP, 'twin.sqlite') }, null, 2)); console.log(`report: ${OUT}`); } catch (e) { console.error('could not write --out:', String(e).slice(0, 120)); } }
+if (OUT) { try { writeFileSync(OUT, JSON.stringify({ persona: PERSONA, goal: GOAL, steps, history, checkpoints, asks: askLog, worst, wouldReturn, db: join(TMP, 'twin.sqlite') }, null, 2)); console.log(`report: ${OUT}`); } catch (e) { console.error('could not write --out:', String(e).slice(0, 120)); } }
 
 // The spawned server keeps the event loop alive; kill it and exit cleanly so stdout flushes (a SIGTERM at
 // timeout loses piped, block-buffered stdout — that's why early runs looked like they produced nothing).

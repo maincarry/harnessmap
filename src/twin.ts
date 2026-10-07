@@ -119,9 +119,10 @@ YOU ARE USING THE PRODUCT RIGHT NOW, toward your goal, step by step. Each step y
 
 Your moves:
 - "work": the next thing you say to your CODING agent (not to the map — the map only watches). Supply user_text (what you type) and a short, plausible assistant_text (what your agent replies) — you are role-playing the whole working session.
+- "ask": you open the map's own "talk to map" box and ask it a question in plain words — "what is still open?", "where did the leakage finding go?", "what did I decide about the deck chart?", "what am I on right now?", "summarize today". Supply user_text = your question. You will see the map's answer at your next step and can react to it then. Use it the way a real user would: when you cannot find something at a glance, want a summary, or want to check the map's memory — not every turn.
 - "stop": you stop — either your goal is met, or you have lost patience / trust and would walk away. Say which in note.
 
-You do NOT type commands to the map; you just work, and glance at the map between turns. React to what the map did (or failed to do) in response to your last turn. Be a real user: if the map is quietly keeping up, that is GOOD and you say so (severity "none"); only flag what genuinely bothers you, and name the mechanism when it does.
+You do NOT command the map from your coding chat; you work, glance at the map between turns, and may ASK the map when a glance is not enough (Jacob 2026-10-07: several complaints "seem easily solvable by talk to map" — try it before you give up on finding something). React to what the map did (or failed to do) in response to your last turn. Be a real user: if the map is quietly keeping up, that is GOOD and you say so (severity "none"); only flag what genuinely bothers you, and name the mechanism when it does.
 
 SPEED IS PART OF THE EXPERIENCE (Jacob 2026-10-04: "speed is how fast the user sees the results"). When a step tells you how long the map took to show your last result, factor that into how it FELT — judge PERCEIVED speed: time until you first SAW your result appear, not background refinement you don't wait for. A near-instant update is good (and worth saying so); a visible wait before anything shows is friction — name it (attention residue / cost of interruption to flow / the Gulf of Evaluation while you wait) and let it move severity like any other friction. Do not invent a wait you weren't told about.
 
@@ -140,7 +141,7 @@ const STEP_SCHEMA = {
       additionalProperties: false,
       required: ['kind'],
       properties: {
-        kind: { type: 'string', enum: ['work', 'stop'] },
+        kind: { type: 'string', enum: ['work', 'ask', 'stop'] },
         user_text: { type: 'string' },
         assistant_text: { type: 'string' },
         note: { type: 'string' },
@@ -153,7 +154,7 @@ export interface TwinStep {
   felt: string;
   severity: 'none' | 'minor' | 'moderate' | 'severe';
   mechanism: string;
-  action: { kind: 'work' | 'stop'; user_text?: string; assistant_text?: string; note?: string };
+  action: { kind: 'work' | 'ask' | 'stop'; user_text?: string; assistant_text?: string; note?: string };
 }
 
 // One driving step: given the goal, the current map view, and what the twin has done so far, decide the next move.
@@ -167,6 +168,7 @@ export async function twinStep(goal: string, mapView: string, history: string[],
     opts.ackMs != null
       ? `RESPONSIVENESS: after your last turn, the map acknowledged it in ~${(opts.ackMs / 1000).toFixed(0)}s — your turn showed up right away as a "filing…" placeholder — and the finished, filed result appeared ~${opts.paintMs != null ? (opts.paintMs / 1000).toFixed(0) : '?'}s after you sent it.`
       : opts.paintMs != null ? `RESPONSIVENESS: after your last turn, the map took ~${(opts.paintMs / 1000).toFixed(0)}s to first show a result.` : null,
+    opts.mapAnswer ? `THE MAP ANSWERED your question "${opts.mapAnswer.question}":\n${opts.mapAnswer.answer}\n(React to this answer as this user: did it give you what you needed, and how does that change what you do next?)` : null,
     `WHAT THE MAP SHOWS RIGHT NOW:\n${mapView}`,
     `Decide your next move and how you feel (include how the speed felt, if you were told it). Return the JSON.`,
   ].filter(Boolean).join('\n\n');
@@ -199,7 +201,7 @@ ${mapView}`,
   return out as TwinRecall;
 }
 
-export interface TwinOpts { persona?: TwinPersona; modelOverride?: string; maxTokens?: number; timeoutMs?: number; audit?: (k: string, d: Record<string, unknown>) => void; paintMs?: number /* perceived latency (ms) of the PREVIOUS turn — time to first visible FILED result; drives the twin's speed reaction */; ackMs?: number /* time (ms) to first ACKNOWLEDGEMENT of the previous turn — the "filing…" ghost row; perceived responsiveness even when filing is slow */ }
+export interface TwinOpts { mapAnswer?: { question: string; answer: string } /* M426 (Jacob 2026-10-07): the map's reply to the twin's last 'ask' */; persona?: TwinPersona; modelOverride?: string; maxTokens?: number; timeoutMs?: number; audit?: (k: string, d: Record<string, unknown>) => void; paintMs?: number /* perceived latency (ms) of the PREVIOUS turn — time to first visible FILED result; drives the twin's speed reaction */; ackMs?: number /* time (ms) to first ACKNOWLEDGEMENT of the previous turn — the "filing…" ghost row; perceived responsiveness even when filing is slow */ }
 
 // Run the twin over a described session/experience and return its structured friction report.
 export async function runTwin(experience: string, opts: TwinOpts = {}): Promise<TwinReport> {

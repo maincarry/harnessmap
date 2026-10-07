@@ -9,14 +9,14 @@
 //
 // Output: one JSON report per persona in --out, plus PANEL.md with a per-persona table (severe / moderate counts,
 // would-return, verdict) and the frictions that more than one persona raised. Background it and redirect stdout.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, mkdtempSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runTwin, type TwinReport, type TwinPersona } from '../twin.js';
 import { TWIN_PERSONA_IDS, TIER_WEIGHT, findTwinPersona } from '../twin-personas.js';
 
 const argv = process.argv.slice(2);
 const flagVal = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
-const flagVals = new Set(['--flow', '--flow-file', '--personas', '--out', '--map'].map((f) => flagVal(f)).filter(Boolean));
+const flagVals = new Set(['--flow', '--flow-file', '--personas', '--out', '--map'].map((f) => flagVal(f)).filter(Boolean)); // --ask and --dry are bare flags
 
 // Same session rendering as twin-run (a scenario's turns as what the user typed and the agent answered).
 function experienceFromScenario(path: string): string {
@@ -53,6 +53,38 @@ function endMapFromSqlite(path: string): string {
   return `WHAT THE MAP SHOWED AT THE END of the session (the tree you could glance at — one line per item, nested as displayed, a status in brackets where it is not plain; ${rows.filter((r) => r.author !== 'system').length} items${shown > 260 ? ', first 260 shown' : ''}):\n${lines.join('\n')}`;
 }
 
+// M426 (Jacob 2026-10-07 05:13: "are these persona using the talking to map function at all? Some of their complaints seems to be
+// easily solvable by talk to map"): with --ask, a throwaway server is started on a COPY of the kept map and the map's own answers to
+// the questions a user would ask are shown beside the tree, so the personas judge the product with its talk-to-map, not the tree alone.
+const ASK_QUESTIONS = [
+  'What is the user working on RIGHT NOW, most recently? one line',
+  'What is still OPEN or unresolved in this session? a short list',
+  'What did the user DECIDE in this session? a short list',
+  'Summarize this session in five lines for someone coming back tomorrow.',
+];
+async function mapAnswers(path: string): Promise<string> {
+  const dir = mkdtempSync('/tmp/claude-1000/harnessmap-panel-ask-'); const db = join(dir, 'map.sqlite'); copyFileSync(path, db);
+  mkdirSync(join(dir, 'home', '.harnessmap'), { recursive: true });
+  const port = Number(process.env.PANEL_ASK_PORT ?? 8797); const base = `http://127.0.0.1:${port}`;
+  const server = Bun.spawn([...(process.platform === 'linux' ? ['setsid'] : []), 'bun', 'run', 'src/server.ts'], {
+    env: { ...process.env, ANTHROPIC_API_KEY: undefined as any, HARNESSMAP_DB: db, HARNESSMAP_HOME: join(dir, 'home', '.harnessmap'), HOME: join(dir, 'home'), PORT: String(port), HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_LATEST_OVERRIDE: '0.0.1' },
+    stdout: Bun.file(join(dir, 'server.log')), stderr: Bun.file(join(dir, 'server.log')),
+  });
+  const stop = () => { try { process.kill(-server.pid, 'SIGTERM'); } catch {} try { server.kill(); } catch {} };
+  try {
+    let up = false; for (let i = 0; i < 40; i++) { try { const r = await fetch(`${base}/api/state`); if (r.ok) { up = true; break; } } catch {} await new Promise((r) => setTimeout(r, 500)); }
+    if (!up) return 'WHAT THE MAP ANSWERED: (the map could not be started for questions)';
+    const lines: string[] = [];
+    for (const q of ASK_QUESTIONS) {
+      let said = '(no answer)';
+      for (let attempt = 0; attempt < 2 && said === '(no answer)'; attempt++) { try { const r = await fetch(`${base}/api/map-status/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: q }) }); const b: any = await r.json(); const t = String(b?.reply ?? b?.text ?? b?.answer ?? '').trim(); if (t) said = t; } catch {} }
+      lines.push(`Q: ${q}\nA: ${said}`);
+      console.error(`[twin-panel] asked the map: ${q.slice(0, 50)} → ${said.slice(0, 80).replace(/\n/g, ' ')}`);
+    }
+    return `WHAT THE MAP ANSWERED when asked, in its own "talk to map" box (you could ask it anything in plain words; these are the questions a user typically asks at the end of a day):\n${lines.join('\n\n')}`;
+  } finally { stop(); }
+}
+
 const flow = flagVal('--flow');
 const flowFile = flagVal('--flow-file');
 const scenarioPath = argv.find((a) => !a.startsWith('--') && !flagVals.has(a));
@@ -63,6 +95,7 @@ else if (scenarioPath) { experience = experienceFromScenario(scenarioPath); labe
 else { console.error('usage: twin-panel.ts (--flow "..." | --flow-file <path> | <scenario.json>) [--map <kept e2e.sqlite of the same scenario>] [--personas all|id,id,…] [--out <dir>] [--dry]'); process.exit(2); }
 const mapPath = flagVal('--map');
 if (mapPath) { experience += `\n\n${endMapFromSqlite(mapPath)}`; label += ` + end map ${mapPath}`; }
+if (mapPath && argv.includes('--ask')) { experience += `\n\n${await mapAnswers(mapPath)}`; label += ' + talk-to-map answers'; }
 if (argv.includes('--dry')) { console.log(experience); process.exit(0); }
 
 const want = (flagVal('--personas') ?? 'all').trim();
