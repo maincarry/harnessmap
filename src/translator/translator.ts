@@ -570,7 +570,7 @@ export class Translator {
           .replace(/^围绕(?:着)?(?=[^，,。；]{2,30}[，,])/u, '') // M412d (leftjoin-zh, container-baseline-zh, nacos-yaml-zh roots): "围绕 SQL 问题，重点理解 LEFT JOIN…" → "SQL 问题，重点理解 LEFT JOIN…" — only the LEAD form with a comma clause; "X围绕A、B展开" (the summary flavour, B2) is untouched
           .replace(/(^|[。；？！;，,：:]\s*)(?:回答|回复)(?:中|里)?(?:还|也|则|亦)?(?:提到|指出|声称|认为|称|说明|表示)[，,：:]?\s*/g, '$1') // M409 (go-html-png-zh #382; content sweep 7 statements / 5 maps / 0 FP): bare ROUND-TALK without the 本轮 lead — "除 os/exec 外，回答还提到 gorun、sh 和 ishell" / "回答指出，省略第一个参数时…" / "回答中提到可使用 BACKUP LOG" — the reporting verb goes, the fact stays
           .replace(/(^|[。；？！;，,：:]\s*)(?:回答|回复)(?:中|里)?(?=(?:还|也|则|亦)?(?:建议|给出|推荐|列出))/g, '$1') // M409b: before 建议/给出/推荐/列出 only the subject goes ("回答建议针对每次重定向…" → "建议针对每次重定向…")
-          .replace(/(^|[。；？！;]\s*)(?:本轮|这一轮|此轮|上一轮)(?:的)?(?:回答|回复)?(?:认为|指出|提到|给出的|提供了|提供的|中)?[，,：:]?\s*/g, '$1') // M402 (excel-name-drift-zh #359 + content sweep 4 maps / 0 FP): ROUND-TALK inside a statement — "本轮回答认为，B 的提交…", "本轮提供了…方案", "本轮给出的“…”被指出有误" — the lead goes, the fact stays
+          .replace(/(^|[。；？！;]\s*)(?:本轮|这一轮|此轮|上一轮)(?:的)?(?:回答|回复)?(?:认为|指出|提到|称|声称|说明|表示|说|给出的|提供了|提供的|中)?[，,：:]?\s*/g, '$1') // M421f (LONG #403: "本轮回答称，同一台机器…" left "称，…"): 称/声称/说明/表示/说 join the verbs. M402 (excel-name-drift-zh #359 + content sweep 4 maps / 0 FP): ROUND-TALK inside a statement — "本轮回答认为，B 的提交…", "本轮提供了…方案", "本轮给出的“…”被指出有误" — the lead goes, the fact stays
           .replace(/^(?:This|The|That) (?:broader )?(?:topic|area|branch|node|subtree|section) (?:contains|covers|includes|is about|groups|holds|is)\s+/i, '') // M403 (hash-table #362 + content sweep 8 maps / 0 FP): TOPIC-TALK at the start of a statement — "This topic covers reference formatting…", "This branch covers debugging…", "The broader topic is analysis of…" — the lead goes, the subject stays (finishNarrationTrim sentence-cases it)
           .replace(/(^|[，,。；])\s*当前聚焦于\s*/g, '$1') // M403b
           .replace(/^(?:The|This) (.{3,80}?) (?:is|are) being (reviewed|debugged|analy[sz]ed|investigated|examined|discussed)(?: (?:for|against|to|with|on))?\s*/i, (_m: string, subj: string, verb: string) => `${({ reviewed: 'Review', debugged: 'Debugging', analysed: 'Analysis', analyzed: 'Analysis', investigated: 'Investigation', examined: 'Examination', discussed: 'Discussion' } as Record<string, string>)[verb.toLowerCase()] ?? 'Review'} of the ${subj} `) // M405 (cpp-contest #365, transformer-review; content sweep 2 roots / 0 FP): PROGRESS narration — "The submitted C++17 code is being reviewed for compilation…" → "Review of the submitted C++17 code compilation…" (a subject, not a status report) (tk-centred-zh #353): "…主题，当前聚焦于按钮输出…" — the "currently focusing on" lead goes
@@ -596,7 +596,7 @@ export class Translator {
           if (oldW.size >= 2 && newW.size >= 2 && shared === 0) { // "Chapter 2: results" has two content words
             const child: any = { op: 'create_node', id: randomUUID(), parentId: cur.id, content: anyA.content, status: anyA.status ?? 'live', author: anyA.author ?? 'agent', ...(anyA.type ? { type: anyA.type } : {}), ...(anyA.title ? { title: anyA.title } : {}) };
             this.store.audit('guard_rewrite_to_child', { id: String(anyA.id).slice(0, 8), from: cur.content.slice(0, 60), to: anyA.content.slice(0, 60) });
-            out.push(child); continue;
+            alterations.push(child); continue; // M421a (LONG #403 "Disc colors decided?"): the child joins the batch and walks the REST of the chain (M419 and the other title guards never saw it when it went straight to out)
           }
         }
       }
@@ -628,6 +628,13 @@ export class Translator {
         const cleaned = anyA.content.replace(/\s*[（(]\s*arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*/gi, ' ').replace(/\s{2,}/g, ' ').trim();
         this.store.audit('guard_prov_note_leak', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.content.slice(-60) });
         anyA.content = cleaned;
+      }
+      // M421d (LONG #403 "Winning positions": "Tic-tac-toe positions 2, 5, and 8, arriving while focus was: Improve the React render function by…"):
+      // the same note paraphrased WITHOUT parens runs to the end of the statement. "while focus was" is the harness's phrase, never a person's;
+      // from the joining comma (or the participle) to the end goes.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string' && /\barriv(?:ed|ing)\s+while\s+(?:the\s+)?focus\s+was\s*[:：]/i.test(anyA.content)) {
+        const cleaned = anyA.content.replace(/[,，;；]?\s*(?:[（(]\s*)?(?:it\s+|this\s+|which\s+|and\s+)?arriv(?:ed|ing)\s+while\s+(?:the\s+)?focus\s+was\s*[:：][\s\S]*$/i, '').trim();
+        if (cleaned.length >= 6) { this.store.audit('guard_prov_note_leak', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.content.slice(-60), form: 'bare' }); anyA.content = cleaned; }
       }
       // M311 (loop find, guard under M278/M77): a NEW node the filer parked in "to sort" without the provenance note and without
       // a dim branch it could belong to is a misfiled topic ("Chongqing attractions" went to to sort while the only dim branch was
@@ -773,6 +780,13 @@ export class Translator {
       // the person's words, nor the rest of the title is an invented tail: up to two such words go, and the "?" with them. Sweep of 135 kept
       // maps before shipping: 8 titles, 0 false positives, 1 bad residue ("…tasks only if changed?") — a residue that would end in a function
       // word leaves the title untouched.
+      // M421c (LONG #403: "Add Unity WebGL HTML||||?" — a top-level root, listed verbatim by the brain): a run of two or more bars, slashes,
+      // hashes or tildes glued to a title's end is a decoding slip, not a name (sweep of 20 kept maps: this one title, none legitimate). The run
+      // goes, and a "?" that followed nothing but the run goes with it.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[|｜\\\/#*~]{2,}\s*\??\s*$/.test(anyA.title)) {
+        const to = anyA.title.replace(/\s*[|｜\\\/#*~]{2,}\s*\??\s*$/, '').trim();
+        if (to.length >= 2) { this.store.audit('guard_title_punct_run', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-20) }); anyA.title = to; }
+      }
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\?\s*$/.test(anyA.title)) {
         const QOK = new Set('why how now yet who what when where which next more done ok yes no then too also else here this that them one two it is or and not out off up on in to do go so as at by if of be an am are was can did has had get got set run use try end new old all any via per etc api app ui db id io os js ts css sql url uri dom jvm jni sdk cli gui exe pdf csv xml json npm git ssh tcp udp ip dns aws gcp mac win pc ide cpu gpu ram rom led usb vm vpn vba vbs php cs py ios ai ml nlp ocr rgb hex png jpg gif svg mp3 mp4 wav pcm fft pid mcu rtc gps nfc ble sim esp stm work works working fix fixed bug bugs error errors test tests file files code data list mode rule rules step steps link links page pages name names type types value values size time times user users again first last same other right wrong ready safe valid null empty default'.split(' '));
         const FUNC = /^(?:if|of|for|to|and|or|with|in|on|by|the|a|an|at|from|only|is|are|was|be|not|no|as|into|than|then|that|this|it|its|but|so|nor|yet|while|when|because)$/i;
@@ -781,7 +795,7 @@ export class Translator {
         let words = anyA.title.trim().replace(/\?+\s*$/, '').trim().split(/\s+/); let dropped = 0;
         while (dropped < 2 && words.length >= 3) {
           const w = words[words.length - 1]; const x = w.toLowerCase();
-          if (!/^[a-z]{2,10}$/.test(x) || QOK.has(x)) break;
+          if (!/^[a-z]{2,12}$/.test(x) || QOK.has(x)) break; // M421b (LONG #403 "Improve documentReady code uncertainty?"): 11-letter invented tails exist; the cap is 12
           if (dropped === 1 && x.length < 7) break; // a second word goes only when it is long and invented-looking ("noteaming"), not a real word the statement happens not to repeat ("layout")
           const rx = new RegExp(`\\b${x}\\b`); if (rx.test(hay) || rx.test(words.slice(0, -1).join(' ').toLowerCase())) break;
           words = words.slice(0, -1); dropped++;

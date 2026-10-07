@@ -42,3 +42,9 @@ test('an ASCII one goes too, and a statement without one is untouched (M399)', (
   expect(r.content).toBe('Use ssh-keygen to create a key pair.');
   expect(r.leaks).toBe(0);
 });
+
+test('M421d (LONG #403): the note paraphrased without parens, ", arriving while focus was: …" to the end, goes', () => {
+  const r = harness()('Tic-tac-toe positions 2, 5, and 8, arriving while focus was: Improve the React render function by typing the component as React.ReactNode, accepting HTMLElement | null in createRootEntry.');
+  expect(r.content).toBe('Tic-tac-toe positions 2, 5, and 8'); expect(r.leaks).toBe(1);
+  expect(harness()('The fix arrived while the focus was elsewhere on the team board.').content).toBe('The fix arrived while the focus was elsewhere on the team board.'); // a person's own sentence: no colon, no note — untouched
+});

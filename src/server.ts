@@ -1528,6 +1528,17 @@ async function healTitles(cap = 5, pid = projectId): Promise<{ renamed: number; 
   healBusy = true;
   let renamed = 0;
   try {
+    // M421e (TWIN LONG #401 Priya: two nodes the filer moved out of "to sort" with its own move_node kept "(arrived while focus was: Refit
+    // logistic baseline)"; the six path-specific cleanups never saw that path): the note belongs to "to sort" only — a node living anywhere
+    // else that still carries one is cleaned by this sweep, whatever moved it.
+    const PROV_TAIL = /\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/;
+    const toSortIds = new Set(store.getNodes(pid).filter((n) => n.parentId === null && n.status !== 'removed' && n.content.startsWith('to sort')).map((n) => n.id));
+    for (const n of store.getNodes(pid)) {
+      if (n.status === 'removed' || !n.parentId || toSortIds.has(n.parentId) || !PROV_TAIL.test(n.content)) continue;
+      const cleaned = n.content.replace(PROV_TAIL, '').trim(); if (cleaned.length < 4) continue;
+      store.applyAlterations(pid, [{ op: 'update_node', id: n.id, content: cleaned } as any], { kind: 'system' });
+      store.audit('prov_note_healed', { id: n.id.slice(0, 8), parent: n.parentId.slice(0, 8) });
+    }
     const broken = brokenTitles(pid).slice(0, cap);
     for (const n of broken) {
       const title = await shortTitleFor(n.id);
