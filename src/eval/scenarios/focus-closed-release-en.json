@@ -1,0 +1,25 @@
+{
+  "name": "M436 proof (TWIN #420 Hannah): the ▶ leaves a DONE thread the moment the person opens a new one — a closed focus does not veto the newborn; the next turn stays there",
+  "seed": [{ "key": "stripe", "content": "Stripe webhook debugging — idempotency keyed on the event id, processed-event table, concurrency test passing", "status": "done" }],
+  "focus": "stripe",
+  "auto": { "on": true },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "Now the Studio profile form. Build the settings form for studio name, bio and contact email with validation, and save it through the profile endpoint.",
+      "assistant": "Here is the Studio profile form: a settings form with fields for studio name, bio and contact email, validation on each field (required name, email format, bio under 500 characters), and onSubmit posting to the profile endpoint with the saved values reflected back. Tests cover validation and the save path.",
+      "then": [
+        { "nodeMatching": "studio profile|profile form" },
+        { "focusMatching": "studio profile|profile form" }
+      ]
+    },
+    {
+      "user": "Add optimistic updates so the form shows the saved values immediately and rolls back if the save fails.",
+      "assistant": "Added optimistic updates: the form state updates on submit, the request runs in the background, and a failed save rolls the fields back to their last persisted values with an inline error. Tests added for both paths.",
+      "then": [
+        { "focusMatching": "studio profile|profile form|optimistic" },
+        { "nodeMatching": "optimistic", "under": "studio profile|profile form" }
+      ]
+    }
+  ]
+}

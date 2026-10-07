@@ -5,7 +5,7 @@
 //   env -u ANTHROPIC_API_KEY -u HARNESSMAP_INFERENCE bun run src/eval/e2e-run.ts src/eval/scenarios/<name>.json [--keep]
 // Scenario shape: { name, seed: [{key, content, parent?}], focus?: key, dim?: [key], lit?: [key], auto?: {...},
 //   rounds: [{ user, assistant, session?, then: [assertion] }] } — assertions:
-//   {focusUnder: key} · {focusIs: key} · {nodeMatching: regex, under?: key, notUnder?: key} · {noNodeMatching: regex}
+//   {focusUnder: key} · {focusIs: key} · {focusMatching: regex} · {nodeMatching: regex, under?: key, notUnder?: key} · {noNodeMatching: regex}
 //   · {inToSort: regex} · {notInToSort: regex} · {lit: key} · {dark: key} · {audit: kind, matching?: regex}
 //   · {noAudit: kind} · {statusOf: regex, is: status} · {countUnder: key, max: n} · {topLevelMatching: regex}
 //   stance (M356+): {notStatus: regex, statuses: 'a|b'} · {underKey: regex, key} · {mentions: regex, must: regex} · {atMostTitles: regex, max} · {brainMust: regex} · {brainMustNot: regex}
@@ -240,6 +240,7 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       const f = chatOf(s).focusContainerId; const ts = toSortOf(s);
       if (a.focusUnder) check(label, f === keys[a.focusUnder] || under(s, f, keys[a.focusUnder]), `focus=${nameOf(s, f)}`);
       else if (a.focusIs) check(label, f === keys[a.focusIs], `focus=${nameOf(s, f)}`);
+      else if (a.focusMatching) { const fn = (s.nodes ?? []).find((n: any) => n.id === f); check(label, !!fn && match(s, fn, a.focusMatching), `focus=${nameOf(s, f)}`); } // M436: the focus by title/content regex (a newborn has no seed key)
       else if (a.nodeMatching) { const hits = (s.nodes ?? []).filter((n: any) => match(s, n, a.nodeMatching)); const idsOf = (x: string): string[] => keys[x] ? [keys[x]] : (s.nodes ?? []).filter((m: any) => m.status !== 'removed' && match(s, m, x)).map((m: any) => m.id); const anyUnder = (id: string, x: string) => idsOf(x).some((p) => under(s, id, p)); const ok = hits.some((n: any) => (!a.under || anyUnder(n.id, a.under)) && (!a.notUnder || !anyUnder(n.id, a.notUnder))); check(label, ok, hits.length ? `found under: ${hits.map((n: any) => nameOf(s, n.parentId)).join(' | ')}` : 'no node matched'); }
       else if (a.noNodeMatching) check(label, !(s.nodes ?? []).some((n: any) => match(s, n, a.noNodeMatching)));
       // M356+: stance checks (Jacob 2026-09-20: keyword checks are a smoke floor; judge what the map DID)

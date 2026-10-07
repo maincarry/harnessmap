@@ -1170,7 +1170,15 @@ function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit:
   // M285 (loop find, the home-internet replay): a passing question ("will it rain?") became the focus because its node
   // was born this round and now lands at the top level instead of "to sort". A node born THIS round is never the aim's
   // focus unless the person's words asked — a real pivot lands on something that existed, or is asked for.
-  if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && opts.bornNow?.has(r.focus)) {
+  // M436 (TWIN #412 and #420 — Hannah: the ▶ stayed on a DONE or ACCEPTED thread for a whole turn after she pivoted to a new one,
+  // three times in #420, and she set it by hand each time; OPEN-QUESTIONS #2b): a closed focus is not "where I am" — when the current
+  // focus container is done/accepted/resolved/dropped/superseded/parked, the newborn veto below does not apply and the aim's newborn
+  // (the thread she just opened) takes the ▶ at once. A live focus keeps the veto: a passing question still never steals the marker.
+  const CLOSED_FOCUS = /^(done|accepted|resolved|dropped|superseded|parked|rejected)$/;
+  const prevFocusNode0 = (() => { try { const c0 = store.getChat(chatId); return c0?.focusContainerId ? store.getNode(c0.focusContainerId) : null; } catch { return null; } })();
+  const prevClosed = !!prevFocusNode0 && CLOSED_FOCUS.test(String(prevFocusNode0.status ?? ''));
+  if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && opts.bornNow?.has(r.focus) && prevClosed) store.audit('guard_focus_newborn', { id: r.focus.slice(0, 8), released: 'closed focus', from: String(prevFocusNode0!.id).slice(0, 8), was: prevFocusNode0!.status });
+  if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && opts.bornNow?.has(r.focus) && !prevClosed) {
     // M316 (loop find, after M315): the newborn's HOME existed before this round — a pivot into "chapter 2" that landed as a fact
     // under it is still a pivot into chapter 2. The aim settles on the parent (never a root, never "to sort", never born now).
     const nb = store.getNode(r.focus); const home = nb?.parentId ? store.getNode(nb.parentId) : null; const pid0 = store.getChat(chatId)!.projectId;
