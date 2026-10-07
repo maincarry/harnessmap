@@ -22,15 +22,18 @@ export function loadMap(store: Store, projectId: string): MapView {
 }
 
 // One node, one line: "[glyph] [type: ]content (status)".
-export function nodeLine(n: MapNode, opts: { ids?: boolean } = {}): string {
+export function nodeLine(n: MapNode, opts: { ids?: boolean; who?: boolean } = {}): string {
   const g = GLYPH[n.status] ?? (n.type ? '·' : '');
   const idTag = opts.ids ? ` [${n.id.slice(0, 8)}]` : '';
   const typeTag = n.type ? `${n.type}: ` : '';
   const statusTag = n.type || !['live', 'provisional'].includes(n.status) ? ` (${n.status})` : '';
-  return `${g ? `${g} ` : ''}${typeTag}${n.content}${idTag}${statusTag}`.trim();
+  // M429 (Jacob 2026-10-07: "we need to decide what the agent suggested and what the user himself decided… this is a bug"): the brain's
+  // roster never said WHO a node came from, so an agent proposal read as the user's decision. who: tags every line [you] / [agent].
+  const whoTag = opts.who ? (n.author === 'user' ? '[you] ' : n.author === 'agent' ? '[agent] ' : n.author === 'system' ? '[map] ' : `[${n.author}] `) : '';
+  return `${g ? `${g} ` : ''}${whoTag}${typeTag}${n.content}${idTag}${statusTag}`.trim();
 }
 
-export function renderTree(map: MapView, opts: { focusId?: string; ids?: boolean } = {}): string {
+export function renderTree(map: MapView, opts: { focusId?: string; ids?: boolean; who?: boolean } = {}): string {
   const children = new Map<string | null, MapNode[]>();
   for (const n of map.nodes) {
     if (!children.has(n.parentId)) children.set(n.parentId, []);

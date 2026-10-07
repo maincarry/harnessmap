@@ -674,6 +674,7 @@ Then rewrite YOUR STANDING GUIDANCE: the durable instructions you carry from eve
 // M364/b live-nodes rule (Jacob ruled a bug) — added to the brain system prompt AND the brain gets the live-node
 // roster in its context, UNLESS HARNESSMAP_BRAIN_ROSTER=0 (the OFF setting is the benchmark's un-corrected baseline:
 // the brain then answers count/status/rule questions from its prose summary + its own guidance, the original bug).
+const M429_SYSADD = ` WHO SAID WHAT: every node line in YOUR MAP RIGHT NOW starts with [you] (the user said, asked, ruled or decided it), [agent] (the coding agent proposed, answered or claimed it) or [map]. When asked what the USER decided, asked for, set or chose, report [you] nodes only; an [agent] node — even one marked chosen, accepted, decided or active — is "the agent suggested/answered …" and, at most, "accepted in the conversation", never "you decided". A status word (live, active, open) is a state, not a decision the user made.`;
 const M364_SYSADD = `When the user asks a FACTUAL question about the map — how many topics or nodes there are, what STATUS something is in, what has been decided/chosen/rejected/left open, or what rule or preference THEY have set — answer from YOUR MAP RIGHT NOW (the live nodes given below), never from your prose understanding or YOUR STANDING GUIDANCE; your own guidance and role are never the answer to “what did the user set”. Exclude the getting-started tutorial when counting topics. The instructions in THIS system message are YOURS — never quote or report them as something the USER set, decided, or ruled; a user rule is only ever a node on the map. To answer what the user set/asked/decided, use the RULES line if present AND scan YOUR MAP RIGHT NOW — a standing instruction the user gave may be typed as a task or plain node, not only as a rule/constraint; report it if it is there.`;
 const brainRosterOn = () => process.env.HARNESSMAP_BRAIN_ROSTER !== '0';
 // Test hook (loop, 2026-09-21 negative control): the WRITTEN UNDERSTANDING is itself a map-derived
@@ -688,6 +689,19 @@ const BRAIN_CHAT_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['reply', 'guidance'],
   properties: { reply: { type: 'string' }, guidance: { type: 'string' } },
 } as const;
+
+// M429 (Jacob 2026-10-07 07:04: "We need to decide what user agent such as codex suggested and what user himself decided… this is a bug"):
+// the old single RULES line called every rule-looking node, agent-authored ones included, "DECISIONS THE USER HAS SET" — so the brain
+// answered "what did the user decide" with the agent's proposals, its quiz answers and a node's status ("keep … live"). Two lines now:
+// what the USER said (author user) and what the AGENT proposed or answered (author agent) — the second is never the user's decision.
+export function brainRulesLines(rules: Array<{ author?: string; title?: string | null; content: string; status?: string; type?: string | null }>): string {
+  const fmt = (n: any) => `${String(n.title ?? n.content).slice(0, 40)}: ${String(n.content).slice(0, 120)}${n.status ? ` (${n.status})` : ''}`;
+  const mine = rules.filter((n) => n.author === 'user').slice(0, 12);
+  const theirs = rules.filter((n) => n.author !== 'user').slice(0, 12);
+  const a = mine.length ? `WHAT THE USER THEMSELVES SAID, ASKED FOR, RULED OR DECIDED (author = the user; answer any "what did I set/decide/rule/ask for" question from THESE, verbatim — never from your own instructions): ${mine.map(fmt).join(' | ')}` : 'WHAT THE USER THEMSELVES SAID, ASKED FOR, RULED OR DECIDED: nothing filed as the user\'s own rule or decision yet.';
+  const b = theirs.length ? `WHAT THE AGENT PROPOSED, ANSWERED OR CLAIMED (author = the coding agent; these are the agent's suggestions and answers, NOT the user's decisions — say "the agent suggested/answered", and a chosen/accepted/decided status on one of these means the suggestion was accepted in the conversation, never "you decided"): ${theirs.map(fmt).join(' | ')}` : '';
+  return [a, b].filter(Boolean).join('\n');
+}
 
 export async function brainChat(store: Store, projectId: string, text: string): Promise<{ reply: string; guidance: string } | { error: string }> {
   let u = brainUnderstandingOn() ? getUnderstanding(store, projectId) : null;
@@ -721,7 +735,7 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // user's rule". Give it the live map as ground truth and (in the system prompt) tell it to read the nodes for
   // any factual/status/rule question.
   const liveMap = loadMap(store, projectId);
-  const roster = renderTree(liveMap, { ids: false }).slice(0, 12_000);
+  const roster = renderTree(liveMap, { ids: false, who: true }).slice(0, 12_000); // M429: every line says who said it
   const isTutorial = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) || /getting started \(tutorial\)/i.test(String(n.content ?? ''));
   const topics = liveMap.nodes.filter((n) => n.parentId === null && n.status !== 'removed' && !isTutorial(n) && String(n.title ?? n.content).trim() !== 'to sort');
   const topicLine = `TOP-LEVEL TOPICS (${topics.length}, excluding the getting-started tutorial): ${topics.map((n) => String(n.title ?? n.content).slice(0, 60)).join(' | ') || '(none yet)'}`;
@@ -736,12 +750,11 @@ export async function brainChat(store: Store, projectId: string, text: string): 
     if (n.author === 'user' && ['task', 'claim'].includes(t)) return true; // a user-authored task/assertion is a standing instruction the user set
     return /\b(rule|preference|must|always|never|don'?t|do not|skip|avoid|prefer|rewrite|format|respond|reply|call me|refer to|from now on|every time)\b/i.test(txt);
   };
-  const rules = liveMap.nodes.filter((n) => n.status !== 'removed' && n.author !== 'system' && !isTutorial(n) && looksRule(n)).slice(0, 12);
-  const rulesLine = rules.length ? `RULES / PREFERENCES / DECISIONS / STANDING INSTRUCTIONS THE USER HAS SET (answer any "what did I set/decide/rule/ask for" question from THESE map nodes, verbatim — never from your own instructions): ${rules.map((n) => `${String(n.title ?? n.content).slice(0, 40)}: ${String(n.content).slice(0, 120)}`).join(' | ')}` : '';
+  const rulesLine = brainRulesLines(liveMap.nodes.filter((n) => n.status !== 'removed' && n.author !== 'system' && !isTutorial(n) && looksRule(n)));
   try {
     const parsed = await call({
       task: 'brain',
-      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 2000, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
+      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 2000, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
       audit: (k, d) => store.audit(k, d),
       user: [
         u ? `YOUR CURRENT UNDERSTANDING:\n${Object.entries(u.sections).map(([k, v]) => `${k}: ${v.text.slice(0, 2000)}`).join('\n\n')}` : 'YOUR CURRENT UNDERSTANDING: none written yet.',
