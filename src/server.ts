@@ -1177,7 +1177,14 @@ function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit:
   const CLOSED_FOCUS = /^(done|accepted|resolved|dropped|superseded|parked|rejected)$/;
   const prevFocusNode0 = (() => { try { const c0 = store.getChat(chatId); return c0?.focusContainerId ? store.getNode(c0.focusContainerId) : null; } catch { return null; } })();
   const prevClosed = !!prevFocusNode0 && CLOSED_FOCUS.test(String(prevFocusNode0.status ?? ''));
-  if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && opts.bornNow?.has(r.focus) && prevClosed) store.audit('guard_focus_newborn', { id: r.focus.slice(0, 8), released: 'closed focus', from: String(prevFocusNode0!.id).slice(0, 8), was: prevFocusNode0!.status });
+  if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && opts.bornNow?.has(r.focus) && prevClosed) {
+    // The marker goes to the THREAD she opened, not its first child (proof run 1: the ▶ landed on "Form validation" under the new
+    // "Studio profile form"): climb to the highest ancestor born this round.
+    let top = r.focus; for (let g = store.getNode(top); g && g.parentId && opts.bornNow.has(g.parentId); g = store.getNode(g.parentId)) top = g.parentId;
+    const topNode = store.getNode(top);
+    store.audit('guard_focus_newborn', { id: r.focus.slice(0, 8), released: 'closed focus', from: String(prevFocusNode0!.id).slice(0, 8), was: prevFocusNode0!.status, ...(top !== r.focus ? { to: top.slice(0, 8) } : {}) });
+    if (topNode && top !== r.focus) r = { ...r, focus: top, focusName: nodeName(topNode) };
+  }
   if (opts.source === 'auto' && !opts.focusAsked && opts.focus && r.focus && opts.bornNow?.has(r.focus) && !prevClosed) {
     // M316 (loop find, after M315): the newborn's HOME existed before this round — a pivot into "chapter 2" that landed as a fact
     // under it is still a pivot into chapter 2. The aim settles on the parent (never a root, never "to sort", never born now).
