@@ -55,7 +55,18 @@ prog('server up');
 if (!argv.includes('--manual')) { try { const r = await post('/api/auto', { on: true }); prog(`auto mode on (${r.status})`); } catch (e) { prog(`auto mode FAILED ${String(e).slice(0, 80)}`); } }
 
 // Render the map as a real user would see it at a glance: an indented outline, the focus, and the bottom strip.
-function mapView(s: any): string {
+const nameOf = (n: any) => String(n?.title || n?.content || '').replace(/\s+/g, ' ').slice(0, 60);
+// M427: a row the twin opened by hand stays open (the client's fold state); the twin names rows by their shown words.
+function resolveNode(s: any, words: string): any | null {
+  const live = ((s.nodes ?? []) as any[]).filter((n) => n.status !== 'removed' && n.author !== 'system');
+  const tok = (t: string) => new Set(t.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter((w) => w.length > 1));
+  const q = tok(words); if (!q.size) return null;
+  const exact = live.find((n) => nameOf(n).toLowerCase() === words.trim().toLowerCase()); if (exact) return exact;
+  let best: any = null, bestScore = 0;
+  for (const n of live) { const w = tok(nameOf(n)); let sc = 0; for (const x of q) if (w.has(x)) sc++; if (sc > bestScore || (sc === bestScore && best && nameOf(n).length < nameOf(best).length)) { best = n; bestScore = sc; } }
+  return bestScore >= Math.min(2, q.size) ? best : null;
+}
+function mapView(s: any, expanded: Set<string> = new Set()): string {
   const nodes: any[] = s.nodes ?? [];
   const chat = (s.chats ?? []).find((c: any) => c.id === s.mainChatId) ?? {};
   const focusId = chat.focusContainerId ?? null;
@@ -76,7 +87,7 @@ function mapView(s: any): string {
       const mark = n.id === focusId ? '▶ ' : '';
       const st = n.status && !['live'].includes(n.status) ? ` (${n.status})` : '';
       const ks = kids(n.id);
-      const folded = ks.length > 0 && !focusPath.has(n.id); // collapsed unless on the focus path
+      const folded = ks.length > 0 && !focusPath.has(n.id) && !expanded.has(n.id); // collapsed unless on the focus path or opened by the twin (M427)
       lines.push(`${'  '.repeat(depth)}- ${mark}${nm(n)}${st}${folded ? ` ▸ (${subtreeCount(n.id)} inside)` : ''}`);
       if (ks.length && !folded && depth < 6) walk(n.id, depth + 1);
     }
@@ -113,10 +124,14 @@ const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe:
 // M426 (Jacob 2026-10-07 05:13 "are these persona using the talking to map function at all?"): the twin may ASK the map; the answer is fed to its next step.
 let asks = 0; let lastMapAnswer: { question: string; answer: string } | undefined;
 const askLog: { step: number; question: string; answer: string }[] = [];
+// M427 (Jacob 2026-10-07 05:55 "let them use the product as real people would"): the twin may use the map's controls; every use is logged with its reason.
+const expanded = new Set<string>(); let actions = 0;
+const actionLog: { step: number; kind: string; target?: string; to?: string; new_title?: string; note?: string; result: string }[] = [];
+const PRODUCT = new Set(['open', 'close', 'rename', 'move', 'remove', 'done', 'todo', 'focus', 'star', 'undo', 'auto']);
 
 for (let i = 0; i < STEPS; i++) {
   const s = await get('/api/state');
-  const view = mapView(s);
+  const view = mapView(s, expanded);
   let step: TwinStep;
   prog(`step ${i + 1}: calling twinStep`);
   try { step = await twinStep(GOAL, view, shortHistory(), { persona: PERSONA, paintMs: lastPaintMs, ackMs: lastAckMs, mapAnswer: lastMapAnswer }); }
@@ -135,7 +150,34 @@ for (let i = 0; i < STEPS; i++) {
     const ans = await brainAsk(q); asks++; askLog.push({ step: i + 1, question: q, answer: ans });
     console.log(`   map answered: ${ans.slice(0, 500)}\n`);
     history.push(`you asked the map: ${q} → map: ${ans.slice(0, 300)}`);
-    lastMapAnswer = { question: q, answer: ans }; lastPaintMs = undefined; lastAckMs = undefined;
+    lastMapAnswer = { question: `your question "${q}"`, answer: ans }; lastPaintMs = undefined; lastAckMs = undefined;
+    continue;
+  }
+  if (PRODUCT.has(step.action.kind)) {
+    const k = step.action.kind; const a = step.action; const chatId = s.mainChatId;
+    const tgt = a.target ? resolveNode(s, a.target) : null;
+    const okOf = (r: any) => r && r.status >= 200 && r.status < 300;
+    let result = '';
+    try {
+      if (k !== 'undo' && k !== 'auto' && !tgt) result = `there is no row called "${a.target ?? ''}" on the map`;
+      else if (k === 'open') { expanded.add(tgt.id); result = `"${nameOf(tgt)}" is open; what is inside shows below it`; }
+      else if (k === 'close') { expanded.delete(tgt.id); result = `"${nameOf(tgt)}" is folded again`; }
+      else if (k === 'rename') { const r = await post(`/api/nodes/${tgt.id}`, { title: a.new_title ?? '', chatId }); result = okOf(r) ? `renamed to "${a.new_title ?? ''}"` : `rename failed: ${JSON.stringify(r.body).slice(0, 120)}`; }
+      else if (k === 'move') { const top = !a.to || /^top$/i.test(a.to); const dest = top ? null : resolveNode(s, a.to!); if (!top && !dest) result = `there is no row called "${a.to}"`; else { const r = await post(`/api/nodes/${tgt.id}/move`, { parentId: dest ? dest.id : null }); result = okOf(r) ? `moved "${nameOf(tgt)}" ${dest ? `under "${nameOf(dest)}"` : 'to the top level'}` : `move failed: ${JSON.stringify(r.body).slice(0, 120)}`; } }
+      else if (k === 'remove') { const r = await post(`/api/nodes/${tgt.id}/delete`, { chatId }); result = okOf(r) ? `removed "${nameOf(tgt)}"` : `remove failed: ${JSON.stringify(r.body).slice(0, 120)}`; }
+      else if (k === 'done') { await post(`/api/nodes/${tgt.id}`, { status: 'done', chatId }); await post(`/api/chats/${chatId}/lit`, { nodeId: tgt.id, on: false }); result = `"${nameOf(tgt)}" now reads done and is dimmed`; }
+      else if (k === 'todo') { await post(`/api/nodes/${tgt.id}`, { status: 'todo', chatId }); await post(`/api/chats/${chatId}/lit`, { nodeId: tgt.id, on: true }); result = `"${nameOf(tgt)}" now reads to-do and is lit`; }
+      else if (k === 'focus') { const r = await post(`/api/chats/${chatId}/focus`, { nodeId: tgt.id }); result = okOf(r) ? `the focus is now "${nameOf(tgt)}"` : `focus failed: ${JSON.stringify(r.body).slice(0, 120)}`; }
+      else if (k === 'star') { const r = await post(`/api/nodes/${tgt.id}/favorite`, { on: true }); result = okOf(r) ? `"${nameOf(tgt)}" is starred` : `star failed: ${JSON.stringify(r.body).slice(0, 120)}`; }
+      else if (k === 'undo') { const r = await post('/api/undo', {}); const b: any = r.body; result = b?.ok ? `undone: ${b.label ?? 'the last change'}` : `nothing to undo (${b?.error ?? ''})`; }
+      else if (k === 'auto') { const on = a.on !== false; await post('/api/auto', { on }); result = `auto mode is now ${on ? 'on' : 'off'}`; }
+    } catch (e) { result = `the map errored: ${String(e).slice(0, 120)}`; }
+    actions++; actionLog.push({ step: i + 1, kind: k, target: a.target, to: a.to, new_title: a.new_title, note: a.note, result });
+    console.log(`   → uses the map: ${k}${a.target ? ` "${a.target}"` : ''}${a.to ? ` → "${a.to}"` : ''}${a.new_title ? ` as "${a.new_title}"` : ''}${a.note ? ` (${a.note})` : ''}\n   map: ${result}\n`);
+    history.push(`you used the map: ${k}${a.target ? ` "${a.target}"` : ''}${a.new_title ? ` → "${a.new_title}"` : ''} → ${result}`);
+    lastMapAnswer = { question: `your action "${k}${a.target ? ` ${a.target}` : ''}"`, answer: result };
+    if (k !== 'open' && k !== 'close') await sleep(3000);
+    lastPaintMs = undefined; lastAckMs = undefined;
     continue;
   }
   console.log(`   → works: "${step.action.user_text ?? ''}"`);
@@ -175,7 +217,7 @@ for (let i = 0; i < STEPS; i++) {
     console.log(`── checkpoint ${i + 1} ──\n   brain NOW:   ${cp.brainNow.slice(0, 160)}  [${cp.nowOk ? 'matches' : 'DOES NOT match'} your last turn]\n   brain FIRST: ${cp.brainFirst.slice(0, 160)}  [${cp.firstOk ? 'matches' : 'DOES NOT match'} your first turn]`);
     const back = Math.min(15, history.length - 1); const target = history[history.length - 1 - back].split(' → agent:')[0].replace(/^you: /, '');
     try {
-      const st = await get('/api/state'); const r = await twinRecall(GOAL, mapView(st), target, back, { persona: PERSONA });
+      const st = await get('/api/state'); const r = await twinRecall(GOAL, mapView(st, expanded), target, back, { persona: PERSONA });
       cp.recall = { ...r, target, stepsAgo: back };
       console.log(`   glance-recall (${back} turns back: "${target.slice(0, 70)}"): ${r.found ? 'FOUND' : 'NOT FOUND'} — ${r.where.slice(0, 120)}\n   ${sev(r.severity)} [${r.severity}] ${r.felt.slice(0, 160)}`);
     } catch (e) { console.log(`   glance-recall failed: ${String(e).slice(0, 120)}`); }
@@ -191,13 +233,14 @@ const wouldReturn = worst === 'severe' ? 'no' : worst === 'moderate' ? 'maybe' :
 console.log(`══ FRICTION FROM THE DRIVEN SESSION ══`);
 if (!bad.length) console.log('no moderate/severe friction — the map kept up quietly.');
 for (const [i, f] of bad.entries()) console.log(`  ${i + 1}. [${f.severity}] ${f.felt}\n     why: ${f.mechanism}`);
-console.log(`\ndrove ${steps.length} step(s) · asked the map ${asks} time(s) · worst friction: ${worst} · would return: ${wouldReturn}`);
+const kindHist = Object.entries(actionLog.reduce((h: Record<string, number>, x) => { h[x.kind] = (h[x.kind] ?? 0) + 1; return h; }, {})).map(([k, v]) => `${k} ${v}`).join(', ');
+console.log(`\ndrove ${steps.length} step(s) · asked the map ${asks} time(s) · used the map's controls ${actions} time(s)${actions ? ` (${kindHist})` : ''} · worst friction: ${worst} · would return: ${wouldReturn}`);
 if (checkpoints.length) {
   const nowOk = checkpoints.filter((c) => c.nowOk).length, firstOk = checkpoints.filter((c) => c.firstOk).length, found = checkpoints.filter((c) => c.recall?.found).length, asked = checkpoints.filter((c) => c.recall).length;
   console.log(`checkpoints ${checkpoints.length}: brain RIGHT NOW right ${nowOk}/${checkpoints.length} · brain FIRST right ${firstOk}/${checkpoints.length} · twin found its earlier work at a glance ${found}/${asked}`);
 }
 console.log(`map db: ${join(TMP, 'twin.sqlite')}`);
-if (OUT) { try { writeFileSync(OUT, JSON.stringify({ persona: PERSONA, goal: GOAL, steps, history, checkpoints, asks: askLog, worst, wouldReturn, db: join(TMP, 'twin.sqlite') }, null, 2)); console.log(`report: ${OUT}`); } catch (e) { console.error('could not write --out:', String(e).slice(0, 120)); } }
+if (OUT) { try { writeFileSync(OUT, JSON.stringify({ persona: PERSONA, goal: GOAL, steps, history, checkpoints, asks: askLog, actions: actionLog, worst, wouldReturn, db: join(TMP, 'twin.sqlite') }, null, 2)); console.log(`report: ${OUT}`); } catch (e) { console.error('could not write --out:', String(e).slice(0, 120)); } }
 
 // The spawned server keeps the event loop alive; kill it and exit cleanly so stdout flushes (a SIGTERM at
 // timeout loses piped, block-buffered stdout — that's why early runs looked like they produced nothing).
