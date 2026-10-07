@@ -17,7 +17,7 @@
       "user": "Add optimistic updates so the form shows the saved values immediately and rolls back if the save fails.",
       "assistant": "Added optimistic updates: the form state updates on submit, the request runs in the background, and a failed save rolls the fields back to their last persisted values with an inline error. Tests added for both paths.",
       "then": [
-        { "focusMatching": "studio profile|profile form|optimistic" },
+        { "focusWithin": "studio profile|profile form" },
         { "nodeMatching": "optimistic", "under": "studio profile|profile form" }
       ]
     }
