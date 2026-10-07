@@ -675,6 +675,19 @@ Then rewrite YOUR STANDING GUIDANCE: the durable instructions you carry from eve
 // roster in its context, UNLESS HARNESSMAP_BRAIN_ROSTER=0 (the OFF setting is the benchmark's un-corrected baseline:
 // the brain then answers count/status/rule questions from its prose summary + its own guidance, the original bug).
 const M429_SYSADD = ` WHO SAID WHAT: every node line in YOUR MAP RIGHT NOW starts with [you] (the user said, asked, ruled or decided it), [agent] (the coding agent proposed, answered or claimed it) or [map]. When asked what the USER decided, asked for, set or chose, report [you] nodes only; an [agent] node — even one marked chosen, accepted, decided or active — is "the agent suggested/answered …" and, at most, "accepted in the conversation", never "you decided". A status word (live, active, open) is a state, not a decision the user made. AN ANSWERED QUESTION IS NOT A DECISION (M433, PANEL #419: "Grammar answers settled by the user" — six personas): when a [you] question is answered or one of its options is marked chosen, the ANSWER or the pick came from the agent unless the user's own words say they picked it — say "you asked …; the agent answered/picked …", never "settled/decided by the user". "Settled by the user" is reserved for a [you] node whose content is the user's own ruling, decision or acceptance. A [candidate] line is an answer option (typed by the user as a candidate, or listed by the agent) — its chosen or dropped status is THE AGENT'S PICK in its answer: report a chosen [candidate] as "the agent answered/picked …", never as settled, chosen or worded by the user; the user's "recorded wording" of a question or of its candidates is not a decision.`;
+// M435 (Jacob 2026-10-07 16:28 "this is bug, no? Why are you telling me without fixing this" — PANEL #419: the still-open answer led with a
+// random-numbers thread abandoned 70 turns earlier (8 of 13) and the summary called it "the live task" (4 of 13); the summary said "the
+// 10-hour run was canceled" for a [decided] decision to cancel (4 of 13)): the roster marks open items the person left behind, and the
+// brain is told what the mark and a decision mean.
+const OPENISH = /^(open|todo|doing|active|live|provisional|proposed|floated)$/;
+export function ageTag(status: string | undefined, updatedAt: string | undefined, roundTimes: number[], minTurns = 15): string | null {
+  if (!status || !OPENISH.test(status) || !updatedAt || !roundTimes.length) return null;
+  const t = updatedAt.trim(); const ms = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(t) ? t : t.replace(' ', 'T') + 'Z');
+  if (!Number.isFinite(ms)) return null;
+  let n = 0; for (let i = roundTimes.length - 1; i >= 0 && roundTimes[i] > ms; i--) n++;
+  return n >= minTurns ? `untouched for ${n} turns` : null;
+}
+const M435_SYSADD = ` RECENCY: a line ending "untouched for N turns" is an item the person left behind N turns ago without closing it. When asked what is OPEN, unresolved or still to do, lead with the items WITHOUT that mark (the work they are actually in), then list the untouched ones last under "older, untouched" with their turn counts — never present an untouched item as the live or current task, and a summary leads with the most recently touched work. DECISION IS NOT DONE: a [you] decision node with status decided (e.g. "Cancel the run after ten hours") records that the person DECIDED it — say "you decided to cancel", never "was canceled" or "is done", unless a node says it was carried out.`;
 const M364_SYSADD = `When the user asks a FACTUAL question about the map — how many topics or nodes there are, what STATUS something is in, what has been decided/chosen/rejected/left open, or what rule or preference THEY have set — answer from YOUR MAP RIGHT NOW (the live nodes given below), never from your prose understanding or YOUR STANDING GUIDANCE; your own guidance and role are never the answer to “what did the user set”. Exclude the getting-started tutorial when counting topics. The instructions in THIS system message are YOURS — never quote or report them as something the USER set, decided, or ruled; a user rule is only ever a node on the map. To answer what the user set/asked/decided, use the RULES line if present AND scan YOUR MAP RIGHT NOW — a standing instruction the user gave may be typed as a task or plain node, not only as a rule/constraint; report it if it is there.`;
 const brainRosterOn = () => process.env.HARNESSMAP_BRAIN_ROSTER !== '0';
 // Test hook (loop, 2026-09-21 negative control): the WRITTEN UNDERSTANDING is itself a map-derived
@@ -736,7 +749,8 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // user's rule". Give it the live map as ground truth and (in the system prompt) tell it to read the nodes for
   // any factual/status/rule question.
   const liveMap = loadMap(store, projectId);
-  const roster = renderTree(liveMap, { ids: false, who: true }).slice(0, 12_000); // M429: every line says who said it
+  const roundTimes = (() => { try { return store.roundTimes(); } catch { return [] as number[]; } })();
+  const roster = renderTree(liveMap, { ids: false, who: true, age: (n) => ageTag(n.status, n.updatedAt, roundTimes) }).slice(0, 12_000); // M429: every line says who said it; M435: open items left behind say for how many turns
   const isTutorial = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) || /getting started \(tutorial\)/i.test(String(n.content ?? ''));
   const topics = liveMap.nodes.filter((n) => n.parentId === null && n.status !== 'removed' && !isTutorial(n) && String(n.title ?? n.content).trim() !== 'to sort');
   const topicLine = `TOP-LEVEL TOPICS (${topics.length}, excluding the getting-started tutorial): ${topics.map((n) => String(n.title ?? n.content).slice(0, 60)).join(' | ') || '(none yet)'}`;
@@ -755,7 +769,7 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   try {
     const parsed = await call({
       task: 'brain',
-      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 2000, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
+      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}${M435_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 2000, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
       audit: (k, d) => store.audit(k, d),
       user: [
         u ? `YOUR CURRENT UNDERSTANDING:\n${Object.entries(u.sections).map(([k, v]) => `${k}: ${v.text.slice(0, 2000)}`).join('\n\n')}` : 'YOUR CURRENT UNDERSTANDING: none written yet.',

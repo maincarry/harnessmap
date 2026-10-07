@@ -22,7 +22,7 @@ export function loadMap(store: Store, projectId: string): MapView {
 }
 
 // One node, one line: "[glyph] [type: ]content (status)".
-export function nodeLine(n: MapNode, opts: { ids?: boolean; who?: boolean } = {}): string {
+export function nodeLine(n: MapNode, opts: { ids?: boolean; who?: boolean; age?: (n: MapNode) => string | null } = {}): string {
   const g = GLYPH[n.status] ?? (n.type ? '·' : '');
   const idTag = opts.ids ? ` [${n.id.slice(0, 8)}]` : '';
   const typeTag = n.type ? `${n.type}: ` : '';
@@ -33,10 +33,11 @@ export function nodeLine(n: MapNode, opts: { ids?: boolean; who?: boolean } = {}
   // candidate — typed by the person or listed by the agent — and its chosen/dropped status is the agent's pick, so the roster tags it
   // [candidate] whoever typed it; the brain is told a chosen [candidate] is "the agent picked …", never "settled by you".
   const whoTag = opts.who ? (n.type === 'option' ? '[candidate] ' : n.author === 'user' ? '[you] ' : n.author === 'agent' ? '[agent] ' : n.author === 'system' ? '[map] ' : `[${n.author}] `) : '';
-  return `${g ? `${g} ` : ''}${whoTag}${typeTag}${n.content}${idTag}${statusTag}`.trim();
+  const ageTag = opts.age ? (() => { const a = opts.age!(n); return a ? ` · ${a}` : ''; })() : ''; // M435: "untouched for N turns" on open items the person left behind
+  return `${g ? `${g} ` : ''}${whoTag}${typeTag}${n.content}${idTag}${statusTag}${ageTag}`.trim();
 }
 
-export function renderTree(map: MapView, opts: { focusId?: string; ids?: boolean; who?: boolean } = {}): string {
+export function renderTree(map: MapView, opts: { focusId?: string; ids?: boolean; who?: boolean; age?: (n: MapNode) => string | null } = {}): string {
   const children = new Map<string | null, MapNode[]>();
   for (const n of map.nodes) {
     if (!children.has(n.parentId)) children.set(n.parentId, []);
