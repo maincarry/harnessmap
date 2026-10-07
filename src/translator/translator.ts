@@ -198,6 +198,27 @@ const SCRIPTS: Array<[string, RegExp]> = [
 const STOP = new Set(['this','that','with','from','into','have','been','were','they','them','their','than','then','will','would','should','could','about','after','before','along','also','only','some','such','very','more','most','goes','need','needs','still','over','under','when','where','which','while','what','your','there','these','those','does','done','just','like','make','made','much','many','each','both','same','other','every','next','last','first'])
 const CJK_FUNC_BIGRAM = /[的了是在和或与并将把被对从到为有能可也都就还很会要不没这那些个中上下时前后已仍待问题当其该此并及其如何]/u; // M410: a 2-char CJK token containing one of these is a function/filer-vocabulary bigram, not a content word, for the rewrite_to_child overlap test
 
+// M438: the party a turn is ABOUT, read from its first words — "Marchetti's …", "Switching to Huang & Partners.", "For Orbit Labs, …".
+// A leading imperative verb is not a name ("Revise Northwind's clause" → Northwind); a mid-turn mention is not a subject.
+const CLIENT_STOP = new Set('Python Postgres Node React Shopify WooCommerce Redis Docker Git GitHub Linux Windows Mac The This That Here There What When Where Why How Can Could Should Would Let Make Add Fix Check Show Give Write Create Update Remove Use Try Help Switch Back Okay Yes PATCH GET POST API CSV PDF SQL JSON HTML CSS VAT EC2 AWS Codex Claude Today Tomorrow Monday Tuesday Wednesday Thursday Friday'.split(' '));
+const CLIENT_VERBS = new Set('Revise Start Run Save Draft Fix Update Check Rewrite Summarize Reproduce Show Give Make Add Remove Switch Back Compare Review Prepare Build Write Create Find List Explain Tell Help Confirm Keep Send Reply Debug Inspect Test Deploy Open Close Finish Continue Resume Move Rename Delete Generate Convert Export Import Set Get Put Read Look Take Try Use Ask Answer Note Log Mark Plan Design Implement Refactor Clean Merge Cut Drop Fetch Pull Push Commit'.split(' '));
+export function clientNameOfTurn(text: string): string | null {
+  const s = String(text ?? '').trim();
+  const pats = [
+    /^(?:Switching to|Switch to|Back to|Now|Next[,:]?|Then|For|Client|Customer)\s+(?:the\s+)?([A-Z][\w'’-]*(?:\s+(?:&|and)\s+[A-Z][\w'’-]*|\s+[A-Z][\w'’-]*){0,3})/u,
+    /^([A-Z][\w-]*(?:\s+(?:&|and)\s+[A-Z][\w-]*|\s+[A-Z][\w-]*){0,2})(?:'s|’s)\s/u,
+  ];
+  for (const p of pats) {
+    const m = s.match(p); if (!m) continue;
+    const words = m[1].trim().split(/\s+/); while (words.length && CLIENT_VERBS.has(words[0].replace(/[^\w]/g, ''))) words.shift();
+    if (!words.length) continue;
+    const name = words.join(' '); const first = words[0].replace(/[^\w]/g, '');
+    if (first.length < 4 || CLIENT_STOP.has(first)) continue;
+    return name;
+  }
+  return null;
+}
+
 export class Translator {
   constructor(private store: Store) {}
   /** M342: the last round's failure, readable by the server after translateRound returns null. */
@@ -348,6 +369,7 @@ export class Translator {
       alterations = this.guardCorrectionRetire(alterations, map, params);
       alterations = this.guardResolutionClose(alterations, map, params);
       if (process.env.HARNESSMAP_GUARD_REJECTION !== '0') alterations = this.guardUserRejection(alterations, map, params); // M358c: on by default since 0.9.69 (HARNESSMAP_GUARD_REJECTION=0 switches it off) — proven on the scene-detect thread: the two URL nodes reopened, the tool-name list card untouched
+      alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
       alterations = this.guardAgentTaskStatus(alterations); // M437 (PANEL #422): an agent-listed step is a proposal, not the person's todo
       alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
       const result: RoundResult = { summary, alterations };
@@ -392,6 +414,32 @@ export class Translator {
   // to those steps"; 22 such rows across 9 kept maps): a task the AGENT lists is a proposal until the person takes it up. An agent-authored
   // task created with status todo or doing is filed as proposed; the person (or a later round in their words) can make it todo. Only
   // creations are touched — a later update that sets todo on an existing agent task stands. Audit guard_agent_task_status.
+  // M438 (TWIN #423 Nadia: "Marchetti's Python invoicing script is double-counting refunds…" → the thread's root titled "Fix refund
+  // double-counting" — "does not say Marchetti. With three more clients coming, I need the client name visible or Friday becomes a dig";
+  // she renamed it by hand, as Noor did for Harbor & Finch in #415 and as #409's Nadia asked for — the client-root-named-after-its-first-
+  // issue class, 4 sightings in 3 drives): when the person's turn is ABOUT a named party — it opens with the name ("Marchetti's …",
+  // "Switching to Huang & Partners.", "For Orbit Labs, …") — and this round titles a TOP-LEVEL node whose title lacks the name's first
+  // word, the title is prefixed "Name — title". Only the first such root per round; the statement is untouched. Sweep of the kept maps
+  // (scratchpad/sweep-clientname.ts): 14 root titlings in client-naming turns, 1 lacking the name (this one), 0 false positives after
+  // excluding leading verbs ("Revise Northwind's clause") and mid-turn mentions ("summarize separately for Marchetti, Orbit …").
+  private guardRootClientName(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const name = clientNameOfTurn(params.userText ?? '');
+    if (!name) return alterations;
+    const first = name.split(/\s+/)[0].replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    for (const a of alterations) {
+      if (!(a?.op === 'create_node' || a?.op === 'update_node') || typeof a.title !== 'string' || !a.title.trim()) continue;
+      const isRoot = a.op === 'create_node' ? (a.parentId == null) : (byId.get(a.id)?.parentId === null);
+      if (!isRoot) continue;
+      if (a.title.toLowerCase().includes(first)) return alterations;
+      const to = `${name} — ${a.title.trim()}`.slice(0, 90);
+      this.store.audit('guard_root_client_name', { id: String(a.id ?? '').slice(0, 8), name, from: a.title.slice(0, 40) });
+      a.title = to;
+      return alterations;
+    }
+    return alterations;
+  }
+
   private guardAgentTaskStatus(alterations: any[]): any[] {
     for (const a of alterations) {
       if (a?.op !== 'create_node' || a.author !== 'agent' || a.type !== 'task' || !/^(todo|doing)$/.test(String(a.status ?? ''))) continue;

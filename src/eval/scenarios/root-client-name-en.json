@@ -1,0 +1,26 @@
+{
+  "name": "M438 proof (TWIN #423 Nadia): a thread opened in a client's name carries the name in its root title — \"Marchetti's script…\" and \"Switching to Huang & Partners.\" each title their root with the client",
+  "seed": [{ "key": "proj", "content": "Freelance day — four clients from one terminal" }],
+  "focus": "proj",
+  "auto": { "on": true },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "Marchetti's Python invoicing script is double-counting refunds. Start by inspecting how orders.csv is parsed and how refund rows are included in invoice totals, then help me reproduce the bug with a small fixture.",
+      "assistant": "Looking at orders.csv parsing: refund rows carry a negative amount but the totals loop adds abs(amount), so every refund is counted twice. A fixture with one order and one refund reproduces it: expected 80, got 120.",
+      "then": [
+        { "nodeMatching": "refund|invoic" },
+        { "topLevelMatching": "^Marchetti" }
+      ]
+    },
+    {
+      "user": "Switching to Huang & Partners. Their Postgres reporting query takes about 40 seconds. Start by finding the query and running EXPLAIN ANALYZE on it, then show me the slowest operations.",
+      "assistant": "Found the reporting query in reports/monthly.sql. EXPLAIN ANALYZE: 41.2 s total; the slowest nodes are a sequential scan on entries (28 s), a hash join on accounts (7 s) and a sort that spills to disk (4 s).",
+      "then": [
+        { "nodeMatching": "EXPLAIN|reporting query|sequential scan" },
+        { "topLevelMatching": "^Huang" },
+        { "topLevelMatching": "^Marchetti" }
+      ]
+    }
+  ]
+}
