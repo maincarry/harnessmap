@@ -348,6 +348,7 @@ export class Translator {
       alterations = this.guardCorrectionRetire(alterations, map, params);
       alterations = this.guardResolutionClose(alterations, map, params);
       if (process.env.HARNESSMAP_GUARD_REJECTION !== '0') alterations = this.guardUserRejection(alterations, map, params); // M358c: on by default since 0.9.69 (HARNESSMAP_GUARD_REJECTION=0 switches it off) — proven on the scene-detect thread: the two URL nodes reopened, the tool-name list card untouched
+      alterations = this.guardAgentTaskStatus(alterations); // M437 (PANEL #422): an agent-listed step is a proposal, not the person's todo
       alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
@@ -386,6 +387,20 @@ export class Translator {
   // row is retired (status dropped — the statement and the "why" note stay); when the turn says "merge X into Y" and both are live rows,
   // X moves under Y. Only exact title matches (normalized), never a root, at most three rows a round; the filer's own writes to those
   // rows win. Audit guard_user_retires {id, title, how, was}.
+  // M437 (PANEL #422, LONG #421 map: "Create AWS account [todo]", "Open EC2 Free Tier [todo]", "Launch EC2 instance [todo]", "Create key pair
+  // [todo]" — the agent's setup instructions filed as the person's to-do list; five personas: "I requested information but never committed
+  // to those steps"; 22 such rows across 9 kept maps): a task the AGENT lists is a proposal until the person takes it up. An agent-authored
+  // task created with status todo or doing is filed as proposed; the person (or a later round in their words) can make it todo. Only
+  // creations are touched — a later update that sets todo on an existing agent task stands. Audit guard_agent_task_status.
+  private guardAgentTaskStatus(alterations: any[]): any[] {
+    for (const a of alterations) {
+      if (a?.op !== 'create_node' || a.author !== 'agent' || a.type !== 'task' || !/^(todo|doing)$/.test(String(a.status ?? ''))) continue;
+      this.store.audit('guard_agent_task_status', { id: String(a.id ?? '').slice(0, 8), from: a.status, title: String(a.title ?? a.content ?? '').slice(0, 40) });
+      a.status = 'proposed';
+    }
+    return alterations;
+  }
+
   private guardUserRetires(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
     const ut = (params.userText ?? '').trim();
     if (!ut || ut.length > 700) return alterations;
