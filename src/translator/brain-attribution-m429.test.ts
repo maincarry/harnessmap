@@ -38,3 +38,8 @@ test('M433 (PANEL #419): an option the user typed as a candidate but the agent p
   expect(mine).toContain('Keep the invoice run on Fridays'); expect(mine).not.toContain('coffee and toast');
   expect(theirs).toContain('coffee and toast'); expect(theirs).toContain("the agent's pick among candidates");
 });
+
+test('M433b: an option is tagged [candidate] in the roster whoever typed it', () => {
+  expect(nodeLine(mk({ content: 'I usually have some coffee and toast for my breakfast', status: 'chosen', author: 'user', type: 'option' }) as any, { who: true })).toBe('✓ [candidate] option: I usually have some coffee and toast for my breakfast (chosen)');
+  expect(nodeLine(mk({ content: 'Present continuous', status: 'chosen', author: 'agent', type: 'option' }) as any, { who: true })).toBe('✓ [candidate] option: Present continuous (chosen)');
+});

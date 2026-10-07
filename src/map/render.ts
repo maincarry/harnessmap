@@ -29,7 +29,10 @@ export function nodeLine(n: MapNode, opts: { ids?: boolean; who?: boolean } = {}
   const statusTag = n.type || !['live', 'provisional'].includes(n.status) ? ` (${n.status})` : '';
   // M429 (Jacob 2026-10-07: "we need to decide what the agent suggested and what the user himself decided… this is a bug"): the brain's
   // roster never said WHO a node came from, so an agent proposal read as the user's decision. who: tags every line [you] / [agent].
-  const whoTag = opts.who ? (n.author === 'user' ? '[you] ' : n.author === 'agent' ? '[agent] ' : n.author === 'system' ? '[map] ' : `[${n.author}] `) : '';
+  // M433b (PANEL #419 → the v0.9.207 re-ask still said "Settled by your own recorded wording: the grammar answers…"): an OPTION is a
+  // candidate — typed by the person or listed by the agent — and its chosen/dropped status is the agent's pick, so the roster tags it
+  // [candidate] whoever typed it; the brain is told a chosen [candidate] is "the agent picked …", never "settled by you".
+  const whoTag = opts.who ? (n.type === 'option' ? '[candidate] ' : n.author === 'user' ? '[you] ' : n.author === 'agent' ? '[agent] ' : n.author === 'system' ? '[map] ' : `[${n.author}] `) : '';
   return `${g ? `${g} ` : ''}${whoTag}${typeTag}${n.content}${idTag}${statusTag}`.trim();
 }
 
