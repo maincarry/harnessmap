@@ -966,6 +966,40 @@ export class Translator {
       }
       out.length = 0; out.push(...kept);
     }
+    // M422 (PANEL #405 — twenty personas over the real 84-turn map; 19 of 20 named the first, 2 the second): two STATUS INVERSIONS the
+    // display turns into the opposite of the conversation.
+    // (a) "Same code again [accepted]": the person's objection ("you sent the same code as before") was filed as a claim with status
+    //     accepted and an objection-to link. Whatever the filer meant by "accepted", beside an objection it reads as the person
+    //     accepting what they rejected. The source of an objection-to link never carries accepted/chosen/done/decided — it is noted.
+    {
+      const BAD = new Set(['accepted', 'chosen', 'done', 'decided']);
+      for (const l of out as any[]) {
+        if (l?.op !== 'create_link' || l.type !== 'objection-to' || !l.fromItemId) continue;
+        const own = (out as any[]).find((x) => (x?.op === 'create_node' || x?.op === 'update_node') && x.id === l.fromItemId && typeof x.status === 'string');
+        if (own) { if (BAD.has(own.status)) { this.store.audit('guard_objection_status', { id: String(own.id).slice(0, 8), from: own.status }); own.status = 'noted'; } continue; }
+        const cur = map.nodes.find((n) => n.id === l.fromItemId);
+        if (cur && BAD.has(cur.status)) { this.store.audit('guard_objection_status', { id: String(cur.id).slice(0, 8), from: cur.status, existing: true }); out.push({ op: 'update_node', id: cur.id, status: 'noted' } as any); }
+      }
+    }
+    // (b) "API Docs Unavailable [retracted]": a cited claim ("docs are at developers.quizizz.com") was UPDATED to its correction
+    //     ("the URL no longer works") and retracted in the same alteration; the healer then titled the node after the correction, and
+    //     the map said the unavailability was retracted. A retracting update that rewrites the content into a negation of the claim
+    //     keeps the claim (retracted, as it was) and files the correction beside it, noted.
+    {
+      const NEG = /\b(?:no longer|not|n't|never|unavailable|broken|dead|invalid|wrong|incorrect|fails?|failed|does ?n[o']t|cannot|can't|isn't|aren't|wasn't|doesn't|didn't)\b|不再|无法|没有|不可用|失效|不存在|并非|不是|错误|无效/i;
+      const extra: any[] = [];
+      for (const a of out as any[]) {
+        if (a?.op !== 'update_node' || a.status !== 'retracted' || typeof a.content !== 'string') continue;
+        const cur = map.nodes.find((n) => n.id === a.id);
+        if (!cur || cur.content.trim() === a.content.trim()) continue;
+        if (!(NEG.test(a.content) && !NEG.test(cur.content))) continue; // a rewording keeps being an edit; only a NEGATION of the claim is a correction
+        const correction = a.content; delete a.content; delete a.title;
+        const sib: any = { op: 'create_node', id: randomUUID(), parentId: cur.parentId, content: correction, status: 'noted', author: a.author ?? cur.author ?? 'agent' };
+        extra.push(sib, { op: 'create_link', id: randomUUID(), type: 'objection-to', fromItemId: sib.id, toId: cur.id });
+        this.store.audit('guard_retract_keeps_claim', { id: String(cur.id).slice(0, 8), correction: sib.id.slice(0, 8) });
+      }
+      out.push(...extra);
+    }
     return out;
   }
 }
