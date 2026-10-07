@@ -16,7 +16,7 @@ import { TWIN_PERSONA_IDS, TIER_WEIGHT, findTwinPersona } from '../twin-personas
 
 const argv = process.argv.slice(2);
 const flagVal = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
-const flagVals = new Set(['--flow', '--flow-file', '--personas', '--out'].map((f) => flagVal(f)).filter(Boolean));
+const flagVals = new Set(['--flow', '--flow-file', '--personas', '--out', '--map'].map((f) => flagVal(f)).filter(Boolean));
 
 // Same session rendering as twin-run (a scenario's turns as what the user typed and the agent answered).
 function experienceFromScenario(path: string): string {
@@ -34,6 +34,25 @@ function experienceFromScenario(path: string): string {
   ].filter(Boolean).join('\n\n');
 }
 
+// PANEL #404 (2026-10-07): run over a long scenario WITHOUT the map, 19 of 20 personas' top friction was "the resulting map is never shown,
+// so I cannot judge it" — the scenario rendering describes the turns, not what the panel displayed. --map <kept sqlite> appends the
+// END-OF-SESSION tree (titles, statuses, nesting; "to sort" included) from a kept run of the same scenario, so the twin judges the
+// map it would actually have glanced at. (Mid-session glances are not reconstructed here — twin-drive M417 covers the live case.)
+function endMapFromSqlite(path: string): string {
+  const { Database } = require('bun:sqlite');
+  const db = new Database(path, { readonly: true });
+  const activePid = (db.query("select value from settings where key='active_project'").get() as any)?.value ?? null;
+  const rows = (db.query("select id,parent_id,title,content,author,project_id,status from nodes order by rowid").all() as any[]).filter((n) => n.status !== 'removed' && (!activePid || n.project_id === activePid));
+  const kids = new Map<string | null, any[]>(); for (const r of rows) { const k = r.parent_id ?? null; (kids.get(k) ?? kids.set(k, []).get(k)!).push(r); }
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const lines: string[] = []; let shown = 0;
+  const label = (n: any) => `${n.title || String(n.content || '').slice(0, 60)}${n.status && !['live', 'noted', 'answered'].includes(n.status) ? ` [${n.status}]` : ''}`;
+  const walk = (pid: string | null, d: number) => { for (const n of kids.get(pid) ?? []) { if (n.author === 'system') continue; if (shown++ < 260) lines.push(`${'  '.repeat(d)}- ${label(n)}`); walk(n.id, d + 1); } };
+  for (const r of rows.filter((r) => !r.parent_id || !byId.has(r.parent_id))) { if (r.author === 'system') continue; lines.push(`- ${label(r)}`); shown++; walk(r.id, 1); }
+  db.close();
+  return `WHAT THE MAP SHOWED AT THE END of the session (the tree you could glance at — one line per item, nested as displayed, a status in brackets where it is not plain; ${rows.filter((r) => r.author !== 'system').length} items${shown > 260 ? ', first 260 shown' : ''}):\n${lines.join('\n')}`;
+}
+
 const flow = flagVal('--flow');
 const flowFile = flagVal('--flow-file');
 const scenarioPath = argv.find((a) => !a.startsWith('--') && !flagVals.has(a));
@@ -41,7 +60,10 @@ let experience: string; let label: string;
 if (flow) { experience = flow; label = 'flow (inline)'; }
 else if (flowFile) { experience = readFileSync(flowFile, 'utf8'); label = `flow-file ${flowFile}`; }
 else if (scenarioPath) { experience = experienceFromScenario(scenarioPath); label = `scenario ${scenarioPath}`; }
-else { console.error('usage: twin-panel.ts (--flow "..." | --flow-file <path> | <scenario.json>) [--personas all|id,id,…] [--out <dir>]'); process.exit(2); }
+else { console.error('usage: twin-panel.ts (--flow "..." | --flow-file <path> | <scenario.json>) [--map <kept e2e.sqlite of the same scenario>] [--personas all|id,id,…] [--out <dir>] [--dry]'); process.exit(2); }
+const mapPath = flagVal('--map');
+if (mapPath) { experience += `\n\n${endMapFromSqlite(mapPath)}`; label += ` + end map ${mapPath}`; }
+if (argv.includes('--dry')) { console.log(experience); process.exit(0); }
 
 const want = (flagVal('--personas') ?? 'all').trim();
 const ids: string[] = want === 'all' ? [...TWIN_PERSONA_IDS] : want.split(',').map((s) => s.trim()).filter(Boolean);
