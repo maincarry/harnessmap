@@ -1,0 +1,56 @@
+{
+  "name": "M441 proof (Jacob 2026-10-07 23:12 'Why? Find out' → 23:14 'good'): a turn that changes subject opens a new top-level thread, and a thread is named by its subject, not its category — tic-tac-toe, then 'please improve this function' = its own root, never a child of the game; the game's heading never widens to cover it",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Games with the assistant"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "Can we play tic tac toe?",
+      "assistant": "I'm sorry, as an AI language model, I am not capable of playing games in the traditional sense, but I can help you learn how to play it or provide you with strategies to improve your tic tac toe gameplay, if you would like.",
+      "then": [
+        {
+          "nodeMatching": "tic.?tac.?toe"
+        },
+        {
+          "topLevelMatching": "tic.?tac.?toe|game"
+        },
+        {
+          "noNodeMatching": "games and interaction|interacting with the assistant|assistant games"
+        }
+      ]
+    },
+    {
+      "user": "I want to be x",
+      "assistant": "Sure thing! You can be X and I'll be O. You can start by choosing a number between 1 and 9 to place your X.",
+      "then": [
+        {
+          "nodeMatching": "\\bX\\b|player|first"
+        }
+      ]
+    },
+    {
+      "user": "please improve this function     setStep((currStep) => ++currStep);",
+      "assistant": "As an AI language model, I cannot make subjective judgments about the quality of code. However, here are some ways to make the code clearer and more readable:\n\n1. Use pre-increment instead of post-increment to explicitly increment the current step before it is returned:\n\n```\nsetStep(currStep => ++currStep);\n```\n\n2. Consider renaming the function to more accurately reflect what it does. For example, if this function is used to move to the next step in a process, you might call it `nextStep`:\n\n```\nconst nextStep = () => setStep(currStep => ++currStep);\n```\n\n3. Use destructuring to extract the current step from the state object:\n\n```\nconst [step, setStep] = useState(0);\n```\n\n```\nconst nextStep = () => setStep(step => ++step);\n```\n\n4. Add comments to explain what the function does:\n\n```\n// Increment the current step and update the state\nconst nextStep = () => setStep(step => ++step);\n```",
+      "then": [
+        {
+          "nodeMatching": "setStep|increment",
+          "notUnder": "proj"
+        },
+        {
+          "topLevelMatching": "setStep|step|increment|function"
+        },
+        {
+          "noNodeMatching": "(games?|tic.?tac)[^.]*(setStep|function|increment|javascript|code help)|(setStep|function|increment|javascript|code help)[^.]*(games?|tic.?tac)"
+        }
+      ]
+    }
+  ]
+}
