@@ -74,11 +74,11 @@
           "nodeMatching": "Friday"
         },
         {
-          "statusOf": "^Harbor seat downgrade reply|^Harbor .*downgrade reply|^Draft .*downgrade",
+          "statusOf": "^Harbor (?:&|and)? ?Finch downgrade\\b|^Harbor seat downgrade reply|^Draft .*downgrade|draft reply confirming",
           "is": "done"
         },
         {
-          "notStatus": "^Confirm (?:the )?(?:change )?by Friday|confirm.*by Friday",
+          "notStatus": "^Confirm\\b.*Friday",
           "statuses": "done|proposed"
         },
         {
