@@ -1,0 +1,168 @@
+{
+  "name": "TWIN #449 proof (M442e/M439f/M460c): Noor's own turns — the dictated export reply is HER row, done, with its 'ship this week' promise a todo of its own; the Harbor downgrade reply closes on the delivered text while 'confirm by Friday' stays open and hers; the first 'what commitments are still open' answer names Northwind, November 1, this week and Friday, calls nothing the agent's and counts no requirement",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Noor — founder operations"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "Harbor & Finch emailed: “We paid for 12 seats last month, but only 10 were used. Can you refund the two unused seats?” Read policy.md and pull the relevant refund clause.",
+      "assistant": "The policy says subscription charges are generally non-refundable, including unused seats, though discretionary account credit may be offered as a one-time exception.",
+      "then": [
+        {
+          "nodeMatching": "unused seats|12 seats"
+        }
+      ]
+    },
+    {
+      "user": "Let's make a one-time exception as account credit for the two unused seats, not a cash refund. Draft a short reply to Harbor & Finch and be clear this is outside the normal policy.",
+      "assistant": "Subject: Credit for the two unused seats\n\nHi — thanks for reaching out. Our subscriptions are normally non-refundable, including for unused seats, but we’re happy to make a one-time exception and apply an account credit for the two unused seats from last month. The credit will be applied to your next invoice.\n\nBest,\nNoor",
+      "then": [
+        {
+          "nodeMatching": "credit"
+        }
+      ]
+    },
+    {
+      "user": "Update the Harbor & Finch reply to say the exact credit is $98 and that it will appear on their next invoice. Keep it brief.",
+      "assistant": "Subject: Credit for the two unused seats\n\nHi — thanks for reaching out. Our subscriptions are normally non-refundable, including for unused seats, but we’re happy to make a one-time exception and apply a $98 account credit for the two unused seats from last month. It will appear on your next invoice.\n\nBest,\nNoor",
+      "then": [
+        {
+          "nodeMatching": "\\$98"
+        }
+      ]
+    },
+    {
+      "user": "Northwind Logistics wants the annual contract liability cap raised from 1× to 3× annual fees. Draft a revised limitation-of-liability clause at 3×, keeping the rest of the clause as standard as possible.",
+      "assistant": "Here is a revised clause setting the aggregate liability cap at three times the annual fees paid or payable under the agreement, while preserving the standard exclusions for indirect and consequential damages.",
+      "then": [
+        {
+          "nodeMatching": "Northwind|liability"
+        }
+      ]
+    },
+    {
+      "user": "Revise the Northwind clause to cap liability at 2× annual fees, with a carve-out for liability arising from a data breach.",
+      "assistant": "Revised: aggregate liability is capped at two times the annual fees paid or payable, except that the cap does not apply to liability arising from a data breach.",
+      "then": [
+        {
+          "nodeMatching": "2×|two times|data.?breach"
+        }
+      ]
+    },
+    {
+      "user": "The Team plan is going from $49 to $59 per seat per month on November 1. Existing customers stay at $49 until their next renewal. Rewrite the pricing-page copy so the effective date and grandfather rule are unambiguous.",
+      "assistant": "Team will be $59 per seat per month beginning November 1. Existing Team customers will continue at $49 per seat per month until their next renewal, when the new rate will take effect.",
+      "then": [
+        {
+          "nodeMatching": "November 1|\\$59"
+        }
+      ]
+    },
+    {
+      "user": "Back to Harbor & Finch: they’re happy with the credit and want the two unused seats removed going forward. Draft a brief reply confirming we’ll downgrade them from 12 to 10 seats starting next billing cycle, and that I’ll confirm the change by Friday.",
+      "assistant": "Subject: Seat downgrade\n\nHi — absolutely. We’ll reduce your subscription from 12 to 10 seats starting with your next billing cycle. I’ll confirm once the change is in place by Friday.\n\nBest,\nNoor",
+      "then": [
+        {
+          "nodeMatching": "Friday"
+        },
+        {
+          "statusOf": "^Harbor seat downgrade reply|^Harbor .*downgrade reply|^Draft .*downgrade",
+          "is": "done"
+        },
+        {
+          "notStatus": "^Confirm (?:the )?(?:change )?by Friday|confirm.*by Friday",
+          "statuses": "done|proposed"
+        },
+        {
+          "authorOf": "confirm.*Friday|by Friday",
+          "is": "user"
+        }
+      ]
+    },
+    {
+      "user": "Back to Northwind: their lawyer accepts the 2× annual-fees cap and the data-breach carve-out, but wants 6 months’ notice instead of 12. I’ll agree to 9 months. Give me the final clause wording with the 9-month notice term.",
+      "assistant": "Final wording: Except for liability arising from a data breach, each party’s aggregate liability under this Agreement will not exceed two times the annual fees paid or payable under the Agreement. Either party must provide at least nine months’ written notice for termination or non-renewal.",
+      "then": [
+        {
+          "nodeMatching": "nine|9 months|notice"
+        }
+      ]
+    },
+    {
+      "user": "Make those export changes now: raise the timeout to 90 seconds and process items in chunks of 200. Then show me the diff before we do anything else.",
+      "assistant": "Implemented the export fix: the request timeout is now 90 seconds, and the exporter processes records in batches of 200 until complete. Here is the diff for review.",
+      "then": [
+        {
+          "nodeMatching": "90 ?seconds|200"
+        }
+      ]
+    },
+    {
+      "user": "The export diff looks fine. Approve it, and draft a short reply to the customer saying we found the large-project export issue and a fix will ship this week. Don’t promise a specific day.",
+      "assistant": "Approved. Reply: “Hi — we found the issue affecting exports for larger projects and have a fix in progress. We expect it to ship this week. I’ll let you know once it’s live. Thanks for reporting it.” This commits only to shipping this week, without naming a specific day.",
+      "then": [
+        {
+          "nodeMatching": "ship.*this week|this week"
+        },
+        {
+          "authorOf": "^Customer reply|^Draft customer reply|ship this week",
+          "is": "user"
+        },
+        {
+          "notStatus": "^Customer reply|^Draft customer reply",
+          "statuses": "proposed|floated|todo|doing"
+        },
+        {
+          "statusOf": "^(?:Promise made|Ship (?:the )?(?:export )?(?:fix|update))",
+          "is": "todo"
+        }
+      ]
+    },
+    {
+      "user": "End-of-day check: list every commitment I made today, grouped by who it is for, with exactly what I promised and any deadline. Include Harbor & Finch, Northwind, the Team pricing change, and the large-export customer. Then list anything still open.",
+      "assistant": "Commitments today:\n- Harbor & Finch: apply a one-time $98 account credit to their next invoice; reduce their subscription from 12 to 10 seats starting next billing cycle; confirm the downgrade by Friday. Open: post the credit, make the seat change, and send Friday’s confirmation.\n- Northwind Logistics: final proposed terms are a 2× annual-fees liability cap, a data-breach carve-out, and 9 months’ written notice. Open: send the final clause and cover note and await acceptance.\n- Team pricing: increase the Team plan from $49 to $59 per seat per month on November 1; existing customers remain at $49 until their next renewal. Open: publish the pricing copy, changelog, and announcement.\n- Large-export customer: ship the fix this week and notify them when it is live. Open: test the final partial batch, ship the approved timeout and chunking changes, and send the confirmation.\nOther open item: no action is required on the closed account-email ticket or the logged dark-mode request.",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "What commitments are still open from today? Group them by customer or topic and include every deadline."
+        },
+        {
+          "brainMust": "Northwind"
+        },
+        {
+          "brainMust": "November 1"
+        },
+        {
+          "brainMust": "this week"
+        },
+        {
+          "brainMust": "Friday"
+        },
+        {
+          "brainMustNot": "proposed by the agent, not|not commitments you made|active requirement"
+        },
+        {
+          "do": "brainChat",
+          "text": "What exactly did I promise Harbor & Finch, and by when?"
+        },
+        {
+          "brainMust": "Friday"
+        },
+        {
+          "brainMust": "\\$98"
+        },
+        {
+          "brainMustNot": "as is the downgrade reply|downgrade reply is still open"
+        }
+      ]
+    }
+  ]
+}
