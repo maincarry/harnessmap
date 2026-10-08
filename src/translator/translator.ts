@@ -242,6 +242,20 @@ export const FUTURE_COMMITMENT = /\b(?:will|'ll|’ll|going to|am going to|promi
 // done): a delivery the person rejects in the following turn is not done. REJECTS on the user text reopens tasks M439/M448 closed in the
 // last two rounds (status doing). The mirror rule M439 always needed.
 export const REJECTS_ZH = /有问题|有误|不对|错了|不行|搞错|写错|弄错|没有这(?:一)?列|没有该列|并没有|还是(?:不行|不对|报错|失败)|仍然(?:不行|报错|失败)|不是我(?:要|问)的/;
+// M453d (TWIN #445 proof, Elena): "cut the section “Where it did not work.”" matched REJECTS on "did not work" inside a quoted TITLE and the
+// rejection guard reopened two delivered drafts; her outline turn ("5 Where it did not work") matched it unquoted. An objection is the
+// person's own sentence about the work: quoted spans are removed first, and a match that completes a noun clause ("where/what/why it did
+// not work") is not an objection.
+export const objects = (ut: string): boolean => {
+  const bare = ut.replace(/[“"‘'「][^”"’'」\n]{3,200}[”"’'」]/g, ' ');
+  if (REJECTS_ZH.test(bare)) return true;
+  for (const m of bare.matchAll(new RegExp(REJECTS.source, 'gi'))) {
+    const before = bare.slice(Math.max(0, m.index! - 24), m.index!);
+    if (/\b(?:where|what|why|when|which|whether|how|if|that)\s+(?:it|this|that|they|we|he|she|the\s+\w+)\s*$/i.test(before)) continue;
+    return true;
+  }
+  return false;
+};
 export const REJECTS = /\b(?:does ?n[o'’]t (?:follow|work|match|compile|run|do|handle|respect|meet)|doesn[’']?t (?:follow|work|match|compile|run)|did ?n[o'’]t (?:work|help|fix)|not (?:what I asked|what I meant|following|working|correct|right|fixed)|still (?:wrong|broken|fails?|failing|does ?n[o'’]t|doesn[’']?t|not)|(?:check|try|look) again|wrong (?:again|still)|that[’']?s (?:wrong|not it|incorrect)|is (?:wrong|incorrect|broken)|please (?:revise|fix|redo|rewrite|correct)(?: and update)? (?:the |this |it|that)|you (?:missed|ignored|broke))\b/i;
 export const DELIVERS = /```|\bhere(?:'s| is) (?:the |an? |your )?(?:updated |revised |rewritten |fixed |complete |full |new )?(?:code|function|version|implementation|script|component|test|tests|rewrite|fix|file)\b|\bI(?:'ve| have)? (?:updated|added|implemented|fixed|created|rewritten|refactored|changed|written)\b|\b(?:updated|rewritten|refactored|revised) (?:version|function|code|script)\b/i;
 
@@ -670,7 +684,7 @@ export class Translator {
   // the person's turn rejects what was delivered; this round's own writes to that row win. Audit guard_delivery_rejected.
   private guardDeliveryRejected(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
     const ut = String(params.userText ?? '');
-    if (ut.length < 4 || !(REJECTS.test(ut) || REJECTS_ZH.test(ut))) return alterations; // M453c: Chinese objections too (LONG #436)
+    if (ut.length < 4 || !objects(ut)) return alterations; // M453d: quoted titles and noun clauses are not objections // M453c: Chinese objections too (LONG #436)
     const times = this.store.roundTimes?.() ?? []; if (!times.length) return alterations;
     const since = times[Math.max(0, times.length - 2)] - 1000;
     // M453b (proof, round 3): the filer re-asserted the task as done in the rejection round ("was revised to memoize…"), and the
@@ -696,7 +710,7 @@ export class Translator {
   // author user. The agent's own words stay in the statement; only who caught it changes. Audit guard_correction_author.
   private guardCorrectionAuthor(alterations: any[], params: { userText?: string }): any[] {
     const ut = String(params.userText ?? '');
-    if (ut.length < 4 || !(REJECTS.test(ut) || REJECTS_ZH.test(ut))) return alterations;
+    if (ut.length < 4 || !objects(ut)) return alterations; // M453d: quoted titles and noun clauses are not objections
     const CORR = /\b(?:retract\w*|withdraw\w*|supersed\w*|correct(?:ed|ion)|was wrong|is wrong|mistake|incorrect|does not (?:exist|have)|no such)\b|撤回|有误|更正|纠正|错误|不存在|没有(?:这|该)(?:一)?列|不能直接/i;
     for (const a of alterations) {
       if (!(a?.op === 'create_node' || a?.op === 'update_node') || a.author === 'user') continue;
@@ -777,7 +791,11 @@ export class Translator {
       const nt = toks(name); if (!nt.length) return [];
       const byTitle = live.filter((n) => sameSet(nt, toks(n.title ?? ''))); if (byTitle.length) return byTitle;
       if (nt.length < 3) return [];
-      const byText = live.filter((n) => { const bag = new Set(toks(`${n.title ?? ''} ${n.content ?? ''}`)); return nt.every((w) => bag.has(w)); });
+      // M431c (TWIN #445 proof): once the section row is gone, the words of "“Where it did not work” is cut" live on in the NOTE that
+      // records the cut ("Source 6 limitation" [noted]: "…“Where it did not work” was cut because…") — a typed row, or one that says
+      // cut/removed/merged, is a record of the act, never its object.
+      const RECORDS = /\b(?:was|were|is|are|been|got)\s+(?:cut|removed|dropped|merged|deleted|scrapped)\b|\bcut because\b/i;
+      const byText = live.filter((n) => { if (n.type || RECORDS.test(String(n.content ?? ''))) return false; const bag = new Set(toks(`${n.title ?? ''} ${n.content ?? ''}`)); return nt.every((w) => bag.has(w)); });
       return byText.length === 1 ? byText : [];
     };
     // The filer's own writes win only where they conflict: a status it set this round blocks the retire; a move or a create this round

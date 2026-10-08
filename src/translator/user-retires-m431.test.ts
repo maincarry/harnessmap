@@ -90,3 +90,16 @@ test('M431b: a short or ambiguous name does not retire by content words', () => 
   const r2 = harness(two)([], 'Cut “where it did not work” from the draft.'); // two rows carry all three words → ambiguous, nothing retired
   expect(r2.out.filter((a) => a.op === 'update_node')).toEqual([]);
 });
+
+// M431c (TWIN #445 proof): with the section row already dropped, "“Where it did not work” is cut" must not retire the NOTE that records the cut.
+test('M431c: the content-word match skips typed rows and rows that record the cut', () => {
+  const after = [
+    N('root', null, 'Four-Day Week Impact'), N('out', 'root', 'Briefing outline'), N('s1', 'out', 'Summary'), N('s3', 'out', 'Output results'),
+    { ...N('s5', 'out', 'Where it did not work', 'dropped'), content: 'Section 4, “Where the four-day work week did not work,” was cut because its only evidence is Source 6.' },
+    { ...N('n1', 'out', 'Source 6 limitation', 'noted'), type: 'evidence', content: 'The section “Where it did not work” was cut because its only evidence, Source 6, is an opinion piece rather than a study.' },
+    { ...N('n2', 'out', 'Cut rationale'), content: 'The section where it did not work was cut because Source 6 is an opinion piece.' },
+  ];
+  const r = harness(after)([], 'Rebuild the working outline and treat this as the current version: 1 Summary, 2 What the trials measured, 3 Output results (including wellbeing), 4 Caveats, 5 Recommendation. “Where it did not work” is cut, not current, and wellbeing is not a separate section.');
+  expect(r.out.filter((a) => a.op === 'update_node')).toEqual([]);
+  expect(r.audits).toEqual([]);
+});
