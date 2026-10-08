@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { Translator, DELIVERS } from './translator';
+import { Translator, DELIVERS, FUTURE_DATED } from './translator';
 
 // M439 (Jacob: "This is literally a bug"): a task the agent delivers in the same turn is done at filing.
 function harness() {
@@ -31,4 +31,25 @@ test('M439b: a drafted reply is delivered by the reply itself', () => {
   expect(out[0].status).toBe('done');
   const out2 = t.guardTaskDelivered([{ ...draft }], { userText: 'Draft a brief reply to the customer.', assistantText: 'Which customer do you mean, and what tone would you like?' });
   expect(out2[0].status).toBe('todo');
+});
+
+// M439c (TWIN #443 proof pass 4, round 8): the reply drafted the confirmation, but confirming with Maya by Friday is still ahead.
+test('M439c: a future-dated task in a delivering round stays open; the drafting row itself still closes', () => {
+  const audits: string[] = [];
+  const t = new Translator(new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string) => audits.push(kind); if (k === 'getSetting') return () => undefined; return () => undefined; } }) as any) as any;
+  const userText = 'Back to Harbor & Finch. Maya replied: “Thanks, that works. Can we also remove the two unused seats going forward?” Draft a brief reply confirming I’ll reduce them from 12 to 10 seats starting next billing cycle and confirm the change by Friday.';
+  const assistantText = 'Subject: Re: Unused seats\n\nHi Maya — absolutely. I’ll reduce Harbor & Finch from 12 to 10 seats starting with your next billing cycle and confirm the change with you by Friday.\n\nBest,\nNoor';
+  const confirm = { op: 'create_node', id: 'c', parentId: 'p', author: 'user', type: 'task', status: 'todo', title: 'Confirm change', content: 'Confirm the Harbor & Finch seat change with Maya by Friday.' };
+  const reduce = { op: 'create_node', id: 'r', parentId: 'p', author: 'user', type: 'task', status: 'todo', title: 'Seat reduction', content: 'Reduce the account from 12 to 10 seats starting next billing cycle.' };
+  const draft = { op: 'create_node', id: 'd', parentId: 'p', author: 'user', type: 'task', status: 'todo', title: 'Draft reply to Maya', content: 'Draft a brief reply confirming the reduction to 10 seats next billing cycle and confirmation by Friday.' };
+  const out = t.guardTaskDelivered([{ ...confirm }, { ...reduce }, { ...draft }], { userText, assistantText });
+  expect(out.map((a: any) => a.status)).toEqual(['todo', 'todo', 'done']);
+  expect(audits).toEqual(['guard_task_delivered_kept', 'guard_task_delivered_kept', 'guard_task_delivered']);
+  // the DELIVERS path too: shipped code does not perform a dated follow-up
+  const ship = { op: 'create_node', id: 's', parentId: 'p', author: 'user', type: 'task', status: 'todo', title: 'Notify the customer', content: 'Tell the customer once it is live.' };
+  const out2 = t.guardTaskDelivered([{ ...ship }, { op: 'create_node', id: 'x', parentId: 'p', author: 'user', type: 'task', status: 'todo', title: 'Fix the timeout', content: 'Raise the export timeout for projects over 500 items.' }], { userText: 'Fix the export timeout.', assistantText: 'Here is the updated function:\n```ts\nexport const TIMEOUT = 120_000;\n```' });
+  expect(out2.map((a: any) => a.status)).toEqual(['todo', 'done']);
+  expect(FUTURE_DATED.test('Confirm the seat change with Maya by Friday.')).toBe(true);
+  expect(FUTURE_DATED.test('Rewrite the step updater so the caller can choose +1 or -1.')).toBe(false);
+  expect(FUTURE_DATED.test('Reply on the thread about the Friday standup notes.')).toBe(false);
 });

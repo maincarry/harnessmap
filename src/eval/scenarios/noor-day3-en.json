@@ -91,7 +91,7 @@
         },
         {
           "notStatus": "confirm.*Friday|Friday.*confirm",
-          "statuses": "proposed"
+          "statuses": "proposed|done"
         }
       ]
     },

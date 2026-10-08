@@ -230,6 +230,8 @@ export const SESSION_CLOSING = /\b(?:that(?:'s| is) (?:all|it) for (?:today|now|
 // notified when it is live" filed as a DECISION [decided] — so the open-work list dropped the one promise she most needed to see; "It knows
 // I promised … and knows neither happened, but still leaves it off"): a statement in the person's own words that commits to a FUTURE ACTION
 // is open work — a task, todo — until it is done. A decision records a choice; a promise records a debt.
+// M439c: a deadline or date the task names — the action belongs to a later moment than the reply that files it.
+export const FUTURE_DATED = /\b(?:by|before|until|on)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|eod|cob|end of (?:the )?(?:day|week|month|quarter)|next (?:week|month)|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\.?\s+\d{1,2}|the \d{1,2}(?:st|nd|rd|th)|\d{1,2}(?:st|nd|rd|th))\b|\b(?:next|this) (?:week|month|billing cycle|sprint|quarter|release|cycle)\b|\btomorrow\b|\bonce (?:it|this|that)(?:'s|’s| is) live\b/i;
 export const FUTURE_COMMITMENT = /\b(?:will|'ll|’ll|going to|am going to|promise[sd]? to|committed to|commit to)\s+(?:be\s+)?(?:ship\w*|deploy\w*|sen[dt]|notif\w+|confirm\w*|publish\w*|releas\w+|deliver\w*|follow(?:ing)?[ -]up|let\s+(?:them|him|her|you|the\s+\w+)\s+know|email\w*|call\w*|invoice\w*|refund\w*|appl(?:y|ied)|reduce\w*|downgrade\w*|cancel\w*|migrat\w+|roll\w* out|get back to)\b/i;
 // M453 (PANEL #432, 11 of 13 — the one reason plain Codex beat the map: "Revise function code" went [done] by M439 on the delivery turn,
 // and the NEXT turn — "the function you sent me does not follow the guidelines from the documentation i've provided. please revise" — left it
@@ -699,6 +701,11 @@ export class Translator {
     if (at.length < 40 || (!DELIVERS.test(at) && !learn && !drafted)) return alterations;
     for (const a of alterations) {
       if (a?.op !== 'create_node' || a.author !== 'user' || a.type !== 'task' || !/^(todo|doing)$/.test(String(a.status ?? ''))) continue;
+      // M439c (TWIN #443 proof pass 4): a task dated past this turn — "confirm the seat change with Maya by Friday", "reduce the
+      // account next billing cycle" — is a promise the reply cannot have performed; only the text asked for was delivered. It stays
+      // open unless the row IS the drafting ("Draft a brief customer reply …"), which the reply does deliver.
+      const stmt = `${a.title ?? ''} ${a.content ?? ''}`;
+      if ((FUTURE_DATED.test(stmt) || FUTURE_COMMITMENT.test(stmt)) && !DRAFT_REQUEST.test(stmt)) { this.store.audit('guard_task_delivered_kept', { id: String(a.id ?? '').slice(0, 8), title: String(a.title ?? a.content ?? '').slice(0, 40) }); continue; }
       this.store.audit('guard_task_delivered', { id: String(a.id ?? '').slice(0, 8), from: a.status, title: String(a.title ?? a.content ?? '').slice(0, 40) });
       a.status = 'done';
     }
