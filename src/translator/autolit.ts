@@ -266,6 +266,17 @@ export function roundLeftFocus(store: Store, focusId: string | null, alterations
 // focus could never land on the new thread; it stayed on the first thread for hours and the brain's "right now" followed it.
 // A root is a fine focus when it is one topic among several (the whole-map root case stays refused — roundLeftFocus treats a
 // sole root as "unaimed"); bare/to-sort roots and roots born this round stay refused.
+// M466 (TWIN LONG #453, Priya — the ▶ stayed on "negative-tenure cleaning" through EDA, on the log-scale draft through the bucketed
+// chart, on the bucketed chart through modelling, on the resolved leakage check through the notebook run: six of her frictions and the
+// probe's first "one change"; guard_focus_newborn ×19, half of them with no home): on a ONE-PROJECT map — the commonest real day —
+// every new thread is born under the sole root, M316 refuses the newborn and M418 refuses the sole root as its home, so the focus
+// never follows the work. When the home is refused ONLY because it is the sole root, the newborn THREAD itself (the highest ancestor
+// born this round) takes the focus — provided it is a thread and not a passing fact: it has at least one child born with it.
+export function newbornThreadOk(top: { status?: string; parentId: string | null; content: string } | null | undefined, homeIsSoleRoot: boolean, childrenBornNow: number): boolean {
+  if (!top || !homeIsSoleRoot) return false;
+  if (top.status === 'removed' || top.content.startsWith('to sort') || top.content.trim() === 'untitled') return false;
+  return childrenBornNow >= 1;
+}
 export function newbornHomeOk(home: { status?: string; parentId: string | null; content: string } | null | undefined, bornNow: Set<string> | undefined, homeId: string | undefined, topLevelTopics: number): boolean {
   if (!home || !homeId) return false;
   if (home.status === 'removed') return false;

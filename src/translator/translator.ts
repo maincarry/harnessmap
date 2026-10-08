@@ -439,7 +439,9 @@ export class Translator {
       alterations = this.guardCommitmentIsTask(alterations, map, params); // M451/M451b/M451c — AFTER M439 (M451d, TWIN #443 proof pass 3): a drafted reply closes first, so the promise inside it is lifted into its own todo rather than counted as already carried by a todo
       alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
       alterations = this.guardAgentTaskStatus(alterations); // M437 (PANEL #422): an agent-listed step is a proposal, not the person's todo
-      alterations = this.guardTemporaryConstraint(alterations, map, params); // M463 (PANEL #451a): "don't change the draft yet" ends when the person asks to change it
+      alterations = this.guardTemporaryConstraint(alterations, map, params); // M463
+      alterations = this.guardFigureSuperseded(alterations, map); // M464 (TWIN #453 Priya): a figure a row calls invalid supersedes the row that carried it
+      alterations = this.guardAgentImperative(alterations, params); // M465 (TWIN #453 Priya): the agent's 'keep X together' is not her todo (PANEL #451a): "don't change the draft yet" ends when the person asks to change it
       alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
@@ -821,6 +823,69 @@ export class Translator {
   // with a temporal hedge — "don't change X yet", "leave X for now", "not until …" — is a hold, and the hold ends the moment the person
   // asks for the change it held back. When the user turn asks to update/change/edit/revise/rewrite/fix something and a live
   // user-authored constraint says do-not-change + yet/for now/until and names the same thing, the constraint is superseded.
+  // M464 (TWIN LONG #453, Priya — "at a glance the 0.91 baseline still looks done … I cannot yet see that both numbers are invalid
+  // because of leakage"; the probe's one change: "give superseded metric rows an invalidated status"): the leakage turn filed
+  // "The earlier 0.91 logistic-regression and 0.97 gradient-boosted holdout ROC AUC results are invalid and superseded" as a new row
+  // and left "Holdout ROC AUC: … 0.91" [noted] looking valid. When a row created or rewritten this round says figures are invalid /
+  // superseded / no longer valid / leaked, every live evidence or claim row that still carries one of those figures — and not the
+  // new valid ones — is superseded. Audit guard_figure_superseded.
+  private guardFigureSuperseded(alterations: any[], map: { nodes: MapNode[] }): any[] {
+    const INVALID = /\b(?:invalid(?:ated)?|superseded|no longer valid|not valid|leak(?:ed|age)|must be discarded|should be discarded|wrong)\b/i;
+    const FIG = /(?<![\w.])\d+(?:\.\d+)?%?(?!\w|\.\d)/g; // a figure may end a sentence ("… of 0.91.")
+    const figsOf = (t: string) => [...t.matchAll(FIG)].map((m) => m[0]).filter((f) => /\./.test(f) || /%$/.test(f) || f.length >= 2);
+    const bad = new Set<string>(); const good = new Set<string>(); const own = new Set<string>();
+    for (const a of alterations) {
+      if (!(a?.op === 'create_node' || a?.op === 'update_node')) continue;
+      const txt = `${a.title ?? ''} ${a.content ?? ''}`;
+      if (INVALID.test(txt)) {
+        // the figures in the invalidating sentence(s) are the bad ones; figures in other sentences of the same statement are the valid replacements
+        for (const sent of txt.split(/(?<=[.!?;])\s+/)) for (const f of figsOf(sent)) (INVALID.test(sent) ? bad : good).add(f);
+        if (typeof a.id === 'string') own.add(a.id);
+      } else for (const f of figsOf(txt)) good.add(f);
+    }
+    for (const f of good) bad.delete(f);
+    if (!bad.size) return alterations;
+    const touched = new Set(alterations.filter((a) => typeof a?.id === 'string').map((a) => a.id as string));
+    const out = [...alterations]; let n = 0;
+    for (const node of map.nodes) {
+      if (n >= 4 || node.parentId === null || own.has(node.id) || touched.has(node.id)) continue;
+      if (!/^(evidence|claim)$/.test(String(node.type ?? '')) || !/^(noted|cited|live|accepted|provisional)$/.test(String(node.status ?? ''))) continue;
+      const txt = `${node.title ?? ''} ${node.content ?? ''}`;
+      if (INVALID.test(txt)) continue;
+      const fs = figsOf(txt);
+      if (!fs.some((f) => bad.has(f)) || fs.some((f) => good.has(f))) continue;
+      n++; out.push({ op: 'update_node', id: node.id, status: 'superseded' });
+      this.store.audit('guard_figure_superseded', { id: node.id.slice(0, 8), title: String(node.title ?? '').slice(0, 40), figure: fs.find((f) => bad.has(f)) });
+    }
+    return out;
+  }
+
+  // M465 (TWIN LONG #453, Priya, step 32: "confirm the notebook is saved … and list the notebook plus files" → the agent answered
+  // "Keep the analysis notebook together with churn_by_tenure.png and feature_importance.png" and the filer created "Final file
+  // bundle!" as HER todo; she: "still lit up as a todo even though I just confirmed the files … makes the day look unfinished", and
+  // marked it done by hand): in a turn where the person asked to confirm / verify / check / list / show / report — not to make or
+  // change anything — a user-authored todo whose imperative is the AGENT's sentence (its content words in the reply, not in her turn)
+  // is the agent's recommendation: author agent, status proposed (M437's shape). Audit guard_agent_imperative.
+  private guardAgentImperative(alterations: any[], params: { userText?: string; assistantText?: string }): any[] {
+    const ut = String(params.userText ?? ''); const at = String(params.assistantText ?? '');
+    if (!ut || !at) return alterations;
+    if (!/\b(?:confirm|verify|check|list|show|report|tell me|summari[sz]e)\b/i.test(ut)) return alterations;
+    if (/\b(?:make|build|write|fix|add|create|implement|drop|retrain|draft|update|change|rename|move|save|run|rerun|put|set up|refactor|delete|remove)\b/i.test(ut)) return alterations;
+    const STOPW = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'for', 'with', 'it', 'its', 'this', 'that', 'is', 'are', 'was', 'be', 'as', 'at', 'by', 'from', 'both', 'all', 'final', 'files', 'file', 'together', 'keep', 'saved']);
+    const toks = (x: string) => new Set(x.toLowerCase().replace(/[^\p{L}\p{N}_.]+/gu, ' ').split(' ').filter((w) => w.length >= 4 && !STOPW.has(w)));
+    const u = toks(ut), a = toks(at);
+    for (const alt of alterations) {
+      if (alt?.op !== 'create_node' || alt.author !== 'user' || alt.type !== 'task' || !/^(todo|doing)$/.test(String(alt.status ?? ''))) continue;
+      const words = [...toks(`${alt.title ?? ''} ${alt.content ?? ''}`)];
+      if (words.length < 3) continue;
+      const inAgent = words.filter((w) => a.has(w)).length, inUser = words.filter((w) => u.has(w)).length;
+      if (inAgent / words.length < 0.6 || inUser / words.length > 0.5) continue;
+      this.store.audit('guard_agent_imperative', { id: String(alt.id ?? '').slice(0, 8), title: String(alt.title ?? alt.content ?? '').slice(0, 40), agentWords: inAgent, userWords: inUser, of: words.length });
+      alt.author = 'agent'; alt.status = 'proposed';
+    }
+    return alterations;
+  }
+
   private guardTemporaryConstraint(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
     const ut = (params.userText ?? '').trim();
     if (!ut || ut.length > 700) return alterations;

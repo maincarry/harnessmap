@@ -17,7 +17,7 @@ import { proposeReorganize, proposeExpand } from './translator/reorganize.js';
 import { dedupeTitleAgainstSiblings } from './translator/title-dedupe.js';
 import { runMapStatus, getMapStatus, brainCycle, tasteDigest, getUnderstanding, verifyImport, getImportCheck, brainChat, statusConsult } from './translator/mapstatus.js';
 import { listMinds, getAreaAdvice } from './translator/governors.js';
-import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit, aimCascade, roundLeftFocus, newbornHomeOk } from './translator/autolit.js';
+import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit, aimCascade, roundLeftFocus, newbornHomeOk, newbornThreadOk } from './translator/autolit.js';
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion, suggestedQueries } from './translator/mapchat.js';
@@ -1192,8 +1192,17 @@ function applyAim(chatId: string, r0: { focus?: string; focusName?: string; lit:
     // M418: a top-level topic is an acceptable home when it is one among several (see autolit.ts newbornHomeOk).
     const topLevelTopics = store.getNodes(pid0).filter((n) => n.parentId === null && n.status !== 'removed' && n.author !== 'system' && !n.content.startsWith('to sort') && n.content.trim() !== 'untitled').length;
     const homeOk = newbornHomeOk(home, opts.bornNow, home?.id, topLevelTopics);
-    store.audit('guard_focus_newborn', { id: r.focus.slice(0, 8), ...(homeOk ? { to: home!.id.slice(0, 8) } : {}) });
-    r = homeOk ? { ...r, focus: home!.id, focusName: nodeName(home!) } : { ...r, focus: undefined, focusName: undefined };
+    // M466: on a one-project map the refused home is the sole root — the newborn thread (its highest ancestor born this round) takes
+    // the focus when it was born with children; a lone fact still never steals the marker.
+    let thread: string | undefined;
+    if (!homeOk && home && home.parentId === null && topLevelTopics < 2) {
+      let top = r.focus; for (let g = store.getNode(top); g && g.parentId && opts.bornNow.has(g.parentId); g = store.getNode(g.parentId)) top = g.parentId;
+      const topNode = store.getNode(top);
+      const kids = topNode ? store.childrenOf(top).filter((k: any) => opts.bornNow!.has(k.id)).length : 0;
+      if (newbornThreadOk(topNode, true, kids)) thread = top;
+    }
+    store.audit('guard_focus_newborn', { id: r.focus.slice(0, 8), ...(homeOk ? { to: home!.id.slice(0, 8) } : thread ? { thread: thread.slice(0, 8) } : {}) });
+    r = homeOk ? { ...r, focus: home!.id, focusName: nodeName(home!) } : thread ? { ...r, focus: thread, focusName: nodeName(store.getNode(thread)!) } : { ...r, focus: undefined, focusName: undefined };
   }
   const chat = store.getChat(chatId)!;
   const pid = chat.projectId;
