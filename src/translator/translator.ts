@@ -614,6 +614,30 @@ export class Translator {
   // when that turn is a short reply — no question of its own, under 160 characters — and the question was asked within the last two
   // rounds. The reply's content is filed by the filer as it sees fit; the guard only closes the asked question. Audit guard_agent_question.
   private guardAgentQuestionAnswered(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    // M447d (REFILE #5 Priya, round 16 → 17: the agent asked itself "support_tickets_90d is by far the most important feature … worth
+    // checking for leakage" [open question]; her next turn "That 0.97 AUC looks suspicious. Check exactly how support_tickets_90d is
+    // defined …" is a request (M447b rightly skips it), and the agent's reply filed "Post-churn leakage :: support_tickets_90d leaks
+    // post-outcome information …" and "Support tickets leakage :: The support_tickets_90d feature definition and model-result validity"
+    // — the question was answered by the agent's own evidence and stayed open to the end of the day, the brain's "older thread left
+    // behind"): an agent's open question is answered when this round files an answer-shaped row (evidence / claim / decision, noted or
+    // decided) that shares an identifier with it (support_tickets_90d) or four distinctive words. Audit guard_agent_question how:evidence.
+    {
+      const IDENT = /\b[a-z]+(?:_[a-z0-9]+)+\b|`[^`]{3,60}`/gi;
+      const idents = (t: string) => new Set((String(t ?? '').toLowerCase().match(IDENT) ?? []).map((x) => x.replace(/`/g, '')));
+      const answers = alterations.filter((a) => (a?.op === 'create_node' || a?.op === 'update_node') && /^(evidence|claim|decision)$/.test(String(a.type ?? '')) && /^(noted|decided|accepted|cited|live)$/.test(String(a.status ?? '')) && typeof a.content === 'string');
+      if (answers.length) {
+        const touched = new Set(alterations.filter((a) => a?.op === 'update_node' && a.id).map((a) => String(a.id)));
+        let m = 0;
+        for (const q of map.nodes) {
+          if (q.author !== 'agent' || q.type !== 'question' || q.status !== 'open' || touched.has(q.id) || m >= 2) continue;
+          const qt = `${q.title ?? ''} ${q.content ?? ''}`; const qi = idents(qt); const qd = distinctiveTokens(qt);
+          const hit = answers.find((a) => { const at = `${a.title ?? ''} ${a.content ?? ''}`; const ai = idents(at); if ([...qi].some((x) => ai.has(x))) return true; let n = 0; for (const w of distinctiveTokens(at)) if (qd.has(w)) n++; return n >= 4; });
+          if (!hit) continue;
+          this.store.audit('guard_agent_question', { id: q.id.slice(0, 8), title: String(q.title ?? q.content ?? '').slice(0, 40), how: 'evidence', by: String(hit.title ?? hit.content ?? '').slice(0, 40) });
+          alterations.push({ op: 'update_node', id: q.id, status: 'answered' }); touched.add(q.id); m++;
+        }
+      }
+    }
     const ut = String(params.userText ?? '').trim();
     if (!ut || ut.length > 160 || /[?？]/.test(ut)) return alterations;
     // M447b (LONG #434: "Winning positions" closed by "please improve this function setStep(…)" — a pivot, not an answer; "Next column" by
