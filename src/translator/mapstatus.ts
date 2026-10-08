@@ -766,7 +766,10 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // any factual/status/rule question.
   const liveMap = loadMap(store, projectId);
   const roundTimes = (() => { try { return store.roundTimes(); } catch { return [] as number[]; } })();
-  const roster = renderTree(liveMap, { ids: false, who: true, age: (n) => ageTag(n.status, n.updatedAt, roundTimes) }).slice(0, 12_000); // M429: every line says who said it; M435: open items left behind say for how many turns
+  // M460k: the roster used to be cut at 12,000 chars mid-row — the newest rows sit at the end, so the open work of the last rounds was
+  // the part that vanished or arrived half-written. Twice the room, a cut only at a line break, and the cut announced.
+  const rosterFull = renderTree(liveMap, { ids: false, who: true, age: (n) => ageTag(n.status, n.updatedAt, roundTimes) });
+  const roster = rosterFull.length <= 24_000 ? rosterFull : `${rosterFull.slice(0, rosterFull.lastIndexOf('\n', 24_000))}\n(… the roster is cut here — ${rosterFull.slice(24_000).split('\n').length} more rows not shown; the computed OPEN NOW / LEFT BEHIND lines above are complete)`; // M429: every line says who said it; M435: open items left behind say for how many turns
   const isTutorial = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) || /getting started \(tutorial\)/i.test(String(n.content ?? ''));
   const topics = liveMap.nodes.filter((n) => n.parentId === null && n.status !== 'removed' && !isTutorial(n) && String(n.title ?? n.content).trim() !== 'to sort');
   const topicLine = `TOP-LEVEL TOPICS (${topics.length}, excluding the getting-started tutorial): ${topics.map((n) => String(n.title ?? n.content).slice(0, 60)).join(' | ') || '(none yet)'}`;
@@ -787,7 +790,11 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // revising the Title Divider" — the brain had copied the OPEN NOW titles as "what you are working on", and every Monday-morning need came
   // back "the map gave me the neighbourhood, not the handoff"): the computed lines carry each item's STATEMENT, not a 50-char label, and a
   // LATEST line (the most recently touched items) is what "right now" is answered from.
-  const nameOf = (n: any) => { const t = String(n.title ?? '').trim(); const c = String(n.content ?? '').replace(/\s+/g, ' ').trim(); return t && c && c.toLowerCase() !== t.toLowerCase() ? `${t.slice(0, 50)}: ${c.slice(0, 140)}` : (t || c).slice(0, 140); };
+  // M460k (PANEL #454b rerun, 10 of 16 verdicts: "the stored two-sentence PM update is truncated and needs verification before sending"):
+  // the row held the full 397-char message; OPEN NOW cut it at 140 chars mid-quote and the brain reported the cut as the row's state.
+  // An open row's statement is carried whole up to 700 chars; a longer one is cut at a sentence end and marked "(…)".
+  const whole = (c: string, cap: number) => { if (c.length <= cap) return c; const head = c.slice(0, cap); const cut = Math.max(head.lastIndexOf('. '), head.lastIndexOf('.” '), head.lastIndexOf('; ')); return `${cut > cap * 0.4 ? head.slice(0, cut + 1) : head}(…)`; };
+  const nameOf = (n: any) => { const t = String(n.title ?? '').trim(); const c = String(n.content ?? '').replace(/\s+/g, ' ').trim(); return t && c && c.toLowerCase() !== t.toLowerCase() ? `${t.slice(0, 50)}: ${whole(c, 700)}` : whole(t || c, 700); };
   const recentNodes = liveMap.nodes.filter((n) => n.status !== 'removed' && n.parentId !== null && !isTutorial(n) && n.author !== 'system' && n.updatedAt).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, 4);
   const latestLine = `LATEST (the items touched most recently — "what am I working on right now" is answered from THESE, described from their statements): ${recentNodes.map(nameOf).join(' | ') || '(nothing yet)'}`;
   // M435e (LONG #424: "The first thing you worked on was the vertically stretched Python panorama…" — the LAST thread; the seed root's
