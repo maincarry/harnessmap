@@ -1648,6 +1648,16 @@ export class Translator {
         }
         if (dropped && words.length >= 2 && !FUNC.test(words[words.length - 1])) { const to = words.join(' '); this.store.audit('guard_title_qtail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-30), to: to.slice(-30) }); anyA.title = to; }
       }
+      // M419d (REFILE #7 Priya chats, v0.9.268): the wrap-up chat's root was retitled "Tomorrow's report cell all set" at round 32 — the
+      // filer narrating the row's STATUS inside the title (the status lives in the status field). A trailing status phrase goes when
+      // at least two words remain and the person did not write the phrase themselves.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
+        const m = anyA.title.match(/^(.*\S)\s+(?:all set|all done|is done|now done|done|complete|completed|finished|ready|saved|confirmed|verified|fixed|resolved|succeeded|passed|working now)\s*[.!]?$/i);
+        if (m && m[1].split(/\s+/).length >= 2 && !String(params.userText ?? '').toLowerCase().includes(anyA.title.toLowerCase())) {
+          this.store.audit('guard_title_status_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-24) });
+          anyA.title = m[1];
+        }
+      }
       // M424 (LONG #407 → PANEL #408, three personas: "odd artifacts such as ✨src"): the filer glued an invented source marker onto two
       // titles ("Apply lint guidance: no-implied-eval ✨src", "No implied eval guidance ✨src") — nothing in the product writes one, and no
       // pictograph appears in the statement or the person's words. Such a pictograph goes, with a short token glued to it; a pictograph
