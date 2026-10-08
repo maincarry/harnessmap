@@ -1,4 +1,5 @@
 import { Store } from '../store/db.js';
+import { SESSION_CLOSING } from './translator.js';
 import { systemCard } from './cast.js';
 import { call, modelFor } from '../inference.js';
 import { loadMap, renderTree, renderTieredTreeForSubtree, descendantNodes } from '../map/render.js';
@@ -777,7 +778,11 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   const earliestLine = `EARLIEST (the first items filed in this session, in order — "what did I work on first" is answered from THESE): ${earliestNodes.map(nameOf).join(' | ') || '(nothing yet)'}`;
   const openNow = openish.filter((n) => !ageTag(n.status, n.updatedAt, roundTimes));
   const older = openish.map((n) => ({ n, a: ageTag(n.status, n.updatedAt, roundTimes) })).filter((x) => x.a).sort((x, y) => parseInt(String(y.a).replace(/\D/g, ''), 10) - parseInt(String(x.a).replace(/\D/g, ''), 10));
-  const openLine = `${earliestLine}\n${latestLine}\nOPEN NOW (open work — tasks and questions the person can still act on — touched within the last 15 turns; each is "title: what it is"): ${openNow.slice(0, 20).map(nameOf).join(' | ') || '(nothing current — every open item was left behind, see the next line)'}\nLEFT BEHIND (${older.length} open item(s) untouched for 15+ turns — NOT current work: when asked what is open, mention them in ONE sentence as older threads left behind, by thread, never itemized; list them only if asked for older or abandoned work): ${older.slice(0, 16).map((x) => `${String(x.n.title ?? x.n.content).slice(0, 40)} (${String(x.a).replace('untouched for ', '')})`).join(' | ') || '(none)'}`;
+  // M449 (PANEL #429, 4 of 13): after "thanks, that is all for today" the brain still said "you're most recently working on…". The person's
+  // last words are read; a closing turn makes the current state "closed" — the LATEST line is what was last done, not what is active.
+  const lastWords = (store as any).lastUserText?.() ?? '';
+  const closedLine = SESSION_CLOSING.test(String(lastWords)) ? `\nSESSION CLOSED: the person's last words were "${String(lastWords).replace(/\s+/g, ' ').slice(0, 80)}" — nothing is active RIGHT NOW. Answer "what am I working on now" as: the session is closed; the last work (from LATEST) was …; what remains open is …. Never say the person is "currently" or "most recently working on" something.` : '';
+  const openLine = `${earliestLine}\n${latestLine}\nOPEN NOW (open work — tasks and questions the person can still act on — touched within the last 15 turns; each is "title: what it is"): ${openNow.slice(0, 20).map(nameOf).join(' | ') || '(nothing current — every open item was left behind, see the next line)'}\nLEFT BEHIND (${older.length} open item(s) untouched for 15+ turns — NOT current work: when asked what is open, mention them in ONE sentence as older threads left behind, by thread, never itemized; list them only if asked for older or abandoned work): ${older.slice(0, 16).map((x) => `${String(x.n.title ?? x.n.content).slice(0, 40)} (${String(x.a).replace('untouched for ', '')})`).join(' | ') || '(none)'}${closedLine}`;
   // M364b (found by re-running the fix in the loop, per Jacob): "what rule/preference did the user set?" was STILL
   // answered from the system prompt — the brain even quoted M364's own instruction back as "the user's standing rule".
   // Surface the actual rule/decision/constraint nodes so the answer is READ from the map, and (system prompt) forbid

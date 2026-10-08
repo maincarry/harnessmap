@@ -1,0 +1,83 @@
+{
+  "name": "PANEL #429 proof (M447/M448/M449): the agent's question is answered by the next short reply; 'learn this documentation' is done when the agent answers at length; after 'thanks, that is all for today' the map says the session is closed, not 'you're working on…'",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Games with the assistant"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "I won!",
+      "assistant": "Congratulations on winning the game! Can you please mention which positions you chose to make a row of three Xs?",
+      "then": [
+        {
+          "nodeMatching": "won|win"
+        }
+      ]
+    },
+    {
+      "user": "Positions 2,5, and 8.",
+      "assistant": "Great job! You managed to get a vertical row of Xs and win the game. Well played!",
+      "then": [
+        {
+          "nodeMatching": "2, ?5,? and 8|positions"
+        },
+        {
+          "notStatus": "which positions|winning position",
+          "statuses": "open"
+        },
+        {
+          "audit": "guard_agent_question"
+        }
+      ]
+    },
+    {
+      "user": "learn this documentation here https://github.com/jsx-eslint/eslint-plugin-jsx-a11y/blob/f0d2ddb65f21278ad29be43fb167a1092287b4b1/docs/rules/no-noninteractive-element-interactions.md and i will ask you questions later",
+      "assistant": "The `no-noninteractive-element-interactions` rule from `eslint-plugin-jsx-a11y` is designed to prevent non-interactive elements, such as `div` or `span`, from having click or keyboard event handlers attached to them. Here's some guidelines you can follow to improve your code based on the documentation:\n\n1. Avoid using non-interactive elements with click or keyboard event handlers that produce interactive behavior, such as toggling menus, opening links, or triggering special effects.\n\n2. Consider using more appropriate elements, such as buttons, input elements, or links, that are designed to handle user interaction and reduce the risk of accessibility issues.\n\n3. Use the `no-noninteractive-element-interactions` rule to enforce a consistent policy of avoiding non-interactive elements with interactivity behavior across your codebase. This rule detects problematic patterns such as using non-interactive elements with event handlers that produce interactive behavior.\n\n4. If you must use non-interactive elements with event handlers, make sure that the interactivity behavior is well-designed and tested, and that it follows accessibility guidelines and best practices.\n\n5. Always test your code with assistive technologies, such as screen readers, to ensure that it is accessible to all users, including those with disabilities.\n\nBy following these guidelines, you can make your code more accessible and inclusive, reduce the likelihood of accessibility issues and bugs, and enhance the user experience for all users. Additionally, you will make sure that your code follows best practices and industry standards for accessibility.",
+      "then": [
+        {
+          "nodeMatching": "noninteractive|a11y|accessib"
+        },
+        {
+          "notStatus": "noninteractive|a11y|accessib",
+          "statuses": "todo|doing"
+        }
+      ]
+    },
+    {
+      "user": "learn this documentation here https://eslint.org/docs/latest/rules/consistent-return",
+      "assistant": "The `consistent-return` rule from ESLint is designed to enforce consistent return behavior for all functions in a JavaScript codebase. Here are some guidelines you can follow to improve your code based on the documentation",
+      "then": [
+        {
+          "nodeMatching": "consistent-return|consistent return"
+        },
+        {
+          "notStatus": "consistent-return|consistent return|documentation",
+          "statuses": "todo|doing"
+        }
+      ]
+    },
+    {
+      "user": "thanks, that is all for today",
+      "assistant": "You are welcome. Talk soon.",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "What is the user working on RIGHT NOW, most recently? one line"
+        },
+        {
+          "brainMust": "closed|ended|finished|wrapped up|done for the day|all for today|no longer active|nothing (is )?active|signed off"
+        },
+        {
+          "brainMustNot": "currently working|most recently working|right now,? you(?:'re| are) working"
+        }
+      ]
+    }
+  ]
+}

@@ -215,6 +215,13 @@ export const FIRST_PERSON = /\b(?:let'?s|I'?ll|I will|we'?ll|we will|I'?m (?:wil
 export const RECAP = /\b(?:list|summari[sz]e|recap|go over|run through|what (?:did|have) (?:I|we)|what'?s (?:still )?open|everything (?:I|we))\b[\s\S]{0,100}\b(?:commitments?|promises?|promised|decisions?|decided|deadlines?|open|today|so far|this session|agreed|owe)\b/i;
 const STOP_TOKENS = new Set('that this with from into then than have will would could should their there these those about which when what where while after before because being been were they them your also just only over under more most some such very into onto each other another every'.split(' '));
 export const distinctiveTokens = (t: string): Set<string> => new Set((String(t ?? '').toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? []).filter((w) => !STOP_TOKENS.has(w)));
+// M448 (PANEL #429, 10 of 13: "Learn and retain the consistent-return documentation" listed as OPEN NOW after the agent had read and
+// summarised it and the person closed the day): "learn / read this documentation" is an instruction to the AGENT; the agent's substantive
+// reply is the delivery. Such a task is done at filing (like M439's code deliveries).
+export const LEARN_REQUEST = /\b(?:learn|read|study|go through|look at|review|digest|memori[sz]e)\b[^.?!\n]{0,40}\b(?:documentation|docs?|doc page|page|link|article|guide|readme|spec|url)\b|\bhttps?:\/\/\S+/i;
+// M449 (PANEL #429, 4 of 13: "You're most recently working on consistent-return guidance…" after "thanks, that is all for today"): a turn
+// that closes the session is the current state — nothing is active; the LATEST work is what was last done.
+export const SESSION_CLOSING = /\b(?:that(?:'s| is) (?:all|it) for (?:today|now|tonight|the day)|(?:I'?m )?done for (?:today|the day|tonight)|calling it a (?:day|night)|signing off|see you (?:tomorrow|monday|next week)|(?:good ?night|bye|goodbye) ?[.!]?$|wrapping up for (?:today|the day)|that(?:'s| is) (?:enough|all) for (?:today|now))\b/i;
 export const DELIVERS = /```|\bhere(?:'s| is) (?:the |an? |your )?(?:updated |revised |rewritten |fixed |complete |full |new )?(?:code|function|version|implementation|script|component|test|tests|rewrite|fix|file)\b|\bI(?:'ve| have)? (?:updated|added|implemented|fixed|created|rewritten|refactored|changed|written)\b|\b(?:updated|rewritten|refactored|revised) (?:version|function|code|script)\b/i;
 
 export function clientNameOfTurn(text: string): string | null {
@@ -387,6 +394,7 @@ export class Translator {
       alterations = this.guardRecapMirror(alterations, map, params); // M443 (TWIN #426): a recap turn creates nothing the map already holds
       alterations = this.guardDecisionAuthor(alterations, map, params); // M442 (TWIN #426): a decision stated in the person's own words is theirs
       alterations = this.guardAgentSolidStatus(alterations); // M442a (TWIN #426): an agent-authored row is never born accepted/decided
+      alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
       alterations = this.guardTaskDelivered(alterations, params); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
       alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
       alterations = this.guardAgentTaskStatus(alterations); // M437 (PANEL #422): an agent-listed step is a proposal, not the person's todo
@@ -527,9 +535,32 @@ export class Translator {
     return out;
   }
 
-  private guardTaskDelivered(alterations: any[], params: { assistantText?: string }): any[] {
+  // M447 (PANEL #429, 11 of 13 quoted "Older, untouched: the tic-tac-toe winning-position question and setup choices…" — "Which positions
+  // did you choose?" [open] after the person answered "Positions 2,5, and 8." the very next turn; "Which symbol: X or O?" and "Who moves
+  // first?" after "I'll place X in position 6"): a question the AGENT asked the person, left open, is answered by the person's next turn
+  // when that turn is a short reply — no question of its own, under 160 characters — and the question was asked within the last two
+  // rounds. The reply's content is filed by the filer as it sees fit; the guard only closes the asked question. Audit guard_agent_question.
+  private guardAgentQuestionAnswered(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const ut = String(params.userText ?? '').trim();
+    if (!ut || ut.length > 160 || /[?？]/.test(ut)) return alterations;
+    const times = this.store.roundTimes?.() ?? []; if (times.length < 1) return alterations;
+    const since = times[Math.max(0, times.length - 2)] - 1000; // the round two back (this round is not yet recorded)
+    const touched = new Set(alterations.filter((a) => a?.op === 'update_node' && a.id).map((a) => String(a.id)));
+    let n = 0;
+    for (const q of map.nodes) {
+      if (q.author !== 'agent' || q.type !== 'question' || q.status !== 'open' || touched.has(q.id)) continue;
+      const born = Date.parse(String(q.createdAt ?? '').replace(' ', 'T').replace(/Z?$/, 'Z')); if (!Number.isFinite(born) || born < since) continue;
+      this.store.audit('guard_agent_question', { id: q.id.slice(0, 8), title: String(q.title ?? q.content ?? '').slice(0, 40), reply: ut.slice(0, 40) });
+      alterations.push({ op: 'update_node', id: q.id, status: 'answered' });
+      if (++n >= 3) break;
+    }
+    return alterations;
+  }
+
+  private guardTaskDelivered(alterations: any[], params: { assistantText?: string; userText?: string }): any[] {
     const at = String(params.assistantText ?? '');
-    if (at.length < 40 || !DELIVERS.test(at)) return alterations;
+    const learn = LEARN_REQUEST.test(String(params.userText ?? '')) && at.length >= 300; // M448: a docs-reading request answered at length
+    if (at.length < 40 || (!DELIVERS.test(at) && !learn)) return alterations;
     for (const a of alterations) {
       if (a?.op !== 'create_node' || a.author !== 'user' || a.type !== 'task' || !/^(todo|doing)$/.test(String(a.status ?? ''))) continue;
       this.store.audit('guard_task_delivered', { id: String(a.id ?? '').slice(0, 8), from: a.status, title: String(a.title ?? a.content ?? '').slice(0, 40) });

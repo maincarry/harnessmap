@@ -51,7 +51,7 @@ function endMapFromSqlite(path: string): string {
   const kids = new Map<string | null, any[]>(); for (const r of rows) { const k = r.parent_id ?? null; (kids.get(k) ?? kids.set(k, []).get(k)!).push(r); }
   const byId = new Map(rows.map((r) => [r.id, r]));
   const focusPath = new Set<string>(); for (let id: string | null = focusId; id; id = byId.get(id)?.parent_id ?? null) focusPath.add(id);
-  const who = (n: any) => n.author === 'user' ? '[you] ' : n.author === 'agent' ? '[agent] ' : '';
+  const who = (n: any) => String(n.content ?? '').startsWith('to sort') ? '' : n.author === 'user' ? '[you] ' : n.author === 'agent' ? '[agent] ' : ''; // M440b (PANEL #429): the map's own bucket is nobody's
   const label = (n: any) => `${who(n)}${n.title || String(n.content || '').slice(0, 60)}${n.status && !['live', 'noted', 'answered'].includes(n.status) ? ` [${n.status}]` : ''}`;
   const count = (id: string): number => { let c = 0; for (const k of kids.get(id) ?? []) { if (k.author === 'system') continue; c += 1 + count(k.id); } return c; };
   const lines: string[] = []; let shown = 0;

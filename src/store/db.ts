@@ -353,6 +353,7 @@ export class Store {
   }
   // M356: the previous round's alterations for a chat — what the filer did one turn ago (the correction-retire guard reads it).
   // M435: when each round was filed (epoch ms, ascending) — the brain's roster marks open items untouched for many rounds.
+  lastUserText(): string { const r = this.db.prepare('SELECT user_text FROM filings ORDER BY created_at DESC, rowid DESC LIMIT 1').get() as any; return String(r?.user_text ?? ''); } // M449: the brain reads the person's last words
   roundTimes(): number[] { const rows = this.db.prepare('SELECT created_at FROM rounds ORDER BY created_at').all() as any[]; return rows.map((r) => { const t = String(r.created_at ?? ''); const ms = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(t) ? t : t.replace(' ', 'T') + 'Z'); return Number.isFinite(ms) ? ms : NaN; }).filter((x) => Number.isFinite(x)); }
   lastRoundAlterations(chatId: string): Alteration[] { const r = this.db.prepare('SELECT alterations FROM rounds WHERE chat_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1').get(chatId) as any; try { return r ? (JSON.parse(r.alterations) as Alteration[]) : []; } catch { return []; } }
   roundForTurn(turnId: string): { id: string } | undefined { return this.db.prepare('SELECT id FROM rounds WHERE turn_id = ? ORDER BY created_at DESC LIMIT 1').get(turnId) as any; }

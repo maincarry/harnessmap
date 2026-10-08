@@ -923,7 +923,7 @@ function renderTree() {
       ${S.home === n.id ? `<span class="badge" title="home page — the home button (top of the map) zooms here">${HOME_ICO}</span>` : ''}
 
       ${n.id === focus ? '<span class="fmark" title="the conversation is talking about this">▶</span>' : ''}
-      ${n.author === 'user' ? '<span class="nwho you" title="you said, asked or decided this">you</span>' : n.author === 'agent' ? '<span class="nwho agent" title="the coding agent proposed, answered or claimed this">agent</span>' : ''}
+      ${String(n.content ?? '').startsWith('to sort') ? '' : n.author === 'user' ? '<span class="nwho you" title="you said, asked or decided this">you</span>' : n.author === 'agent' ? '<span class="nwho agent" title="the coding agent proposed, answered or claimed this">agent</span>' : ''}
       <span class="ncontent" data-edit="${n.id}" title="${esc(isTray ? 'the filer couldn’t tell where these belong yet — they wait here so nothing is lost; approve a placement or move one home' : (n.title && n.title !== n.content ? n.content : 'click to edit'))}">${esc(disp(n))}${isTray ? '<small class="tray-sub">arrivals the filer couldn’t place yet</small>' : ''}</span>
       ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
       ${recChip(n.id)}
