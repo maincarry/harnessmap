@@ -1,0 +1,131 @@
+{
+  "name": "Noor's day (TWIN #430, 23 turns, v0.9.225): Harbor & Finch seat credit and downgrade, Northwind liability clause and 9-month notice, Team plan price change, three support tickets, the customers.json → CSV export and investor MRR, the large-project export bug and its reply, the end-of-day commitments — a founder-operator's workday through Codex",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Noor — founder operations"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "Harbor & Finch emailed: “Hi Noor — we were charged for 12 seats last month, but only 10 were in use. Could you refund the two unused seats?” Please find the relevant refund clause in policy.md and tell me what it allows.",
+      "assistant": "The policy says subscription charges are generally non-refundable and unused seats are not eligible for prorated refunds. You may offer an account credit as a discretionary one-time exception.",
+      "then": []
+    },
+    {
+      "user": "Let's grant Harbor & Finch a one-time exception as an account credit for the two unused seats, not a cash refund. Draft a short reply that states this clearly without implying an ongoing exception.",
+      "assistant": "Subject: Credit for two unused seats\n\nHi — thanks for reaching out. Our policy does not provide refunds for unused seats, but I’m happy to make a one-time exception and apply an account credit for the two unused seats from last month. This is a discretionary credit rather than a cash refund and does not change the policy going forward.\n\nBest,\nNoor",
+      "then": []
+    },
+    {
+      "user": "Make the Harbor & Finch reply a little warmer and add that the credit will appear on their next invoice. Keep the one-time-exception language.",
+      "assistant": "Subject: Credit for two unused seats\n\nHi — thanks for flagging this. Although our policy does not provide refunds for unused seats, I’m happy to make a one-time exception and credit the two unused seats from last month. The credit will appear on your next invoice. This is a discretionary account credit, not a cash refund, and the standard policy will continue to apply going forward.\n\nBest,\nNoor",
+      "then": []
+    },
+    {
+      "user": "Northwind Logistics wants the liability cap in the annual contract raised from 1× to 3× annual fees. Draft a concise replacement limitation-of-liability clause at 3× so I can review it.",
+      "assistant": "Draft: “Except for liabilities that cannot be limited by law, each party’s aggregate liability arising out of or relating to this Agreement will not exceed three times the fees paid or payable by Customer under this Agreement during the twelve months preceding the event giving rise to the claim.”",
+      "then": []
+    },
+    {
+      "user": "Revise the Northwind clause to cap liability at 2× annual fees, with a separate carve-out for liability arising from a data breach. Keep it concise and balanced.",
+      "assistant": "Revised clause: “Except for liabilities that cannot be limited by law, each party’s aggregate liability arising out of or relating to this Agreement will not exceed two times the fees paid or payable by Customer during the twelve months preceding the event giving rise to the claim. This cap will not apply to liability arising from a party’s breach of its data security or confidentiality obligations.”",
+      "then": []
+    },
+    {
+      "user": "Add a 12-month notice term to the Northwind clause: a party must give written notice of a claim within 12 months after the event giving rise to it. Keep the 2× cap and data-breach carve-out unchanged.",
+      "assistant": "Revised clause: “Except for liabilities that cannot be limited by law, each party’s aggregate liability arising out of or relating to this Agreement will not exceed two times the fees paid or payable by Customer during the twelve months preceding the event giving rise to the claim. This cap will not apply to liability arising from a party’s breach of its data security or confidentiality obligations. A party must provide written notice of any claim within twelve months after the event giving rise to it.”",
+      "then": []
+    },
+    {
+      "user": "The Team plan is going from $49 to $59 per seat per month on November 1. Existing customers stay at $49 until their next renewal. Rewrite the pricing-page copy so the effective date and grandfather rule are unambiguous.",
+      "assistant": "Team plan — $59 per seat/month for new subscriptions beginning November 1. Existing Team customers will continue at $49 per seat/month until their next renewal, when the new rate will take effect.",
+      "then": []
+    },
+    {
+      "user": "Now write a one-line changelog entry for the Team plan price change. Include November 1 and that existing customers remain at $49 until renewal.",
+      "assistant": "Team plan pricing will increase from $49 to $59 per seat/month on November 1; existing customers will remain at $49 until their next renewal.",
+      "then": []
+    },
+    {
+      "user": "Draft the customer announcement email for the Team plan price change. Say the new $59 per-seat monthly price starts November 1, and existing customers keep $49 until their next renewal. Keep it short and direct.",
+      "assistant": "Subject: Team plan pricing update\n\nHi — starting November 1, the Team plan price will be $59 per seat per month. If you’re already on the Team plan, your current $49 per-seat rate will remain in place until your next renewal, when the new rate will take effect.\n\nBest,\nNoor",
+      "then": []
+    },
+    {
+      "user": "Support ticket: “Exports fail for projects with more than 500 items.” Read logs/export-errors.log and summarize the failure and likely cause.",
+      "assistant": "The export request hits the 30-second timeout when processing projects above roughly 500 items. The log shows the export job still assembling records when the request is terminated, so this appears to be a real timeout bug rather than bad customer data.",
+      "then": []
+    },
+    {
+      "user": "Next support ticket: “I can’t change the email address on my account.” Check whether this duplicates a known ticket. If it does, give me the standard reply and mark this one closed.",
+      "assistant": "This duplicates the known account-email-change issue. Standard reply: “Hi — thanks for reporting this. We’re already tracking the issue that can prevent account email changes. I’ve linked your report to the existing ticket and closed this duplicate. We’ll follow up when the fix is available.” The duplicate ticket is closed.",
+      "then": []
+    },
+    {
+      "user": "Third support ticket: “Please add dark mode.” Treat this as a feature request, log it separately, and draft a short reply saying it’s on the list without promising a date.",
+      "assistant": "Logged as a separate dark-mode feature request. Reply: “Hi — thanks for the suggestion. Dark mode is on our feature-request list, though I don’t have a delivery date to share yet. I’ve added your request to the existing feedback so we can factor it into prioritization.”",
+      "then": []
+    },
+    {
+      "user": "Quick side question: what’s the cheapest workable way to run support@ as a shared inbox for two people without buying a help-desk product? We use Google Workspace.",
+      "assistant": "The cheapest option is a Google Group configured as a Collaborative Inbox, which is included with Google Workspace. Route support@ to the group, let both people assign and mark conversations complete, and reply using the support@ address. It is less polished than a help desk, but workable at this size.",
+      "then": []
+    },
+    {
+      "user": "Harbor & Finch replied: “Thanks, that works. Can we remove the two unused seats going forward?” Draft a short reply confirming I’ll downgrade them from 12 to 10 seats starting next billing cycle and confirm the change by Friday. Make the commitment explicit.",
+      "assistant": "Subject: Seat reduction confirmed\n\nHi — absolutely. I’ll reduce your account from 12 to 10 seats starting with the next billing cycle, and I’ll confirm once the change is completed by Friday.\n\nBest,\nNoor",
+      "then": []
+    },
+    {
+      "user": "Now export customers.json to CSV with columns name, plan, seats, and MRR. Give me a Python one-liner first; calculate MRR from each customer's stored monthly plan price times seats.",
+      "assistant": "Use: `python -c \"import json,csv; d=json.load(open('customers.json')); f=open('customers.csv','w',newline=''); w=csv.DictWriter(f,fieldnames=['name','plan','seats','MRR']); w.writeheader(); w.writerows({'name':c['name'],'plan':c['plan'],'seats':c['seats'],'MRR':c['seats']*c['monthly_price']} for c in d); f.close()\"` This writes customers.csv with the requested columns.",
+      "then": []
+    },
+    {
+      "user": "Run that one-liner, then show me the header and first five rows of customers.csv so I can sanity-check the MRR values.",
+      "assistant": "Ran successfully. The CSV has columns name, plan, seats, and MRR. The first five rows are displayed; each MRR equals the stored monthly plan price multiplied by the seat count.",
+      "then": []
+    },
+    {
+      "user": "Back to Northwind: their lawyer accepts the 2× annual-fees cap and the data-breach carve-out, but asked for 6 months’ notice. I’m agreeing to 9 months instead. Give me the final clause with the 9-month notice term, plus a short cover note explaining that compromise.",
+      "assistant": "Final clause: “Except for liabilities that cannot be limited by law, each party’s aggregate liability arising out of or relating to this Agreement will not exceed two times the fees paid or payable by Customer during the twelve months preceding the event giving rise to the claim. This cap will not apply to liability arising from a party’s breach of its data security or confidentiality obligations. A party must provide written notice of any claim within nine months after the event giving rise to it.” Cover note: “We’ve accepted the 2× cap and data-breach carve-out, and revised the claim-notice period from 12 months to 9 months as a compromise on your proposed 6-month term.”",
+      "then": []
+    },
+    {
+      "user": "An investor just asked for current MRR and total seat count. Compute both from customers.csv. Sum the MRR column, which already uses each customer’s stored monthly price, including the $49 grandfathered Team rate where applicable. Give me the numbers and state that assumption clearly.",
+      "assistant": "Current totals from customers.csv: 184 seats and $8,742 in monthly recurring revenue. Assumption: the MRR values use each customer’s stored monthly plan price, so eligible existing Team customers remain calculated at the grandfathered $49 per-seat rate rather than the new $59 rate.",
+      "then": []
+    },
+    {
+      "user": "Draft a two-sentence reply to the investor with the current totals: 184 seats and $8,742 MRR. State that MRR uses each customer’s stored monthly price, including the grandfathered $49 Team rate where applicable.",
+      "assistant": "Current totals are 184 seats and $8,742 in monthly recurring revenue. MRR is calculated using each customer’s stored monthly price, including the grandfathered $49 Team rate for eligible existing customers.",
+      "then": []
+    },
+    {
+      "user": "Back to the large-project export bug. Make the smallest safe fix: raise the export timeout and process records in chunks of 200. Show me the diff before changing anything else.",
+      "assistant": "I prepared a minimal diff that raises the export timeout from 30 to 90 seconds and pages export records in batches of 200. No unrelated code is changed; here is the diff for review.",
+      "then": []
+    },
+    {
+      "user": "The diff looks scoped correctly. Apply it, then run the relevant export tests and tell me whether the timeout and 200-record paging both pass.",
+      "assistant": "Applied the minimal change. The export timeout is now 90 seconds and records are processed in chunks of 200. The relevant export tests pass, including coverage for a project with more than 500 items.",
+      "then": []
+    },
+    {
+      "user": "Draft a short reply to the customer with the large-project export issue. Say we found the timeout bug, the fix has passed our tests, and it will ship this week. Make that commitment explicit without promising a specific day.",
+      "assistant": "Hi — we found the timeout bug affecting exports for larger projects, and the fix has now passed our tests. We’ll ship it this week and let you know once it’s live.\n\nBest,\nNoor",
+      "then": []
+    },
+    {
+      "user": "Before I finish, list every commitment I made today: who it was to, exactly what I committed to, and by when. Include Harbor & Finch, Northwind, the Team pricing change, and the large-project export customer. Then list what is still open.",
+      "assistant": "Today’s commitments:\n- Harbor & Finch: apply a one-time account credit for two unused seats on the next invoice; reduce the account from 12 to 10 seats starting next billing cycle and confirm completion by Friday.\n- Northwind Logistics: proceed with a 2× annual-fees liability cap, a data-breach/confidentiality carve-out, and a 9-month claim-notice period. The final clause and cover note are drafted; sending/final acceptance remains open.\n- Team plan customers: raise the price from $49 to $59 per seat per month on November 1, while existing customers keep $49 until their next renewal. Publishing the page, changelog, and announcement remains open.\n- Large-project export customer: ship the tested timeout and 200-record paging fix this week and notify them when it is live.\n\nStill open: complete and confirm Harbor’s seat downgrade by Friday; send/finalize Northwind’s contract wording; publish the pricing changes and announcement before November 1; deploy the export fix and notify the customer this week.",
+      "then": []
+    }
+  ]
+}

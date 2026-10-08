@@ -231,6 +231,7 @@ export const FUTURE_COMMITMENT = /\b(?:will|'ll|’ll|going to|am going to|promi
 // and the NEXT turn — "the function you sent me does not follow the guidelines from the documentation i've provided. please revise" — left it
 // done): a delivery the person rejects in the following turn is not done. REJECTS on the user text reopens tasks M439/M448 closed in the
 // last two rounds (status doing). The mirror rule M439 always needed.
+export const REJECTS_ZH = /有问题|有误|不对|错了|不行|搞错|写错|弄错|没有这(?:一)?列|没有该列|并没有|还是(?:不行|不对|报错|失败)|仍然(?:不行|报错|失败)|不是我(?:要|问)的/;
 export const REJECTS = /\b(?:does ?n[o'’]t (?:follow|work|match|compile|run|do|handle|respect|meet)|doesn[’']?t (?:follow|work|match|compile|run)|did ?n[o'’]t (?:work|help|fix)|not (?:what I asked|what I meant|following|working|correct|right|fixed)|still (?:wrong|broken|fails?|failing|does ?n[o'’]t|doesn[’']?t|not)|(?:check|try|look) again|wrong (?:again|still)|that[’']?s (?:wrong|not it|incorrect)|is (?:wrong|incorrect|broken)|please (?:revise|fix|redo|rewrite|correct)(?: and update)? (?:the |this |it|that)|you (?:missed|ignored|broke))\b/i;
 export const DELIVERS = /```|\bhere(?:'s| is) (?:the |an? |your )?(?:updated |revised |rewritten |fixed |complete |full |new )?(?:code|function|version|implementation|script|component|test|tests|rewrite|fix|file)\b|\bI(?:'ve| have)? (?:updated|added|implemented|fixed|created|rewritten|refactored|changed|written)\b|\b(?:updated|rewritten|refactored|revised) (?:version|function|code|script)\b/i;
 
@@ -408,6 +409,7 @@ export class Translator {
       alterations = this.guardAgentSolidStatus(alterations); // M442a (TWIN #426): an agent-authored row is never born accepted/decided
       alterations = this.guardCommitmentIsTask(alterations, map); // M451 (TWIN #430): a promise of a future action is open work, not a decided decision
       alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
+      alterations = this.guardCorrectionAuthor(alterations, params); // M456 (LONG #436 zh): the correction is the person's catch
       alterations = this.guardDeliveryRejected(alterations, map, params); // M453 (PANEL #432): a rejected delivery is reopened
       alterations = this.guardTaskDelivered(alterations, params); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
       alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
@@ -602,7 +604,7 @@ export class Translator {
   // the person's turn rejects what was delivered; this round's own writes to that row win. Audit guard_delivery_rejected.
   private guardDeliveryRejected(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
     const ut = String(params.userText ?? '');
-    if (ut.length < 12 || !REJECTS.test(ut)) return alterations;
+    if (ut.length < 4 || !(REJECTS.test(ut) || REJECTS_ZH.test(ut))) return alterations; // M453c: Chinese objections too (LONG #436)
     const times = this.store.roundTimes?.() ?? []; if (!times.length) return alterations;
     const since = times[Math.max(0, times.length - 2)] - 1000;
     // M453b (proof, round 3): the filer re-asserted the task as done in the rejection round ("was revised to memoize…"), and the
@@ -617,6 +619,27 @@ export class Translator {
       const own = alterations.find((a) => a?.op === 'update_node' && String(a.id) === t.id);
       if (own) own.status = 'doing'; else alterations.push({ op: 'update_node', id: t.id, status: 'doing' });
       if (++n >= 2) break;
+    }
+    return alterations;
+  }
+
+  // M456 (LONG #436, Chinese, round 34: "有问题，orders表都没有email这一列…" → the agent apologised and retracted its cross-table index
+  // example; asked "did the user point out a mistake?" the brain said "No — the example was retracted by the agent": the retraction row
+  // was filed as the AGENT's). When the person's turn objects (REJECTS / REJECTS_ZH) and this round files a row that records a
+  // correction or retraction — status retracted/superseded/rejected/corrected, or a statement saying so — the catch is the person's:
+  // author user. The agent's own words stay in the statement; only who caught it changes. Audit guard_correction_author.
+  private guardCorrectionAuthor(alterations: any[], params: { userText?: string }): any[] {
+    const ut = String(params.userText ?? '');
+    if (ut.length < 4 || !(REJECTS.test(ut) || REJECTS_ZH.test(ut))) return alterations;
+    const CORR = /\b(?:retract\w*|withdraw\w*|supersed\w*|correct(?:ed|ion)|was wrong|is wrong|mistake|incorrect|does not (?:exist|have)|no such)\b|撤回|有误|更正|纠正|错误|不存在|没有(?:这|该)(?:一)?列|不能直接/i;
+    for (const a of alterations) {
+      if (!(a?.op === 'create_node' || a?.op === 'update_node') || a.author === 'user') continue;
+      const st = String(a.status ?? '');
+      const txt = `${a.title ?? ''} ${a.content ?? ''}`;
+      if (!/^(retracted|superseded|rejected|corrected|withdrawn)$/.test(st) && !CORR.test(txt)) continue;
+      if (a.type === 'evidence' && !/^(retracted|superseded|rejected|corrected|withdrawn)$/.test(st)) continue; // the agent's own example code stays its own
+      this.store.audit('guard_correction_author', { id: String(a.id ?? '').slice(0, 8), op: a.op, status: st, title: String(a.title ?? a.content ?? '').slice(0, 40) });
+      a.author = 'user';
     }
     return alterations;
   }
