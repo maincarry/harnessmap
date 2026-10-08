@@ -840,17 +840,24 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // and promises that name a counterparty, a sum or a date — so the first answer reads them, open and agreed alike.
   const rootTitleOf = (n: any) => { let c = n; for (let i = 0; i < 12 && c?.parentId; i++) { const p = byIdOpen.get(c.parentId); if (!p) break; c = p; } return String(c?.title ?? '').slice(0, 40); };
   const COUNTERPARTY = /\b(?:customer|client|lawyer|investor|team|user)s?\b|\$\s?\d|\b[A-Z][a-z]+(?:\s(?:&|and)\s[A-Z][a-z]+|\s[A-Z][a-z]+)\b/;
+  // M460e (TWIN #449 proof pass 2): the November 1 price change was filed by the filer as EVIDENCE ("The Team plan price increases from
+  // $49 to $59 per seat per month on November 1" [noted]) and fell out of the commitments — a dated, priced term the person stated is a
+  // commitment whatever type the filer chose. Evidence/claim rows count when they carry BOTH a date and a sum/term word.
+  const TERM = /\$\s?\d|\b(?:price|pricing|plan|rate|fee|fees|cap|notice|renewal|invoice|credit|refund|discount)\b/i;
   const commitRows = liveMap.nodes.filter((n) => n.status !== 'removed' && n.parentId !== null && !isTutorial(n) && n.author === 'user'
-    && (String(n.type ?? '') === 'task' || String(n.type ?? '') === 'decision' || /^promise/i.test(String(n.title ?? '')))
+    && (String(n.type ?? '') === 'task' || String(n.type ?? '') === 'decision' || /^promise/i.test(String(n.title ?? ''))
+      || (/^(evidence|claim)$/.test(String(n.type ?? '')) && FUTURE_DATED.test(`${n.title ?? ''} ${n.content ?? ''}`) && TERM.test(`${n.title ?? ''} ${n.content ?? ''}`)))
     && !/^(dropped|rejected|superseded|retracted|parked)$/.test(String(n.status ?? ''))
     && (FUTURE_DATED.test(`${n.title ?? ''} ${n.content ?? ''}`) || FUTURE_COMMITMENT.test(String(n.content ?? '')) || COUNTERPARTY.test(`${n.title ?? ''} ${n.content ?? ''}`)))
     .sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? ''))).slice(0, 24);
-  const commitTag = (n: any) => /^(done|resolved)$/.test(String(n.status ?? '')) ? 'done' : /^(decided|accepted|chosen|active)$/.test(String(n.status ?? '')) ? 'agreed — nothing due today' : 'OPEN';
+  const commitTag = (n: any) => /^(done|resolved)$/.test(String(n.status ?? '')) ? 'done' : /^(decided|accepted|chosen|active|noted|cited)$/.test(String(n.status ?? '')) ? 'agreed — nothing due today' : 'OPEN';
+  // M460e: the deadline phrase travels with the entry so the answer keeps it ("this week", "by Friday", "on November 1").
+  const dueOf = (n: any) => { const m = `${n.title ?? ''} ${n.content ?? ''}`.match(FUTURE_DATED); return m ? ` (due: ${m[0].trim()})` : ''; };
   // M460d (TWIN #449 proof pass 1: asked "what commitments are still open", the answer listed the open ones and dropped Northwind's agreed
   // terms and the November 1 price change — the person counts an agreed term as something she owes): two sublists, and the "still open"
   // form must end with the agreed ones in one sentence.
   const openCommits = commitRows.filter((n) => commitTag(n) === 'OPEN'), agreedCommits = commitRows.filter((n) => commitTag(n).startsWith('agreed')), doneCommits = commitRows.filter((n) => commitTag(n) === 'done');
-  const fmt = (xs: any[]) => xs.map((n) => `${rootTitleOf(n)} › ${nameOf(n)}`).join(' | ') || '(none)';
+  const fmt = (xs: any[]) => xs.map((n) => `${rootTitleOf(n)} › ${nameOf(n)}${dueOf(n)}`).join(' | ') || '(none)';
   const commitmentsLine = commitRows.length ? `\nCOMMITMENTS (the person's own tasks, decisions and promises that name a customer, a counterparty, a sum or a date — "what did I promise / commit to / owe / what commitments are still open" is answered from THESE, grouped by thread: the OPEN ones first with every deadline; then ALWAYS one sentence "Agreed, nothing due today: …" listing every AGREED term — even when asked only what is still open, an agreed price change or contract term is a commitment the person is carrying; then the DONE ones if asked for everything; an active constraint or requirement on HOW work is done is never a commitment; the agent's proposals are not the person's commitments):\n  OPEN: ${fmt(openCommits)}\n  AGREED (nothing due today, still a commitment): ${fmt(agreedCommits)}\n  DONE: ${fmt(doneCommits)}` : '';
   const promisedLine = promised.length ? `\nPROMISED, NOT YET TRACKED (a future action written into a finished row — the person owes it; when asked what is open, list each as "promised in …, not done yet" and never say nothing else is open while this line is non-empty): ${promised.join(' | ')}` : '';
   const openLine = `${earliestLine}\n${latestLine}\n${settledLine}\n${nextLine}\n${resultsLine}\nOPEN NOW (open work — tasks and questions the person can still act on — touched within the last 15 turns; each is "title: what it is"): ${openNow.slice(0, 20).map(nameOf).join(' | ') || '(nothing current — every open item was left behind, see the next line)'}${promisedLine}${commitmentsLine}\nLEFT BEHIND (${older.length} open item(s) untouched for 15+ turns — NOT current work: when asked what is open, mention them in ONE sentence as older threads left behind, by thread, never itemized; list them only if asked for older or abandoned work): ${older.slice(0, 16).map((x) => `${String(x.n.title ?? x.n.content).slice(0, 40)} (${String(x.a).replace('untouched for ', '')})`).join(' | ') || '(none)'}${closedLine}`;

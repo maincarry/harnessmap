@@ -74,8 +74,8 @@
           "nodeMatching": "Friday"
         },
         {
-          "statusOf": "^Harbor (?:&|and)? ?Finch downgrade\\b|^Harbor seat downgrade reply|^Draft .*downgrade|draft reply confirming",
-          "is": "done"
+          "notStatus": "downgrade reply|draft reply confirming|^Harbor seat downgrade reply",
+          "statuses": "todo|doing|live|provisional|proposed"
         },
         {
           "notStatus": "^Confirm\\b.*Friday",
