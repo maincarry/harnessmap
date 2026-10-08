@@ -59,7 +59,7 @@ PLACEMENT SCOPE — read everywhere, WRITE only in the light:
 - ONE NODE = ONE THING (M286): when the round enumerates alternatives — plans, options, candidates, steps to choose from — make a PARENT node for the question or topic and ONE CHILD per item (type option, status live), never a single node whose statement lists them "(1) … (2) … (3)". A list crammed into one statement cannot be chosen from, dimmed, or corrected item by item. The same for several distinct decisions or facts in one breath: one node each.
 - TWO THINGS IN ONE BREATH ARE TWO NODES (M286): when a message corrects one node AND states a separate new rule, fact or task ("and separately…", "also…", "one more thing…"), the correction updates the existing node and the new thing is created as its own node — never folded into the corrected node's statement.
 - CHOOSING NEVER ERASES (M286): when the user picks one alternative, mark it chosen and the others dropped — do not rewrite the parent's statement to the winner, do not remove the losers; the record of what was on the table stays on the map.
-- THE TOP LEVEL IS ORDINARY (M278): a new topic that belongs under no lit branch becomes a new TOP-LEVEL node — create_node with parentId null, named as a topic, its question/options/evidence nested under it. There is no difference between a top-level node and any other; do not hunt for a parent that merely "sort of" fits, and never wedge an unrelated topic under the focus. FITS means part of the SAME PIECE OF WORK, not the same KIND of work (M441): a new script, a new function, a new question in another area is a new top-level node even when the current thread's name could cover it — "please improve this function" while the thread is a game is a new thread, not a child of the game. The other way round too: a new clause of the same contract, a new section of the same document, a new fix to the same script is the SAME piece of work — it goes under that thread, never a new root.
+- THE TOP LEVEL IS ORDINARY (M278): a new topic that belongs under no lit branch becomes a new TOP-LEVEL node — create_node with parentId null, named as a topic, its question/options/evidence nested under it. There is no difference between a top-level node and any other; do not hunt for a parent that merely "sort of" fits, and never wedge an unrelated topic under the focus. FITS means part of the SAME PIECE OF WORK, not the same KIND of work (M441): a new script, a new function, a new question in another area is a new top-level node even when the current thread's name could cover it — "please improve this function" while the thread is a game is a new thread, not a child of the game. The other way round too: a new clause of the same contract, a new section of the same document, a new fix to the same script is the SAME piece of work — it goes under that thread, never a new root. A shared WORD is not the same work: "export customers.json to CSV" is not the large-project export bug, a second customer's refund is not the first customer's thread — a different artefact, file, customer or document is a different piece of work.
 - "to sort" is only for two things: material that belongs under a DIM branch (not writable — the user set it aside; file it under "to sort" with the placement suggestion below so one click moves it home when they light the branch), and fragments you cannot name as a topic.
 - ONE TOPIC = ONE SUBTREE in "to sort": create a single topic node for it, and nest its question/options/constraints/evidence UNDER that node — NEVER as sibling children of "to sort". The user moves things out of "to sort" whole; scattered siblings tear apart. Record provenance once, in the topic node's content: append " (arrived while focus was: <current focus name>)".
 - When you can tell where the material belongs, ALSO emit suggest_relight {nodeId: <the new to-sort node's id>, note: 'belongs under "<branch name>" [<branch id>]'} — a PLACEMENT suggestion the user can approve as a one-click move. nodeId MUST be the id of the to-sort node you just created — NEVER skip creating the node (a note alone loses the material if dismissed), and never point the suggestion at the destination branch itself.
@@ -222,6 +222,11 @@ export const LEARN_REQUEST = /\b(?:learn|read|study|go through|look at|review|di
 // M449 (PANEL #429, 4 of 13: "You're most recently working on consistent-return guidance…" after "thanks, that is all for today"): a turn
 // that closes the session is the current state — nothing is active; the LATEST work is what was last done.
 export const SESSION_CLOSING = /\b(?:that(?:'s| is) (?:all|it) for (?:today|now|tonight|the day)|(?:I'?m )?done for (?:today|the day|tonight)|calling it a (?:day|night)|signing off|see you (?:tomorrow|monday|next week)|(?:good ?night|bye|goodbye) ?[.!]?$|wrapping up for (?:today|the day)|that(?:'s| is) (?:enough|all) for (?:today|now))\b/i;
+// M451 (TWIN LONG #430, Noor, the severe stop at step 33: "The large-project export fix will ship this week … and the customer will be
+// notified when it is live" filed as a DECISION [decided] — so the open-work list dropped the one promise she most needed to see; "It knows
+// I promised … and knows neither happened, but still leaves it off"): a statement in the person's own words that commits to a FUTURE ACTION
+// is open work — a task, todo — until it is done. A decision records a choice; a promise records a debt.
+export const FUTURE_COMMITMENT = /\b(?:will|'ll|going to|am going to|promise[sd]? to|committed to|commit to)\s+(?:be\s+)?(?:ship\w*|deploy\w*|sen[dt]|notif\w+|confirm\w*|publish\w*|releas\w+|deliver\w*|follow(?:ing)?[ -]up|let\s+(?:them|him|her|you|the\s+\w+)\s+know|email\w*|call\w*|invoice\w*|refund\w*|appl(?:y|ied)|reduce\w*|downgrade\w*|cancel\w*|migrat\w+|roll\w* out|get back to)\b/i;
 export const DELIVERS = /```|\bhere(?:'s| is) (?:the |an? |your )?(?:updated |revised |rewritten |fixed |complete |full |new )?(?:code|function|version|implementation|script|component|test|tests|rewrite|fix|file)\b|\bI(?:'ve| have)? (?:updated|added|implemented|fixed|created|rewritten|refactored|changed|written)\b|\b(?:updated|rewritten|refactored|revised) (?:version|function|code|script)\b/i;
 
 export function clientNameOfTurn(text: string): string | null {
@@ -229,6 +234,8 @@ export function clientNameOfTurn(text: string): string | null {
   const pats = [
     /^(?:Switching to|Switch to|Back to|Now|Next[,:]?|Then|For|Client|Customer)\s+(?:the\s+)?([A-Z][\w'’-]*(?:\s+(?:&|and)\s+[A-Z][\w'’-]*|\s+[A-Z][\w'’-]*){0,3})/u,
     /^([A-Z][\w-]*(?:\s+(?:&|and)\s+[A-Z][\w-]*|\s+[A-Z][\w-]*){0,2})(?:'s|’s)\s/u,
+    // M438b (TWIN #430: "Harbor & Finch emailed: …" / "Northwind Logistics wants …" opened threads with no name in the title; she renamed by hand): a name followed by a reporting verb.
+    /^([A-Z][\w'’-]*(?:\s+(?:&|and)\s+[A-Z][\w'’-]*|\s+[A-Z][\w'’-]*){0,2})\s+(?:emailed|wrote|replied|responded|wants|want|asked|asks|says|said|sent|called|needs|need|requested|is asking|are asking|pinged|messaged)\b/u,
   ];
   for (const p of pats) {
     const m = s.match(p); if (!m) continue;
@@ -394,6 +401,7 @@ export class Translator {
       alterations = this.guardRecapMirror(alterations, map, params); // M443 (TWIN #426): a recap turn creates nothing the map already holds
       alterations = this.guardDecisionAuthor(alterations, map, params); // M442 (TWIN #426): a decision stated in the person's own words is theirs
       alterations = this.guardAgentSolidStatus(alterations); // M442a (TWIN #426): an agent-authored row is never born accepted/decided
+      alterations = this.guardCommitmentIsTask(alterations, map); // M451 (TWIN #430): a promise of a future action is open work, not a decided decision
       alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
       alterations = this.guardTaskDelivered(alterations, params); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
       alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
@@ -512,13 +520,18 @@ export class Translator {
       // reduce 12 → 10 seats, confirm by Friday") overlaps no single row by half — but the map as a whole holds 70 % of its words.
       let held = 0; if (!best && mine.size >= 8) { for (const w of mine) if (existing.some((e) => e.toks.has(w))) held++; }
       const union = mine.size >= 8 ? held / mine.size : 0;
+      // M443c (TWIN #430: "Harbor & Finch seat downgrade and Friday confirmation remain open" / "The final Northwind clause and cover note still
+      // need to be sent" minted as [open] question rows by the recap turn — "the duplicate Harbor open-work marker"): a recap-round create whose
+      // statement only restates what is open or done is a status echo — dropped (re-pointed at its best overlap, or just dropped).
+      const echo = /\b(?:remains?|still|are|is)\s+(?:open|pending|outstanding|unresolved|to do|not (?:yet )?(?:done|sent|finalized|complete))\b|\bstill (?:needs?|has) to\b|\bopen work\b|\bopen items?\b/i.test(`${a.title ?? ''} ${a.content ?? ''}`);
+      if (!best && echo && top) { drop.set(String(a.id), top.id); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), of: top.id.slice(0, 8), echo: true, title: String(a.title ?? a.content ?? '').slice(0, 40) }); continue; }
       if (best) { drop.set(String(a.id), best.id); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), of: best.id.slice(0, 8), frac: Math.round(best.frac * 100) / 100, title: String(a.title ?? a.content ?? '').slice(0, 40) }); }
       else if (union >= 0.7 && top) { drop.set(String(a.id), top.id); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), of: top.id.slice(0, 8), union: Math.round(union * 100) / 100, title: String(a.title ?? a.content ?? '').slice(0, 40) }); }
     }
     // recap containers left empty by the drops
     for (const a of alterations) {
       if (a?.op !== 'create_node' || !a.id || drop.has(String(a.id)) || a.type) continue;
-      if (!/\b(commitments?|summary|recap|promises)\b/i.test(`${a.title ?? ''} ${a.content ?? ''}`)) continue;
+      if (!/\b(commitments?|summary|recap|promises|open work|still open|outstanding)\b/i.test(`${a.title ?? ''} ${a.content ?? ''}`)) continue;
       const kids = alterations.filter((o: any) => o?.op === 'create_node' && o.parentId === a.id && !drop.has(String(o.id)));
       if (kids.length) continue;
       drop.set(String(a.id), null); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), container: true, title: String(a.title ?? a.content ?? '').slice(0, 40) });
@@ -553,6 +566,25 @@ export class Translator {
       this.store.audit('guard_agent_question', { id: q.id.slice(0, 8), title: String(q.title ?? q.content ?? '').slice(0, 40), reply: ut.slice(0, 40) });
       alterations.push({ op: 'update_node', id: q.id, status: 'answered' });
       if (++n >= 3) break;
+    }
+    return alterations;
+  }
+
+  // M451: see FUTURE_COMMITMENT. A user-authored create/update typed decision/claim/constraint (or untyped) whose statement commits to a
+  // future action becomes a task, todo. Never a row already a task, never agent-authored (M437 owns those). Audit guard_commitment_task.
+  private guardCommitmentIsTask(alterations: any[], map: { nodes: MapNode[] }): any[] {
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    for (const a of alterations) {
+      if (!(a?.op === 'create_node' || a?.op === 'update_node') || typeof a.content !== 'string') continue;
+      const cur = a.op === 'update_node' ? byId.get(String(a.id)) : undefined;
+      const author = a.op === 'create_node' ? (a.author ?? 'agent') : (cur?.author ?? 'agent');
+      const type = String(a.type ?? cur?.type ?? '');
+      if (author !== 'user' || type === 'task' || type === 'question' || type === 'option' || type === 'evidence') continue;
+      if (!FUTURE_COMMITMENT.test(a.content) || a.content.length > 400) continue;
+      const status = String(a.status ?? cur?.status ?? '');
+      if (/^(done|resolved|dropped|removed|superseded|rejected|parked)$/.test(status)) continue;
+      this.store.audit('guard_commitment_task', { id: String(a.id ?? '').slice(0, 8), from: `${type || 'untyped'}/${status || '-'}`, title: String(a.title ?? a.content).slice(0, 40) });
+      a.type = 'task'; a.status = 'todo';
     }
     return alterations;
   }
@@ -1129,6 +1161,7 @@ export class Translator {
         const m = anyA.content.match(/^\s*\[?(retracted|superseded|rejected|corrected|withdrawn|decided|resolved|parked|dropped|obsolete|outdated)\]?\s*[—:\-–]\s+(?=\S)/i);
         if (m && anyA.content.length > m[0].length + 12) { const label = m[1].toLowerCase(); anyA.content = anyA.content.slice(m[0].length).replace(/^\p{Ll}/u, (ch: string) => ch.toUpperCase()); if (!anyA.status && ['retracted', 'superseded', 'rejected', 'withdrawn', 'decided', 'parked', 'dropped'].includes(label)) anyA.status = label; this.store.audit('guard_status_label', { id: String(anyA.id ?? '').slice(0, 8), label, status: anyA.status ?? '' }); }
       }
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string' && /\s+[.。]$/.test(anyA.content)) anyA.content = anyA.content.replace(/\s+([.。])$/, '$1'); // M452 (TWIN #430: "…reply and follow-up ." ×4): the filer's dangling space before the period
       if ((a.op === 'create_node' || a.op === 'update_node') && anyA.type && !CANON_TYPES.includes(anyA.type)) {
         this.store.audit('offlist_type', { type: anyA.type });
         anyA.type = 'claim'; // nearest-neutral; user retypes freely

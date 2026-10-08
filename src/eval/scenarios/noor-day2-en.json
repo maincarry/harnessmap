@@ -1,0 +1,93 @@
+{
+  "name": "TWIN #430 proof (M451/M443c/M438b/M441c): Noor's own turns — the client's name on the thread she opened ('Harbor & Finch emailed'); the customers.json → CSV export not under the export BUG; 'it will ship this week' is her open task, not a decided decision; the recap turn mints no 'remain open' rows",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Noor — founder operations"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "Harbor & Finch emailed: “Hi Noor — we were charged for 12 seats last month, but only 10 were in use. Could you refund the two unused seats?” Please find the relevant refund clause in policy.md and tell me what it allows.",
+      "assistant": "The policy says subscription charges are generally non-refundable and unused seats are not eligible for prorated refunds. You may offer an account credit as a discretionary one-time exception.",
+      "then": [
+        {
+          "nodeMatching": "refund|unused seats"
+        },
+        {
+          "topLevelMatching": "Harbor"
+        },
+        {
+          "audit": "guard_root_client_name"
+        }
+      ]
+    },
+    {
+      "user": "Support ticket: “Exports fail for projects with more than 500 items.” Read logs/export-errors.log and summarize the failure and likely cause.",
+      "assistant": "The export request hits the 30-second timeout when processing projects above roughly 500 items. The log shows the export job still assembling records when the request is terminated, so this appears to be a real timeout bug rather than bad customer data.",
+      "then": [
+        {
+          "nodeMatching": "500|timeout|export"
+        }
+      ]
+    },
+    {
+      "user": "Now export customers.json to CSV with columns name, plan, seats, and MRR. Give me a Python one-liner first; calculate MRR from each customer's stored monthly plan price times seats.",
+      "assistant": "Use: `python -c \"import json,csv; d=json.load(open('customers.json')); f=open('customers.csv','w',newline=''); w=csv.DictWriter(f,fieldnames=['name','plan','seats','MRR']); w.writeheader(); w.writerows({'name':c['name'],'plan':c['plan'],'seats':c['seats'],'MRR':c['seats']*c['monthly_price']} for c in d); f.close()\"` This writes customers.csv with the requested columns.",
+      "then": [
+        {
+          "nodeMatching": "csv|customers\\.json"
+        },
+        {
+          "nodeMatching": "csv|customers\\.json",
+          "notUnder": "Exports fail|large.project export|500"
+        },
+        {
+          "atMostRoots": 3
+        }
+      ]
+    },
+    {
+      "user": "Draft a short reply to the customer with the large-project export issue. Say we found the timeout bug, the fix has passed our tests, and it will ship this week. Make that commitment explicit without promising a specific day.",
+      "assistant": "Hi — we found the timeout bug affecting exports for larger projects, and the fix has now passed our tests. We’ll ship it this week and let you know once it’s live.\n\nBest,\nNoor",
+      "then": [
+        {
+          "nodeMatching": "ship this week|this week"
+        },
+        {
+          "statusOf": "ship(?:ped)? this week|will ship|notif",
+          "is": "todo"
+        },
+        {
+          "authorOf": "ship(?:ped)? this week|will ship",
+          "is": "user"
+        },
+        {
+          "audit": "guard_commitment_task"
+        }
+      ]
+    },
+    {
+      "user": "Before I finish, list every commitment I made today: who it was to, exactly what I committed to, and by when. Include Harbor & Finch, Northwind, the Team pricing change, and the large-project export customer. Then list what is still open.",
+      "assistant": "Today’s commitments:\n- Harbor & Finch: apply a one-time account credit for two unused seats on the next invoice; reduce the account from 12 to 10 seats starting next billing cycle and confirm completion by Friday.\n- Northwind Logistics: proceed with a 2× annual-fees liability cap, a data-breach/confidentiality carve-out, and a 9-month claim-notice period. The final clause and cover note are drafted; sending/final acceptance remains open.\n- Team plan customers: raise the price from $49 to $59 per seat per month on November 1, while existing customers keep $49 until their next renewal. Publishing the page, changelog, and announcement remains open.\n- Large-project export customer: ship the tested timeout and 200-record paging fix this week and notify them when it is live.\n\nStill open: complete and confirm Harbor’s seat downgrade by Friday; send/finalize Northwind’s contract wording; publish the pricing changes and announcement before November 1; deploy the export fix and notify the customer this week.",
+      "then": [
+        {
+          "atMostTitles": "open work|commitments",
+          "max": 0
+        },
+        {
+          "noNodeMatching": "remains? open|still needs? to|open work"
+        },
+        {
+          "statusOf": "ship(?:ped)? this week|will ship|notif",
+          "is": "todo"
+        }
+      ]
+    }
+  ]
+}
