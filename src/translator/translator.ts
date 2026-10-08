@@ -857,6 +857,14 @@ export class Translator {
       // M413 (LONG #392): a focus name with its own parentheses — "（arrived while focus was: zipfile.write() 内部路径）" — ended the [^)）]* class early and left " 内部路径）" behind; one level of inner parens is now allowed (here and in the six server.ts cleanups).
       // the server's cleanups) never saw it: the node was promoted out of "to sort" with the note still in it. The note is the
       // harness's to write (it appends its own, ASCII, after the guards); a filer-written one, any paren width, goes.
+      // M446 (LONG #428, "Free VPS servers": "…usage; this question arose while focus was: Quizizz no longer appears to offer a public
+      // REST API…"): the filer paraphrased the provenance note into a clause of the statement — no parentheses, so the strip below
+      // missed it. The clause form goes too, to the end of its sentence.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string' && /\b(?:this|the|that) (?:question|topic|item|request|task|issue|material) (?:arose|came up|was raised|was asked|surfaced|arrived) while (?:the )?focus was\b/i.test(anyA.content)) {
+        const cleaned = anyA.content.replace(/\s*[;,.—–-]?\s*\b(?:this|the|that) (?:question|topic|item|request|task|issue|material) (?:arose|came up|was raised|was asked|surfaced|arrived) while (?:the )?focus was\b:?[^.!?。]*[.!?。]?/gi, '').replace(/\s{2,}/g, ' ').trim();
+        this.store.audit('guard_prov_note_leak', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.content.slice(-60), kind: 'clause' });
+        anyA.content = cleaned.length >= 8 ? (/[.!?。]$/.test(cleaned) ? cleaned : cleaned + '.') : anyA.content;
+      }
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string' && /[（(]\s*arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]/i.test(anyA.content)) {
         const cleaned = anyA.content.replace(/\s*[（(]\s*arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*/gi, ' ').replace(/\s{2,}/g, ' ').trim();
         this.store.audit('guard_prov_note_leak', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.content.slice(-60) });

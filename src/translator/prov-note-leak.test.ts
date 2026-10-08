@@ -48,3 +48,15 @@ test('M421d (LONG #403): the note paraphrased without parens, ", arriving while 
   expect(r.content).toBe('Tic-tac-toe positions 2, 5, and 8'); expect(r.leaks).toBe(1);
   expect(harness()('The fix arrived while the focus was elsewhere on the team board.').content).toBe('The fix arrived while the focus was elsewhere on the team board.'); // a person's own sentence: no colon, no note — untouched
 });
+
+test('M446: the provenance note paraphrased into a clause is stripped too (LONG #428 "Free VPS servers")', () => {
+  const audits: { kind: string; d: any }[] = [];
+  const store: any = new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string, d: any) => audits.push({ kind, d }); if (k === 'getSetting') return () => undefined; return () => undefined; } });
+  const t = new Translator(store) as any;
+  const parent = { id: 'p1', parentId: null, content: 'Quizizz REST API is unavailable', title: 'Quizizz REST API', status: 'live', author: 'user', type: null, createdAt: '2026-10-08T00:00:00Z', updatedAt: '2026-10-08T00:00:00Z' };
+  const map: any = { nodes: [parent], links: [], projectId: 'proj' };
+  const alts = [{ op: 'create_node', id: 'v1', parentId: 'p1', type: 'question', status: 'answered', author: 'user', title: 'Free VPS servers', content: 'Legitimate free VPS options are available, but they generally have limits on performance, resources, features, or usage; this question arose while focus was: Quizizz no longer appears to offer a public REST API for developers, and its former API documentation is unavailable.' }];
+  const out = t.guardScope(alts, new Set(['p1']), map, { userText: 'are there free VPS servers?', assistantText: 'Yes, with limits.' });
+  expect(out[0].content).toBe('Legitimate free VPS options are available, but they generally have limits on performance, resources, features, or usage.');
+  expect(audits.some((a) => a.kind === 'guard_prov_note_leak' && a.d.kind === 'clause')).toBe(true);
+});

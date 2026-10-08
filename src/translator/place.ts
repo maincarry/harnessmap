@@ -54,3 +54,26 @@ export async function suggestHomes(store: Store, projectId: string, nodeId: stri
 export function shouldPromoteStranded(misses: number, liveChildren: number): boolean {
   return misses >= 2 || (misses >= 1 && liveChildren >= 2);
 }
+
+// M445 (LONG #428: "Render function" ×2 under the currStep root — round 37's improve and round 38's "please check again, it does not
+// work properly" both arrived through "to sort" and were placed beside each other, so the sibling-title twin test (M363) never met
+// them; "Tic-tac-toe move" ×2 the same way; Noor's "Large export fix" / "Large export updates" in TWIN #426): when the placer lands
+// an item beside a LIVE sibling with the same title (normalised: letters and digits, case-folded, ≥ 4 of them), the item is folded
+// into that sibling — its children move under it, its statement (when it is a real sentence) becomes the sibling's current state,
+// and the newcomer is removed. One artefact, one row, the newest state (OQ #12d).
+export const normTitle = (t: string | null | undefined): string => String(t ?? '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+export function sameTitleSibling(store: Store, homeId: string, nodeId: string): { id: string; title: string } | null {
+  const me = store.getNode(nodeId); if (!me) return null;
+  const mine = normTitle(me.title); if (mine.length < 4) return null;
+  const sib = store.childrenOf(homeId).find((k: any) => k.id !== nodeId && k.status !== 'removed' && normTitle(k.title) === mine);
+  return sib ? { id: sib.id, title: String(sib.title ?? '') } : null;
+}
+export function foldAlterations(store: Store, nodeId: string, intoId: string): any[] {
+  const me = store.getNode(nodeId); if (!me) return [];
+  const kids = store.childrenOf(nodeId).filter((k: any) => k.status !== 'removed');
+  const alts: any[] = kids.map((k: any) => ({ op: 'move_node', id: k.id, parentId: intoId }));
+  const content = String(me.content ?? '').trim();
+  if (content.length >= 25 && /[.!?。！？]$/.test(content) && !/;\s*this topic$/i.test(content)) alts.push({ op: 'update_node', id: intoId, content });
+  alts.push({ op: 'update_node', id: nodeId, status: 'removed' });
+  return alts;
+}

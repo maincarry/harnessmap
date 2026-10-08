@@ -25,7 +25,7 @@ import { CAST_GRAPH } from './translator/cast.js';
 import { recordUserWords, learnFromRename, parseGlossaryLine, addGlossary, removeGlossary, glossary, userWords } from './map/vocab.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend, HARNESSES, harnessAvailability } from './term.js';
 import { codexBin } from './harness-bins.js';
-import { suggestHomes, shouldPromoteStranded } from './translator/place.js';
+import { suggestHomes, shouldPromoteStranded, sameTitleSibling, foldAlterations } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories, nodeFull } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
@@ -1328,6 +1328,19 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
       const queue = deferred ? arrivals.slice(0, 2) : [...arrivals, ...backlog.filter(dueNow)].slice(0, 3); // M428: under lag, this round's arrivals only
       const blocked = new Set(store.getOpenSuggestions(pid).filter((sg) => sg.kind !== 'relight').map((sg) => sg.nodeId));
       let keptDim = 0, noHome = 0;
+      // M445: after a placement, a live sibling with the same title under the home absorbs the newcomer (see place.ts).
+      const foldSameTitle = (id: string, homeId: string): boolean => {
+        const n = store.getNode(id); if (!n) return false;
+        const sib = sameTitleSibling(store, homeId, id); if (!sib) return false;
+        const falts = foldAlterations(store, id, sib.id); if (!falts.length) return false;
+        const finv = inverseOfAlterations(falts);
+        store.applyAlterations(pid, falts, { kind: 'system' });
+        store.pushUndo(pid, `auto mode: folded "${nodeName(n)}" into its namesake under "${nodeName(store.getNode(homeId) ?? n)}"`, finv, null);
+        store.audit('auto_place_folded', { id: id.slice(0, 8), into: sib.id.slice(0, 8), title: sib.title.slice(0, 40), kids: falts.length - 1 });
+        chats.noteMapChange(chatId, `auto mode folded "${nodeName(n)}" into the existing "${sib.title}"`);
+        lines.push(`folded "${nodeName(n)}" into the existing "${sib.title}"`);
+        return true;
+      };
       const isBareRootId = (nid: string) => { const x = store.getNode(nid); return !!x && x.parentId === null && (x.content.trim() === 'untitled' || x.content.startsWith('to sort')); };
       for (const id of queue) {
         const n = store.getNode(id); if (!n || n.status === 'removed' || n.parentId !== toSort!.id) continue;
@@ -1355,6 +1368,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
           for (const sg of store.getOpenSuggestions(pid)) if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
           chats.noteMapChange(chatId, `auto mode placed "${nodeName(n)}" under "${nodeName(notedNode)}"`);
           lines.push(`placed "${nodeName(n)}" → "${nodeName(notedNode)}"`);
+          foldSameTitle(id, notedNode.id);
           continue;
         }
         if (notedNode && !litNow.has(notedNode.id)) {
@@ -1380,6 +1394,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
           for (const sg of store.getOpenSuggestions(pid)) if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
           chats.noteMapChange(chatId, `auto mode placed "${nodeName(n)}" under "${nodeName(notedNode)}" — its home was dim, but the work kept growing there`);
           lines.push(`placed "${nodeName(n)}" → "${nodeName(notedNode)}" (its home was dim)`);
+          foldSameTitle(id, notedNode.id);
           continue;
         }
         const r = await suggestHomes(store, pid, id); if ('error' in r) { noHome++; continue; }
@@ -1407,6 +1422,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
             for (const sg of store.getOpenSuggestions(pid)) if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
             chats.noteMapChange(chatId, `auto mode placed "${nodeName(n)}" under "${nodeName(dimNode)}" — its best home was dim, but the work kept growing there`);
             lines.push(`placed "${nodeName(n)}" → "${nodeName(dimNode)}" (its best home was dim)`);
+            foldSameTitle(id, dimNode.id);
             continue;
           }
           // M416 (LONG #395): nothing on the map fits — twice, or once with a thread already growing under the item — and the
@@ -1431,6 +1447,7 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         for (const sg of store.getOpenSuggestions(pid)) if (sg.kind === 'relight' && sg.nodeId === id) store.setSuggestionStatus(sg.id, 'done');
         chats.noteMapChange(chatId, `auto mode moved "${nodeName(n)}" out of "to sort" into "${home.name}"`);
         lines.push(`placed "${nodeName(n)}" → "${home.name}"`);
+        foldSameTitle(id, home.nodeId);
       }
       // Visible either way: what stayed in "to sort" and why (a dim home is the person's to light; no home = nothing fits yet).
       if (keptDim) quiet.push(`${keptDim} in "to sort" kept — their home is dimmed (light it and auto mode files them)`);
