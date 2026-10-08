@@ -804,7 +804,7 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   try {
     const parsed = await call({
       task: 'brain',
-      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}${M435_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 2000, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
+      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}${M435_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 3200, // M455b (PANEL #439, Tom: an answer "visibly cut off at 'but sendin'") — the SETTLED line made answers longer than the 2000-token cap schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
       audit: (k, d) => store.audit(k, d),
       user: [
         u ? `YOUR CURRENT UNDERSTANDING:\n${Object.entries(u.sections).map(([k, v]) => `${k}: ${v.text.slice(0, 2000)}`).join('\n\n')}` : 'YOUR CURRENT UNDERSTANDING: none written yet.',
