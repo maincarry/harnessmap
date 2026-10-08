@@ -227,6 +227,11 @@ export const SESSION_CLOSING = /\b(?:that(?:'s| is) (?:all|it) for (?:today|now|
 // I promised … and knows neither happened, but still leaves it off"): a statement in the person's own words that commits to a FUTURE ACTION
 // is open work — a task, todo — until it is done. A decision records a choice; a promise records a debt.
 export const FUTURE_COMMITMENT = /\b(?:will|'ll|’ll|going to|am going to|promise[sd]? to|committed to|commit to)\s+(?:be\s+)?(?:ship\w*|deploy\w*|sen[dt]|notif\w+|confirm\w*|publish\w*|releas\w+|deliver\w*|follow(?:ing)?[ -]up|let\s+(?:them|him|her|you|the\s+\w+)\s+know|email\w*|call\w*|invoice\w*|refund\w*|appl(?:y|ied)|reduce\w*|downgrade\w*|cancel\w*|migrat\w+|roll\w* out|get back to)\b/i;
+// M453 (PANEL #432, 11 of 13 — the one reason plain Codex beat the map: "Revise function code" went [done] by M439 on the delivery turn,
+// and the NEXT turn — "the function you sent me does not follow the guidelines from the documentation i've provided. please revise" — left it
+// done): a delivery the person rejects in the following turn is not done. REJECTS on the user text reopens tasks M439/M448 closed in the
+// last two rounds (status doing). The mirror rule M439 always needed.
+export const REJECTS = /\b(?:does ?n[o'’]t (?:follow|work|match|compile|run|do|handle|respect|meet)|doesn[’']?t (?:follow|work|match|compile|run)|did ?n[o'’]t (?:work|help|fix)|not (?:what I asked|what I meant|following|working|correct|right|fixed)|still (?:wrong|broken|fails?|failing|does ?n[o'’]t|doesn[’']?t|not)|(?:check|try|look) again|wrong (?:again|still)|that[’']?s (?:wrong|not it|incorrect)|is (?:wrong|incorrect|broken)|please (?:revise|fix|redo|rewrite|correct)(?: and update)? (?:the |this |it|that)|you (?:missed|ignored|broke))\b/i;
 export const DELIVERS = /```|\bhere(?:'s| is) (?:the |an? |your )?(?:updated |revised |rewritten |fixed |complete |full |new )?(?:code|function|version|implementation|script|component|test|tests|rewrite|fix|file)\b|\bI(?:'ve| have)? (?:updated|added|implemented|fixed|created|rewritten|refactored|changed|written)\b|\b(?:updated|rewritten|refactored|revised) (?:version|function|code|script)\b/i;
 
 export function clientNameOfTurn(text: string): string | null {
@@ -403,6 +408,7 @@ export class Translator {
       alterations = this.guardAgentSolidStatus(alterations); // M442a (TWIN #426): an agent-authored row is never born accepted/decided
       alterations = this.guardCommitmentIsTask(alterations, map); // M451 (TWIN #430): a promise of a future action is open work, not a decided decision
       alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
+      alterations = this.guardDeliveryRejected(alterations, map, params); // M453 (PANEL #432): a rejected delivery is reopened
       alterations = this.guardTaskDelivered(alterations, params); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
       alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
       alterations = this.guardAgentTaskStatus(alterations); // M437 (PANEL #422): an agent-listed step is a proposal, not the person's todo
@@ -556,6 +562,9 @@ export class Translator {
   private guardAgentQuestionAnswered(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
     const ut = String(params.userText ?? '').trim();
     if (!ut || ut.length > 160 || /[?？]/.test(ut)) return alterations;
+    // M447b (LONG #434: "Winning positions" closed by "please improve this function setStep(…)" — a pivot, not an answer; "Next column" by
+    // "does quizlet have a api"): a reply that asks for something or opens a question is not an answer to the agent's question.
+    if (/^(?:please|can|could|would|will|do|does|is|are|what|how|why|where|which|who|when|should|let'?s|now|next|also|and)\b/i.test(ut) || /\b(?:please|write|improve|fix|make|create|draft|rewrite|revise|implement|add|remove|change|explain|show me|give me|help me|learn|read|check)\b/i.test(ut)) return alterations;
     const times = this.store.roundTimes?.() ?? []; if (times.length < 1) return alterations;
     const since = times[Math.max(0, times.length - 2)] - 1000; // the round two back (this round is not yet recorded)
     const touched = new Set(alterations.filter((a) => a?.op === 'update_node' && a.id).map((a) => String(a.id)));
@@ -585,6 +594,25 @@ export class Translator {
       if (/^(done|resolved|dropped|removed|superseded|rejected|parked)$/.test(status)) continue;
       this.store.audit('guard_commitment_task', { id: String(a.id ?? '').slice(0, 8), from: `${type || 'untyped'}/${status || '-'}`, title: String(a.title ?? a.content).slice(0, 40) });
       a.type = 'task'; a.status = 'todo';
+    }
+    return alterations;
+  }
+
+  // M453: see REJECTS. A user-authored task marked done within the last two rounds (by M439/M448 or the filer) is set back to doing when
+  // the person's turn rejects what was delivered; this round's own writes to that row win. Audit guard_delivery_rejected.
+  private guardDeliveryRejected(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const ut = String(params.userText ?? '');
+    if (ut.length < 12 || !REJECTS.test(ut)) return alterations;
+    const times = this.store.roundTimes?.() ?? []; if (!times.length) return alterations;
+    const since = times[Math.max(0, times.length - 2)] - 1000;
+    const touched = new Set(alterations.filter((a) => a?.op === 'update_node' && a.id && a.status).map((a) => String(a.id)));
+    let n = 0;
+    for (const t of map.nodes) {
+      if (t.author !== 'user' || t.type !== 'task' || t.status !== 'done' || touched.has(t.id)) continue;
+      const at = Date.parse(String(t.updatedAt ?? t.createdAt ?? '').replace(' ', 'T').replace(/Z?$/, 'Z')); if (!Number.isFinite(at) || at < since) continue;
+      this.store.audit('guard_delivery_rejected', { id: t.id.slice(0, 8), title: String(t.title ?? t.content ?? '').slice(0, 40), said: ut.slice(0, 50) });
+      alterations.push({ op: 'update_node', id: t.id, status: 'doing' });
+      if (++n >= 2) break;
     }
     return alterations;
   }

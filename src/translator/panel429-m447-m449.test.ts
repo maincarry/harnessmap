@@ -37,3 +37,10 @@ test('M449: closing turns', () => {
   for (const s of ['thanks, that is all for today', "That's it for now, thanks", 'ok done for the day', 'calling it a night']) expect(SESSION_CLOSING.test(s)).toBe(true);
   for (const s of ['what is all this for today?', 'please check again, the function does not work properly']) expect(SESSION_CLOSING.test(s)).toBe(false);
 });
+test('M447b: a pivot or a new request does not answer the agent\'s question', () => {
+  const now = Date.now(); const { t } = harness([now - 300_000, now - 120_000, now - 40_000]);
+  const map = { nodes: [{ id: 'q1', parentId: 'g', title: 'Winning positions', content: 'Which positions did the user choose to make a row of three Xs?', status: 'open', author: 'agent', type: 'question', createdAt: iso(now - 35_000) }] };
+  expect(t.guardAgentQuestionAnswered([], map, { userText: 'please improve this function     setStep((currStep) => ++currStep);' })).toEqual([]);
+  expect(t.guardAgentQuestionAnswered([], map, { userText: 'does quizlet have a api' })).toEqual([]);
+  expect(t.guardAgentQuestionAnswered([], map, { userText: 'Column 4' }).length).toBe(1);
+});
