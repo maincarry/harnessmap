@@ -296,3 +296,38 @@ export async function runTwin(experience: string, opts: TwinOpts = {}): Promise<
   });
   return out as TwinReport;
 }
+
+// M450 (Jacob 2026-10-08 01:18: "yes means perfection? That is obviously not the right solution concept. Yes should mean significantly
+// better than default product of codex or Claude code… Let two separate versions of each person do the map and the pure codex, and let
+// the two versions then combine experience and ask which is better"): the CONTROL Monday — the same person, the same needs, with only
+// what plain Codex gives them (the transcript to scroll, and the agent's answers from that transcript) — and the MERGED verdict.
+export interface TwinNeedChat { needs: TwinNeedItem[]; continue_with: 'the transcript' | 'ask the agent' | 'reread everything' | 'give up'; one_line: string; }
+const NEED_CHAT_SCHEMA = { ...NEED_SCHEMA, properties: { ...NEED_SCHEMA.properties, continue_with: { type: 'string', enum: ['the transcript', 'ask the agent', 'reread everything', 'give up'] } } };
+export async function twinNeedChat(sessionLine: string, chatOnly: string, opts: TwinOpts = {}): Promise<TwinNeedChat> {
+  const user = [
+    `MONDAY MORNING — THE PLAIN VERSION. Last week you had a long session with your agent: ${sessionLine}. You did NOT keep notes. There is NO map in this version: you have what your coding CLI gives you by default — the old transcript in the terminal, which you can scroll, and the agent itself, which you asked the usual end-of-week questions (its answers are below, made from that transcript).`,
+    `First, in your own words, name the 2–4 things YOU actually need to know to pick this work back up today. Then try to get each one from the transcript and the agent's answers ONLY. For each: found "yes" / "partly" / "no", the exact line you used (verbatim), and how it felt.`,
+    `"continue_with" = what you would actually do next: "the transcript" (scrolling was enough), "ask the agent" (you would type another question), "reread everything" (you would have to read the whole session again), or "give up". "one_line" = your honest one-line summary of whether this gave you your Monday back.`,
+    `WHAT YOU HAVE:\n${chatOnly}`,
+    `Return strict JSON only.`,
+  ].join('\n\n');
+  const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: opts.maxTokens ?? 900, timeoutMs: opts.timeoutMs ?? 150_000, schema: NEED_CHAT_SCHEMA });
+  return out as TwinNeedChat;
+}
+export interface TwinCompare { better: 'map_much_better' | 'map_better' | 'same' | 'codex_better' | 'codex_much_better'; keep_map_on: boolean; why: string; what_map_added: string; what_map_cost: string; one_line: string; }
+const COMPARE_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['better', 'keep_map_on', 'why', 'what_map_added', 'what_map_cost', 'one_line'],
+  properties: { better: { type: 'string', enum: ['map_much_better', 'map_better', 'same', 'codex_better', 'codex_much_better'] }, keep_map_on: { type: 'boolean' }, why: { type: 'string' }, what_map_added: { type: 'string' }, what_map_cost: { type: 'string' }, one_line: { type: 'string' } },
+};
+export async function twinCompare(sessionLine: string, mapNeed: TwinNeed, chatNeed: TwinNeedChat, opts: TwinOpts = {}): Promise<TwinCompare> {
+  const fmt = (n: { needs: TwinNeedItem[]; continue_with: string; one_line: string }) => `${n.needs.map((x) => `- ${x.need} → ${x.found.toUpperCase()}${x.quote ? ` (used: "${x.quote.slice(0, 160)}")` : ''} — ${x.felt}`).join('\n')}\n→ then: ${n.continue_with}\n→ in one line: ${n.one_line}`;
+  const user = [
+    `TWO VERSIONS OF YOU lived the same Monday morning after the same session (${sessionLine}). Version A had only what plain Codex / Claude Code gives everyone: the old transcript to scroll and the agent's answers from it. Version B had the map beside the CLI: its folded tree and its answers. Below are both versions' own reports of the same needs. The two versions now MERGE into one mind that remembers both Mondays.`,
+    `Decide, as that merged person: which version gave you your Monday back better? "Better" means: time to the first useful action, and how many wrong beliefs you would have carried into the day. Not perfection — a comparison. "better" ∈ map_much_better (the map saved you real time or a real mistake; you would miss it), map_better (clearly, but modestly), same (no real difference), codex_better, codex_much_better (the map cost you time or misled you). "keep_map_on": would you leave the map running beside your CLI next week — true/false. "what_map_added": the one thing the map version had that the plain version did not (verbatim where possible). "what_map_cost": the one thing the map version got wrong or cost you that the plain version did not (or "nothing"). "why" in two sentences; "one_line" your verdict in one line.`,
+    `VERSION A — PLAIN CODEX:\n${fmt(chatNeed)}`,
+    `VERSION B — WITH THE MAP:\n${fmt(mapNeed)}`,
+    `Return strict JSON only.`,
+  ].join('\n\n');
+  const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: opts.maxTokens ?? 700, timeoutMs: opts.timeoutMs ?? 120_000, schema: COMPARE_SCHEMA });
+  return out as TwinCompare;
+}
