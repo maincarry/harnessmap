@@ -28,6 +28,8 @@ test('M448: a docs-reading instruction answered at length is delivered; a short 
   const long = 'The `consistent-return` rule from ESLint is designed to enforce consistent return behavior in functions. '.repeat(4);
   expect(t.guardTaskDelivered([{ ...task }], { userText: 'learn this documentation here https://eslint.org/docs/latest/rules/consistent-return', assistantText: long })[0].status).toBe('done');
   expect(t.guardTaskDelivered([{ ...task }], { userText: 'learn this documentation here https://eslint.org/docs/latest/rules/consistent-return', assistantText: 'Sure, I will.' })[0].status).toBe('todo');
+  expect(t.guardTaskDelivered([{ ...task }], { userText: 'learn this documentation here https://eslint.org/docs/latest/rules/consistent-return', assistantText: 'The `consistent-return` rule from ESLint is designed to enforce consistent return behavior in functions, so that every code path either returns a value or none does. It flags functions that mix the two.' })[0].status).toBe('done');
+  expect(t.guardTaskDelivered([{ ...task }], { userText: 'read this page https://example.com/x', assistantText: 'Sure, I will read it now and summarise the key points for you once I have gone through the whole page in detail, which may take a moment.' })[0].status).toBe('todo');
   expect(LEARN_REQUEST.test('now learn this documentation')).toBe(true);
   expect(LEARN_REQUEST.test('please improve this function')).toBe(false);
 });

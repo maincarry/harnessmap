@@ -559,7 +559,9 @@ export class Translator {
 
   private guardTaskDelivered(alterations: any[], params: { assistantText?: string; userText?: string }): any[] {
     const at = String(params.assistantText ?? '');
-    const learn = LEARN_REQUEST.test(String(params.userText ?? '')) && at.length >= 300; // M448: a docs-reading request answered at length
+    // M448: a docs-reading request answered in substance — the reply explains the thing (≥ 120 chars and not a bare acknowledgement);
+    // the proof's second consistent-return turn got a 222-char two-sentence summary, which is the delivery.
+    const learn = LEARN_REQUEST.test(String(params.userText ?? '')) && at.length >= 120 && !/^\s*(?:sure|ok(?:ay)?|got it|will do|understood|noted|alright|certainly|of course)\b[^.!?\n]*[.!]?\s*$/i.test(at); // one acknowledging sentence is a promise, not a delivery
     if (at.length < 40 || (!DELIVERS.test(at) && !learn)) return alterations;
     for (const a of alterations) {
       if (a?.op !== 'create_node' || a.author !== 'user' || a.type !== 'task' || !/^(todo|doing)$/.test(String(a.status ?? ''))) continue;
