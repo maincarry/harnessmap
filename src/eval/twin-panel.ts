@@ -174,9 +174,10 @@ if (mapOnly) experience += `\n\n${mapOnly}`;
 const sessionLine = (() => { try { if (scenarioPath) return String(JSON.parse(readFileSync(scenarioPath, 'utf8')).name ?? scenarioPath); } catch {} return (flow ?? (flowFile ? readFileSync(flowFile, 'utf8') : '')).split('\n').find((l) => l.trim()) ?? 'a long working session'; })().slice(0, 300);
 const INTERVIEW = !argv.includes('--no-interview');
 let chatOnly = '';
+let RECORD = ''; // M450f: the full day as it happened, for the judge only
 if (COMPARE) {
   if (!scenarioPath) { console.error('--compare needs a scenario file (the transcript)'); process.exit(2); }
-  const chats = transcriptsByChat(scenarioPath); const tr = transcriptFromScenario(scenarioPath);
+  const chats = transcriptsByChat(scenarioPath); const tr = transcriptFromScenario(scenarioPath); RECORD = tr;
   if (CONTROL_FLAG === 'auto') { const nTurns = tr.split(/\n\n(?=\[turn \d+\])/).length; CONTROL = chats.length > 1 ? 'last-chat' : (nTurns > AUTO_FULL_MAX_TURNS ? 'compacted' : 'full'); console.error(`[twin-panel] control=auto → ${CONTROL} (${chats.length} chat(s), ${nTurns} turns; full up to ${AUTO_FULL_MAX_TURNS})`); }
   const natural = async (t: string, turns: number) => (turns > AUTO_FULL_MAX_TURNS ? compactedTranscript(t) : Promise.resolve(t)); // natural compaction only past the window
   if (CONTROL === 'last-chat') { const last = chats[chats.length - 1]; console.error(`[twin-panel] control=last-chat: the person asks in "${last.name}" (${last.turns} of ${tr.split(/\n\n(?=\[turn \d+\])/).length} turns; ${chats.length - 1} other chat(s) unseen)`); chatOnly = await agentAnswersFromTranscript(await natural(last.transcript, last.turns), `the chat you are sitting in ("${last.name}", ${last.turns} turns — the ${chats.length - 1} other chat(s) of that day are not in its context)`); }
@@ -190,6 +191,7 @@ const want = (flagVal('--personas') ?? 'all').trim();
 const ids: string[] = want === 'all' || want === 'default' ? [...DEFAULT_PANEL_IDS] : want === 'extended' ? [...TWIN_PERSONA_IDS] : want.split(',').map((s) => s.trim()).filter(Boolean); // Jacob 2026-10-07: 'all' = the default panel of 10; 'extended' = every persona in the file
 for (const id of ids) if (!findTwinPersona(id) && id !== 'normal' && id !== 'critic') { console.error(`unknown persona "${id}"; known: normal, critic, default, extended, ${TWIN_PERSONA_IDS.join(', ')}`); process.exit(2); }
 const out = flagVal('--out') ?? `twin-panel-${Date.now()}`;
+if (COMPARE) { try { mkdirSync(out, { recursive: true }); writeFileSync(join(out, 'control-answers.txt'), chatOnly); writeFileSync(join(out, 'map-material.txt'), mapOnly); } catch {} } // M450f: both sides' material saved verbatim
 if (!existsSync(out)) mkdirSync(out, { recursive: true });
 
 const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
@@ -220,7 +222,7 @@ for (const id of ids) {
           const list = await twinNeedsList(sessionLine, { persona: id as TwinPersona });
           const gm = await twinNeedGrade(sessionLine, mapOnly, list, 'map', { persona: id as TwinPersona }) as TwinNeed;
           const gc = await twinNeedGrade(sessionLine, chatOnly, list, 'codex', { persona: id as TwinPersona }) as TwinNeedChat;
-          const cmp = await twinCompare(sessionLine, gm, gc, { persona: id as TwinPersona });
+          const cmp = await twinCompare(sessionLine, gm, gc, { persona: id as TwinPersona, truth: RECORD }); // M450f: the judge checks beliefs against the record
           compares.push(cmp);
           if (rep === 0) { needsList = list; needMap = gm; needChat = gc; compare = cmp; }
           console.error(`[twin-panel] ${id} rep ${rep + 1}/${REPEAT}: ${cmp.better} (${cmp.order}) keep=${cmp.keep_map_on}`);
