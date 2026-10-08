@@ -28,3 +28,12 @@ test('M464: a round without an invalidation, or whose figures are all still vali
   expect(t.guardFigureSuperseded([{ op: 'create_node', id: 'x', content: 'The boosted model achieved a holdout ROC AUC of 0.97.', status: 'noted', type: 'evidence', author: 'agent' }], map)).toHaveLength(1);
   expect(t.guardFigureSuperseded([{ op: 'create_node', id: 'y', content: 'The old 2400×1500 figure size is wrong; use 1600×1000.', status: 'noted', type: 'evidence', author: 'agent' }], map)).toHaveLength(1);
 });
+
+test('M464b: "leakage" beside a split ratio or the annual-churn figure is not a verdict on those figures (the two false positives of the v0.9.256 refile)', () => {
+  const { t } = mk();
+  const m2: any = { nodes: [...map.nodes, { id: 'plans', parentId: 'm', title: 'Original plan counts', content: 'Plan counts: monthly 20,104, Monthly 1,980, annual 17,220, Annual 908, yearly 6.', status: 'noted', type: 'evidence', author: 'agent', createdAt: at, updatedAt: at }], links: [] };
+  const a = t.guardFigureSuperseded([{ op: 'update_node', id: 'bl', content: 'Baseline logistic-regression model workflow uses a stratified 80/20 train-test split with random_state=42, median imputation for missing tenure, and excludes support_tickets_90d because it contains post-outcome leakage.', status: 'decided', type: 'decision' }], m2);
+  expect(a.filter((x: any) => x.status === 'superseded')).toEqual([]);
+  const b = t.guardFigureSuperseded([{ op: 'update_node', id: 'cell', content: 'The notebook now has a final markdown cell called “Tomorrow’s report” stating annual-plan churn of 14.72% (2,668 of 18,128), leakage-free gradient-boosted holdout ROC AUC of 0.79, and that support_tickets_90d is excluded because it can include post-churn leakage.', status: 'done', type: 'task' }], m2);
+  expect(b.filter((x: any) => x.status === 'superseded')).toEqual([]);
+});

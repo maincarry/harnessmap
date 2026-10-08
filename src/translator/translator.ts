@@ -830,9 +830,14 @@ export class Translator {
   // superseded / no longer valid / leaked, every live evidence or claim row that still carries one of those figures — and not the
   // new valid ones — is superseded. Audit guard_figure_superseded.
   private guardFigureSuperseded(alterations: any[], map: { nodes: MapNode[] }): any[] {
-    const INVALID = /\b(?:invalid(?:ated)?|superseded|no longer valid|not valid|leak(?:ed|age)|must be discarded|should be discarded|wrong)\b/i;
+    // M464b (REFILE Priya as chats, v0.9.256: "leakage" counted as an invalidation word, so "a stratified 80/20 split … excludes
+    // support_tickets_90d because it contains post-outcome leakage" marked 80 and 20 bad and superseded "Original plan counts", and the
+    // "Tomorrow's report" cell — "annual-plan churn of 14.72% … excluded because it can include post-churn leakage" — superseded her
+    // annual-churn rows): only an explicit verdict on a figure counts (invalid / superseded / no longer valid / discarded), and only a
+    // metric-shaped figure (a decimal or a percentage) can be the one invalidated — counts and split ratios never are.
+    const INVALID = /\b(?:invalid(?:ated)?|superseded|no longer valid|not valid|must be discarded|should be discarded|discarded as invalid)\b/i;
     const FIG = /(?<![\w.])\d+(?:\.\d+)?%?(?!\w|\.\d)/g; // a figure may end a sentence ("… of 0.91.")
-    const figsOf = (t: string) => [...t.matchAll(FIG)].map((m) => m[0]).filter((f) => /\./.test(f) || /%$/.test(f) || f.length >= 2);
+    const figsOf = (t: string) => [...t.matchAll(FIG)].map((m) => m[0]).filter((f) => /\./.test(f) || /%$/.test(f)); // M464b: metric-shaped only
     const bad = new Set<string>(); const good = new Set<string>(); const own = new Set<string>();
     for (const a of alterations) {
       if (!(a?.op === 'create_node' || a?.op === 'update_node')) continue;
