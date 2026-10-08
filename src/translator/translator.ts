@@ -218,6 +218,10 @@ export const distinctiveTokens = (t: string): Set<string> => new Set((String(t ?
 // M448 (PANEL #429, 10 of 13: "Learn and retain the consistent-return documentation" listed as OPEN NOW after the agent had read and
 // summarised it and the person closed the day): "learn / read this documentation" is an instruction to the AGENT; the agent's substantive
 // reply is the delivery. Such a task is done at filing (like M439's code deliveries).
+// M439b (TWIN #443 proof, round 9: "Draft a brief reply … Say we found the timeout… will ship this week" → the agent wrote the reply; the
+// draft task stayed [todo] because the reply itself carries no 'here is the…' marker — the artefact IS the reply). A request to draft or
+// write a piece of text, answered with the text, is delivered.
+export const DRAFT_REQUEST = /\b(?:draft|write|compose|rewrite|revise|tighten|reword|shorten)\b[^.?!\n]{0,60}\b(?:reply|replies|email|e-mail|note|message|response|announcement|changelog|clause|paragraph|copy|summary|cover note|wording|sentence|tweet|post)\b/i;
 export const LEARN_REQUEST = /\b(?:learn|read|study|go through|look at|review|digest|memori[sz]e)\b[^.?!\n]{0,40}\b(?:documentation|docs?|doc page|page|link|article|guide|readme|spec|url)\b|\bhttps?:\/\/\S+/i;
 // M449 (PANEL #429, 4 of 13: "You're most recently working on consistent-return guidance…" after "thanks, that is all for today"): a turn
 // that closes the session is the current state — nothing is active; the LATEST work is what was last done.
@@ -691,7 +695,8 @@ export class Translator {
     // M448: a docs-reading request answered in substance — the reply explains the thing (≥ 120 chars and not a bare acknowledgement);
     // the proof's second consistent-return turn got a 222-char two-sentence summary, which is the delivery.
     const learn = LEARN_REQUEST.test(String(params.userText ?? '')) && at.length >= 120 && !/^\s*(?:sure|ok(?:ay)?|got it|will do|understood|noted|alright|certainly|of course)\b[^.!?\n]*[.!]?\s*$/i.test(at); // one acknowledging sentence is a promise, not a delivery
-    if (at.length < 40 || (!DELIVERS.test(at) && !learn)) return alterations;
+    const drafted = DRAFT_REQUEST.test(String(params.userText ?? '')) && at.length >= 120 && !/^\s*(?:sure|ok(?:ay)?|got it|will do|understood|noted|alright|certainly|of course)\b[^.!?\n]*[.!]?\s*$/i.test(at) && !/\?\s*$/.test(at.trim()); // M439b: the text asked for, written
+    if (at.length < 40 || (!DELIVERS.test(at) && !learn && !drafted)) return alterations;
     for (const a of alterations) {
       if (a?.op !== 'create_node' || a.author !== 'user' || a.type !== 'task' || !/^(todo|doing)$/.test(String(a.status ?? ''))) continue;
       this.store.audit('guard_task_delivered', { id: String(a.id ?? '').slice(0, 8), from: a.status, title: String(a.title ?? a.content ?? '').slice(0, 40) });
