@@ -1253,6 +1253,13 @@ export class Translator {
     if (items.length < 3) return alterations;
     const norm = (x: string) => x.toLowerCase().replace(/[“”"‘’'`]/g, '').replace(/\b(?:the|a|an|section|sections|part|chapter|and)\b/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
     const listed = new Set(items.map(norm).filter((x) => x.length >= 3));
+    // M468c (REFILE Elena single v0.9.266): the filer titled the section "Trial measures" for her "What the trials measured" — a
+    // paraphrase the exact match misses, and the row stayed [provisional]. A title whose every content word (≥ 4 letters) shares a
+    // 5-letter stem with words of ONE listed item is that item (trial/trials, measures/measured); one-word titles still need the
+    // exact match.
+    const stem = (w: string) => w.slice(0, 5);
+    const itemStems = [...listed].map((it) => new Set(it.split(' ').filter((w) => w.length >= 4).map(stem)));
+    const paraphrased = (t: string) => { const ws = t.split(' ').filter((w) => w.length >= 4); return ws.length >= 2 && itemStems.some((st) => ws.every((w) => st.has(stem(w)))); };
     const touched = new Set(alterations.filter((a) => typeof a?.id === 'string').map((a) => a.id as string));
     const out = [...alterations];
     for (const n of map.nodes) {
@@ -1260,7 +1267,7 @@ export class Translator {
       // outline) — the declared outline is hers whoever wrote the rows: any author, accepted counts as tentative, author becomes user.
       if (!/^(provisional|proposed|accepted)$/.test(String(n.status ?? '')) || String(n.type ?? '') === 'task') continue;
       const t = norm(String(n.title ?? ''));
-      if (!t || !listed.has(t)) continue;
+      if (!t || !(listed.has(t) || paraphrased(t))) continue;
       const mine = out.find((a) => a?.op === 'update_node' && a.id === n.id);
       if (mine) { if (!mine.status || /^(provisional|proposed|accepted)$/.test(String(mine.status))) mine.status = 'live'; if (n.author !== 'user') mine.author = 'user'; }
       else if (!touched.has(n.id)) out.push({ op: 'update_node', id: n.id, status: 'live', ...(n.author !== 'user' ? { author: 'user' } : {}) });

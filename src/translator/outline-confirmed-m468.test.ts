@@ -48,3 +48,10 @@ test('M468b: outline rows the filer credited to the agent are lifted too, and be
   expect(out.every((a: any) => a.status === 'live' && a.author === 'user')).toBe(true);
   expect(audits.length).toBe(4);
 });
+
+test('M468c: a paraphrased section title ("Trial measures" for "What the trials measured") is lifted; an unrelated two-word title is not', () => {
+  const { t } = mk();
+  const m = { nodes: [map.nodes[0], row('tm', 'Trial measures'), row('xx', 'Shift roles'), row('one', 'Caveat')] };
+  const out = t.guardOutlineConfirmed([], m, { userText: R17 });
+  expect(out.map((a: any) => a.id)).toEqual(['tm']);
+});
