@@ -1,0 +1,134 @@
+{
+  "name": "TWIN #443 proof (M442d/M451b/M460/M460b): Noor's own turns — 'record these as commitments' makes the Friday confirmation hers; the promise dictated into the export reply ('will ship the update this week') is its own to-do; the end-of-day commitments answer names Northwind and the export promise and calls nothing 'the agent's, not yours'",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Noor — founder operations"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "Customer email from Harbor & Finch:\n\n“Hi Noor — we were charged for 12 seats last month, but only 10 were in use. Could you refund the two unused seats? Thanks, Maya.”\n\nPull the relevant refund clause from policy.md and tell me how it applies here.",
+      "assistant": "policy.md says subscription charges are non-refundable once a billing period begins, including charges for unused seats. Under the written policy, Harbor & Finch is not entitled to a refund for the two seats, though you could make a discretionary exception.",
+      "then": [
+        {
+          "nodeMatching": "refund|unused seats"
+        }
+      ]
+    },
+    {
+      "user": "I’ll make a one-time exception as an account credit, not a cash refund. Draft a short reply to Maya that states the policy without sounding defensive and offers credit for the two unused seats.",
+      "assistant": "Subject: Re: Unused seats\n\nHi Maya — our policy normally treats subscription charges as non-refundable once the billing period starts, including unused seats. That said, I’m happy to make a one-time exception and apply a credit for the two unused seats to your next invoice. I’ll confirm once the credit is applied.\n\nBest,\nNoor",
+      "then": [
+        {
+          "nodeMatching": "credit"
+        }
+      ]
+    },
+    {
+      "user": "Next: Northwind Logistics wants the liability cap in their annual contract raised from 1× to 3× annual fees. Draft a replacement limitation-of-liability clause at 3×, keeping the rest of the clause structure intact.",
+      "assistant": "Here is a replacement clause preserving the existing structure while raising the aggregate liability cap to three times the annual fees paid or payable under the agreement. It retains the existing exclusions for indirect and consequential damages.",
+      "then": [
+        {
+          "nodeMatching": "liability|Northwind"
+        }
+      ]
+    },
+    {
+      "user": "Revise the Northwind clause to cap liability at 2× annual fees instead. Add a carve-out so the cap does not apply to liability arising from a data breach caused by our failure to meet the agreement’s security obligations.",
+      "assistant": "Revised: aggregate liability is capped at two times the annual fees paid or payable, except that the cap does not apply to liability arising from a data breach caused by a party’s failure to comply with its security obligations under the agreement. The existing exclusion of indirect and consequential damages remains unchanged.",
+      "then": [
+        {
+          "nodeMatching": "2×|two times|data.?breach"
+        }
+      ]
+    },
+    {
+      "user": "Keep the 2× cap and the data-breach carve-out. Add a 12-month notice term for any change to those liability terms, and give me the full revised clause.",
+      "assistant": "Revised clause: aggregate liability is capped at two times the annual fees paid or payable, except for liability arising from a data breach caused by failure to meet the agreement’s security obligations. The existing exclusion of indirect and consequential damages remains. Neither party may amend these liability terms without at least 12 months’ prior written notice.",
+      "then": [
+        {
+          "nodeMatching": "notice"
+        }
+      ]
+    },
+    {
+      "user": "Back to Northwind. Their lawyer accepts the 2× annual-fees cap and the data-breach carve-out, but wants 6 months’ notice instead of 12. I’m willing to settle at 9 months. Draft the final full clause with the 9-month notice term.",
+      "assistant": "Final clause: Except for liability arising from a data breach caused by a party’s failure to comply with its security obligations under this Agreement, each party’s aggregate liability under or relating to this Agreement will not exceed two times the annual fees paid or payable under it. The existing exclusion of indirect and consequential damages remains in effect. Neither party may amend these liability terms without at least nine months’ prior written notice.",
+      "then": [
+        {
+          "nodeMatching": "nine|9 months"
+        },
+        {
+          "notInToSort": "nine|9 months|Northwind"
+        }
+      ]
+    },
+    {
+      "user": "Back to Harbor & Finch. Maya replied: “Thanks, that works. Can we also remove the two unused seats going forward?” Draft a brief reply confirming I’ll reduce them from 12 to 10 seats starting next billing cycle and confirm the change by Friday.",
+      "assistant": "Subject: Re: Unused seats\n\nHi Maya — absolutely. I’ll reduce Harbor & Finch from 12 to 10 seats starting with your next billing cycle and confirm the change with you by Friday.\n\nBest,\nNoor",
+      "then": [
+        {
+          "nodeMatching": "12 to 10|10 seats"
+        }
+      ]
+    },
+    {
+      "user": "I sent both Harbor & Finch replies to Maya. Record these as commitments: apply the $98 credit against the next invoice, reduce the account from 12 to 10 seats starting next billing cycle, and confirm the seat change with Maya by Friday.",
+      "assistant": "Noted: Harbor & Finch is owed a $98 credit against the next invoice; the account will be reduced from 12 to 10 seats starting next billing cycle; and you will confirm the seat change with Maya by Friday.",
+      "then": [
+        {
+          "nodeMatching": "Friday"
+        },
+        {
+          "authorOf": "confirm.*Friday|Friday.*confirm|seat change with Maya",
+          "is": "user"
+        },
+        {
+          "notStatus": "confirm.*Friday|Friday.*confirm",
+          "statuses": "proposed"
+        }
+      ]
+    },
+    {
+      "user": "Draft a brief reply to the customer with the export failure. Say we found the timeout affecting projects over 500 items, have fixed it, and will ship the fix this week. Do not promise a specific day.",
+      "assistant": "Hi — we found the issue: exports for projects with more than 500 items were hitting a timeout. We’ve fixed the export process and will ship the update this week. I’ll let you know once it’s live.",
+      "then": [
+        {
+          "nodeMatching": "ship.*this week|this week"
+        },
+        {
+          "statusOf": "Promised in the reply|ship the (?:update|fix) this week",
+          "is": "todo"
+        },
+        {
+          "audit": "guard_commitment_promise"
+        }
+      ]
+    },
+    {
+      "user": "End-of-day check: list every commitment I made today, grouped by customer or topic, with exactly what I promised and any deadline. Then list what is still open. Include Harbor & Finch, Northwind, the Team pricing change, and the export bug.",
+      "assistant": "Commitments: Harbor & Finch — apply a $98 credit to the next invoice, reduce the account from 12 to 10 seats next billing cycle, and confirm with Maya by Friday. Northwind Logistics — offer a 2× annual-fees liability cap with a data-breach carve-out and nine months’ notice as the final compromise. Team pricing — raise the Team plan from $49 to $59 per seat on November 1, while existing customers keep $49 until renewal. Export bug — ship the fix this week and notify the affected customer when it is live.\n\nStill open: apply the Harbor credit and seat change; send Friday’s confirmation; send or finalize Northwind’s revised clause and await acceptance; publish the pricing-page, changelog, and announcement updates; deploy the export fix and notify the customer.",
+      "then": [
+        {
+          "do": "brainChat",
+          "text": "What commitments are still open from today? Group them by customer or topic and include every deadline."
+        },
+        {
+          "brainMust": "Northwind"
+        },
+        {
+          "brainMust": "this week"
+        },
+        {
+          "brainMustNot": "active requirement|proposed by the agent, not"
+        }
+      ]
+    }
+  ]
+}

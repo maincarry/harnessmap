@@ -49,3 +49,19 @@ test('M442d (TWIN #443): "Record these as commitments" makes the agent-filed tas
   expect(audits.some((a) => a.kind === 'guard_commitment_promise')).toBe(true);
   expect(t.guardCommitmentIsTask([{ ...draft }], { nodes: [] }, { userText: 'Tighten that reply and make it a little warmer.' }).length).toBe(1);
 });
+test('M443d/M451c (TWIN #443 proof): a recap of MY commitments does not mint agent rows; the promise is lifted from an evidence row too', () => {
+  const { t, audits } = harness();
+  const recap = 'End-of-day check: list every commitment I made today, grouped by customer or topic, with exactly what I promised and any deadline. Then list what is still open.';
+  const out = t.guardRecapMirror([
+    { op: 'create_node', id: 'p1', parentId: 'r', author: 'agent', type: 'decision', status: 'decided', title: 'Team pricing change', content: 'The Team plan price rises from $49 to $59 per seat per month on November 1; existing customers keep $49 until their next renewal.' },
+    { op: 'create_node', id: 'p2', parentId: 'r', author: 'agent', type: 'task', status: 'todo', title: 'Deploy and notify', content: 'Deploy the export fix this week and notify the affected customer when it is live.' },
+  ], { nodes: [] }, { userText: recap });
+  expect(out.map((a: any) => a.author)).toEqual(['user', 'user']);
+  expect(audits.filter((a) => a.kind === 'guard_recap_author').length).toBe(2);
+  const turn = 'Draft a brief reply to the customer with the export failure. Say we found the timeout affecting projects over 500 items, have fixed it, and will ship the fix this week.';
+  const out2 = t.guardCommitmentIsTask([
+    { op: 'create_node', id: 'e', parentId: 'p', author: 'user', type: 'evidence', status: 'noted', title: 'Timeout resolution', content: 'Exports for projects with more than 500 items were hitting a timeout; the export process has been fixed, and the update will ship this week without a specific promised day.' },
+    { op: 'create_node', id: 'd', parentId: 'p', author: 'user', type: 'task', status: 'done', title: 'Draft export reply', content: 'A brief customer reply was drafted explaining the timeout, the fix, and shipment this week.' },
+  ], { nodes: [] }, { userText: turn });
+  expect(out2.length).toBe(3); expect(out2[2].content).toMatch(/will ship this week/);
+});

@@ -553,6 +553,17 @@ export class Translator {
       if (kids.length) continue;
       drop.set(String(a.id), null); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), container: true, title: String(a.title ?? a.content ?? '').slice(0, 40) });
     }
+    // M443d (TWIN #443 proof, round 10: the end-of-day recap minted "Team pricing change" [decided→floated by M442a] and "Deploy and
+    // notify" [todo→proposed by M437] as the AGENT's rows, and the answer then said "proposed by the agent, not committed by you"):
+    // when the person asks for THEIR commitments/promises/decisions, a row the recap round still creates records the person's own
+    // commitment — it is authored user, so the agent-demotion guards leave it alone.
+    const mine = /\b(?:I|I've|my|we|we've|our)\b/i.test(ut) && /\b(?:commitments?|promises?|promised|decisions?|decided|owe|agreed)\b/i.test(ut);
+    if (mine) for (const a of alterations) {
+      if (a?.op !== 'create_node' || drop.has(String(a.id)) || a.author === 'user') continue;
+      if (/\b(?:I suggest|I recommend|you could|you might|consider|option)\b/i.test(String(a.content ?? ''))) continue;
+      this.store.audit('guard_recap_author', { id: String(a.id ?? '').slice(0, 8), title: String(a.title ?? a.content ?? '').slice(0, 40) });
+      a.author = 'user';
+    }
     const out: any[] = [];
     for (const a of alterations) {
       if (a?.op === 'create_node' && drop.has(String(a.id))) continue;
@@ -614,8 +625,11 @@ export class Translator {
     const dictates = /\b(?:say|tell|reply|confirm|write|draft)\b[\s\S]{0,160}\b(?:will|'ll|’ll)\b/i.test(String(params?.userText ?? ''));
     if (dictates) {
       const extra: any[] = [];
+      const hasPromiseTask = alterations.some((a) => a?.op === 'create_node' && a.type === 'task' && /^(todo|doing|proposed)$/.test(String(a.status ?? '')) && FUTURE_COMMITMENT.test(String(a.content ?? '')));
       for (const a of alterations) {
-        if (a?.op !== 'create_node' || (a.author ?? 'agent') !== 'user' || a.type !== 'task' || !/^(done|doing)$/.test(String(a.status ?? '')) || typeof a.content !== 'string') continue;
+        if (hasPromiseTask || extra.length) break; // one promise row a round, none when the round already carries the promise as a task
+        // M451c (TWIN #443 proof): the promise sentence may land in an evidence or claim row, not the draft task — any user-authored create counts
+        if (a?.op !== 'create_node' || (a.author ?? 'agent') !== 'user' || a.type === 'question' || a.type === 'option' || typeof a.content !== 'string') continue;
         const sentences = a.content.split(/(?<=[.!?])\s+|(?<=[。！？])/).filter((x: string) => FUTURE_COMMITMENT.test(x));
         if (!sentences.length) continue;
         const promise = sentences.join(' ').replace(/^[“"'\s]+|[”"'\s]+$/g, '').slice(0, 300);
