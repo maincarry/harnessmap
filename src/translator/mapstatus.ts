@@ -1,5 +1,5 @@
 import { Store } from '../store/db.js';
-import { SESSION_CLOSING, FUTURE_COMMITMENT } from './translator.js';
+import { SESSION_CLOSING, FUTURE_COMMITMENT, FUTURE_DATED } from './translator.js';
 import { systemCard } from './cast.js';
 import { call, modelFor } from '../inference.js';
 import { loadMap, renderTree, renderTieredTreeForSubtree, descendantNodes } from '../map/render.js';
@@ -834,8 +834,21 @@ export async function brainChat(store: Store, projectId: string, text: string): 
     }
     if (promised.length >= 4) break;
   }
+  // M460c (TWIN LONG #449, Noor, step 28 — "What commitments are still open from today?" → the answer skipped Northwind's agreed terms and the
+  // November 1 price change, counted the CSV requirement as a commitment, and called her dictated export reply "proposed by the agent"; the
+  // M460b RULE existed and was applied only on her second, corrected ask): the commitments are COMPUTED — the person's own tasks, decisions
+  // and promises that name a counterparty, a sum or a date — so the first answer reads them, open and agreed alike.
+  const rootTitleOf = (n: any) => { let c = n; for (let i = 0; i < 12 && c?.parentId; i++) { const p = byIdOpen.get(c.parentId); if (!p) break; c = p; } return String(c?.title ?? '').slice(0, 40); };
+  const COUNTERPARTY = /\b(?:customer|client|lawyer|investor|team|user)s?\b|\$\s?\d|\b[A-Z][a-z]+(?:\s(?:&|and)\s[A-Z][a-z]+|\s[A-Z][a-z]+)\b/;
+  const commitRows = liveMap.nodes.filter((n) => n.status !== 'removed' && n.parentId !== null && !isTutorial(n) && n.author === 'user'
+    && (String(n.type ?? '') === 'task' || String(n.type ?? '') === 'decision' || /^promise/i.test(String(n.title ?? '')))
+    && !/^(dropped|rejected|superseded|retracted|parked)$/.test(String(n.status ?? ''))
+    && (FUTURE_DATED.test(`${n.title ?? ''} ${n.content ?? ''}`) || FUTURE_COMMITMENT.test(String(n.content ?? '')) || COUNTERPARTY.test(`${n.title ?? ''} ${n.content ?? ''}`)))
+    .sort((a, b) => String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? ''))).slice(0, 24);
+  const commitTag = (n: any) => /^(done|resolved)$/.test(String(n.status ?? '')) ? 'done' : /^(decided|accepted|chosen|active)$/.test(String(n.status ?? '')) ? 'agreed — nothing due today' : 'OPEN';
+  const commitmentsLine = commitRows.length ? `\nCOMMITMENTS (the person's own tasks, decisions and promises that name a customer, a counterparty, a sum or a date — "what did I promise / commit to / owe / what commitments are still open" is answered from THESE, grouped by thread, open first with every deadline, then the agreed terms as agreed; an active constraint or requirement on HOW work is done is never a commitment; the agent's proposals are not the person's commitments): ${commitRows.map((n) => `${rootTitleOf(n)} › ${nameOf(n)} [${commitTag(n)}]`).join(' | ')}` : '';
   const promisedLine = promised.length ? `\nPROMISED, NOT YET TRACKED (a future action written into a finished row — the person owes it; when asked what is open, list each as "promised in …, not done yet" and never say nothing else is open while this line is non-empty): ${promised.join(' | ')}` : '';
-  const openLine = `${earliestLine}\n${latestLine}\n${settledLine}\n${nextLine}\n${resultsLine}\nOPEN NOW (open work — tasks and questions the person can still act on — touched within the last 15 turns; each is "title: what it is"): ${openNow.slice(0, 20).map(nameOf).join(' | ') || '(nothing current — every open item was left behind, see the next line)'}${promisedLine}\nLEFT BEHIND (${older.length} open item(s) untouched for 15+ turns — NOT current work: when asked what is open, mention them in ONE sentence as older threads left behind, by thread, never itemized; list them only if asked for older or abandoned work): ${older.slice(0, 16).map((x) => `${String(x.n.title ?? x.n.content).slice(0, 40)} (${String(x.a).replace('untouched for ', '')})`).join(' | ') || '(none)'}${closedLine}`;
+  const openLine = `${earliestLine}\n${latestLine}\n${settledLine}\n${nextLine}\n${resultsLine}\nOPEN NOW (open work — tasks and questions the person can still act on — touched within the last 15 turns; each is "title: what it is"): ${openNow.slice(0, 20).map(nameOf).join(' | ') || '(nothing current — every open item was left behind, see the next line)'}${promisedLine}${commitmentsLine}\nLEFT BEHIND (${older.length} open item(s) untouched for 15+ turns — NOT current work: when asked what is open, mention them in ONE sentence as older threads left behind, by thread, never itemized; list them only if asked for older or abandoned work): ${older.slice(0, 16).map((x) => `${String(x.n.title ?? x.n.content).slice(0, 40)} (${String(x.a).replace('untouched for ', '')})`).join(' | ') || '(none)'}${closedLine}`;
   // M364b (found by re-running the fix in the loop, per Jacob): "what rule/preference did the user set?" was STILL
   // answered from the system prompt — the brain even quoted M364's own instruction back as "the user's standing rule".
   // Surface the actual rule/decision/constraint nodes so the answer is READ from the map, and (system prompt) forbid

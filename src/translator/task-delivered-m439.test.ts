@@ -84,3 +84,33 @@ test('M439e: a drafted SECTION is a draft request; the task closes on the delive
   expect(DRAFT_REQUEST.test('Re-draft the Iceland paragraph in section 3 using the updated Source 3 evidence.')).toBe(true);
   expect(DRAFT_REQUEST.test('Which section should come first?')).toBe(false);
 });
+
+// M442e + M439f (TWIN LONG #449, Noor): the dictated export reply filed as the agent's task; the Harbor downgrade reply filed as a task [live].
+test('M442e: in a drafting turn the agent-authored draft row becomes the person\'s, then closes and lifts its promise', () => {
+  const audits: string[] = [];
+  const store: any = new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string) => audits.push(kind); if (k === 'getSetting') return () => undefined; if (k === 'roundTimes') return () => []; return () => undefined; } });
+  const t = new Translator(store) as any;
+  const userText = 'The export diff looks fine. Approve it, and draft a short reply to the customer saying we found the large-project export issue and a fix will ship this week. Don’t promise a specific day.';
+  const assistantText = 'Approved. Here is the reply:\n\nHi — we found the issue affecting exports for larger projects and have a fix in progress. We expect it to ship this week. I’ll let you know once it’s live. Thanks for reporting it.';
+  const reply = { op: 'create_node', id: 'r', parentId: 'p', author: 'agent', type: 'task', status: 'todo', title: 'Customer reply', content: 'Draft customer reply: “Hi — we found the issue affecting exports for larger projects and have a fix in progress. We expect it to ship this week. I’ll let you know once it’s live. Thanks for reporting it.”' };
+  const test = { op: 'create_node', id: 'x', parentId: 'p', author: 'agent', type: 'task', status: 'todo', title: 'Test partial batch', content: 'Test that a final partial batch is written before the export loop exits.' };
+  let alts = t.guardDraftAuthor([{ ...reply }, { ...test }], { userText });
+  expect(alts[0].author).toBe('user'); expect(alts[1].author).toBe('agent');
+  alts = t.guardTaskDelivered(alts, { userText, assistantText });
+  expect(alts[0].status).toBe('done');
+  alts = t.guardCommitmentIsTask(alts, { nodes: [] }, { userText, assistantText });
+  const promise = alts.find((a: any) => a.title === 'Promise made');
+  expect(promise).toBeTruthy(); expect(promise.author).toBe('user'); expect(promise.status).toBe('todo');
+  expect(audits).toContain('guard_draft_author');
+});
+test('M439f: a user task the filer files [live] closes on the delivered draft; its dated children stay open', () => {
+  const t = new Translator(new Proxy({}, { get(_t, k) { if (k === 'audit') return () => {}; if (k === 'getSetting') return () => undefined; return () => undefined; } }) as any) as any;
+  const userText = 'Back to Harbor & Finch: they’re happy with the credit and want the two unused seats removed going forward. Draft a brief reply confirming we’ll downgrade them from 12 to 10 seats starting next billing cycle and confirm the change by Friday.';
+  const assistantText = 'Hi Maya — glad the credit works. We’ll reduce Harbor & Finch from 12 to 10 seats starting with your next billing cycle, and I’ll confirm the change with you by Friday.\n\nBest,\nNoor';
+  const out = t.guardTaskDelivered([
+    { op: 'create_node', id: 'c', parentId: 'h', author: 'user', type: 'task', status: 'live', title: 'Harbor seat downgrade reply', content: 'Harbor & Finch seat downgrade reply: confirm that the subscription will be reduced from 12 to 10 seats starting next billing cycle, and that the change will be confirmed by Friday.' },
+    { op: 'create_node', id: 'd', parentId: 'c', author: 'user', type: 'task', status: 'todo', title: 'Downgrade to ten seats', content: 'Harbor & Finch will be downgraded from 12 to 10 seats starting next billing cycle.' },
+    { op: 'create_node', id: 'f', parentId: 'c', author: 'user', type: 'task', status: 'todo', title: 'Confirm by Friday', content: 'The change will be confirmed by Friday.' },
+  ], { userText, assistantText });
+  expect(out.map((a: any) => a.status)).toEqual(['done', 'todo', 'todo']);
+});

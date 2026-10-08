@@ -433,6 +433,7 @@ export class Translator {
       alterations = this.guardAgentSolidStatus(alterations, params); // M442a/M442b (TWIN #426): an agent-authored row is never born accepted/decided
       alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
       alterations = this.guardCorrectionAuthor(alterations, params); // M456 (LONG #436 zh): the correction is the person's catch
+      alterations = this.guardDraftAuthor(alterations, params); // M442e (TWIN #449): the reply the person asked for, filed as the agent's proposal → the person's row
       alterations = this.guardDeliveryRejected(alterations, map, params); // M453 (PANEL #432): a rejected delivery is reopened
       alterations = this.guardTaskDelivered(alterations, params); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
       alterations = this.guardCommitmentIsTask(alterations, map, params); // M451/M451b/M451c — AFTER M439 (M451d, TWIN #443 proof pass 3): a drafted reply closes first, so the promise inside it is lifted into its own todo rather than counted as already carried by a todo
@@ -732,7 +733,7 @@ export class Translator {
     const drafted = DRAFT_REQUEST.test(String(params.userText ?? '')) && at.length >= 120 && !/^\s*(?:sure|ok(?:ay)?|got it|will do|understood|noted|alright|certainly|of course)\b[^.!?\n]*[.!]?\s*$/i.test(at) && !/\?\s*$/.test(at.trim()); // M439b: the text asked for, written
     if (at.length < 40 || (!DELIVERS.test(at) && !learn && !drafted)) return alterations;
     for (const a of alterations) {
-      if (a?.op !== 'create_node' || a.author !== 'user' || a.type !== 'task' || !/^(todo|doing)$/.test(String(a.status ?? ''))) continue;
+      if (a?.op !== 'create_node' || a.author !== 'user' || a.type !== 'task' || !/^(todo|doing|live|provisional|open)$/.test(String(a.status ?? ''))) continue; // M439f (TWIN #449): "Harbor seat downgrade reply" was filed as a task [live] and stayed open after the reply was written
       // M439c (TWIN #443 proof pass 4): a task dated past this turn — "confirm the seat change with Maya by Friday", "reduce the
       // account next billing cycle" — is a promise the reply cannot have performed; only the text asked for was delivered. It stays
       // open unless the row IS the drafting ("Draft a brief customer reply …"), which the reply does deliver.
@@ -758,6 +759,28 @@ export class Translator {
       this.store.audit('guard_root_client_name', { id: String(a.id ?? '').slice(0, 8), name, from: a.title.slice(0, 40) });
       a.title = to;
       return alterations;
+    }
+    return alterations;
+  }
+
+  // M442e (TWIN LONG #449, Noor, step 26: "Approve it, and draft a short reply to the customer saying … a fix will ship this week" → the filer
+  // created "Customer reply" (the drafted text) as the AGENT's task; M437 made it a proposal and the end-of-day answer said the customer reply
+  // "was proposed by the agent, not a commitment you made"): in a drafting turn, an agent-authored row created this round that IS the draft —
+  // a task or untyped row named for the artefact, or whose statement opens "Draft …:" / "Reply:" / a quoted text — is the person's: they asked
+  // for it. Author user, so M439b closes it and M451c lifts the promise inside it. Audit guard_draft_author.
+  private guardDraftAuthor(alterations: any[], params: { userText?: string }): any[] {
+    const ut = String(params.userText ?? '');
+    if (!DRAFT_REQUEST.test(ut)) return alterations;
+    for (const a of alterations) {
+      if (a?.op !== 'create_node' || (a.author ?? 'agent') !== 'agent') continue;
+      const type = String(a.type ?? '');
+      if (type && type !== 'task') continue;
+      const title = String(a.title ?? ''), content = String(a.content ?? '');
+      const isDraft = DRAFT_ARTEFACT.test(title) || /^\s*(?:draft(?:ed)?\b[^:]{0,40}:|reply:|subject:|[“"])/i.test(content);
+      if (!isDraft) continue;
+      this.store.audit('guard_draft_author', { id: String(a.id ?? '').slice(0, 8), title: title.slice(0, 40), was: a.status });
+      a.author = 'user';
+      if (/^(proposed|floated)$/.test(String(a.status ?? ''))) a.status = 'todo';
     }
     return alterations;
   }
