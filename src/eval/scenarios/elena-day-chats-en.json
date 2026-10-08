@@ -1,0 +1,160 @@
+{
+  "name": "Elena's day as four chats, switched constantly (TWIN #445, 25 turns, v0.9.254; M450e/M450h): a 12-page client briefing on whether a four-day work week raises or lowers output — six sources logged, the outline built and reworked, sections drafted and corrected, a status paragraph for her PM — one map across the chats. (M450g: topics only — never an outcome.)",
+  "panelChat": "chat-drafts",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "I’m writing a 12-page client briefing answering: “Does a four-day work week raise or lower output in knowledge-work firms?” The audience is the client’s HR leadership team; they’re skeptical and want numbers, not advocacy. Help me gather and track the sources and what each one actually supports.",
+      "assistant": "Understood. I’ll help build an evidence base for a skeptical HR leadership audience, tracking each source, its quantitative findings, scope, and limitations so the briefing distinguishes what the evidence supports from what it does not.",
+      "session": "chat-sources",
+      "then": []
+    },
+    {
+      "user": "Source 1 is the Autonomy UK pilot from 2022–23: 61 companies took part, 92% kept the four-day week afterward, and average revenue rose 1.4%. Log those claims and numbers, keeping revenue distinct from productivity or output.",
+      "assistant": "Logged Source 1: Autonomy UK pilot (2022–23), covering 61 companies. Reported findings: 92% continued the four-day week after the pilot, and average revenue increased by 1.4%. I’ll keep the revenue measure distinct from productivity or output.",
+      "session": "chat-sources",
+      "then": []
+    },
+    {
+      "user": "Source 2 is Microsoft Japan’s 2019 trial: productivity rose 40%, measured as sales per employee. It ran for only one month in one company, so note those caveats explicitly.",
+      "assistant": "Logged Source 2: Microsoft Japan (2019). Reported productivity increased 40%, measured as sales per employee. Caveats: the trial lasted one month and involved a single company, limiting how broadly the result can be generalized.",
+      "session": "chat-sources",
+      "then": []
+    },
+    {
+      "user": "Source 3 is the Iceland trials from 2015–2019: about 2,500 public-sector workers, with productivity maintained or improved in most workplaces. Summarize exactly what this source supports.",
+      "assistant": "Source 3 shows that Iceland’s 2015–2019 trials, involving roughly 2,500 workers, proved productivity rose across the public sector.",
+      "session": "chat-sources",
+      "then": []
+    },
+    {
+      "user": "That overstates Source 3. It says productivity was maintained or improved in most workplaces, among about 2,500 public-sector workers. It does not prove productivity rose across the public sector. Replace your note with that exact distinction and do not describe this source as showing a rise.",
+      "assistant": "Corrected Source 3: Iceland trials (2015–2019), involving about 2,500 public-sector workers. Productivity was maintained or improved in most workplaces. The source does not establish that productivity rose, and its findings are limited to the public-sector settings studied.",
+      "session": "chat-sources",
+      "then": []
+    },
+    {
+      "user": "Source 4 is Perpetual Guardian in New Zealand, 2018: 240 staff, engagement increased, and output was unchanged. Log it exactly that way—especially that output was unchanged, not increased.",
+      "assistant": "Logged Source 4: Perpetual Guardian (New Zealand, 2018), involving 240 staff. Engagement increased, while output remained unchanged.",
+      "session": "chat-sources",
+      "then": []
+    },
+    {
+      "user": "Source 5 is a 2023 meta-review by Campbell. It says most four-day-week trials involve self-selected firms and have no control groups. Log that as a limitation applying to Sources 1, 2, and 4.",
+      "assistant": "Logged Source 5: Campbell’s 2023 meta-review. It identifies self-selection and the absence of control groups as common limitations in four-day-week trials; these caveats apply to Sources 1, 2, and 4.",
+      "session": "chat-sources",
+      "then": []
+    },
+    {
+      "user": "Source 6 is a critic’s op-ed in a business paper arguing that output fell in shift-based roles. Log it as an opinion piece, not a study, so we don’t treat that claim as research evidence.",
+      "assistant": "Logged Source 6 as a critical business-paper op-ed arguing that output fell in shift-based roles. I’ll label it as opinion rather than a study and won’t present its claim as research evidence.",
+      "session": "chat-sources",
+      "then": []
+    },
+    {
+      "user": "Give me a first outline for the briefing: 1 Summary, 2 What the trials measured, 3 Output results, 4 Wellbeing and retention, 5 Where it did not work, 6 Caveats, 7 Recommendation.",
+      "assistant": "Here is the first outline: 1. Summary; 2. What the trials measured; 3. Output results; 4. Wellbeing and retention; 5. Where it did not work; 6. Caveats; 7. Recommendation. I’ll treat this as the current working structure.",
+      "session": "chat-outline",
+      "then": []
+    },
+    {
+      "user": "Merge section 4, Wellbeing and retention, into section 3, Output results—the client cares primarily about output, so wellbeing should be a paragraph within that section rather than a standalone section. The outline should now have six sections.",
+      "assistant": "Updated the working outline to six sections: 1. Summary; 2. What the trials measured; 3. Output results, including a paragraph on wellbeing and retention; 4. Where it did not work; 5. Caveats; 6. Recommendation.",
+      "session": "chat-outline",
+      "then": []
+    },
+    {
+      "user": "Draft section 2, “What the trials measured,” in about 300 words. Cite Sources 1–4 by name and distinguish their measures, scope, and time periods carefully.",
+      "assistant": "I’ll draft a roughly 300-word section comparing what the Autonomy UK pilot, Microsoft Japan trial, Iceland trials, and Perpetual Guardian study measured, while keeping revenue, sales per employee, productivity, engagement, and output distinct.",
+      "session": "chat-drafts",
+      "then": []
+    },
+    {
+      "user": "The draft attributes the 40% figure to the UK pilot. That is wrong: 40% is Microsoft Japan’s increase in sales per employee; the UK pilot reported a 1.4% increase in average revenue. Fix the attribution and keep a note of this mix-up so it does not recur later in the report.",
+      "assistant": "Corrected: Microsoft Japan reported a 40% increase in sales per employee, while the Autonomy UK pilot reported a 1.4% increase in average revenue. I’ve also noted the earlier attribution mix-up so those figures and measures remain distinct in later drafts.",
+      "session": "chat-drafts",
+      "then": []
+    },
+    {
+      "user": "Draft section 3, “Output results,” in about 400 words. Compare what Sources 1–4 support, keep revenue, sales per employee, productivity, engagement, and unchanged output distinct, and include wellbeing as a paragraph within this section.",
+      "assistant": "I’ll draft section 3 in roughly 400 words, comparing Sources 1–4 without conflating their measures. I’ll include wellbeing within the section and preserve the corrected attribution: 40% sales per employee for Microsoft Japan, 1.4% average revenue for the UK pilot, maintained or improved productivity in most Iceland workplaces, and unchanged output with higher engagement at Perpetual Guardian.",
+      "session": "chat-drafts",
+      "then": []
+    },
+    {
+      "user": "My PM needs a one-paragraph status summary right now. Write exactly one paragraph based only on Sources 1–5 and the work so far, with no claims beyond what those sources support.",
+      "assistant": "The evidence so far suggests that four-day-week trials can maintain or improve selected business outcomes, but the measures and strength of evidence vary: the Autonomy UK pilot reported average revenue up 1.4%, Microsoft Japan reported a 40% increase in sales per employee during a one-month trial, Icelandic public-sector workplaces generally maintained or improved productivity, and Perpetual Guardian maintained output while engagement increased. These findings come from differing settings and measures, and Campbell’s 2023 meta-review cautions that many trials involve self-selected firms and lack control groups.",
+      "session": "chat-pm",
+      "then": []
+    },
+    {
+      "user": "This status paragraph is still too rosy. Add one clear sentence saying that Campbell’s 2023 meta-review finds that most trials use self-selected firms and lack control groups, so these results should not be treated as causal or broadly representative. Keep it to one paragraph.",
+      "assistant": "The evidence so far suggests that four-day-week trials can maintain or improve selected business outcomes, but the measures and strength of evidence vary: the Autonomy UK pilot reported average revenue up 1.4%, Microsoft Japan reported a 40% increase in sales per employee during a one-month trial, Icelandic public-sector workplaces generally maintained or improved productivity, and Perpetual Guardian maintained output while engagement increased. Campbell’s 2023 meta-review finds that most trials involve self-selected firms and lack control groups, so these results should not be treated as causal or broadly representative.",
+      "session": "chat-pm",
+      "then": []
+    },
+    {
+      "user": "Back to the report: cut the section “Where it did not work.” The only evidence for it is Source 6, which is an opinion piece rather than a study, so it does not justify a standalone section. Keep a note that the section was cut for that reason.",
+      "assistant": "I’ve removed “Where it did not work” from the working outline and noted the reason: Source 6 is an opinion piece, not research evidence, so it cannot support a standalone section.",
+      "session": "chat-outline",
+      "then": []
+    },
+    {
+      "user": "Rebuild the working outline and treat this as the current version: 1 Summary, 2 What the trials measured, 3 Output results (including wellbeing), 4 Caveats, 5 Recommendation. “Where it did not work” is cut, not current, and wellbeing is not a separate section.",
+      "assistant": "Updated the current outline to five sections: 1. Summary; 2. What the trials measured; 3. Output results, including wellbeing; 4. Caveats; 5. Recommendation. “Where it did not work” remains recorded as cut because it relied only on an opinion piece.",
+      "session": "chat-outline",
+      "then": []
+    },
+    {
+      "user": "Draft a paragraph for the Caveats section about shift-based roles. Source 6 is only an opinion piece, so label performance in shift-based roles as untested by our evidence rather than claiming the four-day week reduced output there.",
+      "assistant": "I’ll draft the Caveats paragraph stating that the available evidence does not establish outcomes for shift-based roles. I’ll treat Source 6 only as an opinion raising a question for further testing, not as evidence of reduced output.",
+      "session": "chat-drafts",
+      "then": []
+    },
+    {
+      "user": "Draft section 4, “Caveats,” in about 250 words. Lead with Campbell’s 2023 finding that most trials involve self-selected firms and lack control groups, and keep the shift-based-roles point framed as untested by our evidence.",
+      "assistant": "I’ll draft the Caveats section in roughly 250 words, leading with Campbell’s methodological limitations and describing outcomes in shift-based roles as untested rather than negative.",
+      "session": "chat-drafts",
+      "then": []
+    },
+    {
+      "user": "I have new evidence on Source 3: a 2021 follow-up reports that two Icelandic agencies measured an output increase of 3–5%. Update the Iceland claim to: productivity was maintained or improved in most workplaces, and two agencies measured a 3–5% rise. Keep the earlier wording as superseded rather than deleting it.",
+      "assistant": "Updated Source 3 with the 2021 follow-up: productivity was maintained or improved in most Icelandic workplaces, and two agencies measured a 3–5% output increase. I’ve retained the earlier, more limited wording as superseded so the change in the evidence remains traceable.",
+      "session": "chat-sources",
+      "then": []
+    },
+    {
+      "user": "Re-draft the Iceland paragraph in section 3 using the updated Source 3 evidence. Say that productivity was maintained or improved in most workplaces and that the 2021 follow-up found a measured 3–5% output rise in two agencies. Do not generalize that rise to the whole Iceland trial.",
+      "assistant": "I’ll revise the Iceland paragraph to preserve the broader finding of maintained or improved productivity while attributing the measured 3–5% increase specifically to the two agencies in the 2021 follow-up.",
+      "session": "chat-drafts",
+      "then": []
+    },
+    {
+      "user": "Move Recommendation before Caveats for this audience. Treat this as the current outline: 1 Summary, 2 What the trials measured, 3 Output results, 4 Recommendation, 5 Caveats. The previous order is superseded.",
+      "assistant": "Updated the current outline: 1. Summary; 2. What the trials measured; 3. Output results; 4. Recommendation; 5. Caveats. The earlier ordering with Caveats before Recommendation is now superseded.",
+      "session": "chat-outline",
+      "then": []
+    },
+    {
+      "user": "Draft section 4, “Recommendation,” in about 200 words. Recommend a six-month pilot in one non-shift team, with output measured weekly. Keep the recommendation proportionate to the evidence and do not imply the trials establish causation.",
+      "assistant": "I’ll draft a roughly 200-word Recommendation proposing a six-month pilot in one non-shift team with weekly output measurement, framed as a cautious test rather than a conclusion that the existing trials prove causation.",
+      "session": "chat-drafts",
+      "then": []
+    },
+    {
+      "user": "Draft section 1, “Summary,” in about 150 words. Use only numbers that have a named source, keep revenue distinct from productivity and sales per employee, and do not imply causation.",
+      "assistant": "I’ll draft a roughly 150-word Summary using only sourced figures: 1.4% average revenue for the Autonomy UK pilot, 40% sales per employee for Microsoft Japan, about 2,500 workers and the agency-specific 3–5% rise for Iceland, and 240 staff for Perpetual Guardian. I’ll keep the measures distinct and frame the findings as trial results rather than causal proof.",
+      "session": "chat-drafts",
+      "then": []
+    },
+    {
+      "user": "The Summary says “productivity rose 40% in Japan and 1.4% in the UK.” Correct that: Microsoft Japan reported a 40% increase in sales per employee, while the Autonomy UK pilot reported a 1.4% increase in average revenue—not productivity. Fix the Summary and keep those measures distinct.",
+      "assistant": "Corrected. The Summary now attributes the 40% increase to sales per employee in Microsoft Japan and the 1.4% increase to average revenue in the Autonomy UK pilot, without describing the UK figure as productivity.",
+      "session": "chat-drafts",
+      "then": []
+    }
+  ]
+}
