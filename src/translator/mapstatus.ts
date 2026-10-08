@@ -681,6 +681,21 @@ const M429_SYSADD = ` WHO SAID WHAT: every node line in YOUR MAP RIGHT NOW start
 // 10-hour run was canceled" for a [decided] decision to cancel (4 of 13)): the roster marks open items the person left behind, and the
 // brain is told what the mark and a decision mean.
 const OPENISH = /^(open|todo|doing|active|live|provisional|proposed|floated)$/;
+// M460g (PANEL #451a, Noor's day as six chats: asked what is still open, the map named only the export work and said "there are no
+// older untouched open items" — "Confirm downgrade" [todo, hers, due Friday] was filed UNDER the delivered reply row "Seat downgrade
+// confirmed" [done], and a row under a closed parent was dropped from OPEN NOW and from LEFT BEHIND alike): a closed parent hides its
+// subtree (options under a resolved question, moves under a finished game) — but a task the PERSON holds as todo/doing is open work
+// wherever it was filed; the delivered draft it hangs under is the thing it came from, not its closure.
+export function underClosedParent(n: any, byId: Map<string, any>): boolean {
+  for (let p = n.parentId ? byId.get(n.parentId) : null; p; p = p.parentId ? byId.get(p.parentId) : null) if (/^(done|dropped|superseded|removed|rejected|retracted)$/.test(String(p.status ?? ''))) return true;
+  return false;
+}
+export function isOpenWorkRow(n: any, byId: Map<string, any>, isTutorial: (n: any) => boolean = () => false): boolean {
+  if (n.status === 'removed' || n.parentId === null || isTutorial(n) || n.author === 'system' || n.type === 'option' || n.type === 'constraint') return false;
+  const ownTask = n.author === 'user' && String(n.type ?? '') === 'task' && /^(todo|doing)$/.test(String(n.status ?? ''));
+  if (!ownTask && underClosedParent(n, byId)) return false;
+  return /^(open|todo|doing)$/.test(n.status) || (n.status === 'active' && n.type === 'task') || (/^(live|provisional)$/.test(n.status) && /^(task|question)$/.test(String(n.type ?? '')));
+}
 export function ageTag(status: string | undefined, updatedAt: string | undefined, roundTimes: number[], minTurns = 15): string | null {
   if (!status || !OPENISH.test(status) || !updatedAt || !roundTimes.length) return null;
   const t = updatedAt.trim(); const ms = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(t) ? t : t.replace(' ', 'T') + 'Z');
@@ -765,9 +780,8 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // listed as open work under a parent she had marked done): a constraint is a standing rule, not work, and nothing under a closed
   // parent (done / dropped / superseded / removed) is open.
   const byIdOpen = new Map(liveMap.nodes.map((n: any) => [n.id, n]));
-  const underClosed = (n: any) => { for (let p = n.parentId ? byIdOpen.get(n.parentId) : null; p; p = p.parentId ? byIdOpen.get(p.parentId) : null) if (/^(done|dropped|superseded|removed|rejected|retracted)$/.test(String(p.status ?? ''))) return true; return false; };
-  const isOpenWork = (n: any) => n.status !== 'removed' && n.parentId !== null && !isTutorial(n) && n.author !== 'system' && n.type !== 'option' && n.type !== 'constraint' && !underClosed(n)
-    && (/^(open|todo|doing)$/.test(n.status) || (n.status === 'active' && n.type === 'task') || (/^(live|provisional)$/.test(n.status) && /^(task|question)$/.test(String(n.type ?? ''))));
+  const underClosed = (n: any) => underClosedParent(n, byIdOpen);
+  const isOpenWork = (n: any) => isOpenWorkRow(n, byIdOpen, isTutorial);
   const openish = liveMap.nodes.filter(isOpenWork);
   // M435d (PANEL #422: ten of thirteen quoted the RIGHT NOW answer "the ESLint/React thread: API documentation, render-failure details, and
   // revising the Title Divider" — the brain had copied the OPEN NOW titles as "what you are working on", and every Monday-morning need came
