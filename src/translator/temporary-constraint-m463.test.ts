@@ -31,3 +31,11 @@ test('M463: a change request about something else leaves the hold; a standing ru
 test('M463: a turn without a change verb does nothing', () => {
   expect(harness(nodes)([], 'What does the draft reply say now?').out).toEqual([]);
 });
+
+test('M463b: the hedge before the hold ("for now: … leave plan labels unchanged") ends when she asks to normalise the labels', () => {
+  const r = harness([
+    { id: 'root', parentId: null, title: 'Customer churn parquet', content: 'Customer churn parquet', status: 'live', author: 'user', type: null, createdAt: at, updatedAt: at },
+    { id: 'scope', parentId: 'root', title: 'Current cleaning scope', content: 'Clean only the 46 negative tenure values for now: set them to missing, retain all customer rows, and leave plan labels unchanged.', status: 'active', author: 'user', type: 'constraint', createdAt: at, updatedAt: at },
+  ])([], 'Put the cleaning into a reusable function that sets negative tenure to missing and normalises plan to monthly or annual. Add a quick test that checks the plan labels and the tenure counts.');
+  expect(r.out).toEqual([{ op: 'update_node', id: 'scope', status: 'superseded' }]);
+});

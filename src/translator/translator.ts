@@ -928,8 +928,11 @@ export class Translator {
   private guardTemporaryConstraint(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
     const ut = (params.userText ?? '').trim();
     if (!ut || ut.length > 700) return alterations;
-    if (!/\b(?:update|change|edit|revise|rewrite|fix|adjust|amend|modify|tweak)\b/i.test(ut)) return alterations;
-    const HOLD = /\b(?:do not|don't|dont|never|no)\s+(?:change|touch|edit|modify|update|alter|revise|rewrite)\b[^.]{0,80}?\b(?:yet|for now|until|before)\b|\b(?:leave|keep)\b[^.]{0,60}?\b(?:as is|unchanged|untouched)\b[^.]{0,40}?\b(?:yet|for now|until)\b/i;
+    // M463b (PANEL #454a, Priya — the brain flagged it itself: "one stale row still says plan labels are unchanged; it conflicts with the
+    // settled normalization"): the round-4 hold read "Clean only the 46 negative tenure values for now: … leave plan labels unchanged" —
+    // the hedge BEFORE the hold — and her round-6 turn said "normalises plan to monthly or annual", a change verb the guard did not know.
+    if (!/\b(?:update|change|edit|revise|rewrite|fix|adjust|amend|modify|tweak|normali[sz]e|normali[sz]es|normali[sz]ing|clean|convert|rename|transform|apply|drop|replace|standardi[sz]e)\b/i.test(ut)) return alterations;
+    const HOLD = /\b(?:do not|don't|dont|never|no)\s+(?:change|touch|edit|modify|update|alter|revise|rewrite|clean|normali[sz]e)\b[^.]{0,80}?\b(?:yet|for now|until|before)\b|\b(?:leave|keep)\b[^.]{0,60}?\b(?:as is|unchanged|untouched)\b[^.]{0,40}?\b(?:yet|for now|until)\b|\b(?:for now|yet|until|only)\b[^.]{0,120}?\b(?:leave|keep)\b[^.]{0,60}?\b(?:as is|unchanged|untouched)\b/i;
     const STOPW = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'for', 'it', 'its', 'this', 'that', 'yet', 'now', 'not', 'dont', 'change', 'touch', 'edit', 'update', 'modify', 'alter', 'revise', 'rewrite', 'until', 'before', 'keep', 'leave', 'brief', 'exact', 'say']);
     const toks = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').split(' ').filter((w) => w.length >= 4 && !STOPW.has(w));
     const utoks = new Set(toks(ut));
