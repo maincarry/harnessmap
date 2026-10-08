@@ -39,3 +39,20 @@ test('M463b: the hedge before the hold ("for now: … leave plan labels unchange
   ])([], 'Put the cleaning into a reusable function that sets negative tenure to missing and normalises plan to monthly or annual. Add a quick test that checks the plan labels and the tenure counts.');
   expect(r.out).toEqual([{ op: 'update_node', id: 'scope', status: 'superseded' }]);
 });
+
+// M463c (REFILE #6 Priya): "No changes or cleaning … yet" and "Do not handle … yet" are holds; her cleaning function and plan inspection end them.
+test('M463c: a "no changes … yet" or "do not handle … yet" hold ends when the person asks for that work', () => {
+  const n2 = [
+    { id: 'root', parentId: null, title: 'Customer churn parquet inspection', content: 'Inspect the churn parquet', status: 'live', author: 'user', type: null, createdAt: at, updatedAt: at },
+    { id: 'h1', parentId: 'root', title: 'No changes yet', content: 'No changes or cleaning should be made to the customer churn parquet yet.', status: 'active', author: 'user', type: 'constraint', createdAt: at, updatedAt: at },
+    { id: 'h2', parentId: 'root', title: 'Defer plan labels', content: 'Do not handle the inconsistent `plan` labels yet.', status: 'active', author: 'user', type: 'constraint', createdAt: at, updatedAt: at },
+    { id: 'rule', parentId: 'root', title: 'Keep all rows', content: 'Set negative tenure to missing rather than dropping those customers.', status: 'active', author: 'user', type: 'constraint', createdAt: at, updatedAt: at },
+  ];
+  const r6 = harness(n2)([], 'Put the cleaning into a reusable function that sets negative tenure to missing and normalises plan to monthly or annual. Add a quick test that checks both.');
+  expect(r6.out.map((a) => a.id).sort()).toEqual(['h1', 'h2']);
+  expect(r6.out.every((a) => a.status === 'superseded')).toBe(true);
+  const r5 = harness(n2)([], 'Now inspect the five plan labels and their counts. I expect monthly and Monthly to be one plan, and annual, Annual, and yearly to be one plan. Confirm the counts before we normalise anything.');
+  expect(r5.out.map((a) => a.id)).toEqual(['h2']);
+  const r3 = harness(n2)([], 'How many rows have negative tenure, what negative values occur, and do those rows look unusual in plan, usage, price, or churn?');
+  expect(r3.out).toEqual([]);
+});

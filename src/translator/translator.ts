@@ -1029,7 +1029,10 @@ export class Translator {
     // settled normalization"): the round-4 hold read "Clean only the 46 negative tenure values for now: … leave plan labels unchanged" —
     // the hedge BEFORE the hold — and her round-6 turn said "normalises plan to monthly or annual", a change verb the guard did not know.
     if (!/\b(?:update|change|edit|revise|rewrite|fix|adjust|amend|modify|tweak|normali[sz]e|normali[sz]es|normali[sz]ing|clean|convert|rename|transform|apply|drop|replace|standardi[sz]e)\b/i.test(ut)) return alterations;
-    const HOLD = /\b(?:do not|don't|dont|never|no)\s+(?:change|touch|edit|modify|update|alter|revise|rewrite|clean|normali[sz]e)\b[^.]{0,80}?\b(?:yet|for now|until|before)\b|\b(?:leave|keep)\b[^.]{0,60}?\b(?:as is|unchanged|untouched)\b[^.]{0,40}?\b(?:yet|for now|until)\b|\b(?:for now|yet|until|only)\b[^.]{0,120}?\b(?:leave|keep)\b[^.]{0,60}?\b(?:as is|unchanged|untouched)\b/i;
+    // M463c (REFILE #6 Priya, two holds still [active] after 33 rounds: "No changes or cleaning should be made to the customer churn
+    // parquet yet." and "Do not handle the inconsistent plan labels yet." — "change" did not match "changes", "handle" was not a verb):
+    // the hold verbs take their plural/noun forms and handle/address/deal with/fix/process.
+    const HOLD = /\b(?:do not|don't|dont|never|no)\s+(?:changes?|touch|edits?|modify|modifications?|update|alter|alterations?|revise|rewrite|clean|cleaning|normali[sz]e|normali[sz]ation|handle|handling|address|fix|fixes|deal with|process|drop|remove)\b[^.]{0,80}?\b(?:yet|for now|until|before)\b|\b(?:leave|keep)\b[^.]{0,60}?\b(?:as is|unchanged|untouched)\b[^.]{0,40}?\b(?:yet|for now|until)\b|\b(?:for now|yet|until|only)\b[^.]{0,120}?\b(?:leave|keep)\b[^.]{0,60}?\b(?:as is|unchanged|untouched)\b/i;
     const STOPW = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'for', 'it', 'its', 'this', 'that', 'yet', 'now', 'not', 'dont', 'change', 'touch', 'edit', 'update', 'modify', 'alter', 'revise', 'rewrite', 'until', 'before', 'keep', 'leave', 'brief', 'exact', 'say']);
     const toks = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').split(' ').filter((w) => w.length >= 4 && !STOPW.has(w));
     const utoks = new Set(toks(ut));
@@ -1040,7 +1043,8 @@ export class Translator {
       if (!/^(active|live|noted|open)$/.test(String(node.status ?? ''))) continue;
       const text = `${node.title ?? ''}. ${node.content ?? ''}`;
       if (!HOLD.test(text)) continue;
-      const held = text.match(HOLD)?.[0] ?? ''; const shared = toks(held).filter((w) => utoks.has(w));
+      // M463c: every hold phrase in the row (the title's short form "No changes yet" matched first and hid the content's "cleaning").
+      const held = [...text.matchAll(new RegExp(HOLD.source, 'gi'))].map((m) => m[0]).join(' '); const shared = [...new Set(toks(held))].filter((w) => utoks.has(w));
       if (!shared.length) continue;
       n++; out.push({ op: 'update_node', id: node.id, status: 'superseded' });
       this.store.audit('guard_temporary_constraint', { id: node.id.slice(0, 8), title: (node.title ?? '').slice(0, 40), shared: shared.slice(0, 3), was: node.status });
