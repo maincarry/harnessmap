@@ -449,6 +449,7 @@ export class Translator {
       alterations = this.guardFigureSuperseded(alterations, map); // M464 (TWIN #453 Priya): a figure a row calls invalid supersedes the row that carried it
       alterations = this.guardAgentImperative(alterations, params); // M465 (TWIN #453 Priya): the agent's 'keep X together' is not her todo (PANEL #451a): "don't change the draft yet" ends when the person asks to change it
       alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
+      alterations = this.guardTitleTwinChild(alterations, map); // M467 (PANEL #454b): a same-titled child is the parent's new state, not a second row
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
       const prior = this.store.roundForTurn(params.turnId);
@@ -1197,6 +1198,40 @@ export class Translator {
 
   private guardCorrectionTwin(alterations: any[], map: { nodes: MapNode[] }): any[] {
     return dropCorrectionTwins(alterations, map.nodes, (d) => this.store.audit('guard_correction_twin', d));
+  }
+  // M467 (PANEL #454b — Ben, Ken, Tom: "the completed modelling branch was still labelled Baseline churn model [provisional]"): at
+  // round 20 the filer created "Baseline churn model" [live, the leakage-free definition] UNDER the person's own "Baseline churn model"
+  // [provisional] from round 15 — an update expressed as a same-titled child; the parent kept its first-cut statement and its
+  // tentative status to the end of the day (twice on that map: "Support tickets leakage" the same way). A create whose title is
+  // its parent's title IS the parent's new state: the parent takes the content (and, when it was tentative, the status); the
+  // twin is dropped and anything born under it this round is re-pointed to the parent. Tasks and constraints are left to M439i.
+  private guardTitleTwinChild(alterations: any[], map: { nodes: MapNode[] }): any[] {
+    const norm = (x: string) => x.toLowerCase().replace(/[“”"‘’'`]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const folded = new Map<string, string>();
+    const out: any[] = [];
+    for (const a of alterations) {
+      if (a?.op === 'create_node' && a.parentId && typeof a.title === 'string' && norm(a.title).length >= 6 && String(a.type ?? '') !== 'task' && String(a.type ?? '') !== 'constraint') {
+        const parent = map.nodes.find((n) => n.id === a.parentId);
+        if (parent && parent.status !== 'removed' && norm(String(parent.title ?? '')) === norm(a.title) && !/^(todo|doing|done)$/.test(String(parent.status ?? '')) && String(parent.type ?? '') !== 'task' && String(parent.type ?? '') !== 'constraint') {
+          const upd: any = { op: 'update_node', id: parent.id };
+          if (typeof a.content === 'string' && a.content.trim() && a.content.trim() !== parent.content.trim()) upd.content = a.content;
+          const tentative = /^(provisional|proposed|open)$/.test(String(parent.status ?? ''));
+          if (tentative && a.status && a.status !== parent.status && /^(noted|live|done|decided|accepted|cited|answered|active)$/.test(String(a.status))) upd.status = a.status;
+          folded.set(String(a.id), parent.id);
+          this.store.audit('guard_title_twin', { id: parent.id.slice(0, 8), twin: String(a.id).slice(0, 8), title: String(a.title).slice(0, 40), from: parent.status, to: upd.status ?? parent.status });
+          if (upd.content !== undefined || upd.status !== undefined) out.push(upd);
+          continue;
+        }
+      }
+      out.push(a);
+    }
+    if (folded.size) for (const a of out) {
+      for (const k of ['parentId', 'id', 'fromItemId', 'toId', 'nodeId'] as const) {
+        if (k === 'id' && a.op === 'create_node') continue;
+        if (typeof a[k] === 'string' && folded.has(a[k])) a[k] = folded.get(a[k]);
+      }
+    }
+    return out;
   }
   private guardScope(alterations: Alteration[], scope: Set<string>, map: MapView, params: { chatId: string; focusContainerId: string; userText?: string; assistantText?: string }): Alteration[] {
     const live = new Set(scope);
