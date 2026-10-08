@@ -226,7 +226,7 @@ export const SESSION_CLOSING = /\b(?:that(?:'s| is) (?:all|it) for (?:today|now|
 // notified when it is live" filed as a DECISION [decided] — so the open-work list dropped the one promise she most needed to see; "It knows
 // I promised … and knows neither happened, but still leaves it off"): a statement in the person's own words that commits to a FUTURE ACTION
 // is open work — a task, todo — until it is done. A decision records a choice; a promise records a debt.
-export const FUTURE_COMMITMENT = /\b(?:will|'ll|going to|am going to|promise[sd]? to|committed to|commit to)\s+(?:be\s+)?(?:ship\w*|deploy\w*|sen[dt]|notif\w+|confirm\w*|publish\w*|releas\w+|deliver\w*|follow(?:ing)?[ -]up|let\s+(?:them|him|her|you|the\s+\w+)\s+know|email\w*|call\w*|invoice\w*|refund\w*|appl(?:y|ied)|reduce\w*|downgrade\w*|cancel\w*|migrat\w+|roll\w* out|get back to)\b/i;
+export const FUTURE_COMMITMENT = /\b(?:will|'ll|’ll|going to|am going to|promise[sd]? to|committed to|commit to)\s+(?:be\s+)?(?:ship\w*|deploy\w*|sen[dt]|notif\w+|confirm\w*|publish\w*|releas\w+|deliver\w*|follow(?:ing)?[ -]up|let\s+(?:them|him|her|you|the\s+\w+)\s+know|email\w*|call\w*|invoice\w*|refund\w*|appl(?:y|ied)|reduce\w*|downgrade\w*|cancel\w*|migrat\w+|roll\w* out|get back to)\b/i;
 export const DELIVERS = /```|\bhere(?:'s| is) (?:the |an? |your )?(?:updated |revised |rewritten |fixed |complete |full |new )?(?:code|function|version|implementation|script|component|test|tests|rewrite|fix|file)\b|\bI(?:'ve| have)? (?:updated|added|implemented|fixed|created|rewritten|refactored|changed|written)\b|\b(?:updated|rewritten|refactored|revised) (?:version|function|code|script)\b/i;
 
 export function clientNameOfTurn(text: string): string | null {
@@ -524,9 +524,9 @@ export class Translator {
       // need to be sent" minted as [open] question rows by the recap turn — "the duplicate Harbor open-work marker"): a recap-round create whose
       // statement only restates what is open or done is a status echo — dropped (re-pointed at its best overlap, or just dropped).
       const echo = /\b(?:remains?|still|are|is)\s+(?:open|pending|outstanding|unresolved|to do|not (?:yet )?(?:done|sent|finalized|complete))\b|\bstill (?:needs?|has) to\b|\bopen work\b|\bopen items?\b/i.test(`${a.title ?? ''} ${a.content ?? ''}`);
-      if (!best && echo && top) { drop.set(String(a.id), top.id); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), of: top.id.slice(0, 8), echo: true, title: String(a.title ?? a.content ?? '').slice(0, 40) }); continue; }
       if (best) { drop.set(String(a.id), best.id); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), of: best.id.slice(0, 8), frac: Math.round(best.frac * 100) / 100, title: String(a.title ?? a.content ?? '').slice(0, 40) }); }
       else if (union >= 0.7 && top) { drop.set(String(a.id), top.id); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), of: top.id.slice(0, 8), union: Math.round(union * 100) / 100, title: String(a.title ?? a.content ?? '').slice(0, 40) }); }
+      else if (echo && top) { drop.set(String(a.id), top.id); this.store.audit('guard_recap_mirror', { id: String(a.id).slice(0, 8), of: top.id.slice(0, 8), echo: true, title: String(a.title ?? a.content ?? '').slice(0, 40) }); }
     }
     // recap containers left empty by the drops
     for (const a of alterations) {
