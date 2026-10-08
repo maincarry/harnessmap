@@ -221,6 +221,8 @@ export const distinctiveTokens = (t: string): Set<string> => new Set((String(t ?
 // M439b (TWIN #443 proof, round 9: "Draft a brief reply … Say we found the timeout… will ship this week" → the agent wrote the reply; the
 // draft task stayed [todo] because the reply itself carries no 'here is the…' marker — the artefact IS the reply). A request to draft or
 // write a piece of text, answered with the text, is delivered.
+// M439j (PANEL #456a): a drafting reply that opens with intent and brings no text — "I'll draft a roughly 300-word section …" — is a promise.
+export const PROMISE_TO_DRAFT = /^\s*(?:(?:sure|ok(?:ay)?|got it|understood)\s*[,.!—–-]?\s*)?(?:I(?:'ll|’ll| will| am going to|'m going to|’m going to| can)|let me|we(?:'ll|’ll| will))\s+(?:now\s+)?(?:draft|write|revise|re-?draft|rewrite|prepare|compose|produce|put together|tighten|shorten|reword|update|fix)\b/i;
 export const DRAFT_REQUEST = /\b(?:draft|write|compose|rewrite|revise|tighten|reword|shorten|re-draft|redraft)\b[^.?!\n]{0,60}\b(?:reply|replies|email|e-mail|note|message|response|announcement|changelog|clause|paragraph|paragraphs|copy|summary|cover note|wording|sentence|sentences|tweet|post|section|sections|chapter|introduction|intro|conclusion|abstract|outline|memo|report|brief(?:ing)?|essay|article|letter|proposal|speech|script|bio|caption|headline|title|description|blurb|bullets?|table|list|faq|spec)\b/i; // M439e (TWIN #445, Elena): "Draft section 4, Caveats, in about 250 words" is a draft request too — four delivered section drafts stayed todo/doing
 export const LEARN_REQUEST = /\b(?:learn|read|study|go through|look at|review|digest|memori[sz]e)\b[^.?!\n]{0,40}\b(?:documentation|docs?|doc page|page|link|article|guide|readme|spec|url)\b|\bhttps?:\/\/\S+/i;
 // M449 (PANEL #429, 4 of 13: "You're most recently working on consistent-return guidance…" after "thanks, that is all for today"): a turn
@@ -789,8 +791,15 @@ export class Translator {
     // the proof's second consistent-return turn got a 222-char two-sentence summary, which is the delivery.
     const learn = LEARN_REQUEST.test(String(params.userText ?? '')) && at.length >= 120 && !/^\s*(?:sure|ok(?:ay)?|got it|will do|understood|noted|alright|certainly|of course)\b[^.!?\n]*[.!]?\s*$/i.test(at); // one acknowledging sentence is a promise, not a delivery
     const drafted = DRAFT_REQUEST.test(String(params.userText ?? '')) && at.length >= 120 && !/^\s*(?:sure|ok(?:ay)?|got it|will do|understood|noted|alright|certainly|of course)\b[^.!?\n]*[.!]?\s*$/i.test(at) && !/\?\s*$/.test(at.trim()); // M439b: the text asked for, written
+    // M439j (PANEL #456a — Maya, severe: "the map says all requested drafts are done, even though the recorded agent responses
+    // repeatedly say only that it will draft them"): Elena's agent answered every "Draft section N" with one or two sentences of intent
+    // ("I'll draft a roughly 300-word section comparing …", 182–395 chars) and no text; M439b read a ≥ 120-char reply as the draft.
+    // A reply that OPENS with a first-person future drafting verb and carries no body (under 700 chars — a 150-word draft is ~900)
+    // is a promise, not a delivery: the task stays as the filer set it. The same line M448 draws for a learn request.
+    const promiseOnly = PROMISE_TO_DRAFT.test(at) && at.length < 700;
+    if (promiseOnly && drafted) { this.store.audit('guard_task_delivered', { how: 'promise-only', len: at.length }); }
     const opened = OPENS_DELIVERY.test(at) && !/\?\s*$/.test(at.trim()); // M439h
-    if (at.length < 40 || (!DELIVERS.test(at) && !learn && !drafted && !opened)) return alterations;
+    if (at.length < 40 || (!DELIVERS.test(at) && !learn && !(drafted && !promiseOnly) && !opened)) return alterations;
     for (const a of alterations) {
       // M439g (REFILE Elena v0.9.252: "Draft section 4, Caveats" and "Re-draft the Iceland paragraph in section 3" made the filer UPDATE the
       // existing draft rows back to doing while the reply carried the text; only created rows were closed): an update that sets the
