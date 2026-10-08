@@ -113,9 +113,14 @@ const COMPARE = argv.includes('--compare');
 // M450d (Jacob 2026-10-08 13:50 "does it now unfairly tilt toward map?"): compacting a session that would still fit in the agent's context
 // handicaps the control — a 26-turn day reached Codex as a 400-word summary + 12 turns. Default 'auto' = the FULL transcript when the
 // session is ≤ 40 turns (it fits), compacted only past that; the control's answer budget matches the map's (1500, not 500).
-const CONTROL_FLAG = (flagVal('--control') ?? 'auto') as 'full' | 'compacted' | 'none' | 'auto';
+// M450e controls: 'last-chat' = Codex asked in the chat the person is sitting in (its full context; the other chats are unseen);
+// 'each-chat' = the person switches into every chat and asks each, then merges the answers themselves (the strongest fair control);
+// 'full' = one chat, everything; 'compacted' = natural compaction past 40 turns; 'none' = a new chat. 'auto' = last-chat when the
+// scenario has several chats, else full (compacted past 40 turns).
+type Control = 'full' | 'compacted' | 'none' | 'last-chat' | 'each-chat';
+const CONTROL_FLAG = (flagVal('--control') ?? 'auto') as Control | 'auto';
 const AUTO_FULL_MAX_TURNS = 40;
-let CONTROL: 'full' | 'compacted' | 'none' = CONTROL_FLAG === 'auto' ? 'full' : CONTROL_FLAG;
+let CONTROL: Control = CONTROL_FLAG === 'auto' ? 'full' : CONTROL_FLAG;
 const REPEAT = Math.max(1, Number(flagVal('--repeat') ?? 1) || 1);
 const TAIL_TURNS = 12;
 async function compactedTranscript(transcript: string): Promise<string> {
@@ -131,7 +136,15 @@ function transcriptFromScenario(path: string): string {
   const sc = JSON.parse(readFileSync(path, 'utf8')); const rounds: any[] = sc.rounds ?? [];
   return rounds.map((r, i) => `[turn ${i + 1}]\nyou: ${String(r.user ?? '').slice(0, 700)}\nagent: ${String(r.assistant ?? '').slice(0, 1600)}`).join('\n\n');
 }
-async function agentAnswersFromTranscript(transcript: string): Promise<string> {
+// M450e (Jacob 2026-10-08 13:54 "the context should be long and constantly switching chats, not artificially cripple codex"): a day is
+// several chats; each chat's transcript is its own context. The LAST chat is the one the person is sitting in on Monday.
+function transcriptsByChat(path: string): { name: string; transcript: string; turns: number; lastUsed: number }[] {
+  const sc = JSON.parse(readFileSync(path, 'utf8')); const rounds: any[] = sc.rounds ?? [];
+  const by = new Map<string, { name: string; parts: string[]; lastUsed: number }>();
+  rounds.forEach((r, i) => { const k = String(r.session ?? 'chat-1'); const e = by.get(k) ?? { name: k, parts: [], lastUsed: 0 }; e.parts.push(`[turn ${i + 1}]\nyou: ${String(r.user ?? '').slice(0, 700)}\nagent: ${String(r.assistant ?? '').slice(0, 1600)}`); e.lastUsed = i; by.set(k, e); });
+  return [...by.values()].map((e) => ({ name: e.name, transcript: e.parts.join('\n\n'), turns: e.parts.length, lastUsed: e.lastUsed })).sort((a, b) => a.lastUsed - b.lastUsed);
+}
+async function agentAnswersFromTranscript(transcript: string, chatLabel = ''): Promise<string> {
   const lines: string[] = [];
   if (CONTROL === 'none') return `WHAT THE AGENT ANSWERED when you asked it in a NEW session on Monday (it has nothing of last week's session in its context):\n${ASK_QUESTIONS.map((q) => `Q: ${q}\nA: I don't have the context of last week's session here — could you paste the relevant part or tell me where you left off?`).join('\n\n')}`;
   for (const q of ASK_QUESTIONS) {
@@ -142,7 +155,7 @@ async function agentAnswersFromTranscript(transcript: string): Promise<string> {
     lines.push(`Q: ${q}\nA: ${said}`);
     console.error(`[twin-panel] asked the agent (control): ${q.slice(0, 50)} → ${said.slice(0, 80).replace(/\n/g, ' ')}`);
   }
-  return `WHAT THE AGENT ANSWERED when you asked it in the resumed session (it answered from the session as its context):\n${lines.join('\n\n')}`;
+  return `WHAT THE AGENT ANSWERED when you asked it in ${chatLabel || 'the resumed session'} (it answered from that chat as its context):\n${lines.join('\n\n')}`;
 }
 const flow = flagVal('--flow');
 const flowFile = flagVal('--flow-file');
@@ -161,7 +174,16 @@ if (mapOnly) experience += `\n\n${mapOnly}`;
 const sessionLine = (() => { try { if (scenarioPath) return String(JSON.parse(readFileSync(scenarioPath, 'utf8')).name ?? scenarioPath); } catch {} return (flow ?? (flowFile ? readFileSync(flowFile, 'utf8') : '')).split('\n').find((l) => l.trim()) ?? 'a long working session'; })().slice(0, 300);
 const INTERVIEW = !argv.includes('--no-interview');
 let chatOnly = '';
-if (COMPARE) { if (!scenarioPath) { console.error('--compare needs a scenario file (the transcript)'); process.exit(2); } const tr = transcriptFromScenario(scenarioPath); if (CONTROL_FLAG === 'auto') { const nTurns = tr.split(/\n\n(?=\[turn \d+\])/).length; CONTROL = nTurns > AUTO_FULL_MAX_TURNS ? 'compacted' : 'full'; console.error(`[twin-panel] control=auto → ${CONTROL} (${nTurns} turns; full up to ${AUTO_FULL_MAX_TURNS})`); } chatOnly = await agentAnswersFromTranscript(CONTROL === 'compacted' ? await compactedTranscript(tr) : tr); label += ` + control (ask codex, ${CONTROL}) + merged verdict ×${REPEAT}`; } // M450b (Jacob 03:18): the persona gets the agent's answers only — nobody scrolls 40 turns back // M430 (Jacob 2026-10-07 10:02/10:05/10:08): need first, then the walkthrough, then the interview
+if (COMPARE) {
+  if (!scenarioPath) { console.error('--compare needs a scenario file (the transcript)'); process.exit(2); }
+  const chats = transcriptsByChat(scenarioPath); const tr = transcriptFromScenario(scenarioPath);
+  if (CONTROL_FLAG === 'auto') { const nTurns = tr.split(/\n\n(?=\[turn \d+\])/).length; CONTROL = chats.length > 1 ? 'last-chat' : (nTurns > AUTO_FULL_MAX_TURNS ? 'compacted' : 'full'); console.error(`[twin-panel] control=auto → ${CONTROL} (${chats.length} chat(s), ${nTurns} turns; full up to ${AUTO_FULL_MAX_TURNS})`); }
+  const natural = async (t: string, turns: number) => (turns > AUTO_FULL_MAX_TURNS ? compactedTranscript(t) : Promise.resolve(t)); // natural compaction only past the window
+  if (CONTROL === 'last-chat') { const last = chats[chats.length - 1]; console.error(`[twin-panel] control=last-chat: the person asks in "${last.name}" (${last.turns} of ${tr.split(/\n\n(?=\[turn \d+\])/).length} turns; ${chats.length - 1} other chat(s) unseen)`); chatOnly = await agentAnswersFromTranscript(await natural(last.transcript, last.turns), `the chat you are sitting in ("${last.name}", ${last.turns} turns — the ${chats.length - 1} other chat(s) of that day are not in its context)`); }
+  else if (CONTROL === 'each-chat') { const parts: string[] = []; for (const c of chats) parts.push(await agentAnswersFromTranscript(await natural(c.transcript, c.turns), `the chat "${c.name}" (${c.turns} turns)`)); chatOnly = `You switched into each of the ${chats.length} chats of that day and asked the same questions in each; you must merge the answers yourself.\n\n${parts.join('\n\n')}`; }
+  else chatOnly = await agentAnswersFromTranscript(CONTROL === 'compacted' ? await compactedTranscript(tr) : tr);
+  label += ` + control (ask codex, ${CONTROL}${chats.length > 1 ? `, ${chats.length} chats` : ''}) + merged verdict ×${REPEAT}`;
+} // M450b (Jacob 03:18): the persona gets the agent's answers only — nobody scrolls 40 turns back // M430 (Jacob 2026-10-07 10:02/10:05/10:08): need first, then the walkthrough, then the interview
 if (argv.includes('--dry')) { console.log(experience); process.exit(0); }
 
 const want = (flagVal('--personas') ?? 'all').trim();
