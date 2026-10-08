@@ -864,8 +864,21 @@ export class Translator {
       if (!(a?.op === 'create_node' || a?.op === 'update_node')) continue;
       const txt = `${a.title ?? ''} ${a.content ?? ''}`;
       if (INVALID.test(txt)) {
-        // the figures in the invalidating sentence(s) are the bad ones; figures in other sentences of the same statement are the valid replacements
-        for (const sent of txt.split(/(?<=[.!?;])\s+/)) for (const f of figsOf(sent)) (INVALID.test(sent) ? bad : good).add(f);
+        // M464d (REFILE #3 Priya, round 19: "The leakage-free logistic-regression holdout ROC AUC is 0.76, down 0.15 from the invalid AUC of
+        // 0.91" superseded the new valid 0.76 and 0.79 rows): within an invalidating sentence only the figure the verdict is ABOUT is bad —
+        // one that stands before "is/are/was/were/as … invalid|superseded" within the clause ("0.91 and 0.97 are invalid"), or right after
+        // the verdict word ("the invalid AUC of 0.91"); every other figure in the sentence is a valid one.
+        // clauses: a comma, semicolon or colon ends the reach of a verdict ("is 0.76, down 0.15 from the invalid AUC of 0.91" → three clauses)
+        for (const clause of txt.split(/(?<=[.!?;:,])\s+/)) {
+          if (!INVALID.test(clause)) { for (const f of figsOf(clause)) good.add(f); continue; }
+          for (const m of clause.matchAll(FIG)) {
+            const f = m[0]; if (!(/\./.test(f) || /%$/.test(f))) continue;
+            const after = clause.slice(m.index! + f.length), before = clause.slice(Math.max(0, m.index! - 28), m.index!);
+            const tied = /\b(?:is|are|was|were|be|as|remain|remains|now|still)\s+(?:an?\s+|the\s+|now\s+|also\s+|both\s+)?(?:invalid|superseded|not valid|no longer valid|discarded)/i.test(after)
+              || /\b(?:invalid|superseded|discarded)\s+(?:[a-z-]+\s+){0,3}(?:of\s+)?$/i.test(before);
+            (tied ? bad : good).add(f);
+          }
+        }
         if (typeof a.id === 'string') own.add(a.id);
       } else for (const f of figsOf(txt)) good.add(f);
     }

@@ -44,3 +44,17 @@ test('M464c: a row that records the drop ("from 0.91 to the valid 0.76") carries
   const out = t.guardFigureSuperseded([{ op: 'create_node', id: 'pm', content: 'Annual-plan churn is 14.72%, and the final leakage-free model achieved 0.79; the earlier 0.91 and 0.97 results are invalid and superseded.', status: 'done', type: 'task' }], m3);
   expect(out.filter((a: any) => a.status === 'superseded').map((a: any) => a.id)).toEqual(['lr']);
 });
+
+test('M464d: "is 0.76, down 0.15 from the invalid AUC of 0.91" invalidates only 0.91 — the new valid rows stay (the third refile\'s false positive)', () => {
+  const { t } = mk();
+  const m4: any = { nodes: [...map.nodes,
+    { id: 'lr2', parentId: 'm', title: 'Logistic ROC AUC', content: 'After dropping support_tickets_90d, logistic regression was retrained on the same stratified split and achieved a holdout ROC AUC of 0.76.', status: 'noted', type: 'evidence', author: 'agent', createdAt: at, updatedAt: at },
+    { id: 'gb2', parentId: 'm', title: 'Gradient ROC AUC', content: 'After dropping support_tickets_90d, the gradient-boosted model achieved a holdout ROC AUC of 0.79.', status: 'noted', type: 'evidence', author: 'agent', createdAt: at, updatedAt: at }], links: [] };
+  const out = t.guardFigureSuperseded([
+    { op: 'create_node', id: 'd1', content: 'The leakage-free logistic-regression holdout ROC AUC is 0.76, down 0.15 from the invalid AUC of 0.91.', status: 'noted', type: 'evidence', author: 'agent' },
+    { op: 'create_node', id: 'd2', content: 'The leakage-free gradient-boosted holdout ROC AUC is 0.79, down 0.18 from the invalid AUC of 0.97.', status: 'noted', type: 'evidence', author: 'agent' },
+  ], m4);
+  expect(out.filter((a: any) => a.status === 'superseded').map((a: any) => a.id)).toEqual(['lr']);
+  const out2 = t.guardFigureSuperseded([{ op: 'update_node', id: 'inv', content: 'The earlier logistic-regression ROC AUC of 0.91 and gradient-boosted ROC AUC of 0.97 are invalid performance estimates because support_tickets_90d included post-outcome information; after dropping the feature, the reported holdout ROC AUCs are 0.76 and 0.79.', status: 'noted', type: 'evidence' }], m4);
+  expect(out2.filter((a: any) => a.status === 'superseded').map((a: any) => a.id)).toEqual(['lr']);
+});
