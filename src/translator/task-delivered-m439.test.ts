@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { Translator, DELIVERS, FUTURE_DATED } from './translator';
+import { Translator, DELIVERS, FUTURE_DATED, DRAFT_REQUEST } from './translator';
 
 // M439 (Jacob: "This is literally a bug"): a task the agent delivers in the same turn is done at filing.
 function harness() {
@@ -73,4 +73,14 @@ test('M439d: a future-dated task the filer files done, still promised in the tur
   // a done task whose verb the turn does not promise stays done: "I shipped the fix this week and will send the notes tomorrow"
   const out3 = t.guardCommitmentIsTask([{ ...ship, content: 'Shipped the export fix this week.' }], { nodes: [] }, { userText: 'I shipped the fix this week and will send the notes tomorrow.', assistantText: 'Noted.' });
   expect(out3[0].status).toBe('done');
+});
+
+// M439e (TWIN LONG #445, Elena): "Draft section 4, “Caveats,” in about 250 words" answered with the section left the task todo.
+test('M439e: a drafted SECTION is a draft request; the task closes on the delivered text', () => {
+  const t = new Translator(new Proxy({}, { get(_t, k) { if (k === 'audit') return () => {}; if (k === 'getSetting') return () => undefined; return () => undefined; } }) as any) as any;
+  const task = { op: 'create_node', id: 'c', parentId: 'p', author: 'user', type: 'task', status: 'todo', title: 'Draft caveats section', content: 'Draft section 4, “Caveats,” in about 250 words for the client briefing.' };
+  const out = t.guardTaskDelivered([{ ...task }], { userText: 'Draft section 4, “Caveats,” in about 250 words. Lead with Campbell’s 2023 finding that most trials involve self-selected firms and lack control groups.', assistantText: 'Caveats\n\nThe strongest caution comes from Campbell’s 2023 meta-review: most four-day-week trials involve self-selected firms and lack control groups, so their results describe willing adopters rather than the average employer. The UK pilot’s 1.4% revenue rise and Microsoft Japan’s 40% sales-per-employee gain are both single-period observations without a comparison group…' });
+  expect(out[0].status).toBe('done');
+  expect(DRAFT_REQUEST.test('Re-draft the Iceland paragraph in section 3 using the updated Source 3 evidence.')).toBe(true);
+  expect(DRAFT_REQUEST.test('Which section should come first?')).toBe(false);
 });

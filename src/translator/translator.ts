@@ -221,7 +221,7 @@ export const distinctiveTokens = (t: string): Set<string> => new Set((String(t ?
 // M439b (TWIN #443 proof, round 9: "Draft a brief reply … Say we found the timeout… will ship this week" → the agent wrote the reply; the
 // draft task stayed [todo] because the reply itself carries no 'here is the…' marker — the artefact IS the reply). A request to draft or
 // write a piece of text, answered with the text, is delivered.
-export const DRAFT_REQUEST = /\b(?:draft|write|compose|rewrite|revise|tighten|reword|shorten)\b[^.?!\n]{0,60}\b(?:reply|replies|email|e-mail|note|message|response|announcement|changelog|clause|paragraph|copy|summary|cover note|wording|sentence|tweet|post)\b/i;
+export const DRAFT_REQUEST = /\b(?:draft|write|compose|rewrite|revise|tighten|reword|shorten|re-draft|redraft)\b[^.?!\n]{0,60}\b(?:reply|replies|email|e-mail|note|message|response|announcement|changelog|clause|paragraph|paragraphs|copy|summary|cover note|wording|sentence|sentences|tweet|post|section|sections|chapter|introduction|intro|conclusion|abstract|outline|memo|report|brief(?:ing)?|essay|article|letter|proposal|speech|script|bio|caption|headline|title|description|blurb|bullets?|table|list|faq|spec)\b/i; // M439e (TWIN #445, Elena): "Draft section 4, Caveats, in about 250 words" is a draft request too — four delivered section drafts stayed todo/doing
 export const LEARN_REQUEST = /\b(?:learn|read|study|go through|look at|review|digest|memori[sz]e)\b[^.?!\n]{0,40}\b(?:documentation|docs?|doc page|page|link|article|guide|readme|spec|url)\b|\bhttps?:\/\/\S+/i;
 // M449 (PANEL #429, 4 of 13: "You're most recently working on consistent-return guidance…" after "thanks, that is all for today"): a turn
 // that closes the session is the current state — nothing is active; the LATEST work is what was last done.
@@ -764,7 +764,22 @@ export class Translator {
     const norm = (x: string) => x.toLowerCase().replace(/[“”"‘’'`]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
     const byId = new Map(map.nodes.map((n) => [n.id, n]));
     const live = map.nodes.filter((n) => n.parentId !== null && !/^(removed|dropped|done|rejected|superseded|parked|merged)$/.test(n.status) && norm(n.title ?? '').length >= 3);
-    const find = (name: string): MapNode[] => { const k = norm(name); return k.length < 3 ? [] : live.filter((n) => norm(n.title ?? '') === k); };
+    // M431b (TWIN #445, Elena): the filer titles a section by paraphrase — "Wellbeing retention" for her "Wellbeing and retention", "Where it
+    // failed" for her "Where it did not work" — so an exact title match found nothing and the rows outlived her merge and cut. Match the
+    // name's content words against the title (equal sets after stop words), else against title + statement (all ≥3 content words present,
+    // exactly one live row).
+    const STOPW = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'for', 'section', 'part', 'chapter', 'item', 'step', 'it', 'its', 'is', 'was']);
+    const toks = (x: string) => norm(x).split(' ').filter((w) => w && !STOPW.has(w));
+    const sameSet = (a: string[], b: string[]) => a.length > 0 && a.length === b.length && a.every((w) => b.includes(w));
+    const find = (name: string): MapNode[] => {
+      const k = norm(name); if (k.length < 3) return [];
+      const exact = live.filter((n) => norm(n.title ?? '') === k); if (exact.length) return exact;
+      const nt = toks(name); if (!nt.length) return [];
+      const byTitle = live.filter((n) => sameSet(nt, toks(n.title ?? ''))); if (byTitle.length) return byTitle;
+      if (nt.length < 3) return [];
+      const byText = live.filter((n) => { const bag = new Set(toks(`${n.title ?? ''} ${n.content ?? ''}`)); return nt.every((w) => bag.has(w)); });
+      return byText.length === 1 ? byText : [];
+    };
     // The filer's own writes win only where they conflict: a status it set this round blocks the retire; a move or a create this round
     // blocks the merge-move. A content/title rewrite does not — that is exactly what the filer did to Elena's merged section while
     // leaving the row where it was (proof run 1: "Wellbeing and retention" renamed to "Wellbeing paragraph", still a sibling).
@@ -780,6 +795,8 @@ export class Translator {
     };
     // "cut “X”" / "remove 'X'" / "delete the section “X”" — the quoted form, in English or Chinese.
     for (const m of ut.matchAll(/(?:\b(?:cut|remove|drop|delete|scrap)\b[^“"‘'\n]{0,40}?|(?:删除|去掉|删掉)\s*)[“"‘'「]([^”"’'」\n]{3,80})[”"’'」]/giu)) for (const node of find(m[1])) retire(node, 'cut-quoted');
+    // M431b: “X” is cut / was removed / stays out — the person restating a cut ("“Where it did not work” is cut, not current").
+    for (const m of ut.matchAll(/[“"‘'「]([^”"’'」\n]{3,80})[”"’'」]\s+(?:is|was|has been|stays|remains|gets|should be)\s+(?:now\s+|still\s+)?(?:cut|removed|dropped|deleted|gone|out|scrapped|retired)\b/giu)) for (const node of find(m[1])) retire(node, 'cut-stated');
     // "cut section 5, X" / "remove item 3 (X)" — a numbered part named right after the number.
     for (const m of ut.matchAll(/\b(?:cut|remove|drop|delete)\s+(?:the\s+)?(?:section|item|part|chapter|step)\s+\d+\s*[,(:：]\s*([^,.;:()\n]{3,60})/giu)) for (const node of find(m[1])) retire(node, 'cut-numbered');
     // "merge (section 4,) X into (section 3,) Y" — X moves under Y.
