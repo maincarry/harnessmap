@@ -11,7 +11,7 @@
 // would-return, verdict) and the frictions that more than one persona raised. Background it and redirect stdout.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, mkdtempSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runTwin, twinNeed, twinProbe, probeWorthy, twinNeedChat, twinCompare, type TwinReport, type TwinPersona, type TwinNeed, type TwinProbe, type TwinFinding, type TwinNeedChat, type TwinCompare } from '../twin.js';
+import { runTwin, twinNeed, twinProbe, probeWorthy, twinNeedChat, twinCompare, twinNeedsList, twinNeedGrade, type TwinReport, type TwinPersona, type TwinNeed, type TwinProbe, type TwinFinding, type TwinNeedChat, type TwinCompare } from '../twin.js';
 import { call } from '../inference.js';
 import { TWIN_PERSONA_IDS, DEFAULT_PANEL_IDS, TIER_WEIGHT, findTwinPersona } from '../twin-personas.js';
 
@@ -105,12 +105,30 @@ async function mapAnswers(path: string): Promise<string> {
 // M450 (Jacob 2026-10-08 01:18): the CONTROL — what plain Codex gives the same person on Monday: the transcript to scroll, and the
 // agent's answers to the same questions, made from that transcript. --compare runs every persona twice and merges the verdict.
 const COMPARE = argv.includes('--compare');
+// M450c (Jacob 03:28 "Sanity check the design"): --control full|compacted|none — what the agent still HAS of the session when asked on Monday.
+//   full = the whole transcript (the strongest Codex; only realistic for a short session that fits one context);
+//   compacted (default) = a compaction summary of the older turns, made by the agent model as /compact would, plus the last 12 turns verbatim;
+//   none = a new session: the agent has nothing of last week.
+// --repeat N: the need → grade → merge chain runs N times per persona (the judge is noisy); PANEL.md shows every verdict and the spread.
+const CONTROL = (flagVal('--control') ?? 'compacted') as 'full' | 'compacted' | 'none';
+const REPEAT = Math.max(1, Number(flagVal('--repeat') ?? 1) || 1);
+const TAIL_TURNS = 12;
+async function compactedTranscript(transcript: string): Promise<string> {
+  const turns = transcript.split(/\n\n(?=\[turn \d+\])/);
+  if (turns.length <= TAIL_TURNS) return transcript;
+  const older = turns.slice(0, turns.length - TAIL_TURNS).join('\n\n'); const tail = turns.slice(turns.length - TAIL_TURNS).join('\n\n');
+  let summary = '(compaction failed)';
+  try { const t = await call({ task: 'brain', system: 'You are the coding agent compacting your own context, as /compact does: write the summary you will keep of the conversation so far — what the user asked, what you did, what was decided, what is unresolved — in under 400 words, no preamble.', user: older, maxTokens: 700, timeoutMs: 120_000 }); if (typeof t === 'string' && t.trim()) summary = t.trim(); } catch {}
+  console.error(`[twin-panel] control=compacted: ${turns.length - TAIL_TURNS} older turns → a ${summary.length}-char summary + the last ${TAIL_TURNS} turns verbatim`);
+  return `[COMPACTED SUMMARY OF THE EARLIER CONVERSATION]\n${summary}\n\n[RECENT TURNS, VERBATIM]\n${tail}`;
+}
 function transcriptFromScenario(path: string): string {
   const sc = JSON.parse(readFileSync(path, 'utf8')); const rounds: any[] = sc.rounds ?? [];
   return rounds.map((r, i) => `[turn ${i + 1}]\nyou: ${String(r.user ?? '').slice(0, 700)}\nagent: ${String(r.assistant ?? '').slice(0, 1600)}`).join('\n\n');
 }
 async function agentAnswersFromTranscript(transcript: string): Promise<string> {
   const lines: string[] = [];
+  if (CONTROL === 'none') return `WHAT THE AGENT ANSWERED when you asked it in a NEW session on Monday (it has nothing of last week's session in its context):\n${ASK_QUESTIONS.map((q) => `Q: ${q}\nA: I don't have the context of last week's session here — could you paste the relevant part or tell me where you left off?`).join('\n\n')}`;
   for (const q of ASK_QUESTIONS) {
     let said = '(no answer)';
     for (let attempt = 0; attempt < 2 && said === '(no answer)'; attempt++) {
@@ -138,7 +156,7 @@ if (mapOnly) experience += `\n\n${mapOnly}`;
 const sessionLine = (() => { try { if (scenarioPath) return String(JSON.parse(readFileSync(scenarioPath, 'utf8')).name ?? scenarioPath); } catch {} return (flow ?? (flowFile ? readFileSync(flowFile, 'utf8') : '')).split('\n').find((l) => l.trim()) ?? 'a long working session'; })().slice(0, 300);
 const INTERVIEW = !argv.includes('--no-interview');
 let chatOnly = '';
-if (COMPARE) { if (!scenarioPath) { console.error('--compare needs a scenario file (the transcript)'); process.exit(2); } const tr = transcriptFromScenario(scenarioPath); chatOnly = await agentAnswersFromTranscript(tr); label += ' + control (ask codex) + merged verdict'; } // M450b (Jacob 03:18): the persona gets the agent's answers only — nobody scrolls 40 turns back // M430 (Jacob 2026-10-07 10:02/10:05/10:08): need first, then the walkthrough, then the interview
+if (COMPARE) { if (!scenarioPath) { console.error('--compare needs a scenario file (the transcript)'); process.exit(2); } const tr = transcriptFromScenario(scenarioPath); chatOnly = await agentAnswersFromTranscript(CONTROL === 'compacted' ? await compactedTranscript(tr) : tr); label += ` + control (ask codex, ${CONTROL}) + merged verdict ×${REPEAT}`; } // M450b (Jacob 03:18): the persona gets the agent's answers only — nobody scrolls 40 turns back // M430 (Jacob 2026-10-07 10:02/10:05/10:08): need first, then the walkthrough, then the interview
 if (argv.includes('--dry')) { console.log(experience); process.exit(0); }
 
 const want = (flagVal('--personas') ?? 'all').trim();
@@ -148,7 +166,7 @@ const out = flagVal('--out') ?? `twin-panel-${Date.now()}`;
 if (!existsSync(out)) mkdirSync(out, { recursive: true });
 
 const sev = (s: string) => ({ none: '·', minor: '▹', moderate: '▲', severe: '■' } as Record<string, string>)[s] ?? '?';
-const rows: { id: string; who: string; severe: number; moderate: number; minor: number; would: string; verdict: string; top: string[]; secs: string; error?: string; need?: TwinNeed; probe?: TwinProbe; needChat?: TwinNeedChat; compare?: TwinCompare }[] = [];
+const rows: { id: string; who: string; severe: number; moderate: number; minor: number; would: string; verdict: string; top: string[]; secs: string; error?: string; need?: TwinNeed; probe?: TwinProbe; needChat?: TwinNeedChat; compare?: TwinCompare; compares?: TwinCompare[]; needsList?: string[] }[] = [];
 
 console.log(`══ USER TWIN PANEL — ${label} — ${ids.length} persona(s), run one at a time ══\n`);
 for (const id of ids) {
@@ -167,16 +185,27 @@ for (const id of ids) {
     const worthy = probeWorthy(r.walkthrough);
     if (INTERVIEW && worthy.length) { try { probe = await twinProbe(experience, worthy, { persona: id as TwinPersona }); } catch (e) { console.log(`\n     (interview call failed: ${String(e).slice(0, 120)})`); } }
     // M450 — the control Monday (plain codex) and the merged verdict.
-    let needChat: TwinNeedChat | undefined; let compare: TwinCompare | undefined;
-    if (COMPARE && chatOnly && need) {
-      try { needChat = await twinNeedChat(sessionLine, chatOnly, { persona: id as TwinPersona }); } catch (e) { console.log(`\n     (control need call failed: ${String(e).slice(0, 120)})`); }
-      if (needChat) { try { compare = await twinCompare(sessionLine, need, needChat, { persona: id as TwinPersona }); } catch (e) { console.log(`\n     (compare call failed: ${String(e).slice(0, 120)})`); } }
+    // M450c: needs named once, both sides graded against them, merged verdict in random order — repeated REPEAT times.
+    let needChat: TwinNeedChat | undefined; let compare: TwinCompare | undefined; const compares: TwinCompare[] = []; let needsList: string[] | undefined; let needMap: TwinNeed | undefined;
+    if (COMPARE && chatOnly && mapOnly) {
+      for (let rep = 0; rep < REPEAT; rep++) {
+        try {
+          const list = await twinNeedsList(sessionLine, { persona: id as TwinPersona });
+          const gm = await twinNeedGrade(sessionLine, mapOnly, list, 'map', { persona: id as TwinPersona }) as TwinNeed;
+          const gc = await twinNeedGrade(sessionLine, chatOnly, list, 'codex', { persona: id as TwinPersona }) as TwinNeedChat;
+          const cmp = await twinCompare(sessionLine, gm, gc, { persona: id as TwinPersona });
+          compares.push(cmp);
+          if (rep === 0) { needsList = list; needMap = gm; needChat = gc; compare = cmp; }
+          console.error(`[twin-panel] ${id} rep ${rep + 1}/${REPEAT}: ${cmp.better} (${cmp.order}) keep=${cmp.keep_map_on}`);
+        } catch (e) { console.log(`\n     (compare rep ${rep + 1} failed: ${String(e).slice(0, 120)})`); }
+      }
+      if (needMap) need = needMap; // the shared-needs grade is the map-side number from here
     }
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
-    writeFileSync(join(out, `${id}.json`), JSON.stringify({ ...r, need, probe, needChat, compare }, null, 2));
+    writeFileSync(join(out, `${id}.json`), JSON.stringify({ ...r, need, probe, needChat, compare, compares, needsList, control: COMPARE ? CONTROL : undefined }, null, 2));
     const n = (s: string) => r.walkthrough.filter((f) => f.severity === s).length;
-    rows.push({ id, who, severe: n('severe'), moderate: n('moderate'), minor: n('minor'), would: r.would_return, verdict: r.verdict, top: r.top_frictions ?? [], secs, need, probe, needChat, compare });
-    console.log(`${secs}s · ■${n('severe')} ▲${n('moderate')} ▹${n('minor')}${compare ? ` · VS CODEX: ${compare.better}${compare.keep_map_on ? ' (keep on)' : ' (turn off)'}` : ''} · would return: ${r.would_return}${probe ? ` → after interview: ${probe.would_return_after_interview}` : ''}${need ? ` · Monday needs met ${need.needs.filter((x) => x.found === 'yes').length}/${need.needs.length}, would ${need.continue_with}` : ''}`);
+    rows.push({ id, who, severe: n('severe'), moderate: n('moderate'), minor: n('minor'), would: r.would_return, verdict: r.verdict, top: r.top_frictions ?? [], secs, need, probe, needChat, compare, compares, needsList });
+    console.log(`${secs}s · ■${n('severe')} ▲${n('moderate')} ▹${n('minor')}${compares.length ? ` · VS CODEX: ${compares.map((c) => c.better).join(' / ')}${compare?.keep_map_on ? ' (keep on)' : ' (turn off)'}` : ''} · would return: ${r.would_return}${probe ? ` → after interview: ${probe.would_return_after_interview}` : ''}${need ? ` · Monday needs met ${need.needs.filter((x) => x.found === 'yes').length}/${need.needs.length}, would ${need.continue_with}` : ''}`);
     if (need) for (const x of need.needs) console.log(`     need: ${x.need} — ${x.found}${x.quote ? ` ("${x.quote.slice(0, 90)}")` : ''}`);
     for (const f of r.walkthrough) if (f.severity === 'severe' || f.severity === 'moderate') console.log(`     ${sev(f.severity)} ${f.moment} — "${f.reaction}" [${f.mechanism}]`);
     if (probe) for (const f of probe.findings) console.log(`     ⇢ ${f.needed}/${f.blame}${f.decides ? '/DECIDES' : ''} "${f.quote.slice(0, 90)}" → ${f.expected.slice(0, 120)}`);
@@ -223,10 +252,13 @@ const cmpRows = okRows.filter((r) => r.compare);
 if (cmpRows.length) {
   const CV: Record<string, number> = { map_much_better: 1, map_better: 0.75, same: 0.5, codex_better: 0.25, codex_much_better: 0 };
   const wC = cmpRows.reduce((a, r) => a + wOf(r.id), 0) || 1;
-  const cScore = cmpRows.reduce((a, r) => a + wOf(r.id) * (CV[r.compare!.better] ?? 0.5), 0) / wC;
-  const count = (k: string) => cmpRows.filter((r) => r.compare!.better === k).length;
+  const allOf = (r: typeof rows[number]) => (r.compares?.length ? r.compares : [r.compare!]);
+  const cScore = cmpRows.reduce((a, r) => a + wOf(r.id) * (allOf(r).reduce((x, c) => x + (CV[c.better] ?? 0.5), 0) / allOf(r).length), 0) / wC;
+  const count = (k: string) => cmpRows.reduce((a, r) => a + allOf(r).filter((c) => c.better === k).length, 0);
+  const nVerdicts = cmpRows.reduce((a, r) => a + allOf(r).length, 0);
+  const spread = cmpRows.filter((r) => new Set(allOf(r).map((c) => c.better)).size > 1).length;
   const prim = cmpRows.filter((r) => findTwinPersona(r.id)?.tier === 'primary');
-  md += `\n## MAP vs PLAIN CODEX — the same person, both Mondays, merged (M450)\n\n**Map wins clearly (much better) ${count('map_much_better')} · map better ${count('map_better')} · same ${count('same')} · codex better ${count('codex_better')} · codex much better ${count('codex_much_better')} — of ${cmpRows.length}; tier-weighted score ${(100 * cScore).toFixed(0)}% (much better 1 · better ¾ · same ½ · codex better ¼ · codex much better 0) · would keep the map on: ${cmpRows.filter((r) => r.compare!.keep_map_on).length}/${cmpRows.length}** · primary: much better ${prim.filter((r) => r.compare!.better === 'map_much_better').length} / better ${prim.filter((r) => r.compare!.better === 'map_better').length} / same ${prim.filter((r) => r.compare!.better === 'same').length} / codex ${prim.filter((r) => /^codex/.test(r.compare!.better)).length} of ${prim.length}\n\n`;
+  md += `\n## MAP vs PLAIN CODEX — the same person, both Mondays, merged (M450; control = ${CONTROL}; needs named once; order randomised; ×${REPEAT})\n\n**Map wins clearly (much better) ${count('map_much_better')} · map better ${count('map_better')} · same ${count('same')} · codex better ${count('codex_better')} · codex much better ${count('codex_much_better')} — of ${nVerdicts} verdicts from ${cmpRows.length} personas${REPEAT > 1 ? ` (${spread} persona(s) changed verdict between repeats)` : ''}; tier-weighted score ${(100 * cScore).toFixed(0)}% (much better 1 · better ¾ · same ½ · codex better ¼ · codex much better 0) · would keep the map on: ${cmpRows.filter((r) => r.compare!.keep_map_on).length}/${cmpRows.length}** · primary: much better ${prim.filter((r) => r.compare!.better === 'map_much_better').length} / better ${prim.filter((r) => r.compare!.better === 'map_better').length} / same ${prim.filter((r) => r.compare!.better === 'same').length} / codex ${prim.filter((r) => /^codex/.test(r.compare!.better)).length} of ${prim.length}\n\n`;
   const nm = (n?: { needs: { found: string }[] }) => n ? `${n.needs.filter((x) => x.found === 'yes').length}+${n.needs.filter((x) => x.found === 'partly').length}½/${n.needs.length}` : '-';
   md += `| persona | tier | plain codex: needs met → then | with the map: needs met → then | verdict | keep on | what the map added | what the map cost |\n|---|---|---|---|---|---|---|---|\n`;
   for (const r of cmpRows) md += `| \`${r.id}\` | ${findTwinPersona(r.id)?.tier ?? '-'} | ${nm(r.needChat)} → ${r.needChat?.continue_with ?? '-'} | ${nm(r.need)} → ${r.need?.continue_with ?? '-'} | **${r.compare!.better}** | ${r.compare!.keep_map_on ? 'yes' : 'no'} | ${r.compare!.what_map_added.replace(/\|/g, '/').slice(0, 160)} | ${r.compare!.what_map_cost.replace(/\|/g, '/').slice(0, 160)} |\n`;

@@ -316,20 +316,52 @@ export async function twinNeedChat(sessionLine: string, chatOnly: string, opts: 
   const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: opts.maxTokens ?? 900, timeoutMs: opts.timeoutMs ?? 150_000, schema: NEED_CHAT_SCHEMA });
   return out as TwinNeedChat;
 }
-export interface TwinCompare { better: 'map_much_better' | 'map_better' | 'same' | 'codex_better' | 'codex_much_better'; keep_map_on: boolean; why: string; what_map_added: string; what_map_cost: string; one_line: string; }
+export interface TwinCompare { better: 'map_much_better' | 'map_better' | 'same' | 'codex_better' | 'codex_much_better'; keep_map_on: boolean; why: string; what_map_added: string; what_map_cost: string; one_line: string; order?: 'codex-first' | 'map-first'; }
 const COMPARE_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['better', 'keep_map_on', 'why', 'what_map_added', 'what_map_cost', 'one_line'],
   properties: { better: { type: 'string', enum: ['map_much_better', 'map_better', 'same', 'codex_better', 'codex_much_better'] }, keep_map_on: { type: 'boolean' }, why: { type: 'string' }, what_map_added: { type: 'string' }, what_map_cost: { type: 'string' }, one_line: { type: 'string' } },
 };
-export async function twinCompare(sessionLine: string, mapNeed: TwinNeed, chatNeed: TwinNeedChat, opts: TwinOpts = {}): Promise<TwinCompare> {
+export async function twinCompare(sessionLine: string, mapNeed: TwinNeed, chatNeed: TwinNeedChat, opts: TwinOpts & { order?: 'codex-first' | 'map-first' } = {}): Promise<TwinCompare> {
+  // M450c (Jacob 03:28 'sanity check the design'): the order of the two versions is randomised per persona unless given, and recorded.
+  const order = opts.order ?? (Math.random() < 0.5 ? 'codex-first' : 'map-first');
   const fmt = (n: { needs: TwinNeedItem[]; continue_with: string; one_line: string }) => `${n.needs.map((x) => `- ${x.need} → ${x.found.toUpperCase()}${x.quote ? ` (used: "${x.quote.slice(0, 160)}")` : ''} — ${x.felt}`).join('\n')}\n→ then: ${n.continue_with}\n→ in one line: ${n.one_line}`;
   const user = [
-    `TWO VERSIONS OF YOU lived the same Monday morning after the same session (${sessionLine}). Version A had only what plain Codex / Claude Code gives everyone: you asked the agent, and read its answers (made from the session as its context). Version B had the map beside the CLI: its folded tree and its answers. Below are both versions' own reports of the same needs. The two versions now MERGE into one mind that remembers both Mondays.`,
+    `TWO VERSIONS OF YOU lived the same Monday morning after the same session (${sessionLine}). One version had only what plain Codex / Claude Code gives everyone: you asked the agent, and read its answers (made from whatever of the session it still had as context). The other had the map beside the CLI: its folded tree and its answers. Below are both versions' own reports of the SAME needs, in no particular order. The two versions now MERGE into one mind that remembers both Mondays.`,
     `Decide, as that merged person: which version gave you your Monday back better? "Better" means: time to the first useful action, and how many wrong beliefs you would have carried into the day. Not perfection — a comparison. "better" ∈ map_much_better (the map saved you real time or a real mistake; you would miss it), map_better (clearly, but modestly), same (no real difference), codex_better, codex_much_better (the map cost you time or misled you). "keep_map_on": would you leave the map running beside your CLI next week — true/false. "what_map_added": the one thing the map version had that the plain version did not (verbatim where possible). "what_map_cost": the one thing the map version got wrong or cost you that the plain version did not (or "nothing"). "why" in two sentences; "one_line" your verdict in one line.`,
-    `VERSION A — PLAIN CODEX:\n${fmt(chatNeed)}`,
-    `VERSION B — WITH THE MAP:\n${fmt(mapNeed)}`,
+    ...(order === 'codex-first' ? [`THE PLAIN-CODEX VERSION:\n${fmt(chatNeed)}`, `THE MAP VERSION:\n${fmt(mapNeed)}`] : [`THE MAP VERSION:\n${fmt(mapNeed)}`, `THE PLAIN-CODEX VERSION:\n${fmt(chatNeed)}`]),
     `Return strict JSON only.`,
   ].join('\n\n');
   const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: opts.maxTokens ?? 700, timeoutMs: opts.timeoutMs ?? 120_000, schema: COMPARE_SCHEMA });
-  return out as TwinCompare;
+  return { ...(out as TwinCompare), order };
+}
+
+// M450c (Jacob 2026-10-08 03:28 "Sanity check the design"): the needs are named ONCE, before the persona sees either side, and both sides
+// are graded against that same list — otherwise one version grades three needs and the other four, and the numbers are not comparable.
+const NEEDS_LIST_SCHEMA = { type: 'object', additionalProperties: false, required: ['needs'], properties: { needs: { type: 'array', minItems: 2, maxItems: 4, items: { type: 'string' } } } };
+export async function twinNeedsList(sessionLine: string, opts: TwinOpts = {}): Promise<string[]> {
+  const user = [
+    `MONDAY MORNING. Last week you had a long session with your agent: ${sessionLine}. You did NOT keep notes, and you have not opened anything yet.`,
+    `In your own words, name the 2–4 things YOU actually need to know to pick this work back up today — not what a reviewer would check, what you, this person, need before you can type the first command. One short line each.`,
+    `Return strict JSON only: {"needs": ["…", "…"]}.`,
+  ].join('\n\n');
+  const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: 300, timeoutMs: opts.timeoutMs ?? 90_000, schema: NEEDS_LIST_SCHEMA });
+  return (out as { needs: string[] }).needs;
+}
+export async function twinNeedGrade(sessionLine: string, material: string, needs: string[], side: 'map' | 'codex', opts: TwinOpts = {}): Promise<TwinNeed | TwinNeedChat> {
+  const what = side === 'map'
+    ? `You have ONLY the map below (how it looks by default, and what it answered when asked the usual Monday questions). You cannot see the chat.`
+    : `There is NO map: you did what everyone does and asked the agent. Below are its answers to the usual Monday questions (made from whatever of the session it still had as context). You cannot scroll back through the old turns and you would not.`;
+  const cont = side === 'map'
+    ? `"continue_with" = what you would actually do next: "the map" (it was enough), "ask the map" (you would type a question to it), "reopen the chat" (scroll the old session), or "give up".`
+    : `"continue_with" = what you would actually do next: "the transcript" (what it said was enough to start), "ask the agent" (you would type another question), "reread everything" (you would have to make it walk you through the whole session), or "give up".`;
+  const user = [
+    `MONDAY MORNING. Last week you had a long session with your agent: ${sessionLine}. You did NOT keep notes. ${what}`,
+    `These are YOUR needs for today, named before you looked at anything — grade each one from the material ONLY, in this order and with this exact wording in "need":\n${needs.map((n, i) => `${i + 1}. ${n}`).join('\n')}`,
+    `For each: found "yes" / "partly" / "no", the exact line you used (verbatim, or empty), and how it felt. ${cont} "one_line" = your honest one-line summary of whether this gave you your Monday back.`,
+    `THE MATERIAL:\n${material}`,
+    `Return strict JSON only.`,
+  ].join('\n\n');
+  const schema = side === 'map' ? NEED_SCHEMA : NEED_CHAT_SCHEMA;
+  const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: opts.maxTokens ?? 900, timeoutMs: opts.timeoutMs ?? 150_000, schema });
+  return out as TwinNeed | TwinNeedChat;
 }
