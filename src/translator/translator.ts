@@ -223,6 +223,8 @@ export const distinctiveTokens = (t: string): Set<string> => new Set((String(t ?
 // write a piece of text, answered with the text, is delivered.
 // M439j (PANEL #456a): a drafting reply that opens with intent and brings no text — "I'll draft a roughly 300-word section …" — is a promise.
 export const PROMISE_TO_DRAFT = /^\s*(?:(?:sure|ok(?:ay)?|got it|understood)\s*[,.!—–-]?\s*)?(?:I(?:'ll|’ll| will| am going to|'m going to|’m going to| can)|let me|we(?:'ll|’ll| will))\s+(?:now\s+)?(?:draft|write|revise|re-?draft|rewrite|prepare|compose|produce|put together|tighten|shorten|reword|update|fix)\b/i;
+// M468 (PANEL #456a): the person declares a numbered list the current outline/structure.
+export const OUTLINE_CONFIRMED = /\b(?:(?:treat|take|use|consider)\s+(?:this|that|the following)\s+as\s+the\s+(?:current|new|final|working|latest)\s+(?:outline|structure|order|version|list|table of contents|toc)|(?:this|that|here)\s+is\s+(?:now\s+)?the\s+(?:current|new|final|working|latest)\s+(?:outline|structure|order|version|table of contents|toc)|the\s+(?:outline|structure|order|table of contents|toc)\s+is\s+now\b|(?:current|final|new)\s+(?:outline|structure)\s*:)/i;
 export const DRAFT_REQUEST = /\b(?:draft|write|compose|rewrite|revise|tighten|reword|shorten|re-draft|redraft)\b[^.?!\n]{0,60}\b(?:reply|replies|email|e-mail|note|message|response|announcement|changelog|clause|paragraph|paragraphs|copy|summary|cover note|wording|sentence|sentences|tweet|post|section|sections|chapter|introduction|intro|conclusion|abstract|outline|memo|report|brief(?:ing)?|essay|article|letter|proposal|speech|script|bio|caption|headline|title|description|blurb|bullets?|table|list|faq|spec)\b/i; // M439e (TWIN #445, Elena): "Draft section 4, Caveats, in about 250 words" is a draft request too — four delivered section drafts stayed todo/doing
 export const LEARN_REQUEST = /\b(?:learn|read|study|go through|look at|review|digest|memori[sz]e)\b[^.?!\n]{0,40}\b(?:documentation|docs?|doc page|page|link|article|guide|readme|spec|url)\b|\bhttps?:\/\/\S+/i;
 // M449 (PANEL #429, 4 of 13: "You're most recently working on consistent-return guidance…" after "thanks, that is all for today"): a turn
@@ -452,6 +454,7 @@ export class Translator {
       alterations = this.guardAgentImperative(alterations, params); // M465 (TWIN #453 Priya): the agent's 'keep X together' is not her todo (PANEL #451a): "don't change the draft yet" ends when the person asks to change it
       alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
       alterations = this.guardTitleTwinChild(alterations, map); // M467 (PANEL #454b): a same-titled child is the parent's new state, not a second row
+      alterations = this.guardOutlineConfirmed(alterations, map, params); // M468 (PANEL #456a): "treat this as the current outline: 1 …, 2 …" settles the sections it names
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
       const prior = this.store.roundForTurn(params.turnId);
@@ -1214,6 +1217,32 @@ export class Translator {
   // tentative status to the end of the day (twice on that map: "Support tickets leakage" the same way). A create whose title is
   // its parent's title IS the parent's new state: the parent takes the content (and, when it was tentative, the status); the
   // twin is dropped and anything born under it this round is re-pointed to the parent. Tasks and constraints are left to M439i.
+  // M468 (PANEL #456a — Hannah, Ravi: "it called work both done and provisional"): Elena's five outline sections were born
+  // provisional at the first outline (round 9) and stayed so after "Rebuild the working outline and treat this as the current version:
+  // 1 Summary, 2 What the trials measured, 3 Output results, 4 Caveats, 5 Recommendation" (round 17) and the reorder (round 22) — the
+  // filer rewrote their statements and never their status. A turn in which the person declares a numbered list the CURRENT outline
+  // settles the user-authored provisional/proposed rows named in it: status live. Rows not in the list are left to M431 (cut/merge).
+  private guardOutlineConfirmed(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const ut = String(params.userText ?? '');
+    if (!OUTLINE_CONFIRMED.test(ut)) return alterations;
+    const items = [...ut.matchAll(/(?:^|[\s:;,])(\d{1,2})[.)]?\s+([A-Z][^,;:\n(]{2,60}?)(?=\s*(?:\(|,|;|:|\.|\n|$|\s\d{1,2}[.)]?\s+[A-Z]))/g)].map((m) => m[2].trim());
+    if (items.length < 3) return alterations;
+    const norm = (x: string) => x.toLowerCase().replace(/[“”"‘’'`]/g, '').replace(/\b(?:the|a|an|section|sections|part|chapter|and)\b/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const listed = new Set(items.map(norm).filter((x) => x.length >= 3));
+    const touched = new Set(alterations.filter((a) => typeof a?.id === 'string').map((a) => a.id as string));
+    const out = [...alterations];
+    for (const n of map.nodes) {
+      if (n.author !== 'user' || !/^(provisional|proposed)$/.test(String(n.status ?? '')) || String(n.type ?? '') === 'task') continue;
+      const t = norm(String(n.title ?? ''));
+      if (!t || !listed.has(t)) continue;
+      const mine = out.find((a) => a?.op === 'update_node' && a.id === n.id);
+      if (mine) { if (!mine.status || /^(provisional|proposed)$/.test(String(mine.status))) mine.status = 'live'; }
+      else if (!touched.has(n.id)) out.push({ op: 'update_node', id: n.id, status: 'live' });
+      else continue;
+      this.store.audit('guard_outline_confirmed', { id: n.id.slice(0, 8), title: String(n.title ?? '').slice(0, 40), from: n.status });
+    }
+    return out;
+  }
   private guardTitleTwinChild(alterations: any[], map: { nodes: MapNode[] }): any[] {
     const norm = (x: string) => x.toLowerCase().replace(/[“”"‘’'`]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
     const folded = new Map<string, string>();
