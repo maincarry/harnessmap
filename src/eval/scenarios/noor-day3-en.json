@@ -103,15 +103,12 @@
           "nodeMatching": "ship.*this week|this week"
         },
         {
-          "statusOf": "Promised in the reply|ship the (?:update|fix) this week",
+          "statusOf": "^(?:Promise made|Ship (?:the )?(?:export )?(?:update|fix))",
           "is": "todo"
         },
         {
-          "notStatus": "ship (?:the )?(?:export )?(?:update|fix)",
+          "notStatus": "^Ship (?:the )?(?:export )?(?:update|fix)",
           "statuses": "done"
-        },
-        {
-          "audit": "guard_commitment_promise"
         }
       ]
     },

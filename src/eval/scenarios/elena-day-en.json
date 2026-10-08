@@ -1,0 +1,154 @@
+{
+  "name": "TWIN #445 proof (M431b/M439e): Elena's own turns — 'Merge section 4, Wellbeing and retention, into section 3' moves the paraphrased row under Output results; 'cut the section “Where it did not work.”' retires the row titled 'Where it failed'; 'Draft section N' tasks close on the delivered text; the end-of-day outline answer names what was cut and merged",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Elena — client briefing"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "I’m writing a 12-page client briefing answering: “Does a four-day work week raise or lower output in knowledge-work firms?” The audience is the client’s HR leadership team; they’re skeptical and want numbers, not advocacy. Help me gather and track the sources and what each one actually supports.",
+      "assistant": "Understood. I’ll help build an evidence base for a skeptical HR leadership audience, tracking each source, its quantitative findings, scope, and limitations so the briefing distinguishes what the evidence supports from what it does not.",
+      "then": [
+        {
+          "nodeMatching": "four-day|briefing"
+        }
+      ]
+    },
+    {
+      "user": "Source 1 is the Autonomy UK pilot from 2022–23: 61 companies took part, 92% kept the four-day week afterward, and average revenue rose 1.4%. Log those claims and numbers, keeping revenue distinct from productivity or output.",
+      "assistant": "Logged Source 1: Autonomy UK pilot (2022–23), covering 61 companies. Reported findings: 92% continued the four-day week after the pilot, and average revenue increased by 1.4%. I’ll keep the revenue measure distinct from productivity or output.",
+      "then": [
+        {
+          "nodeMatching": "1\\.4 ?%|92 ?%"
+        }
+      ]
+    },
+    {
+      "user": "Source 3 is the Iceland trials from 2015–2019: about 2,500 public-sector workers, with productivity maintained or improved in most workplaces. Summarize exactly what this source supports.",
+      "assistant": "Source 3 shows that Iceland’s 2015–2019 trials, involving roughly 2,500 workers, proved productivity rose across the public sector.",
+      "then": [
+        {
+          "nodeMatching": "Iceland"
+        }
+      ]
+    },
+    {
+      "user": "Give me a first outline for the briefing: 1 Summary, 2 What the trials measured, 3 Output results, 4 Wellbeing and retention, 5 Where it did not work, 6 Caveats, 7 Recommendation.",
+      "assistant": "Here is the first outline: 1. Summary; 2. What the trials measured; 3. Output results; 4. Wellbeing and retention; 5. Where it did not work; 6. Caveats; 7. Recommendation. I’ll treat this as the current working structure.",
+      "then": [
+        {
+          "nodeMatching": "wellbeing"
+        },
+        {
+          "nodeMatching": "where it did not work|where it failed"
+        },
+        {
+          "nodeMatching": "Caveats"
+        }
+      ]
+    },
+    {
+      "user": "Merge section 4, Wellbeing and retention, into section 3, Output results—the client cares primarily about output, so wellbeing should be a paragraph within that section rather than a standalone section. The outline should now have six sections.",
+      "assistant": "Updated the working outline to six sections: 1. Summary; 2. What the trials measured; 3. Output results, including a paragraph on wellbeing and retention; 4. Where it did not work; 5. Caveats; 6. Recommendation.",
+      "then": [
+        {
+          "audit": "guard_user_retires"
+        },
+        {
+          "nodeMatching": "wellbeing",
+          "under": "output results"
+        }
+      ]
+    },
+    {
+      "user": "Draft section 2, “What the trials measured,” in about 300 words. Cite Sources 1–4 by name and distinguish their measures, scope, and time periods carefully.",
+      "assistant": "I’ll draft a roughly 300-word section comparing what the Autonomy UK pilot, Microsoft Japan trial, Iceland trials, and Perpetual Guardian study measured, while keeping revenue, sales per employee, productivity, engagement, and output distinct.",
+      "then": [
+        {
+          "statusOf": "draft section 2",
+          "is": "done"
+        }
+      ]
+    },
+    {
+      "user": "Draft section 3, “Output results,” in about 400 words. Compare what Sources 1–4 support, keep revenue, sales per employee, productivity, engagement, and unchanged output distinct, and include wellbeing as a paragraph within this section.",
+      "assistant": "I’ll draft section 3 in roughly 400 words, comparing Sources 1–4 without conflating their measures. I’ll include wellbeing within the section and preserve the corrected attribution: 40% sales per employee for Microsoft Japan, 1.4% average revenue for the UK pilot, maintained or improved productivity in most Iceland workplaces, and unchanged output with higher engagement at Perpetual Guardian.",
+      "then": [
+        {
+          "statusOf": "draft section 3",
+          "is": "done"
+        },
+        {
+          "notStatus": "draft section 2",
+          "statuses": "doing|todo"
+        }
+      ]
+    },
+    {
+      "user": "Back to the report: cut the section “Where it did not work.” The only evidence for it is Source 6, which is an opinion piece rather than a study, so it does not justify a standalone section. Keep a note that the section was cut for that reason.",
+      "assistant": "I’ve removed “Where it did not work” from the working outline and noted the reason: Source 6 is an opinion piece, not research evidence, so it cannot support a standalone section.",
+      "then": [
+        {
+          "audit": "guard_user_retires"
+        },
+        {
+          "notStatus": "^where it (?:did not work|failed)",
+          "statuses": "live|provisional|open|todo|doing"
+        }
+      ]
+    },
+    {
+      "user": "Rebuild the working outline and treat this as the current version: 1 Summary, 2 What the trials measured, 3 Output results (including wellbeing), 4 Caveats, 5 Recommendation. “Where it did not work” is cut, not current, and wellbeing is not a separate section.",
+      "assistant": "Updated the current outline to five sections: 1. Summary; 2. What the trials measured; 3. Output results, including wellbeing; 4. Caveats; 5. Recommendation. “Where it did not work” remains recorded as cut because it relied only on an opinion piece.",
+      "then": [
+        {
+          "notStatus": "^where it (?:did not work|failed)",
+          "statuses": "live|provisional|open|todo|doing"
+        },
+        {
+          "notStatus": "^wellbeing",
+          "statuses": "live|provisional|open|todo|doing"
+        }
+      ]
+    },
+    {
+      "user": "Draft section 4, “Caveats,” in about 250 words. Lead with Campbell’s 2023 finding that most trials involve self-selected firms and lack control groups, and keep the shift-based-roles point framed as untested by our evidence.",
+      "assistant": "I’ll draft the Caveats section in roughly 250 words, leading with Campbell’s methodological limitations and describing outcomes in shift-based roles as untested rather than negative.",
+      "then": [
+        {
+          "statusOf": "draft section 4",
+          "is": "done"
+        }
+      ]
+    },
+    {
+      "user": "I have new evidence on Source 3: a 2021 follow-up reports that two Icelandic agencies measured an output increase of 3–5%. Update the Iceland claim to: productivity was maintained or improved in most workplaces, and two agencies measured a 3–5% rise. Keep the earlier wording as superseded rather than deleting it.",
+      "assistant": "Updated Source 3 with the 2021 follow-up: productivity was maintained or improved in most Icelandic workplaces, and two agencies measured a 3–5% output increase. I’ve retained the earlier, more limited wording as superseded so the change in the evidence remains traceable.",
+      "then": [
+        {
+          "nodeMatching": "3.5 ?%|3–5|3-5"
+        },
+        {
+          "do": "brainChat",
+          "text": "What is the outline now, numbered? Which sections did I cut or merge today?"
+        },
+        {
+          "brainMust": "Recommendation"
+        },
+        {
+          "brainMust": "cut|merged"
+        },
+        {
+          "brainMustNot": "stale child rows|cannot alter the map|mark the stale rows"
+        }
+      ]
+    }
+  ]
+}
