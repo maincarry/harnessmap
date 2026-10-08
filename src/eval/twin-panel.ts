@@ -119,7 +119,7 @@ async function agentAnswersFromTranscript(transcript: string): Promise<string> {
     lines.push(`Q: ${q}\nA: ${said}`);
     console.error(`[twin-panel] asked the agent (control): ${q.slice(0, 50)} → ${said.slice(0, 80).replace(/\n/g, ' ')}`);
   }
-  return `WHAT THE AGENT ANSWERED when you asked it in the resumed session (from the transcript):\n${lines.join('\n\n')}`;
+  return `WHAT THE AGENT ANSWERED when you asked it in the resumed session (it answered from the session as its context):\n${lines.join('\n\n')}`;
 }
 const flow = flagVal('--flow');
 const flowFile = flagVal('--flow-file');
@@ -138,7 +138,7 @@ if (mapOnly) experience += `\n\n${mapOnly}`;
 const sessionLine = (() => { try { if (scenarioPath) return String(JSON.parse(readFileSync(scenarioPath, 'utf8')).name ?? scenarioPath); } catch {} return (flow ?? (flowFile ? readFileSync(flowFile, 'utf8') : '')).split('\n').find((l) => l.trim()) ?? 'a long working session'; })().slice(0, 300);
 const INTERVIEW = !argv.includes('--no-interview');
 let chatOnly = '';
-if (COMPARE) { if (!scenarioPath) { console.error('--compare needs a scenario file (the transcript)'); process.exit(2); } const tr = transcriptFromScenario(scenarioPath); chatOnly = `THE TRANSCRIPT in your terminal (${tr.split('[turn ').length - 1} turns; you can scroll it):\n${tr}\n\n${await agentAnswersFromTranscript(tr)}`; label += ' + control (plain codex) + merged verdict'; } // M430 (Jacob 2026-10-07 10:02/10:05/10:08): need first, then the walkthrough, then the interview
+if (COMPARE) { if (!scenarioPath) { console.error('--compare needs a scenario file (the transcript)'); process.exit(2); } const tr = transcriptFromScenario(scenarioPath); chatOnly = await agentAnswersFromTranscript(tr); label += ' + control (ask codex) + merged verdict'; } // M450b (Jacob 03:18): the persona gets the agent's answers only — nobody scrolls 40 turns back // M430 (Jacob 2026-10-07 10:02/10:05/10:08): need first, then the walkthrough, then the interview
 if (argv.includes('--dry')) { console.log(experience); process.exit(0); }
 
 const want = (flagVal('--personas') ?? 'all').trim();
