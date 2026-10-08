@@ -1236,12 +1236,14 @@ export class Translator {
     const touched = new Set(alterations.filter((a) => typeof a?.id === 'string').map((a) => a.id as string));
     const out = [...alterations];
     for (const n of map.nodes) {
-      if (n.author !== 'user' || !/^(provisional|proposed)$/.test(String(n.status ?? '')) || String(n.type ?? '') === 'task') continue;
+      // M468b (REFILE Elena v0.9.265): this filing credited the outline rows to the AGENT (her round-9 list came back as the agent's
+      // outline) — the declared outline is hers whoever wrote the rows: any author, accepted counts as tentative, author becomes user.
+      if (!/^(provisional|proposed|accepted)$/.test(String(n.status ?? '')) || String(n.type ?? '') === 'task') continue;
       const t = norm(String(n.title ?? ''));
       if (!t || !listed.has(t)) continue;
       const mine = out.find((a) => a?.op === 'update_node' && a.id === n.id);
-      if (mine) { if (!mine.status || /^(provisional|proposed)$/.test(String(mine.status))) mine.status = 'live'; }
-      else if (!touched.has(n.id)) out.push({ op: 'update_node', id: n.id, status: 'live' });
+      if (mine) { if (!mine.status || /^(provisional|proposed|accepted)$/.test(String(mine.status))) mine.status = 'live'; if (n.author !== 'user') mine.author = 'user'; }
+      else if (!touched.has(n.id)) out.push({ op: 'update_node', id: n.id, status: 'live', ...(n.author !== 'user' ? { author: 'user' } : {}) });
       else continue;
       this.store.audit('guard_outline_confirmed', { id: n.id.slice(0, 8), title: String(n.title ?? '').slice(0, 40), from: n.status });
     }
@@ -1252,15 +1254,24 @@ export class Translator {
     const folded = new Map<string, string>();
     const out: any[] = [];
     for (const a of alterations) {
-      if (a?.op === 'create_node' && a.parentId && typeof a.title === 'string' && norm(a.title).length >= 6 && String(a.type ?? '') !== 'task' && String(a.type ?? '') !== 'constraint') {
+      // M467b (REFILE Elena v0.9.265, round 13: the filer UPDATED "Output results" with her section-3 statement and no title; M315's
+      // zero-overlap rule made it an UNTITLED child, the titler then named the child after its parent, and M467 had no title to
+      // compare): a rewrite-born child whose statement names the parent's own title ("Section 3, 'Output results,' will compare …")
+      // is the parent's new state — the title in the text is the filer saying which row it meant.
+      const rewriteOf = a?.op === 'create_node' ? a._rewriteOf : undefined;
+      if (a?.op === 'create_node') delete a._rewriteOf;
+      const pt = a?.op === 'create_node' && a.parentId ? norm(String(map.nodes.find((n) => n.id === a.parentId)?.title ?? '')) : '';
+      const twinByTitle = a?.op === 'create_node' && typeof a.title === 'string' && norm(a.title).length >= 6 && pt === norm(a.title);
+      const twinByText = !!rewriteOf && a?.op === 'create_node' && !a.title && pt.length >= 6 && pt.includes(' ') && norm(String(a.content ?? '')).includes(pt);
+      if (a?.op === 'create_node' && a.parentId && (twinByTitle || twinByText) && String(a.type ?? '') !== 'task' && String(a.type ?? '') !== 'constraint') {
         const parent = map.nodes.find((n) => n.id === a.parentId);
-        if (parent && parent.status !== 'removed' && norm(String(parent.title ?? '')) === norm(a.title) && !/^(todo|doing|done)$/.test(String(parent.status ?? '')) && String(parent.type ?? '') !== 'task' && String(parent.type ?? '') !== 'constraint') {
+        if (parent && parent.status !== 'removed' && !/^(todo|doing|done)$/.test(String(parent.status ?? '')) && String(parent.type ?? '') !== 'task' && String(parent.type ?? '') !== 'constraint') {
           const upd: any = { op: 'update_node', id: parent.id };
           if (typeof a.content === 'string' && a.content.trim() && a.content.trim() !== parent.content.trim()) upd.content = a.content;
           const tentative = /^(provisional|proposed|open)$/.test(String(parent.status ?? ''));
           if (tentative && a.status && a.status !== parent.status && /^(noted|live|done|decided|accepted|cited|answered|active)$/.test(String(a.status))) upd.status = a.status;
           folded.set(String(a.id), parent.id);
-          this.store.audit('guard_title_twin', { id: parent.id.slice(0, 8), twin: String(a.id).slice(0, 8), title: String(a.title).slice(0, 40), from: parent.status, to: upd.status ?? parent.status });
+          this.store.audit('guard_title_twin', { id: parent.id.slice(0, 8), twin: String(a.id).slice(0, 8), title: String(a.title ?? parent.title ?? '').slice(0, 40), from: parent.status, to: upd.status ?? parent.status, how: twinByTitle ? 'title' : 'text' });
           if (upd.content !== undefined || upd.status !== undefined) out.push(upd);
           continue;
         }
@@ -1394,7 +1405,7 @@ export class Translator {
           const kids = map.nodes.filter((k) => k.parentId === cur.id && k.status !== 'removed').length;
           const ratio = shared / Math.max(1, Math.min(oldW.size, newW.size));
           if (oldW.size >= 2 && newW.size >= 2 && (shared === 0 || (kids >= 2 && oldW.size >= 4 && newW.size >= 4 && ratio < 0.34))) { // "Chapter 2: results" has two content words
-            const child: any = { op: 'create_node', id: randomUUID(), parentId: cur.id, content: anyA.content, status: anyA.status ?? 'live', author: anyA.author ?? 'agent', ...(anyA.type ? { type: anyA.type } : {}), ...(anyA.title ? { title: anyA.title } : {}) };
+            const child: any = { op: 'create_node', id: randomUUID(), parentId: cur.id, content: anyA.content, status: anyA.status ?? 'live', author: anyA.author ?? 'agent', ...(anyA.type ? { type: anyA.type } : {}), ...(anyA.title ? { title: anyA.title } : {}), _rewriteOf: cur.id }; // M467b: marked so the title-twin guard can read it
             this.store.audit('guard_rewrite_to_child', { id: String(anyA.id).slice(0, 8), from: cur.content.slice(0, 60), to: anyA.content.slice(0, 60), shared, kids });
             alterations.push(child); continue; // M421a (LONG #403 "Disc colors decided?"): the child joins the batch and walks the REST of the chain (M419 and the other title guards never saw it when it went straight to out)
           }

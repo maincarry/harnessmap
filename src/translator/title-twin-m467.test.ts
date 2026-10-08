@@ -43,3 +43,18 @@ test('M467: a settled parent keeps its status; tasks, constraints and different 
   expect(t.guardTitleTwinChild([{ ...other }], map)).toEqual([other]);
   expect(audits.length).toBe(1);
 });
+
+test('M467b: an untitled rewrite-born child whose statement names the parent\'s title folds into the parent', () => {
+  const { t, audits } = mk();
+  const m: any = { nodes: [...map.nodes, { id: 'or', parentId: 'root', title: 'Output results', content: 'Section 3 will present output results from the trials, including a paragraph on wellbeing and retention.', status: 'provisional', author: 'agent', type: null }] };
+  const out = t.guardTitleTwinChild([{ op: 'create_node', id: 'kid', parentId: 'or', content: 'Section 3, “Output results,” will compare what Sources 1–4 support, keep revenue, sales per employee, productivity, engagement, and unchanged output distinct, and include wellbeing as a paragraph.', status: 'provisional', author: 'user', _rewriteOf: 'or' }], m);
+  expect(out).toEqual([{ op: 'update_node', id: 'or', content: 'Section 3, “Output results,” will compare what Sources 1–4 support, keep revenue, sales per employee, productivity, engagement, and unchanged output distinct, and include wellbeing as a paragraph.' }]);
+  expect(audits[0].d).toMatchObject({ how: 'text' });
+  // not rewrite-born, or not naming the parent: left alone (and the marker always stripped)
+  const plain = { op: 'create_node', id: 'k2', parentId: 'or', content: 'The Iceland paragraph in section 3 needs the two-agency 3–5% rise.', status: 'noted', author: 'agent', type: 'evidence', _rewriteOf: 'or' };
+  const out2 = t.guardTitleTwinChild([{ ...plain }], m);
+  expect(out2[0]).toMatchObject({ op: 'create_node', id: 'k2' });
+  expect('_rewriteOf' in out2[0]).toBe(false);
+  const untitled = { op: 'create_node', id: 'k3', parentId: 'or', content: 'Section 3, “Output results,” will compare what Sources 1–4 support.', status: 'provisional', author: 'user' };
+  expect(t.guardTitleTwinChild([{ ...untitled }], m)[0].id).toBe('k3');
+});
