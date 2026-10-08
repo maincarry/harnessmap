@@ -369,3 +369,11 @@ export async function twinNeedGrade(sessionLine: string, material: string, needs
   const out = await call({ task: 'brain', modelOverride: opts.modelOverride, system: TWIN_SYSTEM + calibrationFor(opts.persona ?? 'normal'), user, maxTokens: opts.maxTokens ?? 900, timeoutMs: opts.timeoutMs ?? 150_000, schema });
   return out as TwinNeed | TwinNeedChat;
 }
+
+// M450h (Priya's day, Jacob 16:39 "do out of sample"): the chat the person is sitting in on Monday is the scenario's `panelChat` when
+// it names one — otherwise the most recently used chat. Noor's six-chat day was asked in the chat that held the end-of-day recap, which
+// handed the control the day for free; a scenario that keeps its wrap-up questions in their own chat names a WORK chat here instead.
+export function pickPanelChat<T extends { name: string }>(chats: T[], panelChat?: string | null): T {
+  if (panelChat) { const hit = chats.find((c) => c.name === panelChat); if (hit) return hit; console.error(`[twin-panel] panelChat "${panelChat}" is not a chat of this scenario — using the last-used chat`); }
+  return chats[chats.length - 1];
+}

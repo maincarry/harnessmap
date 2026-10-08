@@ -11,7 +11,7 @@
 // would-return, verdict) and the frictions that more than one persona raised. Background it and redirect stdout.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, mkdtempSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runTwin, twinNeed, twinProbe, probeWorthy, twinNeedChat, twinCompare, twinNeedsList, twinNeedGrade, type TwinReport, type TwinPersona, type TwinNeed, type TwinProbe, type TwinFinding, type TwinNeedChat, type TwinCompare } from '../twin.js';
+import { pickPanelChat, runTwin, twinNeed, twinProbe, probeWorthy, twinNeedChat, twinCompare, twinNeedsList, twinNeedGrade, type TwinReport, type TwinPersona, type TwinNeed, type TwinProbe, type TwinFinding, type TwinNeedChat, type TwinCompare } from '../twin.js';
 import { call } from '../inference.js';
 import { TWIN_PERSONA_IDS, DEFAULT_PANEL_IDS, TIER_WEIGHT, findTwinPersona } from '../twin-personas.js';
 
@@ -138,6 +138,7 @@ function transcriptFromScenario(path: string): string {
 }
 // M450e (Jacob 2026-10-08 13:54 "the context should be long and constantly switching chats, not artificially cripple codex"): a day is
 // several chats; each chat's transcript is its own context. The LAST chat is the one the person is sitting in on Monday.
+function panelChatOf(path: string): string | null { try { const v = JSON.parse(readFileSync(path, 'utf8')).panelChat; return typeof v === 'string' && v ? v : null; } catch { return null; } }
 function transcriptsByChat(path: string): { name: string; transcript: string; turns: number; lastUsed: number }[] {
   const sc = JSON.parse(readFileSync(path, 'utf8')); const rounds: any[] = sc.rounds ?? [];
   const by = new Map<string, { name: string; parts: string[]; lastUsed: number }>();
@@ -180,7 +181,7 @@ if (COMPARE) {
   const chats = transcriptsByChat(scenarioPath); const tr = transcriptFromScenario(scenarioPath); RECORD = tr;
   if (CONTROL_FLAG === 'auto') { const nTurns = tr.split(/\n\n(?=\[turn \d+\])/).length; CONTROL = chats.length > 1 ? 'last-chat' : (nTurns > AUTO_FULL_MAX_TURNS ? 'compacted' : 'full'); console.error(`[twin-panel] control=auto → ${CONTROL} (${chats.length} chat(s), ${nTurns} turns; full up to ${AUTO_FULL_MAX_TURNS})`); }
   const natural = async (t: string, turns: number) => (turns > AUTO_FULL_MAX_TURNS ? compactedTranscript(t) : Promise.resolve(t)); // natural compaction only past the window
-  if (CONTROL === 'last-chat') { const last = chats[chats.length - 1]; console.error(`[twin-panel] control=last-chat: the person asks in "${last.name}" (${last.turns} of ${tr.split(/\n\n(?=\[turn \d+\])/).length} turns; ${chats.length - 1} other chat(s) unseen)`); chatOnly = await agentAnswersFromTranscript(await natural(last.transcript, last.turns), `the chat you are sitting in ("${last.name}", ${last.turns} turns — the ${chats.length - 1} other chat(s) of that day are not in its context)`); }
+  if (CONTROL === 'last-chat') { const last = pickPanelChat(chats, panelChatOf(scenarioPath)); console.error(`[twin-panel] control=last-chat: the person asks in "${last.name}" (${last.turns} of ${tr.split(/\n\n(?=\[turn \d+\])/).length} turns; ${chats.length - 1} other chat(s) unseen)`); chatOnly = await agentAnswersFromTranscript(await natural(last.transcript, last.turns), `the chat you are sitting in ("${last.name}", ${last.turns} turns — the ${chats.length - 1} other chat(s) of that day are not in its context)`); }
   else if (CONTROL === 'each-chat') { const parts: string[] = []; for (const c of chats) parts.push(await agentAnswersFromTranscript(await natural(c.transcript, c.turns), `the chat "${c.name}" (${c.turns} turns)`)); chatOnly = `You switched into each of the ${chats.length} chats of that day and asked the same questions in each; you must merge the answers yourself.\n\n${parts.join('\n\n')}`; }
   else chatOnly = await agentAnswersFromTranscript(CONTROL === 'compacted' ? await compactedTranscript(tr) : tr);
   label += ` + control (ask codex, ${CONTROL}${chats.length > 1 ? `, ${chats.length} chats` : ''}) + merged verdict ×${REPEAT}`;
