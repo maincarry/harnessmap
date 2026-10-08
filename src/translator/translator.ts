@@ -257,6 +257,10 @@ export const objects = (ut: string): boolean => {
   return false;
 };
 export const REJECTS = /\b(?:does ?n[o'’]t (?:follow|work|match|compile|run|do|handle|respect|meet)|doesn[’']?t (?:follow|work|match|compile|run)|did ?n[o'’]t (?:work|help|fix)|not (?:what I asked|what I meant|following|working|correct|right|fixed)|still (?:wrong|broken|fails?|failing|does ?n[o'’]t|doesn[’']?t|not)|(?:check|try|look) again|wrong (?:again|still)|that[’']?s (?:wrong|not it|incorrect)|is (?:wrong|incorrect|broken)|please (?:revise|fix|redo|rewrite|correct)(?: and update)? (?:the |this |it|that)|you (?:missed|ignored|broke))\b/i;
+// M439h (REFILE #2 Priya): the agent's terse replies open with the deed — "Built a preprocessing and logistic-regression pipeline …",
+// "Restarted the kernel and ran from the top …", "Plotted churn rate by exact tenure …" — no "here is", no "I've"; a reply that opens
+// with a past-tense action verb delivered, unless it opens with a negation ("Built nothing yet") or ends as a question.
+export const OPENS_DELIVERY = /^\s*(?:built|fitted|fit|plotted|replotted|created|added|removed|retrained|trained|reorgani[sz]ed|restructured|refactored|implemented|updated|generated|computed|calculated|saved|wrote|rewrote|replaced|dropped|fixed|restarted|ran|reran|applied|normali[sz]ed|cleaned|exported|converted|produced|set)\b(?!\s+(?:not|no|nothing|neither|none)\b)/i;
 export const DELIVERS = /```|\bhere(?:'s| is) (?:the |an? |your )?(?:updated |revised |rewritten |fixed |complete |full |new )?(?:code|function|version|implementation|script|component|test|tests|rewrite|fix|file)\b|\bI(?:'ve| have)? (?:updated|added|implemented|fixed|created|rewritten|refactored|changed|written)\b|\b(?:updated|rewritten|refactored|revised) (?:version|function|code|script)\b/i;
 
 export function clientNameOfTurn(text: string): string | null {
@@ -737,12 +741,29 @@ export class Translator {
 
   private guardTaskDelivered(alterations: any[], params: { assistantText?: string; userText?: string }, map?: { nodes: MapNode[] }): any[] {
     const byId = new Map((map?.nodes ?? []).map((n) => [n.id, n]));
+    // M439i (REFILE #2 Priya, round 27: the filer created "Run reorganized notebook" [done, the agent's] UNDER the person's own
+    // "Run reorganized notebook" [doing] from round 25 and the person's row stayed doing to the end of the day): a row filed DONE this
+    // round whose title is the same work as a live todo/doing task of the person's closes that task — the two are one job.
+    if (map) {
+      const norm = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+      const doneTitles = new Set(alterations.filter((a) => (a?.op === 'create_node' || a?.op === 'update_node') && String(a.status ?? '') === 'done' && typeof a.title === 'string' && norm(a.title).length >= 6).map((a) => norm(a.title)));
+      if (doneTitles.size) {
+        const touched = new Set(alterations.filter((a) => typeof a?.id === 'string').map((a) => a.id as string));
+        for (const n of map.nodes) {
+          if (touched.has(n.id) || n.author !== 'user' || String(n.type ?? '') !== 'task' || !/^(todo|doing)$/.test(String(n.status ?? ''))) continue;
+          if (!doneTitles.has(norm(String(n.title ?? '')))) continue;
+          this.store.audit('guard_task_delivered', { id: n.id.slice(0, 8), from: n.status, title: String(n.title ?? '').slice(0, 40), how: 'done-twin' });
+          alterations.push({ op: 'update_node', id: n.id, status: 'done' });
+        }
+      }
+    }
     const at = String(params.assistantText ?? '');
     // M448: a docs-reading request answered in substance — the reply explains the thing (≥ 120 chars and not a bare acknowledgement);
     // the proof's second consistent-return turn got a 222-char two-sentence summary, which is the delivery.
     const learn = LEARN_REQUEST.test(String(params.userText ?? '')) && at.length >= 120 && !/^\s*(?:sure|ok(?:ay)?|got it|will do|understood|noted|alright|certainly|of course)\b[^.!?\n]*[.!]?\s*$/i.test(at); // one acknowledging sentence is a promise, not a delivery
     const drafted = DRAFT_REQUEST.test(String(params.userText ?? '')) && at.length >= 120 && !/^\s*(?:sure|ok(?:ay)?|got it|will do|understood|noted|alright|certainly|of course)\b[^.!?\n]*[.!]?\s*$/i.test(at) && !/\?\s*$/.test(at.trim()); // M439b: the text asked for, written
-    if (at.length < 40 || (!DELIVERS.test(at) && !learn && !drafted)) return alterations;
+    const opened = OPENS_DELIVERY.test(at) && !/\?\s*$/.test(at.trim()); // M439h
+    if (at.length < 40 || (!DELIVERS.test(at) && !learn && !drafted && !opened)) return alterations;
     for (const a of alterations) {
       // M439g (REFILE Elena v0.9.252: "Draft section 4, Caveats" and "Re-draft the Iceland paragraph in section 3" made the filer UPDATE the
       // existing draft rows back to doing while the reply carried the text; only created rows were closed): an update that sets the
@@ -752,7 +773,7 @@ export class Translator {
         if (!cur || cur.author !== 'user' || String(a.type ?? cur.type ?? '') !== 'task') continue;
         const stmt2 = `${a.title ?? cur.title ?? ''} ${a.content ?? cur.content ?? ''}`;
         if ((FUTURE_DATED.test(stmt2) || FUTURE_COMMITMENT.test(stmt2)) && !isDraftingRow(stmt2, String(params.userText ?? ''))) continue;
-        if (!drafted && !DELIVERS.test(at) && !learn) continue;
+        if (!drafted && !DELIVERS.test(at) && !learn && !opened) continue;
         this.store.audit('guard_task_delivered', { id: a.id.slice(0, 8), from: a.status, title: String(a.title ?? cur.title ?? '').slice(0, 40), how: 'update' });
         a.status = 'done';
         continue;
@@ -858,7 +879,7 @@ export class Translator {
       const txt = `${node.title ?? ''} ${node.content ?? ''}`;
       if (INVALID.test(txt)) continue;
       const fs = figsOf(txt);
-      if (!fs.some((f) => bad.has(f)) || fs.some((f) => good.has(f))) continue;
+      if (!fs.some((f) => bad.has(f)) || fs.some((f) => !bad.has(f))) continue; // M464c (REFILE #2 Priya): a row that also carries a figure NOT invalidated ("dropped from 0.91 to the valid 0.76") is a comparison — it stays
       n++; out.push({ op: 'update_node', id: node.id, status: 'superseded' });
       this.store.audit('guard_figure_superseded', { id: node.id.slice(0, 8), title: String(node.title ?? '').slice(0, 40), figure: fs.find((f) => bad.has(f)) });
     }

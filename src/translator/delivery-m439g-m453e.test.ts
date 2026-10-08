@@ -41,3 +41,18 @@ test('M453e: an objection the reply only acknowledges still reopens the draft (M
   expect(out).toEqual([{ op: 'update_node', id: 'd1', status: 'doing' }]);
   expect(audits.map((a) => a.kind)).toEqual(['guard_delivery_rejected']);
 });
+
+test('M439h: a reply that opens with a past-tense action verb ("Built a … pipeline") is a delivery; "Built nothing yet" is not', () => {
+  const { t } = mk();
+  const task = { op: 'create_node', id: 'bl', parentId: 'p', title: 'Baseline churn model', content: 'Build a baseline churn model using churned as the target and all currently available predictors.', status: 'doing', author: 'user', type: 'task' };
+  expect(t.guardTaskDelivered([{ ...task }], { userText: 'Let\'s start a baseline model. Use churned as the target, make a stratified 80/20 split with a fixed seed, and build a preprocessing pipeline.', assistantText: 'Built a preprocessing and logistic-regression pipeline using a stratified 80/20 split with random_state=42. Test ROC AUC is 0.91; the top coefficients are tenure and plan.' }, map)[0].status).toBe('done');
+  expect(t.guardTaskDelivered([{ ...task }], { userText: 'Build the baseline model.', assistantText: 'Built nothing yet — which target column should I use, churned or churn_flag?' }, map)[0].status).toBe('doing');
+});
+
+test('M439i: a done row filed with the same title as the person\'s live doing task closes that task', () => {
+  const { t, audits } = mk();
+  const m2: any = { nodes: [...map.nodes, { id: 'run', parentId: 'p', title: 'Run reorganized notebook', content: 'Restart the kernel and run the reorganized notebook from top to bottom.', status: 'doing', author: 'user', type: 'task', createdAt: at, updatedAt: at }], links: [] };
+  const out = t.guardTaskDelivered([{ op: 'create_node', id: 'twin', parentId: 'run', title: 'Run reorganized notebook', content: 'The notebook completed without further errors.', status: 'done', author: 'agent', type: 'task' }], { userText: 'Fix the cell and continue running.', assistantText: 'Updated the cell and resumed execution. The notebook completed without further errors.' }, m2);
+  expect(out.find((a: any) => a.id === 'run')).toMatchObject({ op: 'update_node', status: 'done' });
+  expect(audits.map((a) => a.d.how)).toContain('done-twin');
+});

@@ -37,3 +37,10 @@ test('M464b: "leakage" beside a split ratio or the annual-churn figure is not a 
   const b = t.guardFigureSuperseded([{ op: 'update_node', id: 'cell', content: 'The notebook now has a final markdown cell called “Tomorrow’s report” stating annual-plan churn of 14.72% (2,668 of 18,128), leakage-free gradient-boosted holdout ROC AUC of 0.79, and that support_tickets_90d is excluded because it can include post-churn leakage.', status: 'done', type: 'task' }], m2);
   expect(b.filter((x: any) => x.status === 'superseded')).toEqual([]);
 });
+
+test('M464c: a row that records the drop ("from 0.91 to the valid 0.76") carries a figure that is not invalidated — it stays', () => {
+  const { t } = mk();
+  const m3: any = { nodes: [...map.nodes, { id: 'drop', parentId: 'm', title: 'Logistic AUC drop', content: 'The logistic-regression holdout ROC AUC dropped from 0.91 to the valid leakage-free AUC of 0.76, a decrease of 0.15.', status: 'noted', type: 'evidence', author: 'agent', createdAt: at, updatedAt: at }], links: [] };
+  const out = t.guardFigureSuperseded([{ op: 'create_node', id: 'pm', content: 'Annual-plan churn is 14.72%, and the final leakage-free model achieved 0.79; the earlier 0.91 and 0.97 results are invalid and superseded.', status: 'done', type: 'task' }], m3);
+  expect(out.filter((a: any) => a.status === 'superseded').map((a: any) => a.id)).toEqual(['lr']);
+});
