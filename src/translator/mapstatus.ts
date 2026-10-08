@@ -801,28 +801,47 @@ export async function brainChat(store: Store, projectId: string, text: string): 
     return /\b(rule|preference|must|always|never|don'?t|do not|skip|avoid|prefer|rewrite|format|respond|reply|call me|refer to|from now on|every time)\b/i.test(txt);
   };
   const rulesLine = brainRulesLines(liveMap.nodes.filter((n) => n.status !== 'removed' && n.author !== 'system' && !isTutorial(n) && looksRule(n)));
-  try {
-    const parsed = await call({
-      task: 'brain',
-      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}${M435_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 3200, // M455b (PANEL #439, Tom: an answer "visibly cut off at 'but sendin'") — the SETTLED line made answers longer than the 2000-token cap schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
-      audit: (k, d) => store.audit(k, d),
-      user: [
+  const userPrompt = [
         u ? `YOUR CURRENT UNDERSTANDING:\n${Object.entries(u.sections).map(([k, v]) => `${k}: ${v.text.slice(0, 2000)}`).join('\n\n')}` : 'YOUR CURRENT UNDERSTANDING: none written yet.',
         brainRosterOn() ? `YOUR MAP RIGHT NOW — the live nodes, ground truth. Use THIS (not your summary or your standing guidance) to answer anything about how many topics/nodes exist, what STATUS something is in, what was decided/chosen/rejected/left open, or any rule or preference the USER set:\n${topicLine}\n${openLine}${rulesLine ? `\n${rulesLine}` : ''}\n\n${roster}` : '',
         status ? `YOUR STRUCTURE REPORT: ${status.health} ${status.opinion}` : '',
         tuning ? `YOUR STANDING GUIDANCE (as it stands):\n${tuning}` : 'YOUR STANDING GUIDANCE: none yet.',
         `THE USER SAYS:\n${text.slice(0, 4000)}`,
         'Reply, then rewrite the standing guidance.',
-      ].filter(Boolean).join('\n\n'),
+      ].filter(Boolean).join('\n\n');
+  try {
+    const parsed = await call({
+      task: 'brain',
+      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}${M435_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 3200, // M455b (PANEL #439, Tom: an answer "visibly cut off at 'but sendin'") — the SETTLED line made answers longer than the 2000-token cap schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
+      audit: (k, d) => store.audit(k, d),
+      user: userPrompt,
     }) as any;
     const reply = String(parsed.reply ?? '').slice(0, 4000);
     const guidance = String(parsed.guidance ?? '').slice(0, 2000);
+    if (!reply.trim()) throw new Error('empty reply');
     if (guidance) store.setSetting(`braintuning:${projectId}`, guidance);
     store.audit('map_status_chat', { chars: text.length });
     return { reply, guidance };
   } catch (err) {
-    return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
+    // M458 (PANEL #441): on the 161-node map the model answered in prose and the JSON path came back empty — the person must still
+    // get the answer the model wrote. One schema-less call; the prose is the reply, a trailing "Standing guidance:" section the guidance.
+    try {
+      const prose = await call({ task: 'brain', system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}${M435_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 3200, audit: (k, d) => store.audit(k, d), user: `${userPrompt}\n\nWrite the reply as plain prose. Then, on its own line, write "Standing guidance:" followed by the rewritten standing guidance.`, timeoutMs: 120_000 }) as string;
+      const { reply, guidance } = splitBrainProse(String(prose ?? ''));
+      if (!reply.trim()) throw err;
+      if (guidance) store.setSetting(`braintuning:${projectId}`, guidance);
+      store.audit('map_status_chat', { chars: text.length, prose: true, why: (err instanceof Error ? err.message : String(err)).slice(0, 80) });
+      return { reply: reply.slice(0, 4000), guidance: guidance.slice(0, 2000) };
+    } catch (err2) {
+      return { error: (err2 instanceof Error ? err2.message : String(err2)).slice(0, 200) };
+    }
   }
+}
+// M458: the prose fallback's split — everything before a "Standing guidance:" line is the reply, the rest the guidance.
+export function splitBrainProse(text: string): { reply: string; guidance: string } {
+  const m = text.match(/\n\s*\**\s*standing guidance\s*\**\s*:\s*\n?/i);
+  if (!m || m.index === undefined) return { reply: text.trim(), guidance: '' };
+  return { reply: text.slice(0, m.index).trim(), guidance: text.slice(m.index + m[0].length).trim() };
 }
 
 // M195d (Jacob's correction): the synthesis must not read raw change history

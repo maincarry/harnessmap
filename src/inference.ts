@@ -284,6 +284,14 @@ async function callNow(opts: CallOpts): Promise<any> {
   }
 }
 
+// M458 (PANEL #441, the 161-node map): codex answered the brain's question as PROSE; the lenient brace parse still produced an object —
+// without the schema's required keys — and the talk-to-map box showed nothing. A parsed object that lacks a required key is not an answer.
+export function hasRequiredKeys(parsed: any, schema: any): boolean {
+  const req: string[] = Array.isArray(schema?.required) ? schema.required : [];
+  if (!req.length) return parsed && typeof parsed === 'object';
+  return !!parsed && typeof parsed === 'object' && req.every((k) => Object.prototype.hasOwnProperty.call(parsed, k));
+}
+
 async function apiCall(opts: CallOpts, model: string): Promise<any> {
   const client = new Anthropic({ apiKey: STASHED_API_KEY, timeout: opts.timeoutMs ?? 60_000, maxRetries: 1 });
   const response = await client.messages.create({
@@ -368,7 +376,7 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
       const streams = Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
       const [stdout, stderr] = await Promise.race([streams, killedP.then(() => ['', 'timed out'] as [string, string])]);
       const code = timedOut ? -1 : await p.exited; clearTimeout(timer);
-      if (process.env.HARNESSMAP_CLI_STDERR === '1' && stderr) console.error('[codex stderr]', stderr.slice(0, 800));
+      if (process.env.HARNESSMAP_CLI_STDERR === '1' && stderr) console.error('[codex stderr]', stderr.slice(0, 800), '\n[codex stderr tail]', stderr.slice(-1500), `\n[codex exit ${code}; stdout ${stdout.length} chars]`, '\n[codex stdout head]', stdout.slice(0, 1200));
       if (timedOut) throw new Error(`codex exec timed out after ${limitMs}ms`);
       // M242 (Mark, Windows): a ChatGPT sign-in allows only some model ids
       // (plan-dependent; ids retire). When Codex refuses the id, remember it
@@ -393,7 +401,7 @@ async function codexCall(opts: CallOpts, model: string): Promise<any> {
       // notice and codex hook lines — the real error was above them. Report the last meaningful lines instead of raw tail.
       if (code !== 0 && !text.trim()) throw new Error(codexExecError(code, stderr));
       if (!opts.schema) return text.trim();
-      try { const parsed = JSON.parse(text.replace(/^[\s\S]*?(\{)/, '$1').replace(/\}[^}]*$/, '}')); return schemaFile ? stripNulls(parsed) : parsed; } catch (e) { lastErr = String(e).slice(0, 120); }
+      try { const parsed = JSON.parse(text.replace(/^[\s\S]*?(\{)/, '$1').replace(/\}[^}]*$/, '}')); if (!hasRequiredKeys(parsed, opts.schema)) { lastErr = `object without required keys (${(opts.schema as any)?.required?.join(',')}) — the model answered in prose: ${text.trim().slice(0, 80)}`; opts.audit?.('parse_retry', { task: opts.task, attempt, error: lastErr }); continue; } return schemaFile ? stripNulls(parsed) : parsed; } catch (e) { lastErr = String(e).slice(0, 120); }
     }
     throw new Error(`codex returned invalid JSON twice: ${lastErr}`);
   } finally { try { rmSync(dir, { recursive: true, force: true }); } catch {} }
@@ -464,7 +472,9 @@ async function subCall(opts: CallOpts, model: string): Promise<any> {
     if (!opts.schema) return text;
     const stripped = text.trim().replace(/^```(json)?\s*/i, '').replace(/\s*```$/, '');
     try {
-      return JSON.parse(stripped);
+      const first = JSON.parse(stripped);
+      if (!hasRequiredKeys(first, opts.schema)) { lastErr = `object without required keys (${(opts.schema as any)?.required?.join(',')})`; opts.audit?.('parse_retry', { task: opts.task, attempt, error: lastErr, raw: stripped.slice(0, 600) }); continue; } // M458
+      return first;
     } catch (e) {
       // Mechanical repairs before burning the retry (learned from the v3
       // import run, where one malformed chunk killed a 21-chunk job): take
