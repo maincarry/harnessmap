@@ -439,6 +439,7 @@ export class Translator {
       alterations = this.guardCommitmentIsTask(alterations, map, params); // M451/M451b/M451c — AFTER M439 (M451d, TWIN #443 proof pass 3): a drafted reply closes first, so the promise inside it is lifted into its own todo rather than counted as already carried by a todo
       alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
       alterations = this.guardAgentTaskStatus(alterations); // M437 (PANEL #422): an agent-listed step is a proposal, not the person's todo
+      alterations = this.guardTemporaryConstraint(alterations, map, params); // M463 (PANEL #451a): "don't change the draft yet" ends when the person asks to change it
       alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
@@ -794,6 +795,33 @@ export class Translator {
     return alterations;
   }
 
+  // M463 (PANEL #451a, Noor's day as six chats — Elena, Hannah, Nadia: "the map contradicted itself"; the settled answer listed
+  // "do not change the refund draft yet" as a current state 22 turns after she had the draft updated): a constraint the person states
+  // with a temporal hedge — "don't change X yet", "leave X for now", "not until …" — is a hold, and the hold ends the moment the person
+  // asks for the change it held back. When the user turn asks to update/change/edit/revise/rewrite/fix something and a live
+  // user-authored constraint says do-not-change + yet/for now/until and names the same thing, the constraint is superseded.
+  private guardTemporaryConstraint(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const ut = (params.userText ?? '').trim();
+    if (!ut || ut.length > 700) return alterations;
+    if (!/\b(?:update|change|edit|revise|rewrite|fix|adjust|amend|modify|tweak)\b/i.test(ut)) return alterations;
+    const HOLD = /\b(?:do not|don't|dont|never|no)\s+(?:change|touch|edit|modify|update|alter|revise|rewrite)\b[^.]{0,80}?\b(?:yet|for now|until|before)\b|\b(?:leave|keep)\b[^.]{0,60}?\b(?:as is|unchanged|untouched)\b[^.]{0,40}?\b(?:yet|for now|until)\b/i;
+    const STOPW = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'for', 'it', 'its', 'this', 'that', 'yet', 'now', 'not', 'dont', 'change', 'touch', 'edit', 'update', 'modify', 'alter', 'revise', 'rewrite', 'until', 'before', 'keep', 'leave', 'brief', 'exact', 'say']);
+    const toks = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').split(' ').filter((w) => w.length >= 4 && !STOPW.has(w));
+    const utoks = new Set(toks(ut));
+    const statused = new Set(alterations.filter((a) => a?.op === 'update_node' && a.status && typeof a.id === 'string').map((a) => a.id as string));
+    const out = [...alterations]; let n = 0;
+    for (const node of map.nodes) {
+      if (n >= 2 || node.parentId === null || node.author !== 'user' || statused.has(node.id)) continue;
+      if (!/^(active|live|noted|open)$/.test(String(node.status ?? ''))) continue;
+      const text = `${node.title ?? ''}. ${node.content ?? ''}`;
+      if (!HOLD.test(text)) continue;
+      const held = text.match(HOLD)?.[0] ?? ''; const shared = toks(held).filter((w) => utoks.has(w));
+      if (!shared.length) continue;
+      n++; out.push({ op: 'update_node', id: node.id, status: 'superseded' });
+      this.store.audit('guard_temporary_constraint', { id: node.id.slice(0, 8), title: (node.title ?? '').slice(0, 40), shared: shared.slice(0, 3), was: node.status });
+    }
+    return out;
+  }
   private guardUserRetires(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
     const ut = (params.userText ?? '').trim();
     if (!ut || ut.length > 700) return alterations;
