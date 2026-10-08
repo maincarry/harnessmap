@@ -38,3 +38,14 @@ test('M438b: a client name followed by a reporting verb opens a client thread', 
   expect(clientNameOfTurn('Tighten that reply and make it a little warmer.')).toBeNull();
   expect(clientNameOfTurn('Someone forwards you new evidence on source 3.')).toBeNull();
 });
+test('M442d (TWIN #443): "Record these as commitments" makes the agent-filed task the person\'s; M451b: a dictated promise in a done draft becomes its own todo', () => {
+  const { t, audits } = harness();
+  const rec = 'I sent both Harbor & Finch replies to Maya. Record these as commitments: apply the $98 credit against the next invoice, reduce the account from 12 to 10 seats starting next billing cycle, and confirm the seat change with Maya by Friday.';
+  const out = t.guardDecisionAuthor([{ op: 'create_node', id: 'c1', parentId: 'h', author: 'agent', type: 'task', status: 'todo', title: 'Confirm change Friday', content: 'Confirm with Maya by Friday that Harbor & Finch will be reduced from 12 to 10 seats starting with the next billing cycle.' }], { nodes: [] }, { userText: rec });
+  expect(out[0].author).toBe('user');
+  const draft = { op: 'create_node', id: 'd1', parentId: 'x', author: 'user', type: 'task', status: 'done', title: 'Customer reply draft', content: 'Customer reply: “Hi — we found the issue: exports for projects with more than 500 items were hitting a timeout. We’ve fixed the export process and will ship the update this week. I’ll let you know once it’s live.”' };
+  const out2 = t.guardCommitmentIsTask([{ ...draft }], { nodes: [] }, { userText: 'Draft a brief reply to the customer with the export failure. Say we found the timeout affecting projects over 500 items, have fixed it, and will ship the fix this week. Do not promise a specific day.' });
+  expect(out2.length).toBe(2); expect(out2[1].type).toBe('task'); expect(out2[1].status).toBe('todo'); expect(out2[1].author).toBe('user'); expect(out2[1].content).toMatch(/ship the update this week/);
+  expect(audits.some((a) => a.kind === 'guard_commitment_promise')).toBe(true);
+  expect(t.guardCommitmentIsTask([{ ...draft }], { nodes: [] }, { userText: 'Tighten that reply and make it a little warmer.' }).length).toBe(1);
+});

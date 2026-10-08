@@ -208,7 +208,7 @@ const CLIENT_VERBS = new Set('Revise Start Run Save Draft Fix Update Check Rewri
 // as a [decided] decision — the author stayed "agent", and the end-of-day answer said "the one-time credit is recorded as an agent-made
 // decision, not a commitment you personally made" (she stopped the day). A decision the person states in their own words is theirs:
 // when the user's turn carries a first-person commitment and the node's statement shares the turn's words, the author is "user".
-export const FIRST_PERSON = /\b(?:let'?s|I'?ll|I will|we'?ll|we will|I'?m (?:willing|going|happy) to|I want|I(?:'ve| have)? decided|we(?:'ve| have)? decided|go with|settle (?:at|on|for)|I'?d (?:rather|prefer)|say (?:we|I|that we)|tell (?:them|him|her|the customer)|make (?:it|that|a) )/i;
+export const FIRST_PERSON = /\b(?:let'?s|I'?ll|I will|we'?ll|we will|I'?m (?:willing|going|happy) to|I want|I(?:'ve| have)? decided|we(?:'ve| have)? decided|go with|settle (?:at|on|for)|I'?d (?:rather|prefer)|say (?:we|I|that we)|tell (?:them|him|her|the customer)|make (?:it|that|a) |record (?:these|this|it|that) as (?:my )?(?:a )?commitments?|my commitments?|I (?:sent|promised|committed|agreed|told|confirmed))\b/i; // M442d (TWIN #443): "Record these as commitments", "I sent both replies"
 // M443 (TWIN LONG #426, Noor, step 29 "List every commitment I made today, grouped by who it is for"): the recap turn filed two new
 // containers ("Harbor commitments", "Team pricing commitments") with six mirrored task rows restating rows the map already held — and
 // the next answer listed "mirrored commitment rows" as still open. A recap turn restates; it creates nothing the map already has.
@@ -407,7 +407,7 @@ export class Translator {
       alterations = this.guardRecapMirror(alterations, map, params); // M443 (TWIN #426): a recap turn creates nothing the map already holds
       alterations = this.guardDecisionAuthor(alterations, map, params); // M442 (TWIN #426): a decision stated in the person's own words is theirs
       alterations = this.guardAgentSolidStatus(alterations, params); // M442a/M442b (TWIN #426): an agent-authored row is never born accepted/decided
-      alterations = this.guardCommitmentIsTask(alterations, map); // M451 (TWIN #430): a promise of a future action is open work, not a decided decision
+      alterations = this.guardCommitmentIsTask(alterations, map, params); // M451/M451b (TWIN #430): a promise of a future action is open work, not a decided decision
       alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
       alterations = this.guardCorrectionAuthor(alterations, params); // M456 (LONG #436 zh): the correction is the person's catch
       alterations = this.guardDeliveryRejected(alterations, map, params); // M453 (PANEL #432): a rejected delivery is reopened
@@ -490,7 +490,7 @@ export class Translator {
       if (author !== 'agent') continue;
       const status = String(a.status ?? '');
       const type = String(a.type ?? cur?.type ?? '');
-      if (!/^(decided|accepted|chosen|done)$/.test(status) && !/^(decision|constraint)$/.test(type)) continue;
+      if (!/^(decided|accepted|chosen|done)$/.test(status) && !/^(decision|constraint|task)$/.test(type)) continue; // M442d (TWIN #443): a task the person dictated or recorded as a commitment is theirs, not the agent's proposal
       const text = `${a.title ?? ''} ${a.content ?? cur?.content ?? ''}`;
       const mine = distinctiveTokens(text);
       if (mine.size < 4) continue;
@@ -594,7 +594,7 @@ export class Translator {
 
   // M451: see FUTURE_COMMITMENT. A user-authored create/update typed decision/claim/constraint (or untyped) whose statement commits to a
   // future action becomes a task, todo. Never a row already a task, never agent-authored (M437 owns those). Audit guard_commitment_task.
-  private guardCommitmentIsTask(alterations: any[], map: { nodes: MapNode[] }): any[] {
+  private guardCommitmentIsTask(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string } = {}): any[] {
     const byId = new Map(map.nodes.map((n) => [n.id, n]));
     for (const a of alterations) {
       if (!(a?.op === 'create_node' || a?.op === 'update_node') || typeof a.content !== 'string') continue;
@@ -607,6 +607,23 @@ export class Translator {
       if (/^(done|resolved|dropped|removed|superseded|rejected|parked)$/.test(status)) continue;
       this.store.audit('guard_commitment_task', { id: String(a.id ?? '').slice(0, 8), from: `${type || 'untyped'}/${status || '-'}`, title: String(a.title ?? a.content).slice(0, 40) });
       a.type = 'task'; a.status = 'todo';
+    }
+    // M451b (TWIN #443, Noor: "Say we … will ship the fix this week" → the reply draft filed [done] with the promise inside it; the
+    // end-of-day answer: "Export failure has no open task row, but the completed customer reply promises…"): a promise the person
+    // dictates into a delivered reply is a debt of its own — a sibling task, todo, in the person's name, carrying the promise's sentence.
+    const dictates = /\b(?:say|tell|reply|confirm|write|draft)\b[\s\S]{0,160}\b(?:will|'ll|’ll)\b/i.test(String(params?.userText ?? ''));
+    if (dictates) {
+      const extra: any[] = [];
+      for (const a of alterations) {
+        if (a?.op !== 'create_node' || (a.author ?? 'agent') !== 'user' || a.type !== 'task' || !/^(done|doing)$/.test(String(a.status ?? '')) || typeof a.content !== 'string') continue;
+        const sentences = a.content.split(/(?<=[.!?])\s+|(?<=[。！？])/).filter((x: string) => FUTURE_COMMITMENT.test(x));
+        if (!sentences.length) continue;
+        const promise = sentences.join(' ').replace(/^[“"'\s]+|[”"'\s]+$/g, '').slice(0, 300);
+        const id = randomUUID();
+        this.store.audit('guard_commitment_promise', { id: id.slice(0, 8), from: String(a.id ?? '').slice(0, 8), promise: promise.slice(0, 60) });
+        extra.push({ op: 'create_node', id, parentId: a.parentId ?? null, type: 'task', status: 'todo', author: 'user', title: 'Promise made', content: `Promised in the reply: ${promise}` });
+      }
+      alterations.push(...extra);
     }
     return alterations;
   }
