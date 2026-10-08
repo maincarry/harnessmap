@@ -225,6 +225,9 @@ export const distinctiveTokens = (t: string): Set<string> => new Set((String(t ?
 export const PROMISE_TO_DRAFT = /^\s*(?:(?:sure|ok(?:ay)?|got it|understood)\s*[,.!—–-]?\s*)?(?:I(?:'ll|’ll| will| am going to|'m going to|’m going to| can)|let me|we(?:'ll|’ll| will))\s+(?:now\s+)?(?:draft|write|revise|re-?draft|rewrite|prepare|compose|produce|put together|tighten|shorten|reword|update|fix)\b/i;
 // M468 (PANEL #456a): the person declares a numbered list the current outline/structure.
 export const OUTLINE_CONFIRMED = /\b(?:(?:treat|take|use|consider)\s+(?:this|that|the following)\s+as\s+the\s+(?:current|new|final|working|latest)\s+(?:outline|structure|order|version|list|table of contents|toc)|(?:this|that|here)\s+is\s+(?:now\s+)?the\s+(?:current|new|final|working|latest)\s+(?:outline|structure|order|version|table of contents|toc)|the\s+(?:outline|structure|order|table of contents|toc)\s+is\s+now\b|(?:current|final|new)\s+(?:outline|structure)\s*:)/i;
+// M439k (PANEL #454c): the person asks for an output in the turn itself — the reply that carries it answers the ask.
+export const ASK_REQUEST = /^\s*(?:(?:please|ok(?:ay)?|now|also|then|and|next|finally|lastly|before (?:I|we) (?:finish|go|stop|leave))[,\s]+)*(?:give me|list|show me|tell me|what are|what is|summari[sz]e|suggest|provide|recommend|name|spell out)\b/i;
+const ASK_STOP = new Set(['give', 'list', 'show', 'tell', 'what', 'summarise', 'summarize', 'suggest', 'provide', 'recommend', 'name', 'should', 'would', 'could', 'that', 'this', 'them', 'they', 'with', 'from', 'then', 'into', 'only', 'just', 'also', 'please', 'using', 'keep', 'make', 'have', 'been', 'were', 'will', 'does', 'about', 'which', 'when', 'there', 'their', 'your', 'ours', 'some', 'each', 'every', 'more', 'most', 'very', 'need', 'needs', 'want', 'wants']);
 export const DRAFT_REQUEST = /\b(?:draft|write|compose|rewrite|revise|tighten|reword|shorten|re-draft|redraft)\b[^.?!\n]{0,60}\b(?:reply|replies|email|e-mail|note|message|response|announcement|changelog|clause|paragraph|paragraphs|copy|summary|cover note|wording|sentence|sentences|tweet|post|section|sections|chapter|introduction|intro|conclusion|abstract|outline|memo|report|brief(?:ing)?|essay|article|letter|proposal|speech|script|bio|caption|headline|title|description|blurb|bullets?|table|list|faq|spec)\b/i; // M439e (TWIN #445, Elena): "Draft section 4, Caveats, in about 250 words" is a draft request too — four delivered section drafts stayed todo/doing
 export const LEARN_REQUEST = /\b(?:learn|read|study|go through|look at|review|digest|memori[sz]e)\b[^.?!\n]{0,40}\b(?:documentation|docs?|doc page|page|link|article|guide|readme|spec|url)\b|\bhttps?:\/\/\S+/i;
 // M449 (PANEL #429, 4 of 13: "You're most recently working on consistent-return guidance…" after "thanks, that is all for today"): a turn
@@ -802,8 +805,24 @@ export class Translator {
     const promiseOnly = PROMISE_TO_DRAFT.test(at) && at.length < 700;
     if (promiseOnly && drafted) { this.store.audit('guard_task_delivered', { how: 'promise-only', len: at.length }); }
     const opened = OPENS_DELIVERY.test(at) && !/\?\s*$/.test(at.trim()); // M439h
-    if (at.length < 40 || (!DELIVERS.test(at) && !learn && !(drafted && !promiseOnly) && !opened)) return alterations;
+    // M439k (PANEL #454c materials, Priya's single-chat day: "Tomorrow's report still needs three compact items" and "the subject line …
+    // is not done yet" — her round-30 "Give me the three things I should report tomorrow in a compact form …" and round-35 "Give me a
+    // short subject line …" were answered in the same reply, yet the filer's task rows restating the ASK stayed todo/proposed): an
+    // ask-for-an-output turn answered in substance closes the task rows born this round that restate the ask (≥ 3 of their content
+    // words, ≥ 40 %, come from the request) — whoever the filer credited them to. Rows made of the reply's own steps are not the ask.
+    const ut = String(params.userText ?? '');
+    const asked = ASK_REQUEST.test(ut) && at.length >= 120 && !/\?\s*$/.test(at.trim()) && !promiseOnly;
+    const askToks = (x: string) => [...new Set(x.toLowerCase().replace(/[“”"‘’'`]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').split(' ').filter((w) => w.length >= 4 && !ASK_STOP.has(w)))];
+    const askSet = new Set(askToks(ut));
+    if (at.length < 40 || (!DELIVERS.test(at) && !learn && !(drafted && !promiseOnly) && !opened && !asked)) return alterations;
     for (const a of alterations) {
+      if (asked && a?.op === 'create_node' && a.type === 'task' && /^(todo|doing|proposed|live|provisional|open)$/.test(String(a.status ?? ''))) {
+        const rt = askToks(`${a.title ?? ''} ${a.content ?? ''}`); const shared = rt.filter((w) => askSet.has(w));
+        if (shared.length >= 3 && shared.length >= 0.4 * rt.length) {
+          this.store.audit('guard_task_delivered', { id: String(a.id ?? '').slice(0, 8), from: a.status, title: String(a.title ?? a.content ?? '').slice(0, 40), how: 'asked', shared: shared.slice(0, 4) });
+          a.status = 'done'; continue;
+        }
+      }
       // M439g (REFILE Elena v0.9.252: "Draft section 4, Caveats" and "Re-draft the Iceland paragraph in section 3" made the filer UPDATE the
       // existing draft rows back to doing while the reply carried the text; only created rows were closed): an update that sets the
       // person's own task to an open status in a delivering turn closes the same way — the row's author/type come from the map.
@@ -817,6 +836,7 @@ export class Translator {
         a.status = 'done';
         continue;
       }
+      if (!DELIVERS.test(at) && !learn && !(drafted && !promiseOnly) && !opened) continue; // M439k: an answered ask alone closes only the rows that restate it (above)
       if (a?.op !== 'create_node' || a.author !== 'user' || a.type !== 'task' || !/^(todo|doing|live|provisional|open)$/.test(String(a.status ?? ''))) continue; // M439f (TWIN #449): "Harbor seat downgrade reply" was filed as a task [live] and stayed open after the reply was written
       // M439c (TWIN #443 proof pass 4): a task dated past this turn — "confirm the seat change with Maya by Friday", "reduce the
       // account next billing cycle" — is a promise the reply cannot have performed; only the text asked for was delivered. It stays
