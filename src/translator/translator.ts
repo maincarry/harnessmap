@@ -605,13 +605,17 @@ export class Translator {
     if (ut.length < 12 || !REJECTS.test(ut)) return alterations;
     const times = this.store.roundTimes?.() ?? []; if (!times.length) return alterations;
     const since = times[Math.max(0, times.length - 2)] - 1000;
-    const touched = new Set(alterations.filter((a) => a?.op === 'update_node' && a.id && a.status).map((a) => String(a.id)));
+    // M453b (proof, round 3): the filer re-asserted the task as done in the rejection round ("was revised to memoize…"), and the
+    // first cut skipped any row this round touched — the person's rejection outranks the filer's re-assertion; only a round that
+    // itself REOPENS the row (a non-done status) is left alone, and a done re-assertion is rewritten in place.
+    const reopened = new Set(alterations.filter((a) => a?.op === 'update_node' && a.id && a.status && !/^(done|accepted|resolved)$/.test(String(a.status))).map((a) => String(a.id)));
     let n = 0;
     for (const t of map.nodes) {
-      if (t.author !== 'user' || t.type !== 'task' || t.status !== 'done' || touched.has(t.id)) continue;
+      if (t.author !== 'user' || t.type !== 'task' || t.status !== 'done' || reopened.has(t.id)) continue;
       const at = Date.parse(String(t.updatedAt ?? t.createdAt ?? '').replace(' ', 'T').replace(/Z?$/, 'Z')); if (!Number.isFinite(at) || at < since) continue;
       this.store.audit('guard_delivery_rejected', { id: t.id.slice(0, 8), title: String(t.title ?? t.content ?? '').slice(0, 40), said: ut.slice(0, 50) });
-      alterations.push({ op: 'update_node', id: t.id, status: 'doing' });
+      const own = alterations.find((a) => a?.op === 'update_node' && String(a.id) === t.id);
+      if (own) own.status = 'doing'; else alterations.push({ op: 'update_node', id: t.id, status: 'doing' });
       if (++n >= 2) break;
     }
     return alterations;

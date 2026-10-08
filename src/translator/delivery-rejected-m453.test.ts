@@ -18,6 +18,9 @@ test('the task M439 closed last round goes back to doing on "does not follow the
   expect(out).toEqual([{ op: 'update_node', id: 'd1', status: 'doing' }]);
   expect(audits.map((a) => a.kind)).toEqual(['guard_delivery_rejected']);
   expect(t.guardDeliveryRejected([], map, { userText: 'now learn this documentation https://eslint.org/docs/rules/consistent-return' })).toEqual([]);
+  // M453b: the filer re-asserting done in the rejection round does not shield the row
+  const re = t.guardDeliveryRejected([{ op: 'update_node', id: 'd1', content: 'The function was revised to memoize the props.', status: 'done' }], map, { userText: 'the function you sent me does not follow the guidelines. please revise and update the code' });
+  expect(re.length).toBe(1); expect(re[0].status).toBe('doing');
   expect(REJECTS.test('please check again,the function does not work properly')).toBe(true);
   expect(REJECTS.test('Thanks, that works. Can we remove the two unused seats going forward?')).toBe(false);
 });
