@@ -437,6 +437,8 @@ export class Translator {
       alterations = this.guardAgentSolidStatus(alterations, params); // M442a/M442b (TWIN #426): an agent-authored row is never born accepted/decided
       alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
       alterations = this.guardCorrectionAuthor(alterations, params); // M456 (LONG #436 zh): the correction is the person's catch
+      alterations = this.guardDraftOverwrite(alterations, map, params); // M442f (PANEL #454b): a drafting turn gets its own draft row, never pasted over an older done row
+      alterations = this.guardSendLater(alterations, map, params); // M451f (PANEL #454b): "an update I can send the PM tomorrow" is a todo of hers
       alterations = this.guardDraftAuthor(alterations, params); // M442e (TWIN #449): the reply the person asked for, filed as the agent's proposal → the person's row
       alterations = this.guardDeliveryRejected(alterations, map, params); // M453 (PANEL #432): a rejected delivery is reopened
       alterations = this.guardTaskDelivered(alterations, params, map); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
@@ -837,6 +839,64 @@ export class Translator {
   // "was proposed by the agent, not a commitment you made"): in a drafting turn, an agent-authored row created this round that IS the draft —
   // a task or untyped row named for the artefact, or whose statement opens "Draft …:" / "Reply:" / a quoted text — is the person's: they asked
   // for it. Author user, so M439b closes it and M451c lifts the promise inside it. Audit guard_draft_author.
+  // M442f (PANEL #454b, Priya rounds 33–35: "Draft a two-sentence update I can send the product manager tomorrow" → the filer UPDATED the
+  // round-31 row "Tomorrow report update cell saved" [done] with the PM update's text, then its rewording, then its subject line — the
+  // notebook cell and the PM email became one row, and the map said the cell "was saved with the subject 'Annual-plan churn and final
+  // model result'"; four personas scored it as an invented fact): in a drafting turn, an update that pastes the reply's text over a
+  // DONE row born before this turn's work is redirected — the draft gets its own row (the person's, type task, done by M439b) under the
+  // same parent, and the old row stays as it was; a draft row born in the last three rounds that already holds the same text is updated
+  // instead. Audit guard_draft_overwrite.
+  private guardDraftOverwrite(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string; assistantText?: string }): any[] {
+    const ut = String(params.userText ?? ''); const at = String(params.assistantText ?? '');
+    if (!DRAFT_REQUEST.test(ut) || at.length < 60) return alterations;
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    const times = this.store.roundTimes?.() ?? []; if (times.length < 2) return alterations;
+    const recent = times[Math.max(0, times.length - 3)] - 1000; // born within the last three rounds
+    const reply = distinctiveTokens(at); if (reply.size < 6) return alterations;
+    const share = (t: string) => { const toks = distinctiveTokens(t); if (!toks.size) return 0; let n = 0; for (const w of toks) if (reply.has(w)) n++; return n / toks.size; };
+    const bornAt = (n: any) => Date.parse(String(n.createdAt ?? '').replace(' ', 'T').replace(/Z?$/, 'Z'));
+    const out: any[] = [];
+    for (const a of alterations) {
+      if (a?.op !== 'update_node' || typeof a.id !== 'string' || typeof a.content !== 'string') { out.push(a); continue; }
+      const cur = byId.get(a.id);
+      if (!cur || !/^(done|decided|accepted|resolved)$/.test(String(cur.status ?? '')) || !(bornAt(cur) < recent) || share(a.content) < 0.5) { out.push(a); continue; }
+      // the reply's text pasted over an older finished row — give the draft its own row
+      const twin = map.nodes.find((n) => n.author === 'user' && n.id !== cur.id && bornAt(n) >= recent && /^(done|todo|doing)$/.test(String(n.status ?? '')) && share(String(n.content ?? '')) >= 0.5);
+      if (twin) { out.push({ ...a, id: twin.id, title: a.title ?? twin.title }); this.store.audit('guard_draft_overwrite', { id: cur.id.slice(0, 8), kept: String(cur.title ?? '').slice(0, 40), redirected: twin.id.slice(0, 8) }); continue; }
+      const m = ut.match(/\b(?:draft|write|compose)\s+(?:me\s+)?(?:a|an|the)?\s*([^,.;:]{3,60}?)(?=\s+(?:I can|that I|I will|I'll|I’ll|to send|for the|with the|about|covering|based on|using|in about)\b|[,.;:]|$)/i);
+      const title = (m?.[1] ?? 'Draft').replace(/\s+/g, ' ').trim().replace(/^\w/, (c) => c.toUpperCase()).slice(0, 60);
+      const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+      out.push({ op: 'create_node', id, parentId: cur.parentId, title, content: a.content, status: 'done', author: 'user', type: 'task' });
+      this.store.audit('guard_draft_overwrite', { id: cur.id.slice(0, 8), kept: String(cur.title ?? '').slice(0, 40), created: title });
+    }
+    return out;
+  }
+
+  // M451f (PANEL #454b, Priya round 33: "Draft a two-sentence update I can send the product manager tomorrow" → the draft was filed done and
+  // the map answered "Nothing is currently open" — Noor and Hannah: "could make me fail to send the drafted product-manager update"): the
+  // person's OWN dated intention to send / post / email / paste / share / publish a drafted thing later is a todo of hers — "Send the
+  // product-manager update (tomorrow)" — once per artefact (no second row while a live todo already carries send + the artefact's word).
+  // The general drafted-vs-sent question (a draft with no send statement) stays with the founders (OQ #37b). Audit guard_send_later.
+  private guardSendLater(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const ut = String(params.userText ?? '');
+    if (!DRAFT_REQUEST.test(ut)) return alterations;
+    const m = ut.match(/\b(?:I can|I'll|I’ll|I will|to|and|then)\s+(send|post|email|e-mail|share|publish|paste|forward|submit)\b([^.;]{0,80}?)\b(tomorrow|tonight|later today|on monday|on tuesday|on wednesday|on thursday|on friday|next week|next monday|by (?:friday|monday|tuesday|wednesday|thursday|eod|cob|end of (?:the )?(?:day|week)))\b/i);
+    if (!m) return alterations;
+    const verb = m[1].toLowerCase(); const when = m[3].toLowerCase();
+    const whom = (m[2].match(/\b(?:to|the)\s+([a-z][a-z -]{2,40}?)(?=\s+(?:tomorrow|tonight|later|on|next|by)\b|$)/i)?.[1] ?? '').trim();
+    const art = (ut.match(/\b(?:draft|write|compose)\s+(?:me\s+)?(?:a|an|the)?\s*([^,.;:]{3,50}?)(?=\s+(?:I can|that I|I will|I'll|I’ll|to send|for the|with the|about|covering|based on|using|in about)\b|[,.;:]|$)/i)?.[1] ?? 'the draft').trim();
+    const key = distinctiveTokens(`${verb} ${whom} ${art}`);
+    const dup = map.nodes.find((n) => n.author === 'user' && String(n.type ?? '') === 'task' && /^(todo|doing)$/.test(String(n.status ?? '')) && new RegExp(`\\b${verb}`, 'i').test(`${n.title ?? ''} ${n.content ?? ''}`) && [...key].filter((w) => w !== verb).some((w) => `${n.title ?? ''} ${n.content ?? ''}`.toLowerCase().includes(w)));
+    if (dup || alterations.some((a) => a?.op === 'create_node' && a.type === 'task' && /^(todo|doing)$/.test(String(a.status ?? '')) && new RegExp(`\\b${verb}`, 'i').test(`${a.title ?? ''} ${a.content ?? ''}`))) return alterations;
+    const parent = alterations.find((a) => a?.op === 'create_node' && a.parentId)?.parentId ?? alterations.find((a) => a?.op === 'update_node' && a.id)?.id ?? null;
+    const home = parent && map.nodes.find((n) => n.id === parent) ? (map.nodes.find((n) => n.id === parent)!.parentId ?? parent) : parent;
+    const title = `${verb.replace(/^\w/, (c) => c.toUpperCase())} the ${art}${whom ? ` to the ${whom}` : ''}`.slice(0, 70);
+    const id = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+    alterations.push({ op: 'create_node', id, parentId: home, title, content: `${title} ${when} — her own words: “${m[0].trim().slice(0, 120)}”.`, status: 'todo', author: 'user', type: 'task' });
+    this.store.audit('guard_send_later', { title, when, parent: String(home ?? '').slice(0, 8) });
+    return alterations;
+  }
+
   private guardDraftAuthor(alterations: any[], params: { userText?: string }): any[] {
     const ut = String(params.userText ?? '');
     if (!DRAFT_REQUEST.test(ut)) return alterations;
