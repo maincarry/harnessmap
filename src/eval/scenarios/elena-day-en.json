@@ -113,8 +113,8 @@
           "statuses": "live|provisional|open|todo|doing"
         },
         {
-          "notStatus": "^wellbeing",
-          "statuses": "live|provisional|open|todo|doing"
+          "nodeMatching": "^wellbeing",
+          "under": "output results"
         }
       ]
     },
