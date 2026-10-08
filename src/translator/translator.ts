@@ -411,11 +411,11 @@ export class Translator {
       alterations = this.guardRecapMirror(alterations, map, params); // M443 (TWIN #426): a recap turn creates nothing the map already holds
       alterations = this.guardDecisionAuthor(alterations, map, params); // M442 (TWIN #426): a decision stated in the person's own words is theirs
       alterations = this.guardAgentSolidStatus(alterations, params); // M442a/M442b (TWIN #426): an agent-authored row is never born accepted/decided
-      alterations = this.guardCommitmentIsTask(alterations, map, params); // M451/M451b (TWIN #430): a promise of a future action is open work, not a decided decision
       alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
       alterations = this.guardCorrectionAuthor(alterations, params); // M456 (LONG #436 zh): the correction is the person's catch
       alterations = this.guardDeliveryRejected(alterations, map, params); // M453 (PANEL #432): a rejected delivery is reopened
       alterations = this.guardTaskDelivered(alterations, params); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
+      alterations = this.guardCommitmentIsTask(alterations, map, params); // M451/M451b/M451c — AFTER M439 (M451d, TWIN #443 proof pass 3): a drafted reply closes first, so the promise inside it is lifted into its own todo rather than counted as already carried by a todo
       alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
       alterations = this.guardAgentTaskStatus(alterations); // M437 (PANEL #422): an agent-listed step is a proposal, not the person's todo
       alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
