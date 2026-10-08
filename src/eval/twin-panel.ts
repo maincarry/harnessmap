@@ -110,7 +110,12 @@ const COMPARE = argv.includes('--compare');
 //   compacted (default) = a compaction summary of the older turns, made by the agent model as /compact would, plus the last 12 turns verbatim;
 //   none = a new session: the agent has nothing of last week.
 // --repeat N: the need → grade → merge chain runs N times per persona (the judge is noisy); PANEL.md shows every verdict and the spread.
-const CONTROL = (flagVal('--control') ?? 'compacted') as 'full' | 'compacted' | 'none';
+// M450d (Jacob 2026-10-08 13:50 "does it now unfairly tilt toward map?"): compacting a session that would still fit in the agent's context
+// handicaps the control — a 26-turn day reached Codex as a 400-word summary + 12 turns. Default 'auto' = the FULL transcript when the
+// session is ≤ 40 turns (it fits), compacted only past that; the control's answer budget matches the map's (1500, not 500).
+const CONTROL_FLAG = (flagVal('--control') ?? 'auto') as 'full' | 'compacted' | 'none' | 'auto';
+const AUTO_FULL_MAX_TURNS = 40;
+let CONTROL: 'full' | 'compacted' | 'none' = CONTROL_FLAG === 'auto' ? 'full' : CONTROL_FLAG;
 const REPEAT = Math.max(1, Number(flagVal('--repeat') ?? 1) || 1);
 const TAIL_TURNS = 12;
 async function compactedTranscript(transcript: string): Promise<string> {
@@ -132,7 +137,7 @@ async function agentAnswersFromTranscript(transcript: string): Promise<string> {
   for (const q of ASK_QUESTIONS) {
     let said = '(no answer)';
     for (let attempt = 0; attempt < 2 && said === '(no answer)'; attempt++) {
-      try { const t = await call({ task: 'brain', system: 'You are the coding agent (Codex / Claude Code) in a resumed session. The user comes back on Monday and asks about last week\'s work. Answer ONLY from the transcript you are given, plainly and concretely, as the agent would in the terminal; no preamble.', user: `THE TRANSCRIPT OF LAST WEEK\'S SESSION:\n${transcript}\n\nTHE USER NOW ASKS: ${q}`, maxTokens: 500, timeoutMs: 120_000 }); if (typeof t === 'string' && t.trim()) said = t.trim(); } catch {}
+      try { const t = await call({ task: 'brain', system: 'You are the coding agent (Codex / Claude Code) in a resumed session. The user comes back on Monday and asks about last week\'s work. Answer ONLY from the transcript you are given, plainly and concretely, as the agent would in the terminal; no preamble.', user: `THE TRANSCRIPT OF LAST WEEK\'S SESSION:\n${transcript}\n\nTHE USER NOW ASKS: ${q}`, maxTokens: 1500, timeoutMs: 150_000 }); if (typeof t === 'string' && t.trim()) said = t.trim(); } catch {}
     }
     lines.push(`Q: ${q}\nA: ${said}`);
     console.error(`[twin-panel] asked the agent (control): ${q.slice(0, 50)} → ${said.slice(0, 80).replace(/\n/g, ' ')}`);
@@ -156,7 +161,7 @@ if (mapOnly) experience += `\n\n${mapOnly}`;
 const sessionLine = (() => { try { if (scenarioPath) return String(JSON.parse(readFileSync(scenarioPath, 'utf8')).name ?? scenarioPath); } catch {} return (flow ?? (flowFile ? readFileSync(flowFile, 'utf8') : '')).split('\n').find((l) => l.trim()) ?? 'a long working session'; })().slice(0, 300);
 const INTERVIEW = !argv.includes('--no-interview');
 let chatOnly = '';
-if (COMPARE) { if (!scenarioPath) { console.error('--compare needs a scenario file (the transcript)'); process.exit(2); } const tr = transcriptFromScenario(scenarioPath); chatOnly = await agentAnswersFromTranscript(CONTROL === 'compacted' ? await compactedTranscript(tr) : tr); label += ` + control (ask codex, ${CONTROL}) + merged verdict ×${REPEAT}`; } // M450b (Jacob 03:18): the persona gets the agent's answers only — nobody scrolls 40 turns back // M430 (Jacob 2026-10-07 10:02/10:05/10:08): need first, then the walkthrough, then the interview
+if (COMPARE) { if (!scenarioPath) { console.error('--compare needs a scenario file (the transcript)'); process.exit(2); } const tr = transcriptFromScenario(scenarioPath); if (CONTROL_FLAG === 'auto') { const nTurns = tr.split(/\n\n(?=\[turn \d+\])/).length; CONTROL = nTurns > AUTO_FULL_MAX_TURNS ? 'compacted' : 'full'; console.error(`[twin-panel] control=auto → ${CONTROL} (${nTurns} turns; full up to ${AUTO_FULL_MAX_TURNS})`); } chatOnly = await agentAnswersFromTranscript(CONTROL === 'compacted' ? await compactedTranscript(tr) : tr); label += ` + control (ask codex, ${CONTROL}) + merged verdict ×${REPEAT}`; } // M450b (Jacob 03:18): the persona gets the agent's answers only — nobody scrolls 40 turns back // M430 (Jacob 2026-10-07 10:02/10:05/10:08): need first, then the walkthrough, then the interview
 if (argv.includes('--dry')) { console.log(experience); process.exit(0); }
 
 const want = (flagVal('--personas') ?? 'all').trim();
