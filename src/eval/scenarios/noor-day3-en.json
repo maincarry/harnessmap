@@ -107,6 +107,10 @@
           "is": "todo"
         },
         {
+          "notStatus": "ship (?:the )?(?:export )?(?:update|fix)",
+          "statuses": "done"
+        },
+        {
           "audit": "guard_commitment_promise"
         }
       ]

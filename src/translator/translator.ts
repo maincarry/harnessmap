@@ -232,6 +232,10 @@ export const SESSION_CLOSING = /\b(?:that(?:'s| is) (?:all|it) for (?:today|now|
 // is open work — a task, todo — until it is done. A decision records a choice; a promise records a debt.
 // M439c: a deadline or date the task names — the action belongs to a later moment than the reply that files it.
 export const FUTURE_DATED = /\b(?:by|before|until|on)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|eod|cob|end of (?:the )?(?:day|week|month|quarter)|next (?:week|month)|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\.?\s+\d{1,2}|the \d{1,2}(?:st|nd|rd|th)|\d{1,2}(?:st|nd|rd|th))\b|\b(?:next|this) (?:week|month|billing cycle|sprint|quarter|release|cycle)\b|\btomorrow\b|\bonce (?:it|this|that)(?:'s|’s| is) live\b/i;
+// M439c/M439d: the row that IS the text asked for — "Draft a brief customer reply …", or, in a drafting turn, a row named for the artefact
+// ("Customer reply": "The customer reply should … say the fix will ship this week") — is delivered by the reply; a promise inside it is not.
+export const DRAFT_ARTEFACT = /\b(?:reply|replies|email|e-mail|message|note|draft|response|announcement|changelog|wording|cover note|summary paragraph)\b/i;
+export const isDraftingRow = (stmt: string, userText: string): boolean => DRAFT_REQUEST.test(stmt) || (DRAFT_REQUEST.test(userText) && DRAFT_ARTEFACT.test(stmt));
 export const FUTURE_COMMITMENT = /\b(?:will|'ll|’ll|going to|am going to|promise[sd]? to|committed to|commit to)\s+(?:be\s+)?(?:ship\w*|deploy\w*|sen[dt]|notif\w+|confirm\w*|publish\w*|releas\w+|deliver\w*|follow(?:ing)?[ -]up|let\s+(?:them|him|her|you|the\s+\w+)\s+know|email\w*|call\w*|invoice\w*|refund\w*|appl(?:y|ied)|reduce\w*|downgrade\w*|cancel\w*|migrat\w+|roll\w* out|get back to)\b/i;
 // M453 (PANEL #432, 11 of 13 — the one reason plain Codex beat the map: "Revise function code" went [done] by M439 on the delivery turn,
 // and the NEXT turn — "the function you sent me does not follow the guidelines from the documentation i've provided. please revise" — left it
@@ -611,7 +615,7 @@ export class Translator {
 
   // M451: see FUTURE_COMMITMENT. A user-authored create/update typed decision/claim/constraint (or untyped) whose statement commits to a
   // future action becomes a task, todo. Never a row already a task, never agent-authored (M437 owns those). Audit guard_commitment_task.
-  private guardCommitmentIsTask(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string } = {}): any[] {
+  private guardCommitmentIsTask(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string; assistantText?: string } = {}): any[] {
     const byId = new Map(map.nodes.map((n) => [n.id, n]));
     for (const a of alterations) {
       if (!(a?.op === 'create_node' || a?.op === 'update_node') || typeof a.content !== 'string') continue;
@@ -625,13 +629,27 @@ export class Translator {
       this.store.audit('guard_commitment_task', { id: String(a.id ?? '').slice(0, 8), from: `${type || 'untyped'}/${status || '-'}`, title: String(a.title ?? a.content).slice(0, 40) });
       a.type = 'task'; a.status = 'todo';
     }
+    // M439d (TWIN #443 proof pass 5, round 9: "have fixed it, and will ship the fix this week" → the filer filed "Ship the export fix this
+    // week …" as a DONE task): a user task filed done whose statement names a later moment, while the turn (or the reply the person
+    // dictated) still PROMISES that action — the promise's verb stem appears in the task — is not done; it is todo. Audit guard_future_task_open.
+    const promised = `${params?.userText ?? ''} ${params?.assistantText ?? ''}`.match(new RegExp(FUTURE_COMMITMENT.source, 'gi')) ?? [];
+    const stems = promised.map((m) => (m.match(/\b([a-z]{3,})\w*\s*$/i)?.[1] ?? '').toLowerCase().replace(/(?:ing|ed|es|s)$/, '')).filter((x) => x.length >= 3);
+    if (stems.length) for (const a of alterations) {
+      if (a?.op !== 'create_node' || (a.author ?? 'agent') !== 'user' || a.type !== 'task' || a.status !== 'done') continue;
+      const stmt = `${a.title ?? ''} ${a.content ?? ''}`;
+      if (!FUTURE_DATED.test(stmt) || isDraftingRow(stmt, String(params?.userText ?? ''))) continue;
+      if (!stems.some((st) => new RegExp(`\\b${st}`, 'i').test(stmt))) continue;
+      this.store.audit('guard_future_task_open', { id: String(a.id ?? '').slice(0, 8), title: String(a.title ?? a.content ?? '').slice(0, 40), stem: stems.join('|').slice(0, 40) });
+      a.status = 'todo';
+    }
     // M451b (TWIN #443, Noor: "Say we … will ship the fix this week" → the reply draft filed [done] with the promise inside it; the
     // end-of-day answer: "Export failure has no open task row, but the completed customer reply promises…"): a promise the person
     // dictates into a delivered reply is a debt of its own — a sibling task, todo, in the person's name, carrying the promise's sentence.
     const dictates = /\b(?:say|tell|reply|confirm|write|draft)\b[\s\S]{0,160}\b(?:will|'ll|’ll)\b/i.test(String(params?.userText ?? ''));
     if (dictates) {
       const extra: any[] = [];
-      const hasPromiseTask = alterations.some((a) => a?.op === 'create_node' && a.type === 'task' && /^(todo|doing|proposed)$/.test(String(a.status ?? '')) && FUTURE_COMMITMENT.test(String(a.content ?? '')));
+      const hasPromiseTask = alterations.some((a) => a?.op === 'create_node' && a.type === 'task' && /^(todo|doing|proposed)$/.test(String(a.status ?? ''))
+        && (FUTURE_COMMITMENT.test(String(a.content ?? '')) || (FUTURE_DATED.test(`${a.title ?? ''} ${a.content ?? ''}`) && stems.some((st) => new RegExp(`\\b${st}`, 'i').test(`${a.title ?? ''} ${a.content ?? ''}`))))); // M439d: a dated todo that names the promised action carries it
       for (const a of alterations) {
         if (hasPromiseTask || extra.length) break; // one promise row a round, none when the round already carries the promise as a task
         // M451c (TWIN #443 proof): the promise sentence may land in an evidence or claim row, not the draft task — any user-authored create counts
@@ -705,7 +723,7 @@ export class Translator {
       // account next billing cycle" — is a promise the reply cannot have performed; only the text asked for was delivered. It stays
       // open unless the row IS the drafting ("Draft a brief customer reply …"), which the reply does deliver.
       const stmt = `${a.title ?? ''} ${a.content ?? ''}`;
-      if ((FUTURE_DATED.test(stmt) || FUTURE_COMMITMENT.test(stmt)) && !DRAFT_REQUEST.test(stmt)) { this.store.audit('guard_task_delivered_kept', { id: String(a.id ?? '').slice(0, 8), title: String(a.title ?? a.content ?? '').slice(0, 40) }); continue; }
+      if ((FUTURE_DATED.test(stmt) || FUTURE_COMMITMENT.test(stmt)) && !isDraftingRow(stmt, String(params.userText ?? ''))) { this.store.audit('guard_task_delivered_kept', { id: String(a.id ?? '').slice(0, 8), title: String(a.title ?? a.content ?? '').slice(0, 40) }); continue; }
       this.store.audit('guard_task_delivered', { id: String(a.id ?? '').slice(0, 8), from: a.status, title: String(a.title ?? a.content ?? '').slice(0, 40) });
       a.status = 'done';
     }

@@ -53,3 +53,24 @@ test('M439c: a future-dated task in a delivering round stays open; the drafting 
   expect(FUTURE_DATED.test('Rewrite the step updater so the caller can choose +1 or -1.')).toBe(false);
   expect(FUTURE_DATED.test('Reply on the thread about the Friday standup notes.')).toBe(false);
 });
+
+// M439d (TWIN #443 proof pass 5, round 9): the filer filed "Ship the export fix this week" as done while the turn says "will ship the fix this week".
+test('M439d: a future-dated task the filer files done, still promised in the turn, is todo — and counts as the promise row', () => {
+  const audits: string[] = [];
+  const t = new Translator(new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string) => audits.push(kind); if (k === 'getSetting') return () => undefined; return () => undefined; } }) as any) as any;
+  const userText = 'Draft a brief reply to the customer with the export failure. Say we found the timeout affecting projects over 500 items, have fixed it, and will ship the fix this week. Do not promise a specific day.';
+  const assistantText = 'Hi — we found the issue: exports for projects with more than 500 items were hitting a timeout. We’ve fixed the export process and will ship the update this week. I’ll let you know once it’s live.';
+  const ship = { op: 'create_node', id: 's', parentId: 'p', author: 'user', type: 'task', status: 'done', title: 'Ship export fix', content: 'Ship the export fix this week without promising a specific day.' };
+  const reply = { op: 'create_node', id: 'r', parentId: 'p', author: 'user', type: 'task', status: 'done', title: 'Customer reply', content: 'The customer reply should briefly explain the timeout, state that it is fixed, and say the fix will ship this week.' };
+  const out = t.guardCommitmentIsTask([{ ...ship }, { ...reply }], { nodes: [] }, { userText, assistantText });
+  expect(out.find((a: any) => a.id === 's').status).toBe('todo');
+  expect(out.find((a: any) => a.id === 'r').status).toBe('done');
+  expect(out.filter((a: any) => a.title === 'Promise made')).toHaveLength(0); // the dated todo carries the promise
+  expect(audits).toEqual(['guard_future_task_open']);
+  // without the dated task the promise row is still lifted (M451c)
+  const out2 = t.guardCommitmentIsTask([{ ...reply }], { nodes: [] }, { userText, assistantText });
+  expect(out2.filter((a: any) => a.title === 'Promise made')).toHaveLength(1);
+  // a done task whose verb the turn does not promise stays done: "I shipped the fix this week and will send the notes tomorrow"
+  const out3 = t.guardCommitmentIsTask([{ ...ship, content: 'Shipped the export fix this week.' }], { nodes: [] }, { userText: 'I shipped the fix this week and will send the notes tomorrow.', assistantText: 'Noted.' });
+  expect(out3[0].status).toBe('done');
+});
