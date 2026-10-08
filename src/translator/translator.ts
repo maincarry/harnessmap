@@ -435,7 +435,7 @@ export class Translator {
       alterations = this.guardCorrectionAuthor(alterations, params); // M456 (LONG #436 zh): the correction is the person's catch
       alterations = this.guardDraftAuthor(alterations, params); // M442e (TWIN #449): the reply the person asked for, filed as the agent's proposal → the person's row
       alterations = this.guardDeliveryRejected(alterations, map, params); // M453 (PANEL #432): a rejected delivery is reopened
-      alterations = this.guardTaskDelivered(alterations, params); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
+      alterations = this.guardTaskDelivered(alterations, params, map); // M439 (Jacob 23:08 'This is literally a bug'): a task the agent delivers in the same turn is done
       alterations = this.guardCommitmentIsTask(alterations, map, params); // M451/M451b/M451c — AFTER M439 (M451d, TWIN #443 proof pass 3): a drafted reply closes first, so the promise inside it is lifted into its own todo rather than counted as already carried by a todo
       alterations = this.guardRootClientName(alterations, map, params); // M438 (TWIN #423): a thread opened in a client's name carries the name in its title
       alterations = this.guardAgentTaskStatus(alterations); // M437 (PANEL #422): an agent-listed step is a proposal, not the person's todo
@@ -684,9 +684,16 @@ export class Translator {
 
   // M453: see REJECTS. A user-authored task marked done within the last two rounds (by M439/M448 or the filer) is set back to doing when
   // the person's turn rejects what was delivered; this round's own writes to that row win. Audit guard_delivery_rejected.
-  private guardDeliveryRejected(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+  private guardDeliveryRejected(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string; assistantText?: string }): any[] {
     const ut = String(params.userText ?? '');
-    if (ut.length < 4 || !objects(ut)) return alterations; // M453d: quoted titles and noun clauses are not objections // M453c: Chinese objections too (LONG #436)
+    if (ut.length < 4 || !objects(ut)) return alterations;
+    // M453e (REFILE Elena v0.9.252, round 12: "The draft attributes the 40% figure to the UK pilot. That is wrong" → the agent replied
+    // "Corrected: Microsoft Japan reported a 40% increase …" in the SAME turn, and the reopened draft stayed doing for the rest of the
+    // day): when the reply itself performs the correction — opens with Corrected/Fixed/Updated/Revised, or says it has corrected/fixed/
+    // updated/revised it, or hands over the corrected version — the objection was answered and the delivery stands.
+    const at = String(params.assistantText ?? '').trim();
+    const FIXED_NOW = /^(?:corrected|fixed|updated|revised|done|adjusted|changed)\b[\s:—–-]|\bI(?:'ve|’ve| have)? (?:corrected|fixed|updated|revised|adjusted|changed|replaced) (?:it|that|this|the|both|all)\b|\bhere(?:'s|’s| is) the (?:corrected|fixed|revised|updated) \w+|\b(?:now|it now) (?:reads|says|attributes|shows)\b/i;
+    if (at.length >= 60 && !/\?\s*$/.test(at) && FIXED_NOW.test(at)) { this.store.audit('guard_delivery_rejected_fixed', { said: ut.slice(0, 50), reply: at.slice(0, 50) }); return alterations; } // M453d: quoted titles and noun clauses are not objections // M453c: Chinese objections too (LONG #436)
     const times = this.store.roundTimes?.() ?? []; if (!times.length) return alterations;
     const since = times[Math.max(0, times.length - 2)] - 1000;
     // M453b (proof, round 3): the filer re-asserted the task as done in the rejection round ("was revised to memoize…"), and the
@@ -726,7 +733,8 @@ export class Translator {
     return alterations;
   }
 
-  private guardTaskDelivered(alterations: any[], params: { assistantText?: string; userText?: string }): any[] {
+  private guardTaskDelivered(alterations: any[], params: { assistantText?: string; userText?: string }, map?: { nodes: MapNode[] }): any[] {
+    const byId = new Map((map?.nodes ?? []).map((n) => [n.id, n]));
     const at = String(params.assistantText ?? '');
     // M448: a docs-reading request answered in substance — the reply explains the thing (≥ 120 chars and not a bare acknowledgement);
     // the proof's second consistent-return turn got a 222-char two-sentence summary, which is the delivery.
@@ -734,6 +742,19 @@ export class Translator {
     const drafted = DRAFT_REQUEST.test(String(params.userText ?? '')) && at.length >= 120 && !/^\s*(?:sure|ok(?:ay)?|got it|will do|understood|noted|alright|certainly|of course)\b[^.!?\n]*[.!]?\s*$/i.test(at) && !/\?\s*$/.test(at.trim()); // M439b: the text asked for, written
     if (at.length < 40 || (!DELIVERS.test(at) && !learn && !drafted)) return alterations;
     for (const a of alterations) {
+      // M439g (REFILE Elena v0.9.252: "Draft section 4, Caveats" and "Re-draft the Iceland paragraph in section 3" made the filer UPDATE the
+      // existing draft rows back to doing while the reply carried the text; only created rows were closed): an update that sets the
+      // person's own task to an open status in a delivering turn closes the same way — the row's author/type come from the map.
+      if (a?.op === 'update_node' && typeof a.id === 'string' && /^(todo|doing|live|provisional|open)$/.test(String(a.status ?? ''))) {
+        const cur = byId.get(a.id);
+        if (!cur || cur.author !== 'user' || String(a.type ?? cur.type ?? '') !== 'task') continue;
+        const stmt2 = `${a.title ?? cur.title ?? ''} ${a.content ?? cur.content ?? ''}`;
+        if ((FUTURE_DATED.test(stmt2) || FUTURE_COMMITMENT.test(stmt2)) && !isDraftingRow(stmt2, String(params.userText ?? ''))) continue;
+        if (!drafted && !DELIVERS.test(at) && !learn) continue;
+        this.store.audit('guard_task_delivered', { id: a.id.slice(0, 8), from: a.status, title: String(a.title ?? cur.title ?? '').slice(0, 40), how: 'update' });
+        a.status = 'done';
+        continue;
+      }
       if (a?.op !== 'create_node' || a.author !== 'user' || a.type !== 'task' || !/^(todo|doing|live|provisional|open)$/.test(String(a.status ?? ''))) continue; // M439f (TWIN #449): "Harbor seat downgrade reply" was filed as a task [live] and stayed open after the reply was written
       // M439c (TWIN #443 proof pass 4): a task dated past this turn — "confirm the seat change with Maya by Friday", "reduce the
       // account next billing cycle" — is a promise the reply cannot have performed; only the text asked for was delivered. It stays
