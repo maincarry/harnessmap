@@ -79,3 +79,11 @@ test('M443b: a recap row restating several rows at once is a mirror by the union
   expect(out.map((a: any) => a.id)).toEqual(['n2']);
   expect(audits[0].d.union).toBeGreaterThanOrEqual(0.7);
 });
+test('M442b/M442c (LONG #440): a quiz turn — the agent\'s chosen option stays chosen, and a quoted "we\'ll" is nobody\'s commitment', () => {
+  const { t } = harness();
+  const quiz = 'Choose one grammatically correct answer\n\nA. “When we finish the painting, we\'ll have a cup of tea.”\nB. “When we will finish the painting, we have a cup of tea.”';
+  const opt = { op: 'create_node', id: 'o1', parentId: 'q', author: 'agent', type: 'option', status: 'chosen', title: 'Finish painting sentence', content: '“When we finish the painting, we\'ll have a cup of tea.” is the grammatically correct answer.' };
+  expect(t.guardAgentSolidStatus([{ ...opt }], { userText: quiz })[0].status).toBe('chosen');
+  expect(t.guardAgentSolidStatus([{ ...opt, type: 'decision', status: 'decided' }], { userText: 'Northwind wants the cap raised. Draft a clause.' })[0].status).toBe('floated');
+  expect(t.guardDecisionAuthor([{ ...opt }], { nodes: [] }, { userText: quiz })[0].author).toBe('agent');
+});

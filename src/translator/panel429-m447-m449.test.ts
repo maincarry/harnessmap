@@ -44,3 +44,9 @@ test('M447b: a pivot or a new request does not answer the agent\'s question', ()
   expect(t.guardAgentQuestionAnswered([], map, { userText: 'does quizlet have a api' })).toEqual([]);
   expect(t.guardAgentQuestionAnswered([], map, { userText: 'Column 4' }).length).toBe(1);
 });
+test('M447c: a closing turn or a pleasantry answers nothing', () => {
+  const now = Date.now(); const { t } = harness([now - 300_000, now - 120_000, now - 40_000]);
+  const map = { nodes: [{ id: 'q1', parentId: 'g', title: 'Fix warped image dimensions', content: 'Which shape is right for the warped image?', status: 'open', author: 'agent', type: 'question', createdAt: iso(now - 35_000) }] };
+  expect(t.guardAgentQuestionAnswered([], map, { userText: 'thanks, that is all for today' })).toEqual([]);
+  expect(t.guardAgentQuestionAnswered([], map, { userText: 'Great, thanks!' })).toEqual([]);
+});

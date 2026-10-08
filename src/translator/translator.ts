@@ -406,7 +406,7 @@ export class Translator {
       if (process.env.HARNESSMAP_GUARD_REJECTION !== '0') alterations = this.guardUserRejection(alterations, map, params); // M358c: on by default since 0.9.69 (HARNESSMAP_GUARD_REJECTION=0 switches it off) — proven on the scene-detect thread: the two URL nodes reopened, the tool-name list card untouched
       alterations = this.guardRecapMirror(alterations, map, params); // M443 (TWIN #426): a recap turn creates nothing the map already holds
       alterations = this.guardDecisionAuthor(alterations, map, params); // M442 (TWIN #426): a decision stated in the person's own words is theirs
-      alterations = this.guardAgentSolidStatus(alterations); // M442a (TWIN #426): an agent-authored row is never born accepted/decided
+      alterations = this.guardAgentSolidStatus(alterations, params); // M442a/M442b (TWIN #426): an agent-authored row is never born accepted/decided
       alterations = this.guardCommitmentIsTask(alterations, map); // M451 (TWIN #430): a promise of a future action is open work, not a decided decision
       alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
       alterations = this.guardCorrectionAuthor(alterations, params); // M456 (LONG #436 zh): the correction is the person's catch
@@ -474,8 +474,12 @@ export class Translator {
   // or is typed decision/constraint, when the person's turn carries a first-person commitment and the statement shares at least three
   // distinctive words (and 30 %) with that turn, the author becomes "user". Audit guard_decision_author {id, from, shared}.
   private guardDecisionAuthor(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
-    const ut = String(params.userText ?? '');
+    const raw = String(params.userText ?? '');
+    // M442c (LONG #440: a grammar-quiz sentence “…we'll have a cup of tea” flipped the agent's option to the person's): quoted
+    // spans carry no commitment of the person's, and a "which is correct / choose one" turn is a question, not a decision.
+    const ut = raw.replace(/[“"‘'][^”"’']{3,200}[”"’']/g, ' ');
     if (ut.length < 20 || !FIRST_PERSON.test(ut)) return alterations;
+    if (/^\s*(?:which|what|choose|pick|select|is|are|does|do|can|how)\b/i.test(ut) && !/\b(?:let'?s|I'?ll|I will|we'?ll|I'?m going to|I want)\b/i.test(ut.replace(/\?.*$/s, ''))) return alterations;
     const turn = distinctiveTokens(ut);
     if (turn.size < 4) return alterations;
     const byId = new Map(map.nodes.map((n) => [n.id, n]));
@@ -501,9 +505,14 @@ export class Translator {
   // M442a (TWIN LONG #426: the agent's drafted liability clause filed [accepted] — "Both clauses should have been marked proposed
   // because Northwind had not accepted them"): the prompt's own rule ("things the AGENT merely proposes enter floated/noted") enforced —
   // an agent-authored creation with status accepted/decided/chosen is filed floated. Tasks are M437's (proposed). Audit guard_agent_solid.
-  private guardAgentSolidStatus(alterations: any[]): any[] {
+  private guardAgentSolidStatus(alterations: any[], params: { userText?: string } = {}): any[] {
+    // M442b (LONG #440: the grammar quiz — "Choose one grammatically correct answer" → the agent's pick, filed [chosen], was demoted
+    // to floated and the quiz read as unsettled): when the person ASKED which is right, the agent's chosen option is the answer,
+    // not a decision made for them — it stays chosen. Decisions/claims born accepted/decided still become floated.
+    const asked = /\?|\b(?:which|choose|pick|select|correct|right answer|what is|what's)\b/i.test(String(params.userText ?? ''));
     for (const a of alterations) {
       if (a?.op !== 'create_node' || a.author !== 'agent' || a.type === 'task' || !/^(accepted|decided|chosen)$/.test(String(a.status ?? ''))) continue;
+      if (a.type === 'option' && a.status === 'chosen' && asked) continue;
       this.store.audit('guard_agent_solid', { id: String(a.id ?? '').slice(0, 8), from: a.status, title: String(a.title ?? a.content ?? '').slice(0, 40) });
       a.status = 'floated';
     }
@@ -567,6 +576,8 @@ export class Translator {
     // M447b (LONG #434: "Winning positions" closed by "please improve this function setStep(…)" — a pivot, not an answer; "Next column" by
     // "does quizlet have a api"): a reply that asks for something or opens a question is not an answer to the agent's question.
     if (/^(?:please|can|could|would|will|do|does|is|are|what|how|why|where|which|who|when|should|let'?s|now|next|also|and)\b/i.test(ut) || /\b(?:please|write|improve|fix|make|create|draft|rewrite|revise|implement|add|remove|change|explain|show me|give me|help me|learn|read|check)\b/i.test(ut)) return alterations;
+    // M447c (LONG #440: "thanks, that is all for today" closed two of the agent's open questions): a closing or a pleasantry answers nothing.
+    if (SESSION_CLOSING.test(ut) || /^\s*(?:thanks?|thank you|thx|ok(?:ay)?|great|cool|nice|good|perfect|awesome|bye|cheers|got it|sounds good)\b/i.test(ut)) return alterations;
     const times = this.store.roundTimes?.() ?? []; if (times.length < 1) return alterations;
     const since = times[Math.max(0, times.length - 2)] - 1000; // the round two back (this round is not yet recorded)
     const touched = new Set(alterations.filter((a) => a?.op === 'update_node' && a.id).map((a) => String(a.id)));
