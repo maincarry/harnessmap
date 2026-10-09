@@ -2,7 +2,7 @@ import { Store } from '../store/db.js';
 import { SESSION_CLOSING, FUTURE_COMMITMENT, FUTURE_DATED } from './translator.js';
 import { systemCard } from './cast.js';
 import { call, modelFor } from '../inference.js';
-import { loadMap, renderTree, renderTieredTreeForSubtree, descendantNodes } from '../map/render.js';
+import { loadMap, renderTree, renderTieredTreeForSubtree, descendantNodes, nodeLine } from '../map/render.js';
 import { getMind, upsertMind, listMinds, seedFromAssessments, settleEstates, estateOf, mergeAreaAdvice, adviceForNode, getAreaAdvice } from './governors.js';
 
 // M192 (Jacob): "a professional map structure monitoring agent that the map
@@ -784,6 +784,47 @@ export function brainRulesLines(rules: Array<{ author?: string; title?: string |
   return [a, b].filter(Boolean).join('\n');
 }
 
+// M473 (RECORD TEST #3, the long record — 376 rows, a 58,600-char roster against the 24,000-char cut: 193 rows invisible, among them rows that
+// answered five of the sixteen questions; the brain said "the map does not record…" about things the map records): when the roster does not
+// fit, the brain no longer reads a flat cut. It reads (1) every root (the shape of the whole map), (2) the rows most relevant to the QUESTION,
+// each with its thread path, chosen by word and figure overlap weighted by rarity across the map, (3) the rows touched most recently — up to
+// the same budget. A small map still gets the whole roster. Pure, so the choice is testable.
+const CJK = /\p{Script=Han}/u;
+export function questionTokens(q: string): Map<string, number> {
+  const out = new Map<string, number>();
+  const add = (t: string, w: number) => out.set(t, Math.max(out.get(t) ?? 0, w));
+  for (const m of String(q ?? '').toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._\-+#/]*[\p{L}\p{N}]|[\p{L}\p{N}]/gu) ?? []) {
+    if (CJK.test(m)) { const h = m.replace(/[^\p{Script=Han}]/gu, ''); for (let i = 0; i + 1 < h.length; i++) add(h.slice(i, i + 2), 2); if (h.length === 1) add(h, 1); continue; }
+    if (/^\d/.test(m)) { add(m, 3); continue; }                                   // a figure ("15000", "2", "1ms", "0x0803e000") weighs most
+    if (/[._\-/#]/.test(m) || /[A-Z]/.test(m)) { add(m, 3); continue; }           // an identifier (file.c, no-implied-eval, setStep)
+    if (m.length >= 3 && !QUESTION_STOP.has(m)) add(m, m.length >= 5 ? 1.5 : 1);
+  }
+  return out;
+}
+const QUESTION_STOP = new Set('the and for was were what which who did say said tell told about with that this from have has had you your our did does into then than when where why how are our its did ask asked choose chose use used set did get got put make made let did need want wanted mean meant map record recorded discuss discussed agree agreed conclude concluded correct corrected decide decided rule rules limit actually should would could there here they them his her she him did one two first last next earlier later really still also just only ever been being over under again more most some any all each both'.split(' '));
+export function selectRowsForQuestion(nodes: any[], question: string, opts: { budget?: number; recent?: number; isTutorial?: (n: any) => boolean; roundTimes?: number[] } = {}): { text: string; picked: number; total: number } {
+  const budget = opts.budget ?? 22_000, isTutorial = opts.isTutorial ?? (() => false), roundTimes = opts.roundTimes ?? [];
+  const live = nodes.filter((n) => n.status !== 'removed' && !isTutorial(n) && n.author !== 'system');
+  const byId = new Map(live.map((n) => [n.id, n]));
+  const toks = questionTokens(question);
+  const words = (n: any) => `${n.title ?? ''} ${n.content ?? ''}`.toLowerCase();
+  // rarity: a token in few rows says more than one in many
+  const df = new Map<string, number>(); for (const [t] of toks) { let c = 0; for (const n of live) if (words(n).includes(t)) c++; df.set(t, c); }
+  const score = (n: any) => { const w = words(n); let sc = 0; for (const [t, wt] of toks) if (w.includes(t)) { const d = df.get(t) ?? 1; sc += wt * (1 + Math.log(1 + live.length / Math.max(1, d))); } return sc; };
+  const scored = live.filter((n) => n.parentId !== null).map((n) => ({ n, s: score(n) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s);
+  const recent = [...live].filter((n) => n.parentId !== null && n.updatedAt).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, opts.recent ?? 8);
+  const age = (n: any) => { const k = turnsAgo(n.updatedAt, roundTimes); return k !== null && k >= 15 ? `last discussed ${k} turns ago` : null; };
+  const pathOf = (n: any) => { const p: string[] = []; for (let c = n.parentId ? byId.get(n.parentId) : null, i = 0; c && i < 12; c = c.parentId ? byId.get(c.parentId) : null, i++) p.unshift(String(c.title ?? c.content ?? '').slice(0, 40)); return p; };
+  const roots = live.filter((n) => n.parentId === null && String(n.title ?? n.content).trim() !== 'to sort');
+  const lines: string[] = [`ROOTS (${roots.length} top-level topics — the whole map's shape; the rows below are the ones that match the question, each with its thread path):`];
+  for (const r of roots) lines.push(`• ${nodeLine(r, { who: true, age })}`);
+  const chosen = new Set<string>(); let used = lines.join('\n').length + 200;
+  const take = (n: any, tag: string) => { if (chosen.has(n.id)) return; const p = pathOf(n); const line = `${p.join(' › ')}${p.length ? ' › ' : ''}${n.title && String(n.title).trim() && String(n.title).trim() !== String(n.content ?? '').trim() ? `${String(n.title).slice(0, 50)} — ` : ''}${nodeLine(n, { who: true, age })}${tag}`; if (used + line.length > budget) return; chosen.add(n.id); used += line.length + 1; lines.push(line); };
+  lines.push('MATCHING ROWS (best match first):'); for (const { n } of scored.slice(0, 80)) take(n, '');
+  lines.push('TOUCHED MOST RECENTLY:'); for (const n of recent) take(n, '');
+  lines.push(`(${chosen.size} of ${live.length} rows shown; the rest are on the map but did not match the question — say "the map holds N rows; nothing matching …" rather than "the map does not record", when a row is not among these)`);
+  return { text: lines.join('\n'), picked: chosen.size, total: live.length };
+}
 export async function brainChat(store: Store, projectId: string, text: string): Promise<{ reply: string; guidance: string } | { error: string }> {
   let u = brainUnderstandingOn() ? getUnderstanding(store, projectId) : null;
   // M351 (loop, monitor-the-mind pass): on a young map the understanding is written by the rhythm only after ten filed rounds, so the
@@ -820,7 +861,7 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // M460k: the roster used to be cut at 12,000 chars mid-row — the newest rows sit at the end, so the open work of the last rounds was
   // the part that vanished or arrived half-written. Twice the room, a cut only at a line break, and the cut announced.
   const rosterFull = renderTree(liveMap, { ids: false, who: true, age: (n) => { const k = turnsAgo(n.updatedAt, roundTimes); return k !== null && k >= 15 ? `last discussed ${k} turns ago` : null; } }); // M469: when a row was last discussed — any row, never an open/closed mark
-  const roster = rosterFull.length <= 24_000 ? rosterFull : `${rosterFull.slice(0, rosterFull.lastIndexOf('\n', 24_000))}\n(… the roster is cut here — ${rosterFull.slice(24_000).split('\n').length} more rows not shown; the computed DISCUSSED lines above are complete)`; // M429: every line says who said it; M435: open items left behind say for how many turns
+  const roster = rosterFull.length <= 24_000 ? rosterFull : selectRowsForQuestion(liveMap.nodes, text, { budget: 22_000, roundTimes, isTutorial: (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) }).text; // M473: a big map is read by the question, not cut flat // M429: every line says who said it; M435: open items left behind say for how many turns
   const isTutorial = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) || /getting started \(tutorial\)/i.test(String(n.content ?? ''));
   const topics = liveMap.nodes.filter((n) => n.parentId === null && n.status !== 'removed' && !isTutorial(n) && String(n.title ?? n.content).trim() !== 'to sort');
   const topicLine = `TOP-LEVEL TOPICS (${topics.length}, excluding the getting-started tutorial): ${topics.map((n) => String(n.title ?? n.content).slice(0, 60)).join(' | ') || '(none yet)'}`;
