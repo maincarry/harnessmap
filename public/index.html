@@ -184,6 +184,7 @@
   #crumbs { flex-wrap: nowrap; gap: 8px; }
   #crumbs button.navico { border: none; background: none; color: var(--muted); font-size: 14px; line-height: 1; padding: 2px 4px; cursor: pointer; flex: none; border-radius: 6px; }
   #crumbs button.navico:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  #crumbs button.navico:disabled { opacity: .35; cursor: default; background: none; color: var(--muted); }
   #crumbs button.navico svg { width: 14px; height: 14px; vertical-align: -2px; }
   #crumbs #trail { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
   #crumbs #trail .crumb { font-weight: 500; }
@@ -828,11 +829,19 @@ function subtreeIds(id) {
   for (const k of kidsOf(id)) out.push(...subtreeIds(k.id));
   return out;
 }
-function setZoom(id) {
+// Mark 2026-10-09 ("add a backward button at the left most similar to windows ui so user can go back to previous path easily, and then a
+// > button and an up button"): the view history — every zoom change the person or the map makes is a step; ← and → walk it like a file
+// browser; ↑ (zoom out) is one level up. Back/forward replay a step without recording a new one.
+const zoomHist = [zoomId]; let zoomPos = 0;
+function setZoom(id, opts = {}) {
+  if (!opts.fromHistory && id !== zoomId) { zoomHist.splice(zoomPos + 1); zoomHist.push(id); if (zoomHist.length > 60) zoomHist.shift(); zoomPos = zoomHist.length - 1; }
   zoomId = id;
   if (id) localStorage.setItem('hm-zoom', id); else localStorage.removeItem('hm-zoom');
   renderAll();
 }
+function zoomBack() { while (zoomPos > 0) { zoomPos--; const id = zoomHist[zoomPos]; if (!id || node(id)) { setZoom(id, { fromHistory: true }); return; } } renderCrumbs(); }
+function zoomForward() { while (zoomPos < zoomHist.length - 1) { zoomPos++; const id = zoomHist[zoomPos]; if (!id || node(id)) { setZoom(id, { fromHistory: true }); return; } } renderCrumbs(); }
+const histName = (id) => (id ? (node(id) ? disp(node(id)) : '') : 'whole map');
 
 // ---- breadcrumbs + focus-elsewhere indicator (Z2) ----
 function renderCrumbs() {
@@ -845,6 +854,19 @@ function renderCrumbs() {
     if (hb && !el.contains(hb)) { for (const n of [...hb.childNodes]) if (n.nodeType === 3) n.remove(); hb.classList.add('navico'); el.prepend(hb); }
     // Jacob 2026-10-04 ("zoom out and focus LEFT of 'whole map'"): ⌂ ↑ ▶focus cluster on the left, the trail after.
     if (zo && !el.contains(zo)) { zo.textContent = '↑'; zo.classList.add('navico'); hb ? hb.after(zo) : el.prepend(zo); }
+    // Mark 2026-10-09: ← back · → forward (the view history) · ↑ up one level · ⌂ home — leftmost, in that order, like a file browser.
+    if (!$('nav-back')) {
+      const mk = (id, txt) => { const b = document.createElement('button'); b.id = id; b.className = 'navico'; b.textContent = txt; return b; };
+      const back = mk('nav-back', '←'), fwd = mk('nav-fwd', '→');
+      back.onclick = () => zoomBack(); fwd.onclick = () => zoomForward();
+      el.prepend(fwd); el.prepend(back);
+      if (zo) { back.after(fwd); fwd.after(zo); if (hb) zo.after(hb); }
+    }
+    { const back = $('nav-back'), fwd = $('nav-fwd');
+      const prev = zoomPos > 0 ? zoomHist[zoomPos - 1] : undefined, next = zoomPos < zoomHist.length - 1 ? zoomHist[zoomPos + 1] : undefined;
+      if (back) { back.disabled = prev === undefined; back.title = prev === undefined ? 'back — no earlier view yet' : `back to “${histName(prev)}”`; }
+      if (fwd) { fwd.disabled = next === undefined; fwd.title = next === undefined ? 'forward — nothing ahead' : `forward to “${histName(next)}”`; }
+      if (zo) zo.title = zoomId ? `up one level, to “${histName(node(zoomId)?.parentId ?? null)}”` : 'up one level — already at the whole map'; }
     { const fsl = $('focus-slot'), tr = $('trail'); if (fsl && tr && tr.nextElementSibling === fsl) tr.before(fsl); } }
   const parts = [`<span class="crumb" data-crumb="">whole map</span>`];
   if (zoomId && node(zoomId)) {
