@@ -909,7 +909,7 @@ function renderCrumbs() {
       const fsl = $('focus-slot'); if (fsl) right.appendChild(fsl);
       const fav = document.createElement('button'); fav.id = 'fav-btn'; fav.className = 'navico'; fav.textContent = '★'; fav.title = 'favorites — the nodes you pinned with ★'; right.appendChild(fav);
       const pop = document.createElement('div'); pop.id = 'fav-pop'; pop.hidden = true; right.appendChild(pop);
-      const sb = $('search-btn'); if (sb) { sb.innerHTML = '🔍 <span>search…</span><kbd>⌘K</kbd>'; right.appendChild(sb); }
+      const sb = $('search-btn'); if (sb) { sb.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="M10.5 10.5 14 14"/></svg><span>search…</span><kbd>⌘K</kbd>'; // an inline glyph — the 🔍 emoji is a tofu box in fonts without emoji right.appendChild(sb); }
       el.appendChild(right);
       fav.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; };
       pop.onclick = (e) => { const c = e.target.closest('[data-bm]'); if (c) { pop.hidden = true; setZoom(c.dataset.bm); } };
