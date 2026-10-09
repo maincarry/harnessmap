@@ -101,6 +101,24 @@ async function askMap(path: string, questions: QA[]): Promise<string[]> {
       console.error(`[record-test] map: ${q.question.slice(0, 60)} → ${said.slice(0, 90).replace(/\n/g, ' ')}`);
     }
   } finally { stop(); }
+  // The brain's cost ledger for this run (M458 prose fallbacks, delegate searches, on-demand cycles) — read from the temp DB's audit_log
+  // after the server is down. Counts only; printed, and written beside the report as map-audit.json.
+  try {
+    await new Promise((r) => setTimeout(r, 1500));
+    const { Database } = await import('bun:sqlite');
+    const adb = new Database(db, { readonly: true });
+    const rows = adb.query("SELECT kind, detail FROM audit_log WHERE kind IN ('map_status_chat','brain_delegate_search','brain_understanding_on_demand')").all() as { kind: string; detail: string }[];
+    adb.close();
+    const sum = { map_status_chat: 0, prose_fallback: 0, delegate_search: 0, delegate_hit: 0, delegate_error: 0, on_demand_cycle: 0 };
+    for (const r of rows) {
+      let d: any = {}; try { d = JSON.parse(r.detail); } catch {}
+      if (r.kind === 'map_status_chat') { sum.map_status_chat++; if (d.prose) sum.prose_fallback++; }
+      else if (r.kind === 'brain_delegate_search') { sum.delegate_search++; if (d.hit) sum.delegate_hit++; if (d.error) sum.delegate_error++; }
+      else sum.on_demand_cycle++;
+    }
+    writeFileSync(join(OUT, 'map-audit.json'), JSON.stringify(sum, null, 2) + '\n');
+    console.error(`[record-test] map audit: ${sum.map_status_chat} answers, ${sum.prose_fallback} via the prose fallback; ${sum.delegate_search} delegate searches (${sum.delegate_hit} with a hit, ${sum.delegate_error} errors); ${sum.on_demand_cycle} on-demand cycles`);
+  } catch (err) { console.error(`[record-test] map audit unavailable: ${err instanceof Error ? err.message : String(err)}`); }
   return answers;
 }
 
