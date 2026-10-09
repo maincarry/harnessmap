@@ -35,7 +35,8 @@ test('M473: the rows that answer the question are read from past the cut, with t
 test('M473: the budget holds and the closing line counts what was shown', () => {
   const r = selectRowsForQuestion(nodes, 'project work note remark', { budget: 6_000 });
   expect(r.text.length).toBeLessThanOrEqual(6_400);
-  expect(r.text).toMatch(/\(\d+ of 423 rows shown/);
+  expect(r.text).toMatch(/\(\d+ of 423 nodes shown/);
+  expect(r.text).not.toMatch(/the map holds N rows/); // M473e: the brain is never told to report a node count
   expect(r.picked).toBeGreaterThan(0);
 });
 

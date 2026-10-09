@@ -886,7 +886,7 @@ export function selectRowsForQuestion(nodes: any[], question: string, opts: { bu
   const pathOf = (n: any) => { const p: string[] = []; for (let c = n.parentId ? byId.get(n.parentId) : null, i = 0; c && i < 12; c = c.parentId ? byId.get(c.parentId) : null, i++) p.unshift(String(c.title ?? c.content ?? '').slice(0, 40)); return p; };
   const roots = live.filter((n) => n.parentId === null && String(n.title ?? n.content).trim() !== 'to sort');
   const lines: string[] = [];
-  if (opts.roots !== false) { lines.push(`ROOTS (${roots.length} top-level topics — the whole map's shape; the rows below are the ones that match the question, each with its thread path):`); for (const r of roots) lines.push(`• ${nodeLine(r, { who: true, age })}`); }
+  if (opts.roots !== false) { lines.push(`ROOTS (${roots.length} top-level topics — the whole map's shape; the nodes below are the ones that match the question, each with its thread path):`); for (const r of roots) lines.push(`• ${nodeLine(r, { who: true, age })}`); }
   const chosen = new Set<string>(); let used = lines.join('\n').length + 200;
   const take = (n: any, tag: string) => { if (chosen.has(n.id)) return; const p = pathOf(n); const line = `${p.join(' › ')}${p.length ? ' › ' : ''}${n.title && String(n.title).trim() && String(n.title).trim() !== String(n.content ?? '').trim() ? `${String(n.title).slice(0, 50)} — ` : ''}${nodeLine(n, { who: true, age })}${tag}`; if (used + line.length > budget) return; chosen.add(n.id); used += line.length + 1; lines.push(line); };
   // M473b: the routed estates first — read in full, in tree order, up to ~55 % of the budget
@@ -904,7 +904,7 @@ export function selectRowsForQuestion(nodes: any[], question: string, opts: { bu
   }
   lines.push('MATCHING ROWS ELSEWHERE (best match first):'); for (const { n } of scored.slice(0, 80)) take(n, '');
   lines.push('TOUCHED MOST RECENTLY:'); for (const n of recent) take(n, '');
-  lines.push(`(${chosen.size} of ${live.length} rows shown; the rest are on the map but did not match the question — say "the map holds N rows; nothing matching …" rather than "the map does not record", when a row is not among these)`);
+  lines.push(`(${chosen.size} of ${live.length} nodes shown — the ones that match the question; the rest are on the map. If none of these answers the question, say you found nothing matching it — never that the map does not record it, and never state a node or row count: M473e, the answer is about the work, not the map.)`);
   return { text: lines.join('\n'), picked: chosen.size, total: live.length, estates: estateNames };
 }
 export async function brainChat(store: Store, projectId: string, text: string): Promise<{ reply: string; guidance: string } | { error: string }> {
@@ -994,13 +994,21 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   try {
     const parsed = await call({
       task: 'brain',
-      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}${M435_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 3200, // M455b (PANEL #439, Tom: an answer "visibly cut off at 'but sendin'") — the SETTLED line made answers longer than the 2000-token cap schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
+      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}${M435_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 3200, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
+      // M455b (PANEL #439, Tom: an answer "visibly cut off at 'but sendin'") — the SETTLED line made answers longer than the 2000-token cap.
+      // M473e (RECORD TEST #3 rerun, 16 of 16 answers via the prose fallback): from v0.9.234 to v0.9.294 the comment above sat on the SAME
+      // line and swallowed `schema:` and `timeoutMs:` — every talk-to-map answer was an unstructured call read as an object (no reply),
+      // then a second full call for the same prose. The schema is back; a prose string that still arrives is used as the reply directly.
       audit: (k, d) => store.audit(k, d),
       user: userPrompt,
     }) as any;
-    const reply = String(parsed.reply ?? '').slice(0, 4000);
-    const guidance = String(parsed.guidance ?? '').slice(0, 2000);
-    if (!reply.trim()) throw new Error('empty reply');
+    if (typeof parsed === 'string' && parsed.trim()) { // M473e: prose came back where an object was asked for — it is the answer; no second call
+      const p = splitBrainProse(parsed);
+      if (p.reply.trim()) { if (p.guidance) store.setSetting(`braintuning:${projectId}`, p.guidance.slice(0, 2000)); store.audit('map_status_chat', { chars: text.length, prose: 'inline' }); return { reply: p.reply.slice(0, 4000), guidance: p.guidance.slice(0, 2000) }; }
+    }
+    const reply = String(parsed?.reply ?? '').slice(0, 4000);
+    const guidance = String(parsed?.guidance ?? '').slice(0, 2000);
+    if (!reply.trim()) { store.audit('brain_chat_empty', { keys: Object.keys(parsed ?? {}), typeofParsed: typeof parsed, head: JSON.stringify(parsed ?? null).slice(0, 400) }); throw new Error('empty reply'); } // M473e diagnostic: the shape of a structured reply that came back without text
     if (guidance) store.setSetting(`braintuning:${projectId}`, guidance);
     store.audit('map_status_chat', { chars: text.length });
     return { reply, guidance };
