@@ -469,6 +469,7 @@ export class Translator {
       alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
       alterations = this.guardTitleTwinChild(alterations, map); // M467 (PANEL #454b): a same-titled child is the parent's new state, not a second row
       alterations = this.guardOutlineConfirmed(alterations, map, params); // M468 (PANEL #456a): "treat this as the current outline: 1 …, 2 …" settles the sections it names
+      alterations = this.guardSpecificsKept(alterations, map, params); // M474 (RECORD TEST #3; Jacob 09:49 "This is a serious bug… don't we have rules that guard this already?"): a figure, identifier or quoted phrase the person stated must land in a row this round — or it is filed verbatim as theirs
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
       const prior = this.store.roundForTurn(params.turnId);
@@ -1361,6 +1362,44 @@ export class Translator {
       else continue;
       this.store.audit('guard_outline_confirmed', { id: n.id.slice(0, 8), title: String(n.title ?? '').slice(0, 40), from: n.status });
     }
+    return out;
+  }
+  // M474 (RECORD TEST #3 — the long record: the specifics of seven of sixteen questions never reached a row although every turn was filed:
+  // the 15,000 limit stood in 14 turns' text and 0 rows, the winning positions 2/5/8, the Connect Four rule, the −1/+1 choice, 2 CPU / 2 GB,
+  // "no public API", "I'll be X"; on the Amir refile his whole flash-layout decision produced no row. Jacob 09:49: "This is a serious bug,
+  // why didn't you notice it? Also don't we have rules that guard this already?" — the filer prompt says capture everything (M2) and never
+  // invent (M365); nothing CHECKED. Now the harness checks: after the round's filing, every figure (a number with or without a unit, a hex
+  // address), identifier (file.c, no-implied-eval, `code`) and quoted phrase in the PERSON's turn must appear in a row created or rewritten
+  // this round, or already on the map; the sentences carrying what is missing are filed verbatim as the person's own row under the focus.
+  // The agent's figures with a unit (2 CPU cores, 2 GB RAM, 1 ms, 15 %) get the same treatment, one row, as the agent's evidence. Audited as
+  // guard_specifics_kept {who, missed} so the capture rate can be counted. Fenced code is ignored on both sides.
+  private guardSpecificsKept(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string; assistantText?: string; focusContainerId?: string }): any[] {
+    const strip = (t: string) => String(t ?? '').replace(/```[\s\S]*?```/g, ' ');
+    const ut = strip(params.userText ?? ''), at = strip(params.assistantText ?? '');
+    if (ut.trim().length < 8 && at.trim().length < 8) return alterations;
+    const norm = (x: string) => x.toLowerCase().replace(/[,，]/g, '').replace(/\s+/g, ' ').trim();
+    const presentText = norm([...alterations.map((a) => `${a?.title ?? ''} ${a?.content ?? ''}`), ...map.nodes.filter((n) => n.status !== 'removed').map((n) => `${n.title ?? ''} ${n.content ?? ''}`)].join(' \n '));
+    const has = (sp: string) => { const k = norm(sp); if (!k) return true; if (presentText.includes(k)) return true; const bare = k.replace(/^[+-]/, '').replace(/\s?(?:ms|s|sec|seconds?|min|minutes?|h|hours?|days?|weeks?|%|kb|mb|gb|mah|ma|µa|ua|v|cores?|cpu|ram|px|words?|turns?)$/, ''); return bare.length >= 2 && new RegExp(`(?<![\\d.])${bare.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\d])`).test(presentText); };
+    const UNIT = '(?:ms|s|sec|seconds?|min|minutes?|h|hours?|days?|weeks?|%|kb|mb|gb|mah|ma|µa|ua|v|cores?|cpu|ram|px|words?|turns?)';
+    const figures = (t: string) => [...t.matchAll(new RegExp(`(?<![\\w.\\-])(?:0x[0-9a-fA-F]{3,}|[+-]?\\d(?:[\\d,]*\\d)?(?:\\.\\d+)?)(?:\\s?${UNIT})?(?!\\w)`, 'gi'))].map((m) => m[0].trim()).filter((f) => /^0x/i.test(f) || /\d{2,}/.test(f) || /[a-zµ%]$/i.test(f)).filter((f) => !/^(?:19|20)\d\d$/.test(f));
+    const idents = (t: string) => [...t.matchAll(/`([^`\n]{2,60})`|(?<![\w/])([A-Za-z][\w-]*\.(?:c|h|ts|js|py|ld|json|md|txt|cpp|rs|go|yaml|yml|toml|sh|sql))(?![\w/])|(?<!\w)([a-z]+(?:-[a-z]+){2,})(?!\w)/g)].map((m) => (m[1] ?? m[2] ?? m[3]).trim()).filter((x) => x.length >= 3);
+    const quoted = (t: string) => [...t.matchAll(/[“"]([^”"\n]{4,80})[”"]/g)].map((m) => m[1].trim());
+    const sentencesOf = (t: string) => t.split(/(?<=[.!?。！？])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
+    const out = [...alterations];
+    const file = (who: 'user' | 'agent', text: string, specifics: string[], type?: string) => {
+      const missed = [...new Set(specifics)].filter((sp) => !has(sp));
+      if (!missed.length) return;
+      const sents = sentencesOf(text).filter((sn) => missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
+      if (!sents.length) return;
+      const content = sents.join(' ').slice(0, 400);
+      const parentId = params.focusContainerId ?? out.find((a) => a?.op === 'create_node' && a.parentId)?.parentId ?? null;
+      this.store.audit('guard_specifics_kept', { who, missed: missed.slice(0, 6).map((m) => m.slice(0, 30)), content: content.slice(0, 60) });
+      out.push({ op: 'create_node', id: randomUUID(), parentId, content, title: content.slice(0, 48).replace(/\s+\S*$/, ''), author: who, status: who === 'user' ? 'live' : 'noted', ...(type ? { type } : {}) });
+    };
+    if (ut.trim().length >= 8) file('user', ut, [...figures(ut), ...idents(ut), ...quoted(ut)]);
+    // the agent's figures: only sentences short enough to be a stated fact, with a unit — never a paragraph of code or prose
+    const agentSents = sentencesOf(at).filter((sn) => sn.length <= 220 && new RegExp(`\\d\\s?${UNIT}\\b`, 'i').test(sn));
+    if (agentSents.length) file('agent', agentSents.join(' '), agentSents.flatMap((sn) => figures(sn)).filter((f) => /[a-zµ%]$/i.test(f)), 'evidence');
     return out;
   }
   private guardTitleTwinChild(alterations: any[], map: { nodes: MapNode[] }): any[] {
