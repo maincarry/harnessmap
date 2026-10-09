@@ -68,3 +68,11 @@ test('M463d: a "do not save … yet" hold ends when she asks to save or replaces
   expect(harness([root, h1])([], R21).out).toEqual([{ op: 'update_node', id: 'h1', status: 'superseded' }]);
   expect(harness([root, h1])([], 'Now inspect feature importance for the leakage-free gradient-boosted model only. Show the ranked values first.').out).toEqual([]);
 });
+
+// M463e (REFILE #4 Priya single): a hold scoped to a phase — "should not be changed during this inspection" — ends when she asks for the change.
+test('M463e: a phase-scoped hold ends when the person asks for the change', () => {
+  const root = { id: 'root', parentId: null, title: 'Customer churn parquet inspection', content: 'Inspect the churn parquet', status: 'live', author: 'user', type: null, createdAt: at, updatedAt: at };
+  const h = { id: 'h', parentId: 'root', title: 'No data changes', content: 'The parquet data should not be changed during this inspection.', status: 'active', author: 'user', type: 'constraint', createdAt: at, updatedAt: at };
+  expect(harness([root, h])([], 'Treat the 46 negative tenure values as data errors: set them to missing rather than dropping those customers. Keep a count of how many were changed so we can report it.').out).toEqual([{ op: 'update_node', id: 'h', status: 'superseded' }]);
+  expect(harness([root, h])([], 'How many rows have negative tenure, what negative values occur, and do those rows look unusual in plan, usage, price, or churn?').out).toEqual([]);
+});

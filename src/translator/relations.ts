@@ -67,6 +67,12 @@ export async function suggestTitle(store: Store, nodeId: string): Promise<{ titl
       store.audit('title_narration', { from: title.slice(0, 80), to: rest.slice(0, 80), negated });
       title = rest.split(/\s+/).length >= 2 ? rest[0].toUpperCase() + rest.slice(1) : '';
     }
+    // M467c (REFILE #4 Priya single, v0.9.273: the agent's reworded PM update, born untitled under her "Send PM Update" todo, was NAMED
+    // "Send PM Update" by this agent — a child wearing its parent's title reads as a duplicate row in the tree and in every answer, and
+    // the filing-time twin guards (M467/M467b) never see a title given here). A child never takes its parent's name; it stays untitled
+    // and the row shows its statement.
+    const normT = (x: string) => x.toLowerCase().replace(/[“”"‘’'`]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (title && parent && normT(title) === normT(String(parent.title ?? '')) && normT(title).length >= 4) { store.audit('title_twin_parent', { id: nodeId.slice(0, 8), title: title.slice(0, 40) }); return { error: 'title equals the parent\'s' }; }
     return title ? { title } : { error: 'no title produced' };
   } catch (err) {
     return { error: (err instanceof Error ? err.message : String(err)).slice(0, 200) };
