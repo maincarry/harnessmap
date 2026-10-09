@@ -215,7 +215,7 @@ const CLIENT_VERBS = new Set('Revise Start Run Save Draft Fix Update Check Rewri
 // decision, not a commitment you personally made" (she stopped the day). A decision the person states in their own words is theirs:
 // when the user's turn carries a first-person commitment and the node's statement shares the turn's words, the author is "user".
 // M472: a decision spoken as an order — a sentence that OPENS with a deciding verb (the person telling the agent what the rule or the choice is).
-export const IMPERATIVE_DECISION = /(?:^|[.!?]\s+)(?:take|keep|use|never|always|do not|don'?t|move|put|set|reserve|allocate|stick with|go with|drop|cut|merge|raise|lower|switch to|treat|leave|choose|pick|prefer|make|hold|cap|limit|require|forbid|allow)\b/i;
+export const IMPERATIVE_DECISION = /(?:^|[.!?]\s+)(?:take|keep|use|never|always|do not|don'?t|move|put|set|reserve|allocate|stick with|go with|drop|cut|merge|raise|lower|switch to|treat|leave|choose|pick|prefer|make|hold|cap|limit|require|forbid|allow)\b|[,;—–]\s*(?:but |and |then |just )?(?:do not|don'?t|never|not yet|hold off)\b/i; // M472c (Hannah t23 "…, but don’t switch the search endpoint yet"): a negated instruction after a comma or "but" is the person's order too
 export const FIRST_PERSON = /\b(?:let'?s|I'?ll|I will|we'?ll|we will|I'?m (?:willing|going|happy) to|I want|I(?:'ve| have)? decided|we(?:'ve| have)? decided|go with|settle (?:at|on|for)|I'?d (?:rather|prefer)|say (?:we|I|that we)|tell (?:them|him|her|the customer)|make (?:it|that|a) |record (?:these|this|it|that) as (?:my )?(?:a )?commitments?|my commitments?|I (?:sent|promised|committed|agreed|told|confirmed))\b/i; // M442d (TWIN #443): "Record these as commitments", "I sent both replies"
 // M443 (TWIN LONG #426, Noor, step 29 "List every commitment I made today, grouped by who it is for"): the recap turn filed two new
 // containers ("Harbor commitments", "Team pricing commitments") with six mirrored task rows restating rows the map already held — and
@@ -532,7 +532,9 @@ export class Translator {
     const raw = String(params.userText ?? '');
     // M442c (LONG #440: a grammar-quiz sentence “…we'll have a cup of tea” flipped the agent's option to the person's): quoted
     // spans carry no commitment of the person's, and a "which is correct / choose one" turn is a question, not a decision.
-    const ut = raw.replace(/[“"‘'][^”"’']{3,200}[”"’']/g, ' ');
+    // M472c: curly apostrophes (don’t, I’ll — what people and twins actually type) read as straight ones; a quote span opens after a space and closes
+    // before punctuation, so an apostrophe inside a word never opens one (the old pattern blanked "…don't … it's…" between two apostrophes).
+    const ut = raw.replace(/[’‘]/g, "'").replace(/(?:^|(?<=\s))[“"][^”"]{3,200}[”"](?=[\s.,;:!?)]|$)/g, ' ').replace(/(?:^|(?<=\s))'[^']{3,200}'(?=[\s.,;:!?)]|$)/g, ' ');
     // M472 (RECORD TEST #1 proof, Amir round 25: "Take the 8 KB for the log ring buffer from the application region's free tail, never from
     // the config area. Keep the config page fixed at 0x0803E000." — filed as two [decided] rows of the AGENT's; the brain: "The agent picked
     // both"): a decision the person issues as an IMPERATIVE ("Take…", "Keep…", "Never…", "Use…", "Move…") carries no first-person phrase, so

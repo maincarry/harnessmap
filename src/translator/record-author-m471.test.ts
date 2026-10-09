@@ -115,3 +115,25 @@ test('M472b: an order of the person\'s that lands only as rewrites of the agent\
   const out2 = t2.guardDecisionAuthor([{ op: 'create_node', id: 'd', parentId: 'flash', type: 'decision', status: 'decided', author: 'user', content: 'Take the 8 KB from the application region’s free tail, never from the config area; keep the config page at 0x0803E000.' }], map, { userText: 'Take the 8 KB for the log ring buffer from the application region’s free tail, never from the config area. Keep the config page fixed at 0x0803E000.', focusContainerId: 'flash' });
   expect(out2).toHaveLength(1); expect(a2).toHaveLength(0);
 });
+
+test('M472c: a curly-apostrophe order at a sentence start, and a "…, but don’t … yet" after a comma, each become the person\'s decision node when the round filed only the agent\'s outcome (Hannah t8 / t23)', () => {
+  const { t, audits } = harness();
+  const map = { nodes: [{ id: 'saf', title: 'Safari gallery thumbnails', content: 'x', author: 'user', type: 'container', status: 'live' }] } as any;
+  const out = t.guardDecisionAuthor([{ op: 'create_node', id: 'ev', parentId: 'saf', type: 'evidence', status: 'noted', author: 'agent', content: 'The thumbnail rendering issue was inspected and the likely Safari-specific failure was reproduced as WebP decoding failure without a JPEG/PNG fallback; no code was changed.' }], map,
+    { userText: 'Slack interruption: a customer says gallery thumbnails are blank in Safari. Please inspect the thumbnail rendering and image formats, reproduce the likely Safari-specific failure, and tell me what you find. Don’t fix it yet — I need to park a clear finding and go back to the webhook.', focusContainerId: 'saf' });
+  const mine = out.filter((a: any) => a.author === 'user');
+  expect(mine).toHaveLength(1);
+  expect(mine[0].content).toMatch(/Don't fix it yet/);
+  expect(audits.filter((a) => a.kind === 'guard_decision_author').map((a) => a.d.how)).toEqual(['imperative-new-row']);
+  const { t: t2 } = harness();
+  const out2 = t2.guardDecisionAuthor([{ op: 'update_node', id: 'fts', status: 'done', content: 'The weighted Postgres full-text search vector is implemented over title, tags, and caption, with title weighted A, tags weighted B, and caption weighted C. A GIN index and migration were added.' }],
+    { nodes: [{ id: 'fts', title: 'Full-text search migration and index', content: 'y', author: 'agent', type: 'task', status: 'doing' }] } as any,
+    { userText: 'Implement the weighted Postgres full-text search vector over title, tags, and caption now, with title weighted highest, then tags, then caption. Add the GIN index and migration, but don’t switch the search endpoint yet.', focusContainerId: 'search' });
+  const mine2 = out2.filter((a: any) => a.author === 'user');
+  expect(mine2).toHaveLength(1);
+  expect(mine2[0].content).toMatch(/but don't switch the search endpoint yet/);
+  // a question that merely contains an apostrophe span claims nothing (M442c stays)
+  const { t: t3, audits: a3 } = harness();
+  t3.guardDecisionAuthor([{ op: 'create_node', id: 'o', type: 'option', status: 'proposed', author: 'agent', content: 'Use a trigram index for fuzzy matches on titles and captions.' }], { nodes: [] } as any, { userText: 'Which is better here, a trigram index or the weighted vector? It\'s the caption matches I don\'t trust.' });
+  expect(a3.filter((a) => a.kind === 'guard_decision_author')).toHaveLength(0);
+});
