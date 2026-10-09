@@ -892,6 +892,15 @@ function applyAutoFold() {
   for (const id of userFolded) folded.add(id);
 }
 
+// Mark 2026-10-09: the ⋯ popover is anchored under its button (see the .rowext CSS); a row near the pane's right edge would push it
+// out of the pane (#tree clips its overflow), so after every render and every open it is shifted left just enough to stay inside.
+function placeRowExt() {
+  const pane = document.getElementById('tree'); if (!pane) return; const pr = pane.getBoundingClientRect();
+  for (const el of document.querySelectorAll('.nrow.ops-open .rowext')) {
+    el.style.left = ''; const r = el.getBoundingClientRect(); const over = r.right - (pr.right - 10);
+    if (over > 0) el.style.left = `${-Math.min(over, Math.max(0, r.left - pr.left - 10))}px`;
+  }
+}
 function renderTree() {
   const tree = $('tree');
   const lit = new Set(chat()?.lit ?? []);
@@ -1011,6 +1020,7 @@ function renderTree() {
   // (2026-10-04, Mark: "+ add node" removed — users don't hand-file nodes. The filer files new topics as they
   // arise, and the focus picker's "name a new topic" creates, lights and focuses one when you mean to switch.)
   tree.innerHTML = html || '<div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status). The map files your conversation as you go.</div>';
+  placeRowExt(); // Mark 2026-10-09: the ⋯ popover opens under its button; when that would run past the pane's right edge it shifts left to fit
   const f = node(focus);
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
 }
@@ -2311,7 +2321,7 @@ $('tree').addEventListener('click', async (e) => {
     return;
   }
   const rowMoreBtn = t.closest('[data-rowmore]');
-  if (rowMoreBtn) { const id = rowMoreBtn.dataset.rowmore; const row = rowMoreBtn.closest('.nrow'); if (opsOpen.has(id)) { opsOpen.delete(id); row?.classList.remove('ops-open'); } else { opsOpen.add(id); row?.classList.add('ops-open'); } return; }
+  if (rowMoreBtn) { const id = rowMoreBtn.dataset.rowmore; const row = rowMoreBtn.closest('.nrow'); if (opsOpen.has(id)) { opsOpen.delete(id); row?.classList.remove('ops-open'); } else { opsOpen.add(id); row?.classList.add('ops-open'); requestAnimationFrame(placeRowExt); } return; }
   const sheetId = t.closest('[data-sheet]')?.dataset.sheet;
   if (sheetId) { openRowSheet(sheetId); return; }
   const foldId = t.closest('[data-fold]')?.dataset.fold;
