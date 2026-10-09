@@ -802,7 +802,31 @@ export function questionTokens(q: string): Map<string, number> {
   return out;
 }
 const QUESTION_STOP = new Set('the and for was were what which who did say said tell told about with that this from have has had you your our did does into then than when where why how are our its did ask asked choose chose use used set did get got put make made let did need want wanted mean meant map record recorded discuss discussed agree agreed conclude concluded correct corrected decide decided rule rules limit actually should would could there here they them his her she him did one two first last next earlier later really still also just only ever been being over under again more most some any all each both'.split(' '));
-export function selectRowsForQuestion(nodes: any[], question: string, opts: { budget?: number; recent?: number; isTutorial?: (n: any) => boolean; roundTimes?: number[] } = {}): { text: string; picked: number; total: number } {
+// M473b (Jacob 09:56 Oct 9: "I thought the brain have structural delegates and area delegates to prevent precisely this from happening.
+// What happened to them"): the delegates (area minds, governors.ts) assessed and advised but were never asked "which estate is this
+// question about?". Now a question is ROUTED first: every top-level estate is scored by how much of the question's words and figures its
+// subtree holds (rarity-weighted) plus its mind's understanding when one exists; the best one or two estates are read IN FULL (their whole
+// subtree, rows in tree order), then the matching rows from elsewhere, then every root. On a map without minds the subtrees alone route.
+export function routeEstates(nodes: any[], question: string, minds: { nodeId: string; understanding: string }[] = [], isTutorial: (n: any) => boolean = () => false): { rootId: string; score: number }[] {
+  const live = nodes.filter((n) => n.status !== 'removed' && !isTutorial(n) && n.author !== 'system');
+  const kids = new Map<string | null, any[]>(); for (const n of live) { const k = n.parentId ?? null; (kids.get(k) ?? kids.set(k, []).get(k)!).push(n); }
+  const toks = questionTokens(question); if (!toks.size) return [];
+  const text = (n: any) => `${n.title ?? ''} ${n.content ?? ''}`.toLowerCase();
+  const df = new Map<string, number>(); for (const [t] of toks) { let c = 0; for (const n of live) if (text(n).includes(t)) c++; df.set(t, c); }
+  const w = (t: string, wt: number) => wt * (1 + Math.log(1 + live.length / Math.max(1, df.get(t) ?? 1)));
+  const mindOf = new Map(minds.map((m) => [m.nodeId, String(m.understanding ?? '').toLowerCase()]));
+  const out: { rootId: string; score: number }[] = [];
+  for (const r of kids.get(null) ?? []) {
+    if (String(r.title ?? r.content).trim() === 'to sort') continue;
+    const sub: any[] = []; const stack = [r]; const seen = new Set<string>();
+    while (stack.length) { const n = stack.pop()!; if (seen.has(n.id)) continue; seen.add(n.id); sub.push(n); for (const k of kids.get(n.id) ?? []) stack.push(k); }
+    let score = 0;
+    for (const [t, wt] of toks) { const hits = sub.filter((n) => text(n).includes(t)).length; if (hits) score += w(t, wt) * Math.min(3, hits); if (mindOf.get(r.id)?.includes(t)) score += w(t, wt); }
+    if (score > 0) out.push({ rootId: r.id, score });
+  }
+  return out.sort((a, b) => b.score - a.score);
+}
+export function selectRowsForQuestion(nodes: any[], question: string, opts: { budget?: number; recent?: number; isTutorial?: (n: any) => boolean; roundTimes?: number[]; minds?: { nodeId: string; understanding: string }[] } = {}): { text: string; picked: number; total: number; estates: string[] } {
   const budget = opts.budget ?? 22_000, isTutorial = opts.isTutorial ?? (() => false), roundTimes = opts.roundTimes ?? [];
   const live = nodes.filter((n) => n.status !== 'removed' && !isTutorial(n) && n.author !== 'system');
   const byId = new Map(live.map((n) => [n.id, n]));
@@ -820,10 +844,23 @@ export function selectRowsForQuestion(nodes: any[], question: string, opts: { bu
   for (const r of roots) lines.push(`• ${nodeLine(r, { who: true, age })}`);
   const chosen = new Set<string>(); let used = lines.join('\n').length + 200;
   const take = (n: any, tag: string) => { if (chosen.has(n.id)) return; const p = pathOf(n); const line = `${p.join(' › ')}${p.length ? ' › ' : ''}${n.title && String(n.title).trim() && String(n.title).trim() !== String(n.content ?? '').trim() ? `${String(n.title).slice(0, 50)} — ` : ''}${nodeLine(n, { who: true, age })}${tag}`; if (used + line.length > budget) return; chosen.add(n.id); used += line.length + 1; lines.push(line); };
-  lines.push('MATCHING ROWS (best match first):'); for (const { n } of scored.slice(0, 80)) take(n, '');
+  // M473b: the routed estates first — read in full, in tree order, up to ~55 % of the budget
+  const routed = routeEstates(nodes, question, opts.minds ?? [], isTutorial).slice(0, 2);
+  const estateNames: string[] = [];
+  if (routed.length) {
+    const kidsOf = new Map<string | null, any[]>(); for (const n of live) { const k = n.parentId ?? null; (kidsOf.get(k) ?? kidsOf.set(k, []).get(k)!).push(n); }
+    const estateBudget = used + Math.floor(budget * 0.55);
+    for (const { rootId } of routed) {
+      const root = byId.get(rootId); if (!root) continue; estateNames.push(String(root.title ?? root.content ?? '').slice(0, 40));
+      lines.push(`ESTATE "${String(root.title ?? root.content ?? '').slice(0, 60)}" — the area this question is about, read in full:`);
+      const walk = (pid: string, depth: number) => { for (const n of kidsOf.get(pid) ?? []) { if (used > estateBudget) return; if (!chosen.has(n.id)) { const line = `${'  '.repeat(depth)}${n.title && String(n.title).trim() !== String(n.content ?? '').trim() ? `${String(n.title).slice(0, 50)} — ` : ''}${nodeLine(n, { who: true, age })}`; chosen.add(n.id); used += line.length + 1; lines.push(line); } walk(n.id, depth + 1); } };
+      walk(rootId, 1);
+    }
+  }
+  lines.push('MATCHING ROWS ELSEWHERE (best match first):'); for (const { n } of scored.slice(0, 80)) take(n, '');
   lines.push('TOUCHED MOST RECENTLY:'); for (const n of recent) take(n, '');
   lines.push(`(${chosen.size} of ${live.length} rows shown; the rest are on the map but did not match the question — say "the map holds N rows; nothing matching …" rather than "the map does not record", when a row is not among these)`);
-  return { text: lines.join('\n'), picked: chosen.size, total: live.length };
+  return { text: lines.join('\n'), picked: chosen.size, total: live.length, estates: estateNames };
 }
 export async function brainChat(store: Store, projectId: string, text: string): Promise<{ reply: string; guidance: string } | { error: string }> {
   let u = brainUnderstandingOn() ? getUnderstanding(store, projectId) : null;
@@ -861,7 +898,7 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // M460k: the roster used to be cut at 12,000 chars mid-row — the newest rows sit at the end, so the open work of the last rounds was
   // the part that vanished or arrived half-written. Twice the room, a cut only at a line break, and the cut announced.
   const rosterFull = renderTree(liveMap, { ids: false, who: true, age: (n) => { const k = turnsAgo(n.updatedAt, roundTimes); return k !== null && k >= 15 ? `last discussed ${k} turns ago` : null; } }); // M469: when a row was last discussed — any row, never an open/closed mark
-  const roster = rosterFull.length <= 24_000 ? rosterFull : selectRowsForQuestion(liveMap.nodes, text, { budget: 22_000, roundTimes, isTutorial: (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) }).text; // M473: a big map is read by the question, not cut flat // M429: every line says who said it; M435: open items left behind say for how many turns
+  const roster = rosterFull.length <= 24_000 ? rosterFull : selectRowsForQuestion(liveMap.nodes, text, { budget: 22_000, roundTimes, minds: listMinds(store, projectId, 'active').map((m) => ({ nodeId: m.nodeId, understanding: m.understanding })), isTutorial: (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) }).text; // M473 + M473b: a big map is read by the question — the routed estates in full, then matching rows, then every root // M473: a big map is read by the question, not cut flat // M429: every line says who said it; M435: open items left behind say for how many turns
   const isTutorial = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) || /getting started \(tutorial\)/i.test(String(n.content ?? ''));
   const topics = liveMap.nodes.filter((n) => n.parentId === null && n.status !== 'removed' && !isTutorial(n) && String(n.title ?? n.content).trim() !== 'to sort');
   const topicLine = `TOP-LEVEL TOPICS (${topics.length}, excluding the getting-started tutorial): ${topics.map((n) => String(n.title ?? n.content).slice(0, 60)).join(' | ') || '(none yet)'}`;
