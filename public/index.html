@@ -243,6 +243,26 @@
   #map-pane #crumbs > #bookmarks::-webkit-scrollbar { display: none; }
   #map-pane #crumbs > #bookmarks[hidden] { display: none; }
   #tree-wrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  /* Mark 2026-10-09 ("I like the suggestions and let's implement"): the node DETAIL PANE. A single click on a node's name opens its
+     detail beside the tree (not a modal) and clicking another name swaps it; the caret and the "N inside" chip alone expand and
+     collapse; Escape or ✕ closes. On mobile the detail stays a full-screen sheet. */
+  #tree-wrap.detail-open { flex-direction: row; }
+  #tree-wrap.detail-open > #tree { flex: 1 1 54%; min-width: 0; }
+  #detail-pane { display: none; flex: 0 0 46%; min-width: 280px; max-width: 560px; border-left: 1px solid var(--hair); background: var(--panel); overflow-y: auto; padding: 10px 14px 16px; box-sizing: border-box; }
+  #tree-wrap.detail-open > #detail-pane { display: flex; flex-direction: column; gap: 6px; }
+  #tree-wrap.detail-open > #map-chat { right: auto; left: 16px; }
+  #detail-pane .dp-head { display: flex; align-items: flex-start; gap: 8px; }
+  #detail-pane .dp-path { font-size: 11.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 4px; }
+  #detail-pane .dp-path [data-dp-go] { cursor: pointer; } #detail-pane .dp-path [data-dp-go]:hover { color: var(--accent); text-decoration: underline; }
+  #detail-pane h3 { margin: 2px 0 0; font-size: 15px; line-height: 1.3; flex: 1; }
+  #detail-pane .dp-close { border: 1px solid var(--hair); background: var(--panel); color: var(--muted); border-radius: 6px; cursor: pointer; font-size: 13px; padding: 2px 8px; flex: none; }
+  #detail-pane .dp-close:hover { color: var(--ink); border-color: var(--ink); }
+  #detail-pane .dp-meta { font-size: 12px; color: var(--muted); }
+  #detail-pane .dp-stmt { font-size: 14px; line-height: 1.5; white-space: pre-wrap; border-left: 2px solid var(--accent); padding: 4px 10px; margin: 4px 0 2px; }
+  #detail-pane details.dp-edit { margin-top: 6px; } #detail-pane details.dp-edit > summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+  .nrow.selected > .ncontent { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+  .nrow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  body.mobile #detail-pane { display: none !important; }
   /* ≡ menu popover (replaces the controls board) */
   #hm-menu { position: absolute; right: 10px; top: 48px; z-index: 45; width: 440px; max-width: calc(100% - 20px); background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.18); padding: 10px 12px 10px; font-size: 13px; color: var(--ink); text-align: left; font-weight: 400; }
   #hm-menu.wide { width: 660px; }
@@ -689,11 +709,35 @@ const DEAD = ['rejected','dropped','retracted','reversed','mooted'];
 let S = { nodes: [], chats: [], recency: {}, suggestions: [], mainChatId: null };
 let zoomId = localStorage.getItem('hm-zoom') || null;
 let folded = new Set(), userFolded = new Set(), userUnfolded = new Set();
+let detailId = null; // the node whose detail the pane beside the tree shows (Mark 2026-10-09)
+let splitBeforeDetail = null, splitSetByDetail = ''; // the pane split before the detail pane widened the map; restored on close unless the person dragged the splitter meanwhile
+function widenForDetail() {
+  const mp = $('map-pane'); if (!mp || splitBeforeDetail !== null || document.body.classList.contains('companion')) return;
+  if (mp.getBoundingClientRect().width >= 720) return;
+  splitBeforeDetail = document.documentElement.style.getPropertyValue('--split') || '';
+  const target = Math.min(Math.max(720, Math.round(window.innerWidth * 0.64)), Math.max(360, window.innerWidth - 360));
+  splitSetByDetail = `${target}px`; document.documentElement.style.setProperty('--split', splitSetByDetail);
+}
+function unwidenAfterDetail() {
+  if (splitBeforeDetail === null) return;
+  if (document.documentElement.style.getPropertyValue('--split') === splitSetByDetail) { if (splitBeforeDetail) document.documentElement.style.setProperty('--split', splitBeforeDetail); else document.documentElement.style.removeProperty('--split'); }
+  splitBeforeDetail = null; splitSetByDetail = '';
+}
 const opsOpen = new Set(); // rows whose ⋯ actions are expanded — persisted across re-renders so the cluster (depth, move, merge…) doesn't collapse mid-use
 
 // Row ⋯ popover closes on a click anywhere else, after an action inside it, or on Escape (the depth select keeps it open).
 document.addEventListener('click', (e) => { if (!opsOpen.size) return; const t = e.target; if (t.closest && (t.closest('[data-rowmore]') || t.closest('.rowext-row') || t.closest('select.depthsel'))) return; opsOpen.clear(); document.querySelectorAll('.nrow.ops-open').forEach((r) => r.classList.remove('ops-open')); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && opsOpen.size) { opsOpen.clear(); document.querySelectorAll('.nrow.ops-open').forEach((r) => r.classList.remove('ops-open')); } });
+// Mark 2026-10-09: keyboard on the tree — Enter opens a row's details, → expands, ← collapses, Escape closes the detail pane
+// (when no ⋯ popover and no dialog is open).
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !opsOpen.size && !document.querySelector('.overlay') && typeof detailId !== 'undefined' && detailId) { closeDetailPane(); return; }
+  const row = e.target?.closest?.('.nrow'); if (!row || e.target.closest('input, textarea, select, button')) return;
+  const id = row.querySelector('[data-edit]')?.dataset.edit; if (!id) return;
+  if (e.key === 'Enter') { e.preventDefault(); openNodeDetail(id); }
+  else if (e.key === 'ArrowRight' && folded.has(id)) { e.preventDefault(); folded.delete(id); userUnfolded.add(id); userFolded.delete(id); renderTree(); }
+  else if (e.key === 'ArrowLeft' && kidsOf(id).length && !folded.has(id)) { e.preventDefault(); folded.add(id); userFolded.add(id); userUnfolded.delete(id); renderTree(); }
+});
 
 const $ = (id) => document.getElementById(id);
 
@@ -717,7 +761,7 @@ const $ = (id) => document.getElementById(id);
   }
   const bm = $('bookmarks'), cr = $('crumbs'); if (bm && cr) cr.appendChild(bm);
   const tree = $('tree'), mc = $('map-chat');
-  if (tree && mc && !$('tree-wrap')) { const wrap = document.createElement('div'); wrap.id = 'tree-wrap'; tree.parentNode.insertBefore(wrap, tree); wrap.appendChild(tree); wrap.appendChild(mc); }
+  if (tree && mc && !$('tree-wrap')) { const wrap = document.createElement('div'); wrap.id = 'tree-wrap'; tree.parentNode.insertBefore(wrap, tree); wrap.appendChild(tree); const dp = document.createElement('aside'); dp.id = 'detail-pane'; dp.setAttribute('aria-label', 'node details'); wrap.appendChild(dp); wrap.appendChild(mc); }
   const lag = $('lag'), ht = document.querySelector('#map-pane > header .htitle');
   if (lag) { const mirror = () => { lag.title = `map status: ${lag.textContent || ''}`; }; mirror(); new MutationObserver(mirror).observe(lag, { childList: true, characterData: true, subtree: true }); if (ht) ht.after(lag); }
 })();
@@ -924,11 +968,12 @@ function renderTree() {
       (n.parentId === null && (n.title || n.content).startsWith('to sort')) ? 'tosort' : '',
       n.id === focus ? 'focused' : '',
       opsOpen.has(n.id) ? 'ops-open' : '',
+      detailId === n.id ? 'selected' : '',
       DEAD.includes(n.status) ? 'dead' : '',
       n.status === 'exploratory' ? 'exploratory' : '',
     ].filter(Boolean).join(' ');
     return `
-    <div class="${cls}${recCls(n.id)}" title="${esc(n.title && n.title !== n.content ? n.content + ' — ' : '')}status: ${esc(n.status)}">
+    <div class="${cls}${recCls(n.id)}" tabindex="0" title="${esc(n.title && n.title !== n.content ? n.content + ' — ' : '')}recorded: ${esc(n.status)}">
       ${'<span class="tguide"></span>'.repeat(depth)}
       <span class="caret" data-fold="${n.id}" title="${kids.length ? (folded.has(n.id) ? 'expand: show its immediate children' : 'collapse this branch') : 'nothing nested under this node yet — + adds a sub-node'}">${kids.length ? (folded.has(n.id) ? '▸' : '▾') : '·'}</span>
       ${lit.has(n.id) ? '<span class="badge lit" title="in the chat agent’s background">☀</span>' : ''}
@@ -938,7 +983,7 @@ function renderTree() {
 
       ${n.id === focus ? '<span class="fmark" title="the conversation is talking about this">▶</span>' : ''}
       ${String(n.content ?? '').startsWith('to sort') ? '' : n.author === 'user' ? '<span class="nwho you" title="you said, asked or decided this">you</span>' : n.author === 'agent' ? '<span class="nwho agent" title="the coding agent proposed, answered or claimed this">agent</span>' : ''}
-      <span class="ncontent" data-edit="${n.id}" title="${esc(isTray ? 'the filer couldn’t tell where these belong yet — they wait here so nothing is lost; approve a placement or move one home' : (n.title && n.title !== n.content ? n.content : 'click to edit'))}">${esc(disp(n))}${isTray ? '<small class="tray-sub">arrivals the filer couldn’t place yet</small>' : ''}</span>
+      <span class="ncontent" data-edit="${n.id}" title="${esc(isTray ? 'the filer couldn’t tell where these belong yet — they wait here so nothing is lost; approve a placement or move one home' : (n.title && n.title !== n.content ? n.content : 'click: details (the full text, who said it, history)'))}">${esc(disp(n))}${isTray ? '<small class="tray-sub">arrivals the filer couldn’t place yet</small>' : ''}</span>
       ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
       ${recChip(n.id)}
       <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
@@ -1020,6 +1065,7 @@ function renderTree() {
   // (2026-10-04, Mark: "+ add node" removed — users don't hand-file nodes. The filer files new topics as they
   // arise, and the focus picker's "name a new topic" creates, lights and focuses one when you mean to switch.)
   tree.innerHTML = html || '<div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status). The map files your conversation as you go.</div>';
+  if (detailId && !node(detailId)) closeDetailPane(); // the node the pane shows was removed
   placeRowExt(); // Mark 2026-10-09: the ⋯ popover opens under its button; when that would run past the pane's right edge it shifts left to fit
   const f = node(focus);
   $('focus-label').textContent = f ? `· focused on “${disp(f)}”` : '';
@@ -2470,9 +2516,11 @@ $('tree').addEventListener('click', async (e) => {
   // details; a single click on the text only marks it seen, so a double-click can zoom without first opening a dialog.
   const det = t.closest('[data-detail]')?.dataset.detail;
   if (det) { if ((S.recency || {})[det]) post(`/api/nodes/${det}/seen`, {}).catch(() => {}); openNodeDetail(det); return; }
+  // Mark 2026-10-09: a single click on the NAME opens the node's detail in the pane beside the tree; expanding is the caret's job.
   const editId = t.closest('[data-edit]')?.dataset.edit;
   if (editId) {
     if ((S.recency || {})[editId]) post(`/api/nodes/${editId}/seen`, {}).catch(() => {});
+    if (!t.closest('.nrow')?.classList.contains('tosort')) openNodeDetail(editId);
     return;
   }
 });
@@ -2529,6 +2577,12 @@ function openPlacePicker(id) {
 }
 
 // ---- node detail (M37): click a node → see + edit title and description ----
+function closeDetailPane() {
+  detailId = null; unwidenAfterDetail();
+  $('tree-wrap')?.classList.remove('detail-open');
+  const dp = $('detail-pane'); if (dp) dp.innerHTML = '';
+  document.querySelectorAll('.nrow.selected').forEach((r) => r.classList.remove('selected'));
+}
 function openNodeDetail(id) {
   const n = node(id);
   if (!n) return;
@@ -2544,20 +2598,37 @@ function openNodeDetail(id) {
     ov.addEventListener('click', (e) => { if (e.target === ov || e.target.id === 'nd-cancel') ov.remove(); });
     return;
   }
-  const ov = document.createElement('div');
-  ov.className = 'overlay';
-  ov.innerHTML = `
-    <div class="modal">
-      <h3 style="display:flex;gap:8px;align-items:baseline">${n.type ? `<span style="color:var(--muted);font-size:12px">${esc(n.type)}</span>` : ''} <span>${esc(disp(n))}</span> <span style="color:var(--muted);font-size:12px;font-weight:400">(${esc(n.status)})</span></h3>
-      <label style="font-size:12px;color:var(--muted)">Title (short — the map shows this)</label>
-      <input id="nd-title" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.title ?? '')}" placeholder="(auto-named from the description)">
-      <div id="nd-sug" style="font-size:12px;color:var(--muted);margin-top:3px;font-style:italic">suggesting a name…</div>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Category (claim / question / option / … — or your own word; blank = plain topic)</label>
-      <input id="nd-type" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.type ?? '')}" placeholder="(none — plain topic)">
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Status (open / decided / parked / … — or your own word; blank = no status)</label>
-      <input id="nd-status" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.status === 'live' ? '' : n.status ?? '')}" placeholder="(none)">
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Statement — what this node says, as the filer wrote it and the tree shows it; the master text that the description inside every depth restates (edit it and the depths follow on the next write; it is also what the agent gets when no depth is written yet)</label>
-      <textarea id="nd-desc" rows="4" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical">${esc(n.content)}</textarea>
+  // Mark 2026-10-09: the detail lives in a pane beside the tree (click another name and it swaps); the modal remains for mobile.
+  const usePane = !document.body.classList.contains('mobile') && !!$('detail-pane') && !!$('tree-wrap');
+  let host, close;
+  if (usePane) {
+    detailId = id; widenForDetail(); $('tree-wrap').classList.add('detail-open'); host = $('detail-pane'); close = closeDetailPane;
+    document.querySelectorAll('.nrow.selected').forEach((r) => r.classList.remove('selected'));
+    document.querySelector(`[data-edit="${id}"]`)?.closest('.nrow')?.classList.add('selected');
+  } else {
+    const ov = document.createElement('div'); ov.className = 'overlay'; const m = document.createElement('div'); m.className = 'modal'; ov.appendChild(m); document.body.appendChild(ov);
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.remove(); });
+    host = m; close = () => ov.remove();
+  }
+  renderNodeDetail(id, host, close, usePane);
+}
+// The detail, top to bottom (Mark's order): the statement verbatim · who said it and when · the thread it sits in · what the agent
+// is served (the four depths) and the dated facts · then the edit controls. The status word is a small recorded note, never a headline.
+function renderNodeDetail(id, host, close, pane) {
+  const n = node(id); if (!n) { close(); return; }
+  const when = (t) => { if (!t) return ''; const d = new Date(String(t).replace(' ', 'T').replace(/Z?$/, 'Z')); return Number.isFinite(d.getTime()) ? d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''; };
+  const path = []; for (let p = node(n.parentId); p; p = node(p.parentId)) path.unshift(p);
+  const who = n.author === 'user' ? 'you said this' : n.author === 'agent' ? 'the agent said this' : '';
+  const recorded = n.status && n.status !== 'live' ? `recorded: ${esc(n.status)}` : '';
+  const meta = [who, recorded, n.createdAt ? `filed ${when(n.createdAt)}` : '', n.updatedAt && n.createdAt && Math.abs(Date.parse(String(n.updatedAt).replace(' ', 'T').replace(/Z?$/, 'Z')) - Date.parse(String(n.createdAt).replace(' ', 'T').replace(/Z?$/, 'Z'))) > 60_000 ? `changed ${when(n.updatedAt)}` : ''].filter(Boolean).join(' · ');
+  const head = pane
+    ? `<div class="dp-path">${path.length ? path.map((p) => `<span data-dp-go="${p.id}" title="open this node">${esc(disp(p))}</span><span>›</span>`).join('') : '<span>top-level topic</span>'}</div>
+       <div class="dp-head"><h3>${n.type ? `<span style="color:var(--muted);font-size:12px;font-weight:400">${esc(n.type)} · </span>` : ''}${esc(disp(n))}</h3><button class="dp-close" data-dp-close="1" title="close the details (Esc)">✕</button></div>
+       ${meta ? `<div class="dp-meta">${meta}</div>` : ''}
+       <div class="dp-stmt">${esc(n.content)}</div>`
+    : `<h3 style="display:flex;gap:8px;align-items:baseline">${n.type ? `<span style="color:var(--muted);font-size:12px">${esc(n.type)}</span>` : ''} <span>${esc(disp(n))}</span> <span style="color:var(--muted);font-size:12px;font-weight:400">(${esc(n.status)})</span></h3>
+       ${meta ? `<div style="font-size:12px;color:var(--muted);margin:-2px 0 6px">${meta}</div>` : ''}`;
+  host.innerHTML = head + `
       <div style="font-size:12px;color:var(--muted);margin-top:6px">${(() => { const d = S.served && S.served[id]; const pin = S.depthPins && S.depthPins[id]; const names = ['one line', 'summary', 'whole story', 'original words']; return `<b>served now:</b> ${d !== undefined ? names[d] : 'not in the last block (dim, or rolled up)'}${pin !== undefined ? ` · <b>pinned by you:</b> ${names[pin]}${(S.pinsUnmet || []).includes(id) ? ' — did not fit this turn ❗' : ''}` : ' · depth chosen by closeness to the focus and room in the block (pin one on the row’s ⋯)'}`; })()}</div>
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block"><span style="display:block;margin:10px 0 6px;padding:6px 8px;border-left:2px solid var(--hair);line-height:1.45">Four depths of the same node. The agent receives the depth that fits how close the node is to the focus and how much room the block has: at least the one line for every lit node, the summary near the focus, the whole story for the focus itself. Each depth carries the same five things — name, description, how it fits, what changed, what was said.</span>
       One line <span style="opacity:.6">(minimal)</span> — the least the agent ever gets about this node</label>
@@ -2571,27 +2642,36 @@ function openNodeDetail(id) {
       <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Facts on record — the dated specifics the four depths are built from (struck through = superseded)</label>
       <div id="nd-det" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
       <button id="nd-expand" class="hbtn" style="display:none;margin-top:6px" title="enrich this one node: the map reads what was discussed here and proposes the depth beneath it as child nodes — the same as ✚ enrich map, for one node; you approve">✚ enrich this node</button>
+      <details class="dp-edit"${pane ? '' : ' open'}><summary>edit this node — title, category, status, statement</summary>
+      <label style="font-size:12px;color:var(--muted)">Title (short — the map shows this)</label>
+      <input id="nd-title" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.title ?? '')}" placeholder="(auto-named from the description)">
+      <div id="nd-sug" style="font-size:12px;color:var(--muted);margin-top:3px;font-style:italic">suggesting a name…</div>
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Category (claim / question / option / … — or your own word; blank = plain topic)</label>
+      <input id="nd-type" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.type ?? '')}" placeholder="(none — plain topic)">
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Status (open / decided / parked / … — or your own word; blank = no status)</label>
+      <input id="nd-status" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.status === 'live' ? '' : n.status ?? '')}" placeholder="(none)">
+      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Statement — what this node says, as the filer wrote it and the tree shows it; the master text that the description inside every depth restates (edit it and the depths follow on the next write; it is also what the agent gets when no depth is written yet)</label>
+      <textarea id="nd-desc" rows="4" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical">${esc(n.content)}</textarea>
       <div class="actions">
-        <button id="nd-cancel" title="close without saving changes">cancel</button>
+        <button id="nd-cancel" title="${pane ? 'close the details' : 'close without saving changes'}">${pane ? 'close' : 'cancel'}</button>
         <button id="nd-save" class="primary" title="save these edits to the node">save</button>
       </div>
-    </div>`;
-  document.body.appendChild(ov);
+      </details>`;
   // M38: fetch the relational description lazily (cached server-side by
   // neighborhood hash — instant when nothing nearby changed).
   fetch(`/api/nodes/${id}/relations`).then(r => r.json()).then(r => {
-    const el = ov.querySelector('#nd-rel'); // M279: no longer shown — fit is an organ inside every length; the relations text feeds the memory writer
+    const el = host.querySelector('#nd-rel'); // M279: no longer shown — fit is an organ inside every length; the relations text feeds the memory writer
     if (el) { el.textContent = r.text ?? ''; }
   }).catch(() => {});
   // M41: per-node chat memory (read-only; the harness maintains it).
   fetch(`/api/nodes/${id}/memory`).then(r => r.json()).then(r => {
-    const el = ov.querySelector('#nd-mem');
+    const el = host.querySelector('#nd-mem');
     if (el) {
       el.textContent = r.text ?? 'nothing yet — this fills in as you talk while focused here';
       if (r.text) { el.style.fontStyle = 'normal'; el.style.color = 'var(--ink)'; }
     }
     // M192b: the one-line view + the dated details, superseded marked.
-    const mn = ov.querySelector('#nd-min');
+    const mn = host.querySelector('#nd-min');
     if (mn) {
       mn.textContent = r.minimal ?? 'nothing yet — written as the map digests discussion here';
       if (r.minimal) { mn.style.fontStyle = 'normal'; mn.style.color = 'var(--ink)'; }
@@ -2600,15 +2680,15 @@ function openNodeDetail(id) {
     // text — the whole node — shows here in full; it was served to the agent
     // but never to the page.
     // M280 (Jacob: "min med long full, four length"): full = the raw record behind the three written lengths, fetched on request
-    { const fl = ov.querySelector('#nd-full'), ft = ov.querySelector('#nd-full-toggle'); let loaded = false;
+    { const fl = host.querySelector('#nd-full'), ft = host.querySelector('#nd-full-toggle'); let loaded = false;
       if (ft) ft.onclick = async () => { fl.hidden = !fl.hidden; ft.textContent = fl.hidden ? 'show' : 'hide'; if (!fl.hidden && !loaded) { loaded = true; try { const f = await post2get(`/api/nodes/${id}/full`); fl.textContent = f.full || 'no record yet — nothing has been discussed at this node and it was not imported'; fl.style.color = 'var(--ink)'; } catch (err) { fl.textContent = `could not load: ${err.message}`; } } }; }
-    const lg = ov.querySelector('#nd-long'), lt = ov.querySelector('#nd-long-toggle');
+    const lg = host.querySelector('#nd-long'), lt = host.querySelector('#nd-long-toggle');
     if (lg) {
       lg.textContent = r.long ?? 'not written yet — the memory agent writes the long text as the map digests discussion here (or ⚙ convert)';
       if (r.long) { lg.style.color = 'var(--ink)'; lg.hidden = false; if (lt) lt.textContent = 'hide'; }
       if (lt) lt.onclick = () => { lg.hidden = !lg.hidden; lt.textContent = lg.hidden ? 'show' : 'hide'; };
     }
-    const dt = ov.querySelector('#nd-det');
+    const dt = host.querySelector('#nd-det');
     if (dt) {
       const ds = r.details ?? [];
       if (!ds.length) dt.textContent = 'none yet';
@@ -2618,41 +2698,42 @@ function openNodeDetail(id) {
       }
     }
     // M189: when there IS a discussion here, offer to file it onto the tree.
-    const xb = ov.querySelector('#nd-expand');
+    const xb = host.querySelector('#nd-expand');
     if (xb && r.text) {
       xb.style.display = '';
-      xb.onclick = (ev) => { ev.preventDefault(); ov.remove(); openReorganize(id, disp(n), { expand: true }); };
+      xb.onclick = (ev) => { ev.preventDefault(); close(); openReorganize(id, disp(n), { expand: true }); };
     }
   }).catch(() => {});
   // M40: suggested minimal title with an adopt button.
   fetch(`/api/nodes/${id}/suggest-title`).then(r => r.json()).then(r => {
-    const el = ov.querySelector('#nd-sug');
+    const el = host.querySelector('#nd-sug');
     if (!el) return;
     if (r.title) {
       el.innerHTML = `suggested: “${esc(r.title)}” <button id="nd-adopt" style="border:1px solid var(--hair);background:var(--panel);color:var(--accent);border-radius:4px;cursor:pointer;font-size:11px;padding:0 6px" title="adopt this suggested short name for the node">use this</button>`;
       el.style.fontStyle = 'normal';
-      el.querySelector('#nd-adopt').onclick = (ev) => { ev.preventDefault(); ov.querySelector('#nd-title').value = r.title; };
+      el.querySelector('#nd-adopt').onclick = (ev) => { ev.preventDefault(); host.querySelector('#nd-title').value = r.title; };
     } else el.textContent = '';
-  }).catch(() => { const el = ov.querySelector('#nd-sug'); if (el) el.textContent = ''; });
-  ov.addEventListener('click', async (e) => {
-    if (e.target === ov || e.target.id === 'nd-cancel') { ov.remove(); return; }
+  }).catch(() => { const el = host.querySelector('#nd-sug'); if (el) el.textContent = ''; });
+  host.onclick = async (e) => {
+    const go = e.target.closest('[data-dp-go]')?.dataset.dpGo; if (go) { openNodeDetail(go); return; }
+    if (e.target.closest('[data-dp-close]') || e.target.id === 'nd-cancel') { close(); return; }
     if (e.target.id === 'nd-save') {
-      const title = ov.querySelector('#nd-title').value.trim();
-      const content = ov.querySelector('#nd-desc').value.trim();
-      const type = ov.querySelector('#nd-type').value.trim();
-      const status = ov.querySelector('#nd-status').value.trim();
+      const title = host.querySelector('#nd-title').value.trim();
+      const content = host.querySelector('#nd-desc').value.trim();
+      const type = host.querySelector('#nd-type').value.trim();
+      const status = host.querySelector('#nd-status').value.trim();
       const patch = { chatId: S.mainChatId };
       if (content && content !== n.content) patch.content = content;
       if (title !== (n.title ?? '')) patch.title = title;
       if (type !== (n.type ?? '')) patch.type = type;
       const shownStatus = n.status === 'live' ? '' : (n.status ?? '');
       if (status !== shownStatus) patch.status = status || 'live'; // blank = plain 'live'
-      ov.remove();
-      if (patch.content === undefined && patch.title === undefined && patch.type === undefined && patch.status === undefined) return;
-      try { await post(`/api/nodes/${id}`, patch); }
+      if (!pane) close();
+      if (patch.content === undefined && patch.title === undefined && patch.type === undefined && patch.status === undefined) { if (pane) host.querySelector('details.dp-edit').open = false; return; }
+      try { await post(`/api/nodes/${id}`, patch); if (pane) setTimeout(() => { if (detailId === id) renderNodeDetail(id, host, close, true); }, 700); }
       catch (err) { $('round-line').textContent = `edit failed: ${err.message}`; }
     }
-  });
+  };
 }
 
 // ---- + new node (M34/M35: no name prompt, no zoom — adding is just adding;
