@@ -13,6 +13,7 @@ import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { codexHooksFrom } from './build-codex-hooks.ts';
+import { windowsHookCommand } from './windows-hook-command.ts';
 
 const CODEX_HOME = process.env.CODEX_HOME ?? join(homedir(), '.codex');
 const HOOKS_DIR = fileURLToPath(new URL('.', import.meta.url)).replace(/[\\/]$/, '');
@@ -45,15 +46,13 @@ const BUN = process.execPath;
 const PS = process.platform === 'win32' || process.env.HARNESSMAP_HOOK_SHELL === 'powershell';
 // Windows popup fix (Mark, 2026-09-29): bun.exe is a console-subsystem binary, so Codex spawning a
 // hook every turn flashed a console window each time ("a million cmd popups"). Launch bun through
-// .NET ProcessStartInfo with CreateNoWindow + UseShellExecute=$false so no window is allocated; leaving
-// stdio UN-redirected makes bun inherit the hook's stdin (the event JSON) and stdout (the map block /
-// additionalContext), so filing and context are unchanged. Non-Windows keeps the plain absolute-bun form.
-const winHidden = (script: string) =>
-  `$i=New-Object Diagnostics.ProcessStartInfo;$i.FileName='${BUN}';$i.Arguments='run ${script.replace(/'/g, "''")}';$i.UseShellExecute=$false;$i.CreateNoWindow=$true;$p=[Diagnostics.Process]::Start($i);$p.WaitForExit();exit $p.ExitCode`;
+// .NET ProcessStartInfo with CreateNoWindow + UseShellExecute=$false so no window is allocated.
+// Explicitly forward stdio: unredirected handles lose the event and context on Windows.
+// Non-Windows keeps the plain absolute-bun form.
 for (const groups of Object.values<any>(derived.hooks)) for (const g of groups as any[]) for (const h of g.hooks) {
   const cmd = String(h.command).replace('${PLUGIN_ROOT}', HOOKS_DIR.replace(/[\\/]hooks$/, ''));
   const m = cmd.match(/^bun run (".*")$/);
-  h.command = PS && m ? winHidden(m[1]) : cmd.replace(/^bun run /, `"${BUN}" run `);
+  h.command = PS && m ? windowsHookCommand(BUN, m[1]) : cmd.replace(/^bun run /, `"${BUN}" run `);
 }
 
 mkdirSync(CODEX_HOME, { recursive: true });
