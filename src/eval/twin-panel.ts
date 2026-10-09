@@ -117,7 +117,7 @@ const COMPARE = argv.includes('--compare');
 // 'each-chat' = the person switches into every chat and asks each, then merges the answers themselves (the strongest fair control);
 // 'full' = one chat, everything; 'compacted' = natural compaction past 40 turns; 'none' = a new chat. 'auto' = last-chat when the
 // scenario has several chats, else full (compacted past 40 turns).
-type Control = 'full' | 'compacted' | 'none' | 'last-chat' | 'each-chat';
+type Control = 'full' | 'compacted' | 'none' | 'last-chat' | 'each-chat' | 'each-chat-merged';
 const CONTROL_FLAG = (flagVal('--control') ?? 'auto') as Control | 'auto';
 const AUTO_FULL_MAX_TURNS = 40;
 let CONTROL: Control = CONTROL_FLAG === 'auto' ? 'full' : CONTROL_FLAG;
@@ -183,6 +183,16 @@ if (COMPARE) {
   const natural = async (t: string, turns: number) => (turns > AUTO_FULL_MAX_TURNS ? compactedTranscript(t) : Promise.resolve(t)); // natural compaction only past the window
   if (CONTROL === 'last-chat') { const last = pickPanelChat(chats, panelChatOf(scenarioPath)); console.error(`[twin-panel] control=last-chat: the person asks in "${last.name}" (${last.turns} of ${tr.split(/\n\n(?=\[turn \d+\])/).length} turns; ${chats.length - 1} other chat(s) unseen)`); chatOnly = await agentAnswersFromTranscript(await natural(last.transcript, last.turns), `the chat you are sitting in ("${last.name}", ${last.turns} turns — the ${chats.length - 1} other chat(s) of that day are not in its context)`); }
   else if (CONTROL === 'each-chat') { const parts: string[] = []; for (const c of chats) parts.push(await agentAnswersFromTranscript(await natural(c.transcript, c.turns), `the chat "${c.name}" (${c.turns} turns)`)); chatOnly = `You switched into each of the ${chats.length} chats of that day and asked the same questions in each; you must merge the answers yourself.\n\n${parts.join('\n\n')}`; }
+  // M450i (Jacob 00:27 "sanity check again"): 'each-chat' hands the persona SEVEN answer blocks against the map's one — a format tilt toward
+  // the map. 'each-chat-merged' models the person merging with the agent's help: the seven replies are given back to the agent, which
+  // writes ONE merged set of answers to the same questions; the persona reads one text on each side.
+  else if (CONTROL === 'each-chat-merged') {
+    const parts: string[] = []; for (const c of chats) parts.push(await agentAnswersFromTranscript(await natural(c.transcript, c.turns), `the chat "${c.name}" (${c.turns} turns)`));
+    let merged = '(merge failed)';
+    try { const t = await call({ task: 'brain', system: 'You are the coding agent (Codex / Claude Code). The user asked the same questions in each of several chats from last week and pasted every chat\'s answers back to you. Merge them into ONE set of answers to the same questions — plainly and concretely, as the agent would in the terminal; keep every specific (numbers, names, files, decisions); where chats disagree, say which is later; no preamble.', user: `THE ANSWERS FROM EACH CHAT:\n\n${parts.join('\n\n')}\n\nNow write one merged answer to each of these questions, in order:\n${ASK_QUESTIONS.map((q, i) => `${i + 1}. ${q}`).join('\n')}`, maxTokens: 2500, timeoutMs: 180_000 }); if (typeof t === 'string' && t.trim()) merged = t.trim(); } catch {}
+    console.error(`[twin-panel] control=each-chat-merged: ${chats.length} chats asked, merged into ${merged.length} chars`);
+    chatOnly = `WHAT THE AGENT ANSWERED after you asked in each of the ${chats.length} chats of that day and had it merge the ${chats.length} replies into one (it answered from those chats' contexts):\n${merged}`;
+  }
   else chatOnly = await agentAnswersFromTranscript(CONTROL === 'compacted' ? await compactedTranscript(tr) : tr);
   label += ` + control (ask codex, ${CONTROL}${chats.length > 1 ? `, ${chats.length} chats` : ''}) + merged verdict ×${REPEAT}`;
 } // M450b (Jacob 03:18): the persona gets the agent's answers only — nobody scrolls 40 turns back // M430 (Jacob 2026-10-07 10:02/10:05/10:08): need first, then the walkthrough, then the interview
