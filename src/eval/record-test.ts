@@ -20,6 +20,8 @@
 //   --gen           regenerate the sealed questions (otherwise reused when <scenario>.qa.json exists)
 //   --n 12          how many questions to generate
 //   --no-map        skip the map side (control only)
+//   --early         (long records) at least two thirds of the questions take their key from the FIRST HALF of the record — the
+//                   cross-day recall a notes file and a chat both lose first
 // Output: <out>/REPORT.md (counts + per-question table), <out>/results.json, <out>/map-answers.txt, <out>/control-answers.txt,
 //         <out>/NOTES.md (notes control), and the sealed <scenario>.qa.json beside the scenario.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, mkdtempSync, copyFileSync } from 'node:fs';
@@ -39,6 +41,7 @@ const CONTROL = (flagVal('--control') ?? 'last-chat') as Control;
 const OUT = flagVal('--out') ?? `/tmp/claude-1000/record-test-${Date.now()}`;
 const N = Math.max(4, Number(flagVal('--n') ?? 12) || 12);
 mkdirSync(OUT, { recursive: true });
+const EARLY = argv.includes('--early');
 const MODEL = process.env.RECORD_TEST_MODEL; // the generator and the grader may run on a different model than the brain (same backend)
 
 // ---------- the record ----------
@@ -69,7 +72,8 @@ Rules: every answer must be checkable against ONE place in the record — give t
 const qaPath = join(dirname(scenarioPath), `${basename(scenarioPath).replace(/\.json$/, '')}.qa.json`);
 async function ensureQuestions(): Promise<QA[]> {
   if (existsSync(qaPath) && !argv.includes('--gen')) { const q = JSON.parse(readFileSync(qaPath, 'utf8')); console.error(`[record-test] sealed questions reused: ${qaPath} (${q.questions.length})`); return q.questions; }
-  const out = await call({ task: 'brain', modelOverride: MODEL, system: GEN_SYSTEM, user: `N = ${N}. THE PANEL CHAT: "${panelChat.name}" (${chats.length} chat(s) in the day: ${chats.map((c) => `${c.name} ${c.turns} turns`).join(', ')}).\n\nTHE RECORD:\n${RECORD.slice(0, 120_000)}`, maxTokens: 6000, timeoutMs: 300_000, schema: QA_SCHEMA }) as { questions: QA[] };
+  const early = EARLY ? ` EARLY RECALL: at least two thirds of the ${N} questions must take their key from the FIRST HALF of the record (turns 1–${Math.floor(rounds.length / 2)}), and every "said-about" question from a chat of an EARLIER day than the panel chat where the record has several days.` : '';
+  const out = await call({ task: 'brain', modelOverride: MODEL, system: GEN_SYSTEM + early, user: `N = ${N}. THE PANEL CHAT: "${panelChat.name}" (${chats.length} chat(s) in the day: ${chats.map((c) => `${c.name} ${c.turns} turns`).join(', ')}).\n\nTHE RECORD:\n${RECORD.slice(0, 420_000)}`, maxTokens: 6000, timeoutMs: 300_000, schema: QA_SCHEMA }) as { questions: QA[] };
   const questions = (out.questions ?? []).slice(0, N);
   writeFileSync(qaPath, JSON.stringify({ sealed: 'M470 record test — generated from the record by a model call; the answer key is the record\'s own words. Not read by the loop; not used for any fix.', scenario: basename(scenarioPath), panelChat: panelChat.name, generatedAt: new Date().toISOString(), questions }, null, 2) + '\n');
   console.error(`[record-test] sealed ${questions.length} questions → ${qaPath}`);
@@ -138,7 +142,7 @@ wrong_statements: how many distinct claims in the answer the record contradicts 
 evidence: the line of the record (quoted) that decides it. why: one sentence. Return strict JSON only.`;
 async function grade(q: QA, answer: string): Promise<Grade> {
   try {
-    const g = await call({ task: 'brain', modelOverride: MODEL, system: GRADER_SYSTEM, user: `THE QUESTION: ${q.question}\n\nTHE KEY: ${q.answer}\n  quote (turn ${q.turn}, said by ${q.who === 'you' ? 'the person' : 'the agent'}${q.chat ? `, chat "${q.chat}"` : ''}): "${q.quote}"\n\nTHE ANSWER:\n${answer.slice(0, 6000)}\n\nTHE RECORD:\n${RECORD.slice(0, 110_000)}`, maxTokens: 600, timeoutMs: 180_000, schema: GRADE_SCHEMA }) as Grade;
+    const g = await call({ task: 'brain', modelOverride: MODEL, system: GRADER_SYSTEM, user: `THE QUESTION: ${q.question}\n\nTHE KEY: ${q.answer}\n  quote (turn ${q.turn}, said by ${q.who === 'you' ? 'the person' : 'the agent'}${q.chat ? `, chat "${q.chat}"` : ''}): "${q.quote}"\n\nTHE ANSWER:\n${answer.slice(0, 6000)}\n\nTHE RECORD:\n${RECORD.slice(0, 420_000)}`, maxTokens: 600, timeoutMs: 180_000, schema: GRADE_SCHEMA }) as Grade;
     return { verdict: g.verdict, wrong_statements: Math.max(0, Number(g.wrong_statements) || 0), evidence: String(g.evidence ?? '').slice(0, 300), why: String(g.why ?? '').slice(0, 300) };
   } catch (err) { return { verdict: 'missing', wrong_statements: 0, evidence: '', why: `grader failed: ${String(err).slice(0, 80)}` }; }
 }
