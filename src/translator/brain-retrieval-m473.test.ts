@@ -49,3 +49,21 @@ test('M473b (Jacob: "the delegates… what happened to them"): the question is r
   expect(r.text.slice(i, j)).toContain('2 CPU cores and 2 GB RAM');   // inside the estate, read in full
   expect(r.text.slice(i, j)).toContain('Note 18-0');                   // the whole estate, not only the matching row
 });
+
+test('M473c (Jacob: "not consistent with our attention rules"): the brain reads a big map through the tiered renderer, the question\'s node as focus, who said what on every line', async () => {
+  const { Store } = await import('../store/db');
+  const { renderTieredTree } = await import('../map/render');
+  const { questionFocus } = await import('./mapstatus');
+  const st = new Store(':memory:'); const pid = st.createProject('t');
+  const mk = (id: string, parentId: string | null, content: string, author: 'user' | 'agent' = 'user') => st.createNode({ id, projectId: pid, parentId, content, type: null, status: 'live', author, title: null } as any);
+  for (let r = 0; r < 6; r++) { mk(`r${r}`, null, `Topic ${r} about project work`); for (let c = 0; c < 8; c++) mk(`r${r}c${c}`, `r${r}`, `A routine remark ${r}-${c} about the project.`, c % 2 ? 'agent' : 'user'); }
+  mk('vps', 'r4c2', 'The agent recommended at least 2 CPU cores and 2 GB RAM for the Python VPS runner.', 'agent');
+  const nodes = st.getNodes(pid);
+  const focus = questionFocus(nodes, 'What minimum VPS resources were recommended for Python?', 'r4');
+  expect(focus).toBe('vps');
+  const tiered = renderTieredTree(st, pid, focus, 15_000, null, { who: true });
+  expect(tiered).toContain('▶ [agent] The agent recommended at least 2 CPU cores');   // the focus mark on the question's node, with who said it
+  expect(tiered).toContain('[you] Topic 0 about project work');                         // every root, tagged
+  expect(renderTieredTree(st, pid, focus, 15_000)).not.toContain('[you]');              // the agent-side callers keep the plain form
+  expect(questionFocus(nodes, 'something nobody said', 'r1')).toBe('r1');                // no match → the estate root
+});

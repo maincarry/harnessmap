@@ -2,7 +2,7 @@ import { Store } from '../store/db.js';
 import { SESSION_CLOSING, FUTURE_COMMITMENT, FUTURE_DATED } from './translator.js';
 import { systemCard } from './cast.js';
 import { call, modelFor } from '../inference.js';
-import { loadMap, renderTree, renderTieredTreeForSubtree, descendantNodes, nodeLine } from '../map/render.js';
+import { loadMap, renderTree, renderTieredTree, renderTieredTreeForSubtree, descendantNodes, nodeLine } from '../map/render.js';
 import { getMind, upsertMind, listMinds, seedFromAssessments, settleEstates, estateOf, mergeAreaAdvice, adviceForNode, getAreaAdvice } from './governors.js';
 
 // M192 (Jacob): "a professional map structure monitoring agent that the map
@@ -826,7 +826,20 @@ export function routeEstates(nodes: any[], question: string, minds: { nodeId: st
   }
   return out.sort((a, b) => b.score - a.score);
 }
-export function selectRowsForQuestion(nodes: any[], question: string, opts: { budget?: number; recent?: number; isTutorial?: (n: any) => boolean; roundTimes?: number[]; minds?: { nodeId: string; understanding: string }[] } = {}): { text: string; picked: number; total: number; estates: string[] } {
+// M473c: the node the question is most about — the best-scoring node inside the routed estate (or anywhere) — becomes the brain's focus.
+export function questionFocus(nodes: any[], question: string, estateRootId: string | null, isTutorial: (n: any) => boolean = () => false): string | null {
+  const live = nodes.filter((n) => n.status !== 'removed' && !isTutorial(n) && n.author !== 'system');
+  const byId = new Map(live.map((n) => [n.id, n]));
+  const rootOf = (n: any) => { let c = n; for (let i = 0; c?.parentId && i < 20; i++) c = byId.get(c.parentId) ?? c; return c?.id; };
+  const toks = questionTokens(question); if (!toks.size) return estateRootId;
+  const text = (n: any) => `${n.title ?? ''} ${n.content ?? ''}`.toLowerCase();
+  const df = new Map<string, number>(); for (const [t] of toks) { let c = 0; for (const n of live) if (text(n).includes(t)) c++; df.set(t, c); }
+  const score = (n: any) => { const w = text(n); let sc = 0; for (const [t, wt] of toks) if (w.includes(t)) sc += wt * (1 + Math.log(1 + live.length / Math.max(1, df.get(t) ?? 1))); return sc; };
+  const pool = estateRootId ? live.filter((n) => n.parentId !== null && rootOf(n) === estateRootId) : live.filter((n) => n.parentId !== null);
+  let best: any = null, bs = 0; for (const n of pool) { const sc = score(n); if (sc > bs) { bs = sc; best = n; } }
+  return best?.id ?? estateRootId;
+}
+export function selectRowsForQuestion(nodes: any[], question: string, opts: { budget?: number; recent?: number; isTutorial?: (n: any) => boolean; roundTimes?: number[]; minds?: { nodeId: string; understanding: string }[]; estates?: boolean; roots?: boolean } = {}): { text: string; picked: number; total: number; estates: string[] } {
   const budget = opts.budget ?? 22_000, isTutorial = opts.isTutorial ?? (() => false), roundTimes = opts.roundTimes ?? [];
   const live = nodes.filter((n) => n.status !== 'removed' && !isTutorial(n) && n.author !== 'system');
   const byId = new Map(live.map((n) => [n.id, n]));
@@ -840,12 +853,12 @@ export function selectRowsForQuestion(nodes: any[], question: string, opts: { bu
   const age = (n: any) => { const k = turnsAgo(n.updatedAt, roundTimes); return k !== null && k >= 15 ? `last discussed ${k} turns ago` : null; };
   const pathOf = (n: any) => { const p: string[] = []; for (let c = n.parentId ? byId.get(n.parentId) : null, i = 0; c && i < 12; c = c.parentId ? byId.get(c.parentId) : null, i++) p.unshift(String(c.title ?? c.content ?? '').slice(0, 40)); return p; };
   const roots = live.filter((n) => n.parentId === null && String(n.title ?? n.content).trim() !== 'to sort');
-  const lines: string[] = [`ROOTS (${roots.length} top-level topics — the whole map's shape; the rows below are the ones that match the question, each with its thread path):`];
-  for (const r of roots) lines.push(`• ${nodeLine(r, { who: true, age })}`);
+  const lines: string[] = [];
+  if (opts.roots !== false) { lines.push(`ROOTS (${roots.length} top-level topics — the whole map's shape; the rows below are the ones that match the question, each with its thread path):`); for (const r of roots) lines.push(`• ${nodeLine(r, { who: true, age })}`); }
   const chosen = new Set<string>(); let used = lines.join('\n').length + 200;
   const take = (n: any, tag: string) => { if (chosen.has(n.id)) return; const p = pathOf(n); const line = `${p.join(' › ')}${p.length ? ' › ' : ''}${n.title && String(n.title).trim() && String(n.title).trim() !== String(n.content ?? '').trim() ? `${String(n.title).slice(0, 50)} — ` : ''}${nodeLine(n, { who: true, age })}${tag}`; if (used + line.length > budget) return; chosen.add(n.id); used += line.length + 1; lines.push(line); };
   // M473b: the routed estates first — read in full, in tree order, up to ~55 % of the budget
-  const routed = routeEstates(nodes, question, opts.minds ?? [], isTutorial).slice(0, 2);
+  const routed = opts.estates === false ? [] : routeEstates(nodes, question, opts.minds ?? [], isTutorial).slice(0, 2);
   const estateNames: string[] = [];
   if (routed.length) {
     const kidsOf = new Map<string | null, any[]>(); for (const n of live) { const k = n.parentId ?? null; (kidsOf.get(k) ?? kidsOf.set(k, []).get(k)!).push(n); }
@@ -898,7 +911,18 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // M460k: the roster used to be cut at 12,000 chars mid-row — the newest rows sit at the end, so the open work of the last rounds was
   // the part that vanished or arrived half-written. Twice the room, a cut only at a line break, and the cut announced.
   const rosterFull = renderTree(liveMap, { ids: false, who: true, age: (n) => { const k = turnsAgo(n.updatedAt, roundTimes); return k !== null && k >= 15 ? `last discussed ${k} turns ago` : null; } }); // M469: when a row was last discussed — any row, never an open/closed mark
-  const roster = rosterFull.length <= 24_000 ? rosterFull : selectRowsForQuestion(liveMap.nodes, text, { budget: 22_000, roundTimes, minds: listMinds(store, projectId, 'active').map((m) => ({ nodeId: m.nodeId, understanding: m.understanding })), isTutorial: (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) }).text; // M473 + M473b: a big map is read by the question — the routed estates in full, then matching rows, then every root // M473: a big map is read by the question, not cut flat // M429: every line says who said it; M435: open items left behind say for how many turns
+  // M473c (Jacob 10:05 Oct 9: "This is not consistent with our attention rules right?"): a big map is read by the brain the way the agent
+  // reads it — through the tiered renderer (depth falls off with distance from the focus, within a budget) — with the question's best
+  // matching node as the focus (routed estate first, M473b), plus the matching nodes elsewhere with their paths (M473). One rulebook.
+  const roster = rosterFull.length <= 24_000 ? rosterFull : (() => {
+    const isTut = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? ''));
+    const minds = listMinds(store, projectId, 'active').map((mm) => ({ nodeId: mm.nodeId, understanding: mm.understanding }));
+    const routed = routeEstates(liveMap.nodes, text, minds, isTut);
+    const focus = questionFocus(liveMap.nodes, text, routed[0]?.rootId ?? null, isTut);
+    const tiered = renderTieredTree(store, projectId, focus, 15_000, null, { who: true });
+    const matching = selectRowsForQuestion(liveMap.nodes, text, { budget: 6_500, roundTimes, minds, isTutorial: isTut, estates: false, roots: false });
+    return `THE MAP AT ATTENTION (the same tiered reading the agent gets — every root, depth by closeness to the focus ▶, which is the node best matching the question${routed[0] ? `, in the estate "${String(liveMap.nodes.find((n) => n.id === routed[0].rootId)?.title ?? '').slice(0, 50)}"` : ''}; "(+N inside)" marks folded branches):\n${tiered}\n${matching.text}`;
+  })(); // M473: a big map is read by the question, not cut flat // M429: every line says who said it; M435: open items left behind say for how many turns
   const isTutorial = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) || /getting started \(tutorial\)/i.test(String(n.content ?? ''));
   const topics = liveMap.nodes.filter((n) => n.parentId === null && n.status !== 'removed' && !isTutorial(n) && String(n.title ?? n.content).trim() !== 'to sort');
   const topicLine = `TOP-LEVEL TOPICS (${topics.length}, excluding the getting-started tutorial): ${topics.map((n) => String(n.title ?? n.content).slice(0, 60)).join(' | ') || '(none yet)'}`;

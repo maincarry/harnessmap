@@ -255,7 +255,9 @@ export function renderTieredTreeForSubtree(store: any, projectId: string, rootId
   return renderTieredTree(store, projectId, null, budget, rootId);
 }
 
-export function renderTieredTree(store: any, projectId: string, focusId: string | null, budget = 40_000, rootId: string | null = null): string {
+export function renderTieredTree(store: any, projectId: string, focusId: string | null, budget = 40_000, rootId: string | null = null, opts: { who?: boolean } = {}): string {
+  // M473c: `who` prefixes [you] / [agent] on every line — the brain's reading needs who said what (M429); the agent-side callers keep the plain form.
+  const whoTag = (n: MapNode) => (opts.who ? (n.author === 'user' ? '[you] ' : n.author === 'agent' ? '[agent] ' : '') : '');
   const nodes = (store.getNodes(projectId) as MapNode[]).filter((n) => n.status !== 'removed');
   if (!nodes.length) return '(empty map)';
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -288,7 +290,7 @@ export function renderTieredTree(store: any, projectId: string, focusId: string 
       const short = (n.title || (n.content.length > 70 ? n.content.slice(0, 69) + '…' : n.content));
       const mark = n.id === focusId ? '▶ ' : '';
       const min = minBy.get(n.id);
-      entries.push({ n, depth, line: `${'  '.repeat(depth)}- [${n.id.slice(0, 8)}] ${mark}${short}${min ? ` — ${min}` : ''}` });
+      entries.push({ n, depth, line: `${'  '.repeat(depth)}- [${n.id.slice(0, 8)}] ${mark}${whoTag(n)}${short}${min ? ` — ${min}` : ''}` });
       walk(n.id, depth + 1);
     }
   };
@@ -317,7 +319,7 @@ export function renderTieredTree(store: any, projectId: string, focusId: string 
   }
   for (const e of ranked) {
     const pad = '  '.repeat(e.depth);
-    const lines2: string[] = [`${pad}    • ${e.n.content}${e.n.type ? ` [${e.n.type}, ${e.n.status}]` : ''}`];
+    const lines2: string[] = [`${pad}    • ${whoTag(e.n)}${e.n.content}${e.n.type ? ` [${e.n.type}, ${e.n.status}]` : ''}`];
     const det = (detBy.get(e.n.id) ?? []).slice(0, 4);
     if (det.length) lines2.push(`${pad}    remembered: ${det.join(' · ')}`.slice(0, 700));
     const add3 = lines2.join('\n');
