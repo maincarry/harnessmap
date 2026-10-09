@@ -56,3 +56,15 @@ test('M463c: a "no changes … yet" or "do not handle … yet" hold ends when th
   const r3 = harness(n2)([], 'How many rows have negative tenure, what negative values occur, and do those rows look unusual in plan, usage, price, or churn?');
   expect(r3.out).toEqual([]);
 });
+
+// M463d (REFILE #3 Priya single): "do not save … yet / until reviewed" is a hold; her "save the final version as …" and "Replace the exact-month line …" end them.
+test('M463d: a "do not save … yet" hold ends when she asks to save or replaces the chart', () => {
+  const h1 = { id: 'h1', parentId: 'root', title: 'Defer saving', content: 'Do not save the bucketed chart yet; first assess whether this version is clearer.', status: 'active', author: 'user', type: 'constraint', createdAt: at, updatedAt: at };
+  const h2 = { id: 'h2', parentId: 'root', title: 'Review before saving', content: 'Do not save the exact-tenure churn chart until its readability has been reviewed.', status: 'active', author: 'user', type: 'constraint', createdAt: at, updatedAt: at };
+  const root = { id: 'root', parentId: null, title: 'Customer churn parquet', content: 'Inspect the churn parquet', status: 'live', author: 'user', type: null, createdAt: at, updatedAt: at };
+  const R12 = 'Replace the exact-month line with bucketed bars using the tenure buckets we already defined. Show churn rate as percentages, add the customer count on each bar, keep missing tenure reported separately, and don\'t save it yet—I want to see if this version is clearer.';
+  const R21 = 'Now make the bucketed churn-by-tenure chart deck-ready. Keep the same six buckets and the 46 missing-tenure rows called out separately, use a colour-blind-safe palette, add direct percentage labels and customer counts, remove unnecessary chart clutter, and save the final version as churn_by_tenure.png at high resolution.';
+  expect(harness([root, h2])([], R12).out).toEqual([{ op: 'update_node', id: 'h2', status: 'superseded' }]);
+  expect(harness([root, h1])([], R21).out).toEqual([{ op: 'update_node', id: 'h1', status: 'superseded' }]);
+  expect(harness([root, h1])([], 'Now inspect feature importance for the leakage-free gradient-boosted model only. Show the ranked values first.').out).toEqual([]);
+});
