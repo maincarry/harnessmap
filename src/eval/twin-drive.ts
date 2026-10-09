@@ -39,7 +39,7 @@ const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
     ...process.env, ANTHROPIC_API_KEY: undefined as any,
     ...(engine ? { HARNESSMAP_INFERENCE: 'codex', CODEX_HOME: process.env.CODEX_HOME ?? join(process.env.HOME ?? '', '.codex'), HARNESSMAP_INFERENCE_CONCURRENCY: process.env.HARNESSMAP_INFERENCE_CONCURRENCY ?? '1' } : { HARNESSMAP_INFERENCE_CONCURRENCY: '1' }),
     HARNESSMAP_DB: join(TMP, 'twin.sqlite'), HARNESSMAP_HOME: join(TMP, 'home', '.harnessmap'), PORT: String(PORT),
-    HARNESSMAP_AUTOTIDY_ROUNDS: '0', HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home'),
+    HARNESSMAP_AUTOTIDY_ROUNDS: process.env.E2E_BRAIN === '1' ? (process.env.HARNESSMAP_AUTOTIDY_ROUNDS ?? '15') : '0' /* M475: E2E_BRAIN=1 keeps the brain rhythm (delegate cycle) on during a drive, as in real use */, HARNESSMAP_LATEST_OVERRIDE: '0.0.1', HOME: join(TMP, 'home'),
   },
   stdout: Bun.file(join(TMP, 'server.log')), stderr: Bun.file(join(TMP, 'server.log')),
 });
