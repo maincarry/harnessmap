@@ -261,6 +261,15 @@
   #detail-pane .dp-meta { font-size: 12px; color: var(--muted); }
   #detail-pane .dp-stmt { font-size: 14px; line-height: 1.5; white-space: pre-wrap; border-left: 2px solid var(--accent); padding: 4px 10px; margin: 4px 0 2px; }
   #detail-pane details.dp-edit { margin-top: 6px; } #detail-pane details.dp-edit > summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+  #detail-pane .dp-label, .modal .dp-label { font-size: 11px; color: var(--muted); letter-spacing: .03em; text-transform: uppercase; margin-top: 8px; display: block; }
+  .dp-in { width: 100%; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 8px; padding: 7px 10px; background: var(--bg); color: var(--ink); font: inherit; }
+  .dp-pre { border: 1px solid var(--hair); border-radius: 8px; padding: 7px 10px; background: var(--bg); font: inherit; font-size: 13px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; max-height: 40vh; overflow: auto; margin: 4px 0 0; }
+  details.dp-fold > summary { cursor: pointer; font-size: 12.5px; color: var(--accent); margin-top: 6px; }
+  details.dp-adv > summary { color: var(--muted); font-size: 11.5px; margin-top: 12px; }
+  .dp-facts { font-size: 13px; }
+  .dp-kids { margin-top: 6px; } .dp-kid { cursor: pointer; padding: 2px 0; font-size: 13px; display: flex; gap: 6px; align-items: baseline; } .dp-kid:hover { color: var(--accent); }
+  .dp-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--hair); }
+  .dp-actions .hbtn.on { color: var(--accent); border-color: var(--accent); font-weight: 600; }
   .nrow.selected > .ncontent { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
   .nrow:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   body.mobile #detail-pane { display: none !important; }
@@ -2636,111 +2645,78 @@ function openNodeDetail(id) {
   }
   renderNodeDetail(id, host, close, usePane);
 }
-// The detail, top to bottom (Mark's order): the statement verbatim · who said it and when · the thread it sits in · what the agent
-// is served (the four depths) and the dated facts · then the edit controls. The status word is a small recorded note, never a headline.
+// The detail panel (Mark 2026-10-09, "just what the user wants to know", approved layout): path · name · one meta line (who said it ·
+// when · recorded status) · THE STATEMENT verbatim · "from the conversation" folded · dated facts only if any · the items under it ·
+// one actions row (edit · focus · light · view this branch). The agent-serving internals (served depth, the four lengths, enrich) sit
+// under one "for the map's agent (advanced)" fold at the very bottom — reachable, not shown.
 function renderNodeDetail(id, host, close, pane) {
   const n = node(id); if (!n) { close(); return; }
   const when = (t) => { if (!t) return ''; const d = new Date(String(t).replace(' ', 'T').replace(/Z?$/, 'Z')); return Number.isFinite(d.getTime()) ? d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''; };
   const path = []; for (let p = node(n.parentId); p; p = node(p.parentId)) path.unshift(p);
   const who = n.author === 'user' ? 'you said this' : n.author === 'agent' ? 'the agent said this' : '';
   const recorded = n.status && n.status !== 'live' ? `recorded: ${esc(n.status)}` : '';
-  const meta = [who, recorded, n.createdAt ? `filed ${when(n.createdAt)}` : '', n.updatedAt && n.createdAt && Math.abs(Date.parse(String(n.updatedAt).replace(' ', 'T').replace(/Z?$/, 'Z')) - Date.parse(String(n.createdAt).replace(' ', 'T').replace(/Z?$/, 'Z'))) > 60_000 ? `changed ${when(n.updatedAt)}` : ''].filter(Boolean).join(' · ');
+  const meta = [who, n.createdAt ? when(n.createdAt) : '', recorded].filter(Boolean).join(' · ');
+  const kids = kidsOf(id).filter((k) => k.status !== 'removed');
+  const kidRows = (all) => (all ? kids : kids.slice(0, 6)).map((k) => `<div class="dp-kid" data-dp-go="${k.id}" title="open">${k.author === 'user' ? '<span class="nwho you">you</span>' : k.author === 'agent' ? '<span class="nwho agent">agent</span>' : ''}${esc(disp(k))}</div>`).join('');
+  const isLit = !!(chat()?.lit || []).includes(id); const isFocus = chat()?.focusContainerId === id;
   const head = pane
     ? `<div class="dp-path">${path.length ? path.map((p) => `<span data-dp-go="${p.id}" title="open this node">${esc(disp(p))}</span><span>›</span>`).join('') : '<span>top-level topic</span>'}</div>
-       <div class="dp-head"><h3>${n.type ? `<span style="color:var(--muted);font-size:12px;font-weight:400">${esc(n.type)} · </span>` : ''}${esc(disp(n))}</h3><button class="dp-close" data-dp-close="1" title="close the details (Esc)">✕</button></div>
-       ${meta ? `<div class="dp-meta">${meta}</div>` : ''}
-       <div class="dp-stmt">${esc(n.content)}</div>`
-    : `<h3 style="display:flex;gap:8px;align-items:baseline">${n.type ? `<span style="color:var(--muted);font-size:12px">${esc(n.type)}</span>` : ''} <span>${esc(disp(n))}</span> <span style="color:var(--muted);font-size:12px;font-weight:400">(${esc(n.status)})</span></h3>
-       ${meta ? `<div style="font-size:12px;color:var(--muted);margin:-2px 0 6px">${meta}</div>` : ''}`;
+       <div class="dp-head"><h3>${n.type && /^(question|decision|constraint)$/.test(n.type) ? `<span style="color:var(--muted);font-size:12px;font-weight:400">${esc(n.type)} · </span>` : ''}${esc(disp(n))}</h3><button class="dp-close" data-dp-close="1" title="close the details (Esc)">✕</button></div>`
+    : `<h3 style="display:flex;gap:8px;align-items:baseline">${n.type ? `<span style="color:var(--muted);font-size:12px">${esc(n.type)}</span>` : ''} <span>${esc(disp(n))}</span></h3>`;
   host.innerHTML = head + `
-      <div style="font-size:12px;color:var(--muted);margin-top:6px">${(() => { const d = S.served && S.served[id]; const pin = S.depthPins && S.depthPins[id]; const names = ['one line', 'summary', 'whole story', 'original words']; return `<b>served now:</b> ${d !== undefined ? names[d] : 'not in the last block (dim, or rolled up)'}${pin !== undefined ? ` · <b>pinned by you:</b> ${names[pin]}${(S.pinsUnmet || []).includes(id) ? ' — did not fit this turn ❗' : ''}` : ' · depth chosen by closeness to the focus and room in the block (pin one on the row’s ⋯)'}`; })()}</div>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block"><span style="display:block;margin:10px 0 6px;padding:6px 8px;border-left:2px solid var(--hair);line-height:1.45">Four depths of the same node. The agent receives the depth that fits how close the node is to the focus and how much room the block has: at least the one line for every lit node, the summary near the focus, the whole story for the focus itself. Each depth carries the same five things — name, description, how it fits, what changed, what was said.</span>
-      One line <span style="opacity:.6">(minimal)</span> — the least the agent ever gets about this node</label>
-      <div id="nd-min" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Summary <span style="opacity:.6">(medium)</span> — what the agent usually gets for a lit node near the focus, up to 150 words</label>
-      <div id="nd-mem" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Whole story <span style="opacity:.6">(long)</span> — what the agent gets for the focus and its closest neighbours when the block has room <button id="nd-long-toggle" class="hbtn" style="margin-left:6px;font-size:11px">show</button></label>
-      <pre id="nd-long" hidden style="border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);font:inherit;font-size:13px;line-height:1.5;color:var(--muted);white-space:pre-wrap;max-height:48vh;overflow:auto;margin:0">loading…</pre>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Original words <span style="opacity:.6">(full)</span> — the conversation, or imported text, this node was written from; for you, on request <button id="nd-full-toggle" class="hbtn" style="margin-left:6px;font-size:11px">show</button></label>
-      <pre id="nd-full" hidden style="border:1px solid var(--hair);border-radius:8px;padding:8px 10px;background:var(--bg);font:inherit;font-size:12.5px;line-height:1.5;color:var(--muted);white-space:pre-wrap;max-height:48vh;overflow:auto;margin:0">loading…</pre>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Facts on record — the dated specifics the four depths are built from (struck through = superseded)</label>
-      <div id="nd-det" style="border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);font-size:13px;color:var(--muted);font-style:italic">loading…</div>
-      <button id="nd-expand" class="hbtn" style="display:none;margin-top:6px" title="enrich this one node: the map reads what was discussed here and proposes the depth beneath it as child nodes — the same as ✚ enrich map, for one node; you approve">✚ enrich this node</button>
-      <details class="dp-edit"${pane ? '' : ' open'}><summary>edit this node — title, category, status, statement</summary>
-      <label style="font-size:12px;color:var(--muted)">Title (short — the map shows this)</label>
-      <input id="nd-title" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.title ?? '')}" placeholder="(auto-named from the description)">
-      <div id="nd-sug" style="font-size:12px;color:var(--muted);margin-top:3px;font-style:italic">suggesting a name…</div>
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Category (claim / question / option / … — or your own word; blank = plain topic)</label>
-      <input id="nd-type" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.type ?? '')}" placeholder="(none — plain topic)">
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Status (open / decided / parked / … — or your own word; blank = no status)</label>
-      <input id="nd-status" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit" value="${esc(n.status === 'live' ? '' : n.status ?? '')}" placeholder="(none)">
-      <label style="font-size:12px;color:var(--muted);margin-top:8px;display:block">Statement — what this node says, as the filer wrote it and the tree shows it; the master text that the description inside every depth restates (edit it and the depths follow on the next write; it is also what the agent gets when no depth is written yet)</label>
-      <textarea id="nd-desc" rows="4" style="width:100%;border:1px solid var(--hair);border-radius:8px;padding:7px 10px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical">${esc(n.content)}</textarea>
-      <div class="actions">
-        <button id="nd-cancel" title="${pane ? 'close the details' : 'close without saving changes'}">${pane ? 'close' : 'cancel'}</button>
-        <button id="nd-save" class="primary" title="save these edits to the node">save</button>
+      ${meta ? `<div class="dp-meta">${meta}</div>` : ''}
+      <div class="dp-stmt">${esc(n.content)}</div>
+      <details class="dp-fold"><summary>from the conversation</summary><pre id="nd-full" class="dp-pre">loading…</pre></details>
+      <div id="nd-det" class="dp-facts" hidden></div>
+      ${kids.length ? `<div class="dp-kids"><div class="dp-label">${kids.length} item${kids.length === 1 ? '' : 's'} under this</div><div id="dp-kidlist">${kidRows(false)}</div>${kids.length > 6 ? `<button class="hbtn" id="dp-kids-all" style="font-size:11px;margin-top:4px">show all ${kids.length}</button>` : ''}</div>` : ''}
+      <div class="dp-actions">
+        <button class="hbtn" data-dp-edit="1" title="change the title, the statement, the category or the status">✎ edit</button>
+        <button class="hbtn ${isFocus ? 'on' : ''}" data-dp-focus="1" title="${isFocus ? 'the conversation is focused here' : 'move the conversation’s focus here (the agent pivots on your next message)'}">▶ focus</button>
+        <button class="hbtn ${isLit ? 'on' : ''}" data-dp-lit="1" title="${isLit ? 'lit — in the agent’s background; click to dim' : 'light it — put it in the agent’s background'}">☀ ${isLit ? 'lit' : 'light'}</button>
+        <button class="hbtn" data-dp-zoom="1" title="view only this branch (a double-click on the row does the same)">◱ view this branch</button>
       </div>
+      <div id="dp-editbox" hidden>
+        <label class="dp-label">Title</label>
+        <input id="nd-title" class="dp-in" value="${esc(n.title ?? '')}" placeholder="(auto-named from the statement)">
+        <label class="dp-label">Statement</label>
+        <textarea id="nd-desc" rows="4" class="dp-in" style="resize:vertical">${esc(n.content)}</textarea>
+        <div style="display:flex;gap:8px"><div style="flex:1"><label class="dp-label">Category</label><input id="nd-type" class="dp-in" value="${esc(n.type ?? '')}" placeholder="(none)"></div><div style="flex:1"><label class="dp-label">Status (recorded)</label><input id="nd-status" class="dp-in" value="${esc(n.status === 'live' ? '' : n.status ?? '')}" placeholder="(none)"></div></div>
+        <div class="actions"><button id="nd-cancel" title="close the editor without saving">cancel</button><button id="nd-save" class="primary" title="save these edits to the node">save</button></div>
+      </div>
+      <details class="dp-fold dp-adv"><summary>for the map's agent (advanced)</summary>
+        <div class="dp-label" style="margin-top:4px">${(() => { const d = S.served && S.served[id]; const pin = S.depthPins && S.depthPins[id]; const names = ['one line', 'summary', 'whole story', 'original words']; return `served now: ${d !== undefined ? names[d] : 'not in the last block'}${pin !== undefined ? ` · pinned: ${names[pin]}` : ' · depth chosen by closeness to the focus and room'}`; })()}</div>
+        <div class="dp-label">one line</div><div id="nd-min" class="dp-pre">loading…</div>
+        <div class="dp-label">summary</div><div id="nd-mem" class="dp-pre">loading…</div>
+        <div class="dp-label">whole story</div><pre id="nd-long" class="dp-pre">loading…</pre>
+        <button id="nd-expand" class="hbtn" style="display:none;margin-top:6px" title="enrich this one node: the map reads what was discussed here and proposes the depth beneath it as child nodes; you approve">✚ enrich this node</button>
       </details>`;
-  // M38: fetch the relational description lazily (cached server-side by
-  // neighborhood hash — instant when nothing nearby changed).
-  fetch(`/api/nodes/${id}/relations`).then(r => r.json()).then(r => {
-    const el = host.querySelector('#nd-rel'); // M279: no longer shown — fit is an organ inside every length; the relations text feeds the memory writer
-    if (el) { el.textContent = r.text ?? ''; }
+  // the conversation this node was filed from — fetched when the fold opens
+  { const fl = host.querySelector('#nd-full'), det = fl?.closest('details'); let loaded = false;
+    if (det) det.addEventListener('toggle', async () => { if (!det.open || loaded) return; loaded = true; try { const f = await post2get(`/api/nodes/${id}/full`); fl.textContent = f.full || 'no record yet — nothing was discussed at this node and it was not imported'; } catch (err) { fl.textContent = `could not load: ${err.message}`; } }); }
+  // the dated facts and the agent's three lengths — one fetch
+  fetch(`/api/nodes/${id}/memory`).then((r) => r.json()).then((r) => {
+    const dt = host.querySelector('#nd-det'); const ds = r.details ?? [];
+    if (dt && ds.length) { dt.hidden = false; dt.innerHTML = `<div class="dp-label">on record</div>` + ds.map((d) => `<div style="${d.status === 'superseded' ? 'text-decoration:line-through;color:var(--muted);' : ''}padding:1px 0">• ${esc(d.text)}${d.date ? ` <span style="color:var(--muted);font-size:11px">(${esc(d.date)})</span>` : ''}</div>`).join(''); }
+    const mn = host.querySelector('#nd-min'); if (mn) mn.textContent = r.minimal ?? 'nothing yet';
+    const mm = host.querySelector('#nd-mem'); if (mm) mm.textContent = r.text ?? 'nothing yet';
+    const lg = host.querySelector('#nd-long'); if (lg) lg.textContent = r.long ?? 'not written yet';
+    const xb = host.querySelector('#nd-expand'); if (xb && r.text) { xb.style.display = ''; xb.onclick = (ev) => { ev.preventDefault(); close(); openReorganize(id, disp(n), { expand: true }); }; }
   }).catch(() => {});
-  // M41: per-node chat memory (read-only; the harness maintains it).
-  fetch(`/api/nodes/${id}/memory`).then(r => r.json()).then(r => {
-    const el = host.querySelector('#nd-mem');
-    if (el) {
-      el.textContent = r.text ?? 'nothing yet — this fills in as you talk while focused here';
-      if (r.text) { el.style.fontStyle = 'normal'; el.style.color = 'var(--ink)'; }
-    }
-    // M192b: the one-line view + the dated details, superseded marked.
-    const mn = host.querySelector('#nd-min');
-    if (mn) {
-      mn.textContent = r.minimal ?? 'nothing yet — written as the map digests discussion here';
-      if (r.minimal) { mn.style.fontStyle = 'normal'; mn.style.color = 'var(--ink)'; }
-    }
-    // M223 (Jacob: "you didn't fix the node description???"): the long organ
-    // text — the whole node — shows here in full; it was served to the agent
-    // but never to the page.
-    // M280 (Jacob: "min med long full, four length"): full = the raw record behind the three written lengths, fetched on request
-    { const fl = host.querySelector('#nd-full'), ft = host.querySelector('#nd-full-toggle'); let loaded = false;
-      if (ft) ft.onclick = async () => { fl.hidden = !fl.hidden; ft.textContent = fl.hidden ? 'show' : 'hide'; if (!fl.hidden && !loaded) { loaded = true; try { const f = await post2get(`/api/nodes/${id}/full`); fl.textContent = f.full || 'no record yet — nothing has been discussed at this node and it was not imported'; fl.style.color = 'var(--ink)'; } catch (err) { fl.textContent = `could not load: ${err.message}`; } } }; }
-    const lg = host.querySelector('#nd-long'), lt = host.querySelector('#nd-long-toggle');
-    if (lg) {
-      lg.textContent = r.long ?? 'not written yet — the memory agent writes the long text as the map digests discussion here (or ⚙ convert)';
-      if (r.long) { lg.style.color = 'var(--ink)'; lg.hidden = false; if (lt) lt.textContent = 'hide'; }
-      if (lt) lt.onclick = () => { lg.hidden = !lg.hidden; lt.textContent = lg.hidden ? 'show' : 'hide'; };
-    }
-    const dt = host.querySelector('#nd-det');
-    if (dt) {
-      const ds = r.details ?? [];
-      if (!ds.length) dt.textContent = 'none yet';
-      else {
-        dt.style.fontStyle = 'normal'; dt.style.color = 'var(--ink)';
-        dt.innerHTML = ds.map(d => `<div style="${d.status === 'superseded' ? 'text-decoration:line-through;color:var(--muted);' : ''}padding:1px 0">• ${esc(d.text)}${d.date ? ` <span style="color:var(--muted);font-size:11px">(${esc(d.date)})</span>` : ''}${(d.prov && (d.prov.paths?.length || d.prov.urls?.length || d.prov.tool_use_ids?.length)) ? ' <span title="carries source links (files/tools/urls) — the agent can resolve them via recall" style="font-size:11px">🔗</span>' : ''}</div>`).join('');
-      }
-    }
-    // M189: when there IS a discussion here, offer to file it onto the tree.
-    const xb = host.querySelector('#nd-expand');
-    if (xb && r.text) {
-      xb.style.display = '';
-      xb.onclick = (ev) => { ev.preventDefault(); close(); openReorganize(id, disp(n), { expand: true }); };
-    }
-  }).catch(() => {});
-  // M40: suggested minimal title with an adopt button.
-  fetch(`/api/nodes/${id}/suggest-title`).then(r => r.json()).then(r => {
-    const el = host.querySelector('#nd-sug');
-    if (!el) return;
-    if (r.title) {
-      el.innerHTML = `suggested: “${esc(r.title)}” <button id="nd-adopt" style="border:1px solid var(--hair);background:var(--panel);color:var(--accent);border-radius:4px;cursor:pointer;font-size:11px;padding:0 6px" title="adopt this suggested short name for the node">use this</button>`;
-      el.style.fontStyle = 'normal';
-      el.querySelector('#nd-adopt').onclick = (ev) => { ev.preventDefault(); host.querySelector('#nd-title').value = r.title; };
-    } else el.textContent = '';
-  }).catch(() => { const el = host.querySelector('#nd-sug'); if (el) el.textContent = ''; });
   host.onclick = async (e) => {
     const go = e.target.closest('[data-dp-go]')?.dataset.dpGo; if (go) { openNodeDetail(go); return; }
-    if (e.target.closest('[data-dp-close]') || e.target.id === 'nd-cancel') { close(); return; }
+    if (e.target.closest('[data-dp-close]')) { close(); return; }
+    if (e.target.id === 'dp-kids-all') { const l = host.querySelector('#dp-kidlist'); if (l) l.innerHTML = kidRows(true); e.target.remove(); return; }
+    if (e.target.closest('[data-dp-edit]')) { const box = host.querySelector('#dp-editbox'); box.hidden = !box.hidden; if (!box.hidden) host.querySelector('#nd-desc')?.focus(); return; }
+    if (e.target.closest('[data-dp-zoom]')) { setZoom(id); return; }
+    if (e.target.closest('[data-dp-lit]') && S.mainChatId) { try { await post(`/api/chats/${S.mainChatId}/lit`, { nodeId: id, on: !isLit }); setTimeout(() => { if (detailId === id) renderNodeDetail(id, host, close, pane); }, 500); } catch (err) { $('round-line').textContent = `lighting failed: ${err.message}`; } return; }
+    if (e.target.closest('[data-dp-focus]') && S.mainChatId) {
+      const c = chat(); if (!c || c.focusContainerId === id) return;
+      if (!(await uiConfirm(`Move the conversation's focus to “${disp(n)}”?\n(The agent pivots there on your next message.)`, 'move focus'))) return;
+      c.focusContainerId = id; userUnfolded.clear(); userFolded.clear(); renderAll(); $('round-line').textContent = `focus → “${disp(n)}” (the chat agent pivots on your next message)`;
+      try { await post(`/api/chats/${S.mainChatId}/focus`, { nodeId: id }); } catch (err) { $('round-line').textContent = `focus failed: ${err.message}`; }
+      setTimeout(() => { if (detailId === id) renderNodeDetail(id, host, close, pane); }, 500); return;
+    }
+    if (e.target.id === 'nd-cancel') { if (pane) host.querySelector('#dp-editbox').hidden = true; else close(); return; }
     if (e.target.id === 'nd-save') {
       const title = host.querySelector('#nd-title').value.trim();
       const content = host.querySelector('#nd-desc').value.trim();
@@ -2753,7 +2729,7 @@ function renderNodeDetail(id, host, close, pane) {
       const shownStatus = n.status === 'live' ? '' : (n.status ?? '');
       if (status !== shownStatus) patch.status = status || 'live'; // blank = plain 'live'
       if (!pane) close();
-      if (patch.content === undefined && patch.title === undefined && patch.type === undefined && patch.status === undefined) { if (pane) host.querySelector('details.dp-edit').open = false; return; }
+      if (patch.content === undefined && patch.title === undefined && patch.type === undefined && patch.status === undefined) { if (pane) host.querySelector('#dp-editbox').hidden = true; return; }
       try { await post(`/api/nodes/${id}`, patch); if (pane) setTimeout(() => { if (detailId === id) renderNodeDetail(id, host, close, true); }, 700); }
       catch (err) { $('round-line').textContent = `edit failed: ${err.message}`; }
     }
