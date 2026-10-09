@@ -1006,13 +1006,13 @@ function renderTree() {
 
       ${n.id === focus ? '<span class="fmark" title="the conversation is talking about this">▶</span>' : ''}
       ${String(n.content ?? '').startsWith('to sort') ? '' : n.author === 'user' ? '<span class="nwho you" title="you said, asked or decided this">you</span>' : n.author === 'agent' ? '<span class="nwho agent" title="the coding agent proposed, answered or claimed this">agent</span>' : ''}
-      <span class="ncontent" data-edit="${n.id}" title="${esc(isTray ? 'the filer couldn’t tell where these belong yet — they wait here so nothing is lost; approve a placement or move one home' : (n.title && n.title !== n.content ? n.content : 'click: details (the full text, who said it, history)'))}">${esc(disp(n))}${isTray ? '<small class="tray-sub">arrivals the filer couldn’t place yet</small>' : ''}</span>
+      <span class="ncontent" data-edit="${n.id}" title="${esc(isTray ? 'the filer couldn’t tell where these belong yet — they wait here so nothing is lost; approve a placement or move one home' : (n.title && n.title !== n.content ? n.content : 'ⓘ on the row opens the details (the full text, who said it, history); a double-click views only this branch'))}">${esc(disp(n))}${isTray ? '<small class="tray-sub">arrivals the filer couldn’t place yet</small>' : ''}</span>
       ${kids.length && folded.has(n.id) ? `<span class="fold-count" data-fold="${n.id}" title="expand: show the ${kids.length} child node(s)">${subtreeIds(n.id).length - 1} inside</span>` : ''}
       ${recChip(n.id)}
       <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
       ${isTray && kids.length ? `<button class="justdo" data-sortall="1" title="just do it: sort everything in “Needs a home” into the homes the map names now, no review (one ↩ undo)">⚡ sort all</button>` : ''}
       <span class="rowops">
-        <button class="rowbtn" data-detail="${n.id}" title="details: the full text, who said it, when, history — also a single click on the name">ⓘ</button>
+        <button class="rowbtn" data-detail="${n.id}" title="details: the full text, who said it, when, history (Enter on the row does the same)">ⓘ</button>
         <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? (S.focusBy === 'user' ? 'the conversation is focused here — set by you; auto mode holds it until you move it or press ⚡' : 'the conversation is focused here') : 'focus: talk about this (no zoom)'}">▶</button>
         <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? ((chat()?.userLit || []).includes(n.id) ? 'lit by you — auto mode never dims it; click to dim' : 'dim: remove from the chat agent’s background') : ((S.userDim || []).includes(n.id) ? 'set aside by you — auto mode never re-lights it; click to light' : 'light as background (incl. everything under it)')}">☀</button>${(() => { const d = S.served && S.served[n.id]; const pin = S.depthPins && S.depthPins[n.id]; if (d === undefined && pin === undefined) return ''; const names = ['one line', 'summary', 'whole story', 'original words']; const unmet = (S.pinsUnmet || []).includes(n.id); return `<span class="depth${pin !== undefined ? ' pinned' : ''}${unmet ? ' unmet' : ''}" title="${d !== undefined ? `served now at: ${names[d]}` : 'not in the last block'}${pin !== undefined ? ` · pinned by you: ${names[pin]}${unmet ? ' — did not fit this turn (❗)' : ''}` : ''}">${unmet ? '❗' : d !== undefined ? (['▂', '▃', '▅', '▇'][d] ?? '▂') : '⌖'}</span>`; })()}
         <button class="rowbtn" data-rowmore="${n.id}" title="more actions: favorite, home, add child, move, tidy, merge">⋯</button>
@@ -2539,11 +2539,11 @@ $('tree').addEventListener('click', async (e) => {
   // details; a single click on the text only marks it seen, so a double-click can zoom without first opening a dialog.
   const det = t.closest('[data-detail]')?.dataset.detail;
   if (det) { if ((S.recency || {})[det]) post(`/api/nodes/${det}/seen`, {}).catch(() => {}); openNodeDetail(det); return; }
-  // Mark 2026-10-09: a single click on the NAME opens the node's detail in the pane beside the tree; expanding is the caret's job.
+  // Mark 2026-10-09 (second pass: "it is confusing to have double click zoom imply open detail… remove the single click detail part and
+  // ask user to click the button"): a single click on the name only marks it seen; the details open from the row's ⓘ button (or Enter).
   const editId = t.closest('[data-edit]')?.dataset.edit;
   if (editId) {
     if ((S.recency || {})[editId]) post(`/api/nodes/${editId}/seen`, {}).catch(() => {});
-    if (!t.closest('.nrow')?.classList.contains('tosort')) openNodeDetail(editId);
     return;
   }
 });
@@ -2554,7 +2554,7 @@ document.getElementById('tree').addEventListener('dblclick', (e) => {
   const row = e.target.closest('.nrow'); if (!row || row.classList.contains('tosort')) return;
   if (e.target.closest('button, [data-fold], input, textarea, select')) return;
   const id = row.querySelector('[data-edit]')?.dataset.edit;
-  if (id && id !== zoomId) { if (window.getSelection) window.getSelection()?.removeAllRanges(); setZoom(id); if (detailId && detailId !== id) openNodeDetail(id); }
+  if (id && id !== zoomId) { if (window.getSelection) window.getSelection()?.removeAllRanges(); setZoom(id); } // zoom only — the detail pane is the ⓘ button's (Mark, second pass)
 });
 
 // ---- place picker (M52+M53): the map agent fetches candidate homes; the
