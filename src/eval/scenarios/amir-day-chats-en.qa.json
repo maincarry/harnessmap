@@ -1,0 +1,116 @@
+{
+  "sealed": "M470 record test — generated from the record by a model call; the answer key is the record's own words. Not read by the loop; not used for any fix.",
+  "scenario": "amir-day-chats-en.json",
+  "panelChat": "chat-release",
+  "generatedAt": "2026-10-09T04:15:33.189Z",
+  "questions": [
+    {
+      "kind": "discussed",
+      "question": "What firmware changes did we cover in the commit message?",
+      "answer": "Limit LTE sends to 5 seconds, add boot reset-cause logging, guard modem retries until the BME280 is idle, enforce the sensor timing budget at compile time, log LTE return-code failures, and reserve 8 KB from the application free tail while keeping configuration storage fixed.",
+      "quote": "node-b: prevent watchdog resets by limiting LTE sends to 5 seconds, add boot reset-cause logging, guard modem retries until the BME280 is idle, enforce the sensor timing budget at compile time, log LTE return-code failures, and reserve 8 KB from the application free tail for the log ring buffer while keeping configuration storage fixed.",
+      "turn": 33,
+      "who": "agent",
+      "chat": "chat-wrapup"
+    },
+    {
+      "kind": "discussed",
+      "question": "What current measurements did we discuss from the measured-current table?",
+      "answer": "Sleep 18 µA; sensing 4.2 mA; modem TX burst 380 mA peak for 2 s; one-hour average 1.1 mA.",
+      "quote": "I cannot access the current table from the previous session. I’ve logged the values you provided: sleep 18 µA; sensing 4.2 mA; modem TX burst 380 mA peak for 2 s; one-hour average 1.1 mA.",
+      "turn": 9,
+      "who": "agent",
+      "chat": "chat-power"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did I say the reset-cause flags showed?",
+      "answer": "RCC_CSR had IWDGRSTF set and BORRSTF was not set.",
+      "quote": "Reset-cause readout: RCC_CSR has IWDGRSTF set and BORRSTF is not set. Log that as evidence, then list the conditions that could prevent the IWDG from being refreshed.",
+      "turn": 2,
+      "who": "you",
+      "chat": "chat-watchdog"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did we conclude about bootloader CRC handling after the ring-buffer layout change?",
+      "answer": "The bootloader reads the image length from the firmware header and calculates the CRC over that declared length, so the ring buffer in the application region’s free tail does not alter the verified image span.",
+      "quote": "The bootloader does not use a fixed application length for CRC verification. It reads the image length from the firmware header and computes the CRC over that declared length, so placing the ring buffer in the application region’s free tail does not change the verified image span.",
+      "turn": 26,
+      "who": "agent",
+      "chat": "chat-flash"
+    },
+    {
+      "kind": "said-about",
+      "question": "Which source or configuration files did we say were changed that day?",
+      "answer": "main.c, lte.c, and sched.c; node-b.ld was not changed at that point, and the 90 s interval was only a recorded decision.",
+      "quote": "Files changed today: main.c for boot reset-cause logging, lte.c for the 5 s send timeout and rc error logging, and sched.c for the sensor-idle modem retry guard and timing assertion. node-b.ld was not changed, and the 90 s interval is only a recorded decision so far.",
+      "turn": 23,
+      "who": "agent",
+      "chat": "chat-ci"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What exact IWDG timeout did we calculate?",
+      "answer": "8.192 seconds, approximately 8.2 s.",
+      "quote": "The timeout is (4095 + 1) × 64 / 32,000 = 8.192 seconds, approximately 8.2 s. I’ve logged 8.2 s as the IWDG timeout fact.",
+      "turn": 4,
+      "who": "agent",
+      "chat": "chat-watchdog"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What hard current limit did I set for the 3.3 V rail?",
+      "answer": "The 3.3 V rail must never exceed 500 mA.",
+      "quote": "The 3.3 V rail must never exceed 500 mA.",
+      "turn": 36,
+      "who": "agent",
+      "chat": "chat-watchdog"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What compile-time timing rule did we add for the sensor and LTE timeout?",
+      "answer": "SENSOR_CONVERSION_BUDGET_MS is 40 ms and must remain below LTE_SEND_TIMEOUT_MS at 5000 ms; the build fails if it is equal to or above the LTE timeout.",
+      "quote": "Added a compile-time assertion comparing SENSOR_CONVERSION_BUDGET_MS (40) with LTE_SEND_TIMEOUT_MS (5000). The build will now fail if the sensor conversion budget is ever configured at or above the LTE timeout.",
+      "turn": 20,
+      "who": "agent",
+      "chat": "chat-sched"
+    },
+    {
+      "kind": "rejected",
+      "question": "What watchdog-refresh idea did I reject, why, and what replaced it?",
+      "answer": "I rejected refreshing the watchdog inside the UART wait loop because it can hide a real hang; the 5 s timeout stayed, with no refresh inside the wait loop.",
+      "quote": "Keep the 5 s timeout proposal, but reject the watchdog refresh inside the UART wait loop. Never kick the watchdog from inside a wait loop—it can hide a real hang.",
+      "turn": 7,
+      "who": "you",
+      "chat": "chat-watchdog"
+    },
+    {
+      "kind": "rejected",
+      "question": "What BME280 timing assumption did I correct, and what replaced it?",
+      "answer": "I rejected the 10 ms guard assumption because the forced-mode conversion is closer to 40 ms, and replaced it with a 40 ms conversion budget.",
+      "quote": "No—the forced-mode conversion time with x2 temperature, x16 pressure, and x1 humidity is closer to 40 ms. Replace the 10 ms guard assumption with a 40 ms conversion budget.",
+      "turn": 19,
+      "who": "you",
+      "chat": "chat-sched"
+    },
+    {
+      "kind": "who-said",
+      "question": "Was it me or the agent who proposed a 5 s LTE timeout plus watchdog refreshes inside the UART wait loop?",
+      "answer": "the agent — “I propose limiting LTE_SendBlocking to a 5-second timeout and refreshing the watchdog inside its UART wait loop so an ongoing send cannot trigger a reset.”",
+      "quote": "I propose limiting LTE_SendBlocking to a 5-second timeout and refreshing the watchdog inside its UART wait loop so an ongoing send cannot trigger a reset.",
+      "turn": 6,
+      "who": "agent",
+      "chat": "chat-watchdog"
+    },
+    {
+      "kind": "who-said",
+      "question": "Was it me or the agent who picked the application free tail for the ring buffer and kept config at 0x0803E000?",
+      "answer": "you — “Take the 8 KB for the log ring buffer from the application region’s free tail, never from the config area. Keep the config page fixed at 0x0803E000.”",
+      "quote": "Take the 8 KB for the log ring buffer from the application region’s free tail, never from the config area. Keep the config page fixed at 0x0803E000.",
+      "turn": 25,
+      "who": "you",
+      "chat": "chat-flash"
+    }
+  ]
+}
