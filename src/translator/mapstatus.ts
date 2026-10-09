@@ -826,6 +826,38 @@ export function routeEstates(nodes: any[], question: string, minds: { nodeId: st
   }
   return out.sort((a, b) => b.score - a.score);
 }
+// M473d (Jacob 10:12 Oct 9: "Aren't different delegates reading their own sections carefully and then reporting back to brain? So if user
+// look for a node/topic, the brain would ask delegates to search their own areas and brain would only get the info in a report?"): yes —
+// his Sep 8 design, now built. On a big map the question is routed to one or two estates; each estate's delegate reads ITS OWN subtree in
+// full and reports the matching nodes verbatim, with who said it; the brain answers from the reports (plus its whole-map understanding), the
+// tiered map serving as orientation only. Small maps keep the one-call path.
+export function estateSubtreeText(nodes: any[], rootId: string, roundTimes: number[] = [], cap = 30_000): { text: string; rows: number } {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const kids = new Map<string | null, any[]>(); for (const n of nodes) { if (n.status === 'removed') continue; const k = n.parentId ?? null; (kids.get(k) ?? kids.set(k, []).get(k)!).push(n); }
+  const age = (n: any) => { const k = turnsAgo(n.updatedAt, roundTimes); return k !== null && k >= 15 ? `last discussed ${k} turns ago` : null; };
+  const lines: string[] = []; let rows = 0; const root = byId.get(rootId);
+  if (root) { lines.push(`ESTATE: ${nodeLine(root, { who: true, age })}`); rows++; }
+  const walk = (pid: string, depth: number) => { for (const n of kids.get(pid) ?? []) { if (lines.join('\n').length > cap) return; rows++; lines.push(`${'  '.repeat(depth)}${n.title && String(n.title).trim() !== String(n.content ?? '').trim() ? `${String(n.title).slice(0, 50)} — ` : ''}${nodeLine(n, { who: true, age })}`); walk(n.id, depth + 1); } };
+  walk(rootId, 1);
+  return { text: lines.join('\n'), rows };
+}
+const DELEGATE_SYSTEM = `You are the delegate of ONE area (estate) of a person's goal map — a record of what the person and their coding agent said. You are handed your estate's nodes, one per line: [you] = the person said it, [agent] = the coding agent said it. The central brain asks you a question on the person's behalf. SEARCH your estate and REPORT what the nodes say — nothing else: list every node that bears on the question, each VERBATIM as "title — [who] statement" (up to 8, the most relevant first); keep every number, name, file and quoted phrase exactly; if nothing in your estate bears on it, say "nothing in this estate matches" in one line. Never answer the question yourself, never infer, never add what the nodes do not say; a status word in parentheses is the filer's note, not a finding.`;
+export async function delegateSearch(store: Store, projectId: string, nodes: any[], question: string, estates: { rootId: string }[], roundTimes: number[]): Promise<string> {
+  const out: string[] = [];
+  for (const { rootId } of estates.slice(0, 2)) {
+    const root = nodes.find((n) => n.id === rootId); if (!root) continue;
+    const name = String(root.title ?? root.content ?? '').slice(0, 60);
+    const { text, rows } = estateSubtreeText(nodes, rootId, roundTimes);
+    const t0 = Date.now();
+    try {
+      const r = await call({ task: 'brain', system: DELEGATE_SYSTEM, user: `THE QUESTION: ${question}\n\nYOUR ESTATE "${name}" (${rows} nodes):\n${text}\n\nReport.`, maxTokens: 800, timeoutMs: 120_000, audit: (k, d) => store.audit(k, d) });
+      const rep = String(typeof r === 'string' ? r : JSON.stringify(r)).trim().slice(0, 2400);
+      store.audit('brain_delegate_search', { estate: name.slice(0, 40), rows, ms: Date.now() - t0, chars: rep.length, hit: !/nothing in this estate matches/i.test(rep) });
+      out.push(`REPORT FROM THE DELEGATE OF "${name}" (${rows} nodes searched):\n${rep}`);
+    } catch (err) { store.audit('brain_delegate_search', { estate: name.slice(0, 40), rows, ms: Date.now() - t0, error: String(err).slice(0, 100) }); }
+  }
+  return out.join('\n\n');
+}
 // M473c: the node the question is most about — the best-scoring node inside the routed estate (or anywhere) — becomes the brain's focus.
 export function questionFocus(nodes: any[], question: string, estateRootId: string | null, isTutorial: (n: any) => boolean = () => false): string | null {
   const live = nodes.filter((n) => n.status !== 'removed' && !isTutorial(n) && n.author !== 'system');
@@ -914,14 +946,16 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // M473c (Jacob 10:05 Oct 9: "This is not consistent with our attention rules right?"): a big map is read by the brain the way the agent
   // reads it — through the tiered renderer (depth falls off with distance from the focus, within a budget) — with the question's best
   // matching node as the focus (routed estate first, M473b), plus the matching nodes elsewhere with their paths (M473). One rulebook.
-  const roster = rosterFull.length <= 24_000 ? rosterFull : (() => {
+  const roster = rosterFull.length <= 24_000 ? rosterFull : await (async () => {
     const isTut = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? ''));
     const minds = listMinds(store, projectId, 'active').map((mm) => ({ nodeId: mm.nodeId, understanding: mm.understanding }));
     const routed = routeEstates(liveMap.nodes, text, minds, isTut);
+    // M473d: the delegates of the routed estates search their own areas and report (one model call each, up to two)
+    const reports = routed.length ? await delegateSearch(store, projectId, liveMap.nodes, text, routed, roundTimes) : '';
     const focus = questionFocus(liveMap.nodes, text, routed[0]?.rootId ?? null, isTut);
-    const tiered = renderTieredTree(store, projectId, focus, 15_000, null, { who: true });
-    const matching = selectRowsForQuestion(liveMap.nodes, text, { budget: 6_500, roundTimes, minds, isTutorial: isTut, estates: false, roots: false });
-    return `THE MAP AT ATTENTION (the same tiered reading the agent gets — every root, depth by closeness to the focus ▶, which is the node best matching the question${routed[0] ? `, in the estate "${String(liveMap.nodes.find((n) => n.id === routed[0].rootId)?.title ?? '').slice(0, 50)}"` : ''}; "(+N inside)" marks folded branches):\n${tiered}\n${matching.text}`;
+    const tiered = renderTieredTree(store, projectId, focus, reports ? 9_000 : 15_000, null, { who: true });
+    const matching = selectRowsForQuestion(liveMap.nodes, text, { budget: reports ? 4_000 : 6_500, roundTimes, minds, isTutorial: isTut, estates: false, roots: false });
+    return `${reports ? `WHAT THE DELEGATES REPORT (each area's delegate searched its own estate for this question and quotes the live nodes verbatim — answer from THESE first; they outrank the orientation view below):\n${reports}\n\n` : ''}THE MAP AT ATTENTION (orientation — the same tiered reading the agent gets: every root, depth by closeness to the focus ▶, the node best matching the question${routed[0] ? `, in the estate "${String(liveMap.nodes.find((n) => n.id === routed[0].rootId)?.title ?? '').slice(0, 50)}"` : ''}; "(+N inside)" marks folded branches):\n${tiered}\n${matching.text}`;
   })(); // M473: a big map is read by the question, not cut flat // M429: every line says who said it; M435: open items left behind say for how many turns
   const isTutorial = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) || /getting started \(tutorial\)/i.test(String(n.content ?? ''));
   const topics = liveMap.nodes.filter((n) => n.parentId === null && n.status !== 'removed' && !isTutorial(n) && String(n.title ?? n.content).trim() !== 'to sort');

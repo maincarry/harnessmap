@@ -67,3 +67,13 @@ test('M473c (Jacob: "not consistent with our attention rules"): the brain reads 
   expect(renderTieredTree(st, pid, focus, 15_000)).not.toContain('[you]');              // the agent-side callers keep the plain form
   expect(questionFocus(nodes, 'something nobody said', 'r1')).toBe('r1');                // no match → the estate root
 });
+
+test('M473d: a delegate reads its own estate whole — every node of the subtree, tagged, with the estate line first', async () => {
+  const { estateSubtreeText } = await import('./mapstatus');
+  const { text, rows } = estateSubtreeText(nodes, 'r18');
+  expect(rows).toBe(1 + 20 + 1);                                  // the root, its twenty notes, the planted VPS node under Note 18-3
+  expect(text.startsWith('ESTATE: ')).toBe(true);
+  expect(text).toContain('Topic 18 about project work');
+  expect(text).toContain('Minimum VPS resources — ○ [agent] The agent recommended at least 2 CPU cores and 2 GB RAM');
+  expect(text).not.toContain('Topic 17');                         // its own estate only
+});
