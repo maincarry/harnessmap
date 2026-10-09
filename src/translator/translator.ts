@@ -214,6 +214,8 @@ const CLIENT_VERBS = new Set('Revise Start Run Save Draft Fix Update Check Rewri
 // as a [decided] decision — the author stayed "agent", and the end-of-day answer said "the one-time credit is recorded as an agent-made
 // decision, not a commitment you personally made" (she stopped the day). A decision the person states in their own words is theirs:
 // when the user's turn carries a first-person commitment and the node's statement shares the turn's words, the author is "user".
+// M472: a decision spoken as an order — a sentence that OPENS with a deciding verb (the person telling the agent what the rule or the choice is).
+export const IMPERATIVE_DECISION = /(?:^|[.!?]\s+)(?:take|keep|use|never|always|do not|don'?t|move|put|set|reserve|allocate|stick with|go with|drop|cut|merge|raise|lower|switch to|treat|leave|choose|pick|prefer|make|hold|cap|limit|require|forbid|allow)\b/i;
 export const FIRST_PERSON = /\b(?:let'?s|I'?ll|I will|we'?ll|we will|I'?m (?:willing|going|happy) to|I want|I(?:'ve| have)? decided|we(?:'ve| have)? decided|go with|settle (?:at|on|for)|I'?d (?:rather|prefer)|say (?:we|I|that we)|tell (?:them|him|her|the customer)|make (?:it|that|a) |record (?:these|this|it|that) as (?:my )?(?:a )?commitments?|my commitments?|I (?:sent|promised|committed|agreed|told|confirmed))\b/i; // M442d (TWIN #443): "Record these as commitments", "I sent both replies"
 // M443 (TWIN LONG #426, Noor, step 29 "List every commitment I made today, grouped by who it is for"): the recap turn filed two new
 // containers ("Harbor commitments", "Team pricing commitments") with six mirrored task rows restating rows the map already held — and
@@ -530,7 +532,12 @@ export class Translator {
     // M442c (LONG #440: a grammar-quiz sentence “…we'll have a cup of tea” flipped the agent's option to the person's): quoted
     // spans carry no commitment of the person's, and a "which is correct / choose one" turn is a question, not a decision.
     const ut = raw.replace(/[“"‘'][^”"’']{3,200}[”"’']/g, ' ');
-    if (ut.length < 20 || !FIRST_PERSON.test(ut)) return alterations;
+    // M472 (RECORD TEST #1 proof, Amir round 25: "Take the 8 KB for the log ring buffer from the application region's free tail, never from
+    // the config area. Keep the config page fixed at 0x0803E000." — filed as two [decided] rows of the AGENT's; the brain: "The agent picked
+    // both"): a decision the person issues as an IMPERATIVE ("Take…", "Keep…", "Never…", "Use…", "Move…") carries no first-person phrase, so
+    // M442 never looked. An imperative turn counts too — for decision/constraint rows and solid statuses only (tasks stay M442d's).
+    const imperative = !FIRST_PERSON.test(ut) && IMPERATIVE_DECISION.test(ut);
+    if (ut.length < 20 || (!FIRST_PERSON.test(ut) && !imperative)) return alterations;
     if (/^\s*(?:which|what|choose|pick|select|is|are|does|do|can|how)\b/i.test(ut) && !/\b(?:let'?s|I'?ll|I will|we'?ll|I'?m going to|I want)\b/i.test(ut.replace(/\?.*$/s, ''))) return alterations;
     const turn = distinctiveTokens(ut);
     if (turn.size < 4) return alterations;
@@ -543,12 +550,13 @@ export class Translator {
       const status = String(a.status ?? '');
       const type = String(a.type ?? cur?.type ?? '');
       if (!/^(decided|accepted|chosen|done)$/.test(status) && !/^(decision|constraint|task)$/.test(type)) continue; // M442d (TWIN #443): a task the person dictated or recorded as a commitment is theirs, not the agent's proposal
+      if (imperative && !/^(decided|accepted|chosen)$/.test(status) && !/^(decision|constraint)$/.test(type)) continue; // M472: an imperative claims decisions and rules, not tasks or evidence
       const text = `${a.title ?? ''} ${a.content ?? cur?.content ?? ''}`;
       const mine = distinctiveTokens(text);
       if (mine.size < 4) continue;
       let shared = 0; for (const w of mine) if (turn.has(w)) shared++;
       if (shared < 3 || shared / mine.size < 0.3) continue;
-      this.store.audit('guard_decision_author', { id: String(a.id ?? '').slice(0, 8), from: author, shared, title: String(a.title ?? a.content ?? '').slice(0, 40) });
+      this.store.audit('guard_decision_author', { id: String(a.id ?? '').slice(0, 8), from: author, shared, title: String(a.title ?? a.content ?? '').slice(0, 40), ...(imperative ? { how: 'imperative' } : {}) });
       a.author = 'user';
     }
     return alterations;
@@ -774,6 +782,7 @@ export class Translator {
     // from 22 ms to 40 ms with the agent still its author, and the record said the agent calculated 40 ms and nobody corrected anything):
     // a turn that opens as a correction ("No —", "wrong", "actually", "is closer to", "replace 10 ms with") and carries a figure makes
     // every agent-authored row this round files or rewrites WITH that figure the person's — the number is theirs.
+    const extraRows: any[] = [];
     if (map && ut.length >= 4 && CORRECTS_FIGURE.test(ut)) {
       const nums = (t: string) => (t.match(/\d+(?:[.,]\d+)?/g) ?? []).filter((x) => x.length >= 2 || Number(x) >= 2);
       const mine = nums(ut);
@@ -784,11 +793,21 @@ export class Translator {
           if (a.op === 'update_node') { const t = byId.get(String(a.id)); if (!t || t.author === 'user') continue; }
           const txt = `${a.title ?? ''} ${a.content ?? ''}`;
           if (!txt.trim() || !mine.some((x) => new RegExp(`(?<![\\d.])${x.replace('.', '\\.')}(?![\\d])`).test(txt))) continue;
-          this.store.audit('guard_correction_author', { id: String(a.id ?? '').slice(0, 8), op: a.op, how: 'figure', title: String(a.title ?? a.content ?? '').slice(0, 40) });
-          a.author = 'user';
+          if (a.op === 'create_node') { this.store.audit('guard_correction_author', { id: String(a.id ?? '').slice(0, 8), op: a.op, how: 'figure', title: String(a.title ?? a.content ?? '').slice(0, 40) }); a.author = 'user'; continue; }
+          // M471d (RECORD TEST #1 proof, Q10: "what did I correct and what replaced it?" — after M471c the agent's 22 ms was GONE, rewritten to
+          // 40 ms under the person's name, so the correction had nothing to be a correction OF): the agent's row keeps its words and is marked
+          // superseded; the person's figure becomes its own row beside it — both sides of the correction stay on the record.
+          const t = byId.get(String(a.id))!;
+          const fresh: any = { op: 'create_node', id: randomUUID(), parentId: t.parentId ?? null, type: a.type ?? t.type ?? undefined, status: a.status && !/^(superseded|removed)$/.test(String(a.status)) ? a.status : (t.status && !/^(superseded|removed)$/.test(String(t.status)) ? t.status : 'noted'), author: 'user', title: a.title ?? t.title ?? undefined, content: String(a.content ?? t.content ?? '') };
+          if (!fresh.type) delete fresh.type; if (!fresh.title) delete fresh.title;
+          for (const k of Object.keys(a)) if (!['op', 'id'].includes(k)) delete a[k];
+          a.status = 'superseded';
+          extraRows.push(fresh);
+          this.store.audit('guard_correction_author', { id: String(a.id ?? '').slice(0, 8), op: 'update_node', how: 'figure-new-row', title: String(fresh.title ?? fresh.content ?? '').slice(0, 40), newId: fresh.id.slice(0, 8) });
         }
       }
     }
+    if (extraRows.length) alterations.push(...extraRows);
     if (ut.length < 4 || !objects(ut)) return alterations; // M453d: quoted titles and noun clauses are not objections
     const CORR = /\b(?:retract\w*|withdraw\w*|supersed\w*|correct(?:ed|ion)|was wrong|is wrong|mistake|incorrect|does not (?:exist|have)|no such)\b|撤回|有误|更正|纠正|错误|不存在|没有(?:这|该)(?:一)?列|不能直接/i;
     for (const a of alterations) {
@@ -1283,6 +1302,13 @@ export class Translator {
     for (const a of alterations) {
       if (a?.op !== 'update_node' || typeof a.id !== 'string') { out.push(a); continue; }
       const n = byId.get(a.id);
+      // M471e (RECORD TEST #1 proof, Q11 — round 7 dropped "UART-loop refresh" AND rewrote it to "Do not refresh the watchdog…; this proposal is
+      // rejected because…", so the proposal AS MADE was gone and "who proposed the refresh?" had nothing to point at): the update that
+      // retires a row keeps the row's words — the status carries the rejection, the person's own row carries the reason.
+      if (n && /^(dropped|rejected|retracted)$/.test(String(a.status ?? '')) && !/^(dropped|rejected|retracted)$/.test(String(n.status ?? '')) && (typeof a.content === 'string' || typeof a.title === 'string')) {
+        this.store.audit('guard_rejected_stays', { id: a.id.slice(0, 8), title: String(n.title ?? n.content ?? '').slice(0, 40), was: n.status, tried: String(a.status), how: 'keep-words' });
+        delete a.content; delete a.title; out.push(a); continue;
+      }
       if (!n || !/^(dropped|rejected|retracted)$/.test(String(n.status ?? ''))) { out.push(a); continue; }
       const revives = (a.status && !/^(dropped|rejected|retracted|removed|superseded)$/.test(String(a.status))) || typeof a.content === 'string' || typeof a.title === 'string';
       if (!revives) { out.push(a); continue; }

@@ -1,7 +1,7 @@
 // M471/M471b/M471c (RECORD TEST #1 — Amir's held-out day, graded against the record): four of the map's five wrong answers were wrong
 // RECORDS of who said what. The sentences below are his, verbatim from src/eval/scenarios/amir-day-chats-en.json (rounds 6–8, 17–19).
 import { test, expect } from 'bun:test';
-import { Translator, dropCorrectionTwins, CORRECTS_FIGURE } from './translator';
+import { Translator, dropCorrectionTwins, CORRECTS_FIGURE, IMPERATIVE_DECISION } from './translator';
 
 function harness() {
   const audits: { kind: string; d: any }[] = [];
@@ -56,13 +56,44 @@ test('M471c: the figure the person corrects is the person\'s (round 19); the age
     { op: 'update_node', id: 'conv', type: 'evidence', status: 'noted', content: 'Using the BME280 vendor conversion-time formula for forced mode with x2 temperature, x16 pressure, and x1 humidity oversampling, the conversion takes about 40 ms.' },
     { op: 'create_node', id: 'other', parentId: 'guard', type: 'evidence', author: 'agent', status: 'noted', content: 'modem_retry() waits for sensor_idle() before powering the modem.' },
   ], { userText: ut }, map);
-  expect(out[0].author).toBe('user');
+  // M471d: the agent's 22 ms row is superseded (its words kept), the person's 40 ms becomes its own row beside it
+  expect(out[0]).toEqual({ op: 'update_node', id: 'conv', status: 'superseded' });
   expect(out[1].author).toBe('agent');
-  expect(audits.map((a) => a.kind)).toEqual(['guard_correction_author']); expect(audits[0].d.how).toBe('figure');
+  const fresh = out.find((x: any) => x.op === 'create_node' && x.author === 'user');
+  expect(fresh).toBeTruthy(); expect(fresh.parentId).toBe('guard'); expect(fresh.type).toBe('evidence'); expect(fresh.status).toBe('noted'); expect(fresh.content).toContain('about 40 ms'); expect(fresh.title).toBe('Conversion timing formula');
+  expect(audits.map((a) => a.kind)).toEqual(['guard_correction_author']); expect(audits[0].d.how).toBe('figure-new-row');
   // the agent revising its own estimate on a neutral ask is not a correction by the person
   const { t: t2, audits: a2 } = harness();
   const out2 = t2.guardCorrectionAuthor([{ op: 'update_node', id: 'conv', type: 'evidence', status: 'noted', content: '… the conversion takes about 22 ms.' }], { userText: 'What is the BME280 forced-mode conversion time at our oversampling settings: x2 temperature, x16 pressure, and x1 humidity? Check the vendor timing formula.' }, map);
   expect(out2[0].author).toBeUndefined(); expect(a2).toHaveLength(0);
   for (const s of ['Correct: 40% is Microsoft Japan; the UK figure is 1.4% revenue.', 'That\'s wrong, the limit is 500 mA.', 'Replace the 10 ms guard assumption with a 40 ms budget.']) expect(CORRECTS_FIGURE.test(s)).toBe(true);
   for (const s of ['Compute the timeout for PR=4 and RLR=0x0FFF.', 'Note the 40 ms budget in the guard.', 'where it did not work: 3 of 61 firms']) expect(CORRECTS_FIGURE.test(s)).toBe(false);
+});
+
+test('M471e: the update that drops a proposal keeps the proposal\'s words (round 7)', () => {
+  const { t, audits } = harness();
+  const map = { nodes: [option, timeout] as any[] }; // the refresh option is still floated when the person rejects it
+  const out = t.guardRejectedStays([
+    { op: 'update_node', id: 'opt-refresh', status: 'dropped', title: 'No wait-loop refresh', content: 'Do not refresh the watchdog inside the LTE_SendBlocking UART wait loop; this proposal is rejected because kicking the watchdog from a wait loop can hide a real hang.' },
+    { op: 'create_node', id: 'rule', parentId: 'fix', type: 'constraint', author: 'user', status: 'active', title: 'No wait-loop refresh', content: 'Never kick the watchdog from inside a wait loop — it can hide a real hang.' },
+  ], map, { userText: 'Keep the 5 s timeout proposal, but reject the watchdog refresh inside the UART wait loop. Never kick the watchdog from inside a wait loop—it can hide a real hang. Keep that as a rule.' });
+  expect(out[0]).toEqual({ op: 'update_node', id: 'opt-refresh', status: 'dropped' });   // the status carries the rejection; the words stay
+  expect(out[1].author).toBe('user');                                                        // the reason lives in the person's own row
+  expect(audits[0].d).toMatchObject({ how: 'keep-words', tried: 'dropped' });
+});
+
+test('M472: a decision the person gives as an order is the person\'s (round 25); a plain request to read a file claims nothing', () => {
+  const { t, audits } = harness();
+  const ut = 'Take the 8 KB for the log ring buffer from the application region’s free tail, never from the config area. Keep the config page fixed at 0x0803E000.';
+  expect(IMPERATIVE_DECISION.test(ut)).toBe(true);
+  const out = t.guardDecisionAuthor([
+    { op: 'create_node', id: 'd1', parentId: 'flash', type: 'decision', status: 'decided', author: 'agent', title: 'Ring buffer in app tail', content: 'The 8 KB log ring buffer is allocated from the application region’s free tail.' },
+    { op: 'create_node', id: 'd2', parentId: 'flash', type: 'decision', status: 'decided', author: 'agent', title: 'Config page fixed', content: 'The config page remains fixed at 0x0803E000 and is not used for the 8 KB log ring buffer.' },
+    { op: 'create_node', id: 'e1', parentId: 'flash', type: 'evidence', status: 'noted', author: 'agent', content: 'node-b.ld: the application region is 224 KB, the config area 8 KB at the top, the bootloader 24 KB.' },
+  ], { nodes: [] }, { userText: ut });
+  expect(out[0].author).toBe('user'); expect(out[1].author).toBe('user'); expect(out[2].author).toBe('agent');
+  expect(audits.filter((a) => a.kind === 'guard_decision_author').map((a) => a.d.how)).toEqual(['imperative', 'imperative']);
+  const { t: t2, audits: a2 } = harness();
+  const out2 = t2.guardDecisionAuthor([{ op: 'create_node', id: 'e2', parentId: 'flash', type: 'evidence', status: 'noted', author: 'agent', content: 'From node-b.ld: the bootloader occupies 24 KB, the application region is 224 KB, and the 8 KB config area is reserved at the top.' }], { nodes: [] }, { userText: 'I need 8 KB more flash for a new log ring buffer. Read node-b.ld and show me the current flash layout, including the app region, the config page and the bootloader.' });
+  expect(out2[0].author).toBe('agent'); expect(a2).toHaveLength(0);
 });
