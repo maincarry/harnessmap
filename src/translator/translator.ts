@@ -102,7 +102,12 @@ const author = { type: 'string' as const, enum: ['user', 'agent'] };
 // "ask for approval before deleting files" beside "this session has command tools"): a decision/constraint created in
 // the same round as a content rewrite is a TWIN only when it restates that statement — most of its rare words (≥ 60%,
 // at least two) already sit in the rewritten text. A commitment that adds its own words survives.
-export function dropCorrectionTwins(alterations: any[], nodes: { title?: string | null; content: string }[], audit: (d: Record<string, unknown>) => void): any[] {
+// M471 (RECORD TEST #1, Amir rounds 6–8: his rule "Never refresh the watchdog from inside a wait loop because doing so can hide a real
+// hang" was folded as a twin INTO the agent's rejected option "Refresh during UART wait", which the next round then revived as the
+// agent's chosen row — the record ended up saying the agent picked his rule): a row the PERSON states is never a restatement of an
+// AGENT row, and nothing is a restatement of an OPTION (a candidate is not a rule). The fold applies only when the rewritten row is
+// not an option and is the same side's (or the new row is the agent's own).
+export function dropCorrectionTwins(alterations: any[], nodes: { id?: string; title?: string | null; content: string; author?: string | null; type?: string | null }[], audit: (d: Record<string, unknown>) => void): any[] {
   const rewritten = alterations.filter((a) => a.op === 'update_node' && typeof a.content === 'string' && a.content.trim());
   if (!rewritten.length) return alterations;
   const df = new Map<string, number>();
@@ -123,7 +128,8 @@ export function dropCorrectionTwins(alterations: any[], nodes: { title?: string 
       // square wave but NOT the 500 mA — the tokenizer ignores runs under 4 characters, so the number never counted, and the user's
       // amplitude vanished from the map (no node, no detail). A statement whose NUMBERS are not all in the rewrite is not a restatement.
       const nums = (t: string) => (t ?? '').match(/\d+(?:[.,]\d+)?/g) ?? [];
-      const dup = rewritten.find((r) => { const rw = toks(r.content); const shared = cw.filter((w) => rw.has(w)).length; const rtext = `${r.title ?? ''} ${r.content}`; return cw.length > 0 && shared >= 2 && shared / cw.length >= 0.6 && nums(`${a.title ?? ''} ${a.content ?? ''}`).every((n) => rtext.includes(n)); });
+      const foldable = (r: any) => { const target = nodes.find((n) => n.id && n.id === r.id); if (!target) return true; if (String(target.type ?? '') === 'option') return false; return !(a.author !== 'agent' && target.author && target.author !== 'user'); }; // M471
+      const dup = rewritten.find((r) => { if (!foldable(r)) return false; const rw = toks(r.content); const shared = cw.filter((w) => rw.has(w)).length; const rtext = `${r.title ?? ''} ${r.content}`; return cw.length > 0 && shared >= 2 && shared / cw.length >= 0.6 && nums(`${a.title ?? ''} ${a.content ?? ''}`).every((n) => rtext.includes(n)); });
       if (dup) { audit({ dropped: String(a.content ?? '').slice(0, 80), rewrote: dup.id }); if (a.id) remap.set(String(a.id), String(dup.id)); continue; }
     }
     out.push(a);
@@ -248,6 +254,8 @@ export const FUTURE_COMMITMENT = /\b(?:will|'ll|’ll|going to|am going to|promi
 // and the NEXT turn — "the function you sent me does not follow the guidelines from the documentation i've provided. please revise" — left it
 // done): a delivery the person rejects in the following turn is not done. REJECTS on the user text reopens tasks M439/M448 closed in the
 // last two rounds (status doing). The mirror rule M439 always needed.
+// M471c: a correction opener — the person contradicting a figure or statement the agent gave.
+export const CORRECTS_FIGURE = /^\s*(?:no|nope|wrong|incorrect|not quite|not right|actually|correct(?:ion|ed)?|that'?s (?:wrong|off|not right))\b[\s,:;—–.!-]|\b(?:is|are|was|were|should be) (?:closer to|actually|really|more like|nearer)\b|\breplace (?:the |that |this |your )?\d[^.\n]{0,60}\bwith\b|\bnot \d[\d.,]*\s*\w{0,6},?\s*(?:but|it'?s|it is|rather)\s+\d|不是\s*\d|应该是\s*\d|改成\s*\d/i;
 export const REJECTS_ZH = /有问题|有误|不对|错了|不行|搞错|写错|弄错|没有这(?:一)?列|没有该列|并没有|还是(?:不行|不对|报错|失败)|仍然(?:不行|报错|失败)|不是我(?:要|问)的/;
 // M453d (TWIN #445 proof, Elena): "cut the section “Where it did not work.”" matched REJECTS on "did not work" inside a quoted TITLE and the
 // rejection guard reopened two delivered drafts; her outline turn ("5 Where it did not work") matched it unquoted. An objection is the
@@ -435,6 +443,7 @@ export class Translator {
       // is intercepted here — creations redirect to "to sort" (+ provenance,
       // + an auto placement note), updates/moves to dim nodes are dropped.
       alterations = this.guardScope(alterations, writeScope, map, params);
+      alterations = this.guardRejectedStays(alterations, map, params); // M471b (RECORD TEST #1): a row the person rejected is not revived by a later filing
       alterations = this.guardCorrectionTwin(alterations, map);
       alterations = this.guardCorrectionRetire(alterations, map, params);
       alterations = this.guardResolutionClose(alterations, map, params);
@@ -443,7 +452,7 @@ export class Translator {
       alterations = this.guardDecisionAuthor(alterations, map, params); // M442 (TWIN #426): a decision stated in the person's own words is theirs
       alterations = this.guardAgentSolidStatus(alterations, params); // M442a/M442b (TWIN #426): an agent-authored row is never born accepted/decided
       alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
-      alterations = this.guardCorrectionAuthor(alterations, params); // M456 (LONG #436 zh): the correction is the person's catch
+      alterations = this.guardCorrectionAuthor(alterations, params, map); // M456 + M471c (RECORD TEST #1): a figure the person corrects is the person's (LONG #436 zh): the correction is the person's catch
       alterations = this.guardDraftOverwrite(alterations, map, params); // M442f (PANEL #454b): a drafting turn gets its own draft row, never pasted over an older done row
       alterations = this.guardSendLater(alterations, map, params); // M451f (PANEL #454b): "an update I can send the PM tomorrow" is a todo of hers
       alterations = this.guardDraftAuthor(alterations, params); // M442e (TWIN #449): the reply the person asked for, filed as the agent's proposal → the person's row
@@ -758,8 +767,28 @@ export class Translator {
   // was filed as the AGENT's). When the person's turn objects (REJECTS / REJECTS_ZH) and this round files a row that records a
   // correction or retraction — status retracted/superseded/rejected/corrected, or a statement saying so — the catch is the person's:
   // author user. The agent's own words stay in the statement; only who caught it changes. Audit guard_correction_author.
-  private guardCorrectionAuthor(alterations: any[], params: { userText?: string }): any[] {
+  private guardCorrectionAuthor(alterations: any[], params: { userText?: string }, map?: { nodes: MapNode[] }): any[] {
     const ut = String(params.userText ?? '');
+    // M471c (RECORD TEST #1, Amir round 19: "No—the forced-mode conversion time with x2 temperature, x16 pressure, and x1 humidity is
+    // closer to 40 ms. Replace the 10 ms guard assumption with a 40 ms conversion budget" — the filer rewrote the AGENT's evidence row
+    // from 22 ms to 40 ms with the agent still its author, and the record said the agent calculated 40 ms and nobody corrected anything):
+    // a turn that opens as a correction ("No —", "wrong", "actually", "is closer to", "replace 10 ms with") and carries a figure makes
+    // every agent-authored row this round files or rewrites WITH that figure the person's — the number is theirs.
+    if (map && ut.length >= 4 && CORRECTS_FIGURE.test(ut)) {
+      const nums = (t: string) => (t.match(/\d+(?:[.,]\d+)?/g) ?? []).filter((x) => x.length >= 2 || Number(x) >= 2);
+      const mine = nums(ut);
+      if (mine.length) {
+        const byId = new Map(map.nodes.map((n) => [n.id, n]));
+        for (const a of alterations) {
+          if (!(a?.op === 'create_node' || a?.op === 'update_node') || a.author === 'user') continue;
+          if (a.op === 'update_node') { const t = byId.get(String(a.id)); if (!t || t.author === 'user') continue; }
+          const txt = `${a.title ?? ''} ${a.content ?? ''}`;
+          if (!txt.trim() || !mine.some((x) => new RegExp(`(?<![\\d.])${x.replace('.', '\\.')}(?![\\d])`).test(txt))) continue;
+          this.store.audit('guard_correction_author', { id: String(a.id ?? '').slice(0, 8), op: a.op, how: 'figure', title: String(a.title ?? a.content ?? '').slice(0, 40) });
+          a.author = 'user';
+        }
+      }
+    }
     if (ut.length < 4 || !objects(ut)) return alterations; // M453d: quoted titles and noun clauses are not objections
     const CORR = /\b(?:retract\w*|withdraw\w*|supersed\w*|correct(?:ed|ion)|was wrong|is wrong|mistake|incorrect|does not (?:exist|have)|no such)\b|撤回|有误|更正|纠正|错误|不存在|没有(?:这|该)(?:一)?列|不能直接/i;
     for (const a of alterations) {
@@ -1237,6 +1266,33 @@ export class Translator {
     return [...alterations, { op: 'update_node', id: target.id, status: 'done' }];
   }
 
+  // M471b (RECORD TEST #1, Amir round 8: "Accept the 5 s send timeout. Implement it in lte.c without refreshing the watchdog inside the
+  // wait loop" — the filer set the option he had REJECTED the round before ("Refresh during UART wait" [dropped]) to CHOSEN, retitled it
+  // "No wait-loop refresh" and inverted its statement; the record then said the agent picked the no-refresh rule and the proposal as
+  // made was gone): a row the person dropped / rejected / retracted keeps its status and its words until the person's own sentence
+  // picks it again — an accepting verb, no negation, and a word of the row's title in the same sentence. Audit guard_rejected_stays.
+  private guardRejectedStays(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+    const ut = String(params.userText ?? '');
+    const byId = new Map(map.nodes.map((n) => [n.id, n]));
+    const sentences = ut.split(/(?<=[.!?。！？])\s+|\n+/);
+    const ACCEPT = /\b(?:accept(?:ed)?|choose|chose|go with|pick(?:ed)?|take|use|keep|approve[sd]?|ok(?:ay)? with|let'?s do|revert to|back to|re-?pick|after all|bring back|restore|un-?drop)\b/i;
+    const NEGATED = /\b(?:without|not|never|no|don'?t|do not|reject(?:ed)?|drop(?:ped)?|instead of|rather than|except|skip)\b/i;
+    const STOP = new Set(['during', 'with', 'from', 'that', 'this', 'into', 'over', 'under', 'when', 'while', 'then', 'than', 'about', 'after', 'before']);
+    const words = (t: string) => new Set((t.toLowerCase().match(/[\p{L}\p{N}]{4,}/gu) ?? []).filter((w) => !STOP.has(w)));
+    const out: any[] = [];
+    for (const a of alterations) {
+      if (a?.op !== 'update_node' || typeof a.id !== 'string') { out.push(a); continue; }
+      const n = byId.get(a.id);
+      if (!n || !/^(dropped|rejected|retracted)$/.test(String(n.status ?? ''))) { out.push(a); continue; }
+      const revives = (a.status && !/^(dropped|rejected|retracted|removed|superseded)$/.test(String(a.status))) || typeof a.content === 'string' || typeof a.title === 'string';
+      if (!revives) { out.push(a); continue; }
+      const tw = words(String(n.title ?? '').trim() || String(n.content ?? '').split(/\s+/).slice(0, 12).join(' '));
+      const repicked = sentences.some((sn) => ACCEPT.test(sn) && !NEGATED.test(sn) && [...words(sn)].some((w) => tw.has(w)));
+      if (repicked) { out.push(a); continue; }
+      this.store.audit('guard_rejected_stays', { id: a.id.slice(0, 8), title: String(n.title ?? n.content ?? '').slice(0, 40), was: n.status, tried: String(a.status ?? (typeof a.content === 'string' ? 'rewrite' : 'retitle')) });
+    }
+    return out;
+  }
   private guardCorrectionTwin(alterations: any[], map: { nodes: MapNode[] }): any[] {
     return dropCorrectionTwins(alterations, map.nodes, (d) => this.store.audit('guard_correction_twin', d));
   }
