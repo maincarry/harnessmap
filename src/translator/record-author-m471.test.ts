@@ -97,3 +97,21 @@ test('M472: a decision the person gives as an order is the person\'s (round 25);
   const out2 = t2.guardDecisionAuthor([{ op: 'create_node', id: 'e2', parentId: 'flash', type: 'evidence', status: 'noted', author: 'agent', content: 'From node-b.ld: the bootloader occupies 24 KB, the application region is 224 KB, and the 8 KB config area is reserved at the top.' }], { nodes: [] }, { userText: 'I need 8 KB more flash for a new log ring buffer. Read node-b.ld and show me the current flash layout, including the app region, the config page and the bootloader.' });
   expect(out2[0].author).toBe('agent'); expect(a2).toHaveLength(0);
 });
+
+test('M472b: an order of the person\'s that lands only as rewrites of the agent\'s nodes becomes their own decision node (Amir round 25 on v0.9.290)', () => {
+  const { t, audits } = harness();
+  const map = { nodes: [{ id: 'app', parentId: 'flash', title: 'Application region', content: 'The application region is 224 KB.', author: 'agent', type: 'evidence', status: 'noted' }, { id: 'cfg', parentId: 'flash', title: 'Config area', content: 'The 8 KB config area sits at the top at 0x0803E000.', author: 'agent', type: 'evidence', status: 'noted' }] as any[] };
+  const out = t.guardDecisionAuthor([
+    { op: 'update_node', id: 'app', content: 'The application region is 224 KB; the 8 KB log ring buffer is carved from its free tail.' },
+    { op: 'update_node', id: 'cfg', content: 'The 8 KB config area stays fixed at 0x0803E000 and is not used for the ring buffer.' },
+  ], map, { userText: 'Take the 8 KB for the log ring buffer from the application region’s free tail, never from the config area. Keep the config page fixed at 0x0803E000.', focusContainerId: 'flash' });
+  expect(out).toHaveLength(3);
+  expect(out[2]).toMatchObject({ op: 'create_node', parentId: 'flash', type: 'decision', status: 'decided', author: 'user' });
+  expect(out[2].content).toContain('never from the config area'); expect(out[2].content).toContain('0x0803E000');
+  expect(out[0].author).toBeUndefined();                                                     // the agent's evidence stays the agent's
+  expect(audits.filter((a) => a.kind === 'guard_decision_author').map((a) => a.d.how)).toEqual(['imperative-new-row']);
+  // when the person's order already landed as their own node, nothing is added
+  const { t: t2, audits: a2 } = harness();
+  const out2 = t2.guardDecisionAuthor([{ op: 'create_node', id: 'd', parentId: 'flash', type: 'decision', status: 'decided', author: 'user', content: 'Take the 8 KB from the application region’s free tail, never from the config area; keep the config page at 0x0803E000.' }], map, { userText: 'Take the 8 KB for the log ring buffer from the application region’s free tail, never from the config area. Keep the config page fixed at 0x0803E000.', focusContainerId: 'flash' });
+  expect(out2).toHaveLength(1); expect(a2).toHaveLength(0);
+});

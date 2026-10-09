@@ -528,7 +528,7 @@ export class Translator {
   // M442 (TWIN LONG #426): see FIRST_PERSON. For a create_node or update_node that sets a solid status (decided/accepted/chosen/done)
   // or is typed decision/constraint, when the person's turn carries a first-person commitment and the statement shares at least three
   // distinctive words (and 30 %) with that turn, the author becomes "user". Audit guard_decision_author {id, from, shared}.
-  private guardDecisionAuthor(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+  private guardDecisionAuthor(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string; focusContainerId?: string }): any[] {
     const raw = String(params.userText ?? '');
     // M442c (LONG #440: a grammar-quiz sentence “…we'll have a cup of tea” flipped the agent's option to the person's): quoted
     // spans carry no commitment of the person's, and a "which is correct / choose one" turn is a question, not a decision.
@@ -559,6 +559,20 @@ export class Translator {
       if (shared < 3 || shared / mine.size < 0.3) continue;
       this.store.audit('guard_decision_author', { id: String(a.id ?? '').slice(0, 8), from: author, shared, title: String(a.title ?? a.content ?? '').slice(0, 40), ...(imperative ? { how: 'imperative' } : {}) });
       a.author = 'user';
+    }
+    // M472b (Amir refile on v0.9.290, round 25: "Take the 8 KB for the log ring buffer from the application region's free tail, never from the
+    // config area. Keep the config page fixed at 0x0803E000." landed ONLY as rewrites of the agent's two evidence nodes from the turn before
+    // ("Application region", "Config area" [agent, noted]) — the figures were on the map, so M474 had nothing to add, and the record said the
+    // agent noted the layout; nobody decided anything): an imperative decision of the person's that lands in no node of theirs becomes
+    // their decision node, in their words, under the round's focus — the agent's evidence stays as it is.
+    if (imperative && !alterations.some((a) => (a?.op === 'create_node' || a?.op === 'update_node') && a.author === 'user')) {
+      const sents = ut.split(/(?<=[.!?。！？])\s+|\n+/).map((x) => x.trim()).filter((x) => x && IMPERATIVE_DECISION.test(x)).slice(0, 3);
+      if (sents.length) {
+        const content = sents.join(' ').slice(0, 400);
+        const parentId = params.focusContainerId ?? alterations.find((a) => a?.op === 'update_node' && a.id)?.id ?? null;
+        this.store.audit('guard_decision_author', { how: 'imperative-new-row', content: content.slice(0, 60) });
+        alterations.push({ op: 'create_node', id: randomUUID(), parentId, type: 'decision', status: 'decided', author: 'user', title: content.slice(0, 48).replace(/\s+\S*$/, ''), content });
+      }
     }
     return alterations;
   }
