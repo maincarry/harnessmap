@@ -1011,12 +1011,12 @@ function renderTree() {
       <button class="rowmore" data-sheet="${n.id}" title="all actions for this node">⋯</button>
       ${isTray && kids.length ? `<button class="justdo" data-sortall="1" title="just do it: sort everything in “Needs a home” into the homes the map names now, no review (one ↩ undo)">⚡ sort all</button>` : ''}
       <span class="rowops">
+        <button class="rowbtn" data-detail="${n.id}" title="details: the full text, who said it, when, history — also a single click on the name">ⓘ</button>
         <button class="rowbtn ${n.id === focus ? 'on' : ''}" data-focus="${n.id}" title="${n.id === focus ? (S.focusBy === 'user' ? 'the conversation is focused here — set by you; auto mode holds it until you move it or press ⚡' : 'the conversation is focused here') : 'focus: talk about this (no zoom)'}">▶</button>
         <button class="rowbtn ${lit.has(n.id) ? 'on' : ''}" data-lit="${n.id}" data-on="${lit.has(n.id) ? '1' : ''}" title="${lit.has(n.id) ? ((chat()?.userLit || []).includes(n.id) ? 'lit by you — auto mode never dims it; click to dim' : 'dim: remove from the chat agent’s background') : ((S.userDim || []).includes(n.id) ? 'set aside by you — auto mode never re-lights it; click to light' : 'light as background (incl. everything under it)')}">☀</button>${(() => { const d = S.served && S.served[n.id]; const pin = S.depthPins && S.depthPins[n.id]; if (d === undefined && pin === undefined) return ''; const names = ['one line', 'summary', 'whole story', 'original words']; const unmet = (S.pinsUnmet || []).includes(n.id); return `<span class="depth${pin !== undefined ? ' pinned' : ''}${unmet ? ' unmet' : ''}" title="${d !== undefined ? `served now at: ${names[d]}` : 'not in the last block'}${pin !== undefined ? ` · pinned by you: ${names[pin]}${unmet ? ' — did not fit this turn (❗)' : ''}` : ''}">${unmet ? '❗' : d !== undefined ? (['▂', '▃', '▅', '▇'][d] ?? '▂') : '⌖'}</span>`; })()}
         <button class="rowbtn" data-rowmore="${n.id}" title="more actions: favorite, home, add child, move, tidy, merge">⋯</button>
         <span class="rowext">
-        <button class="rowbtn" data-detail="${n.id}" title="details: full text, history, relations, edit"><span class="ic">${INFO_ICO}</span><span class="lbl">Details</span></button>
-        ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes)"><span class="ic">◱</span><span class="lbl">View only this branch</span></button>`}
+        ${n.id === zoomId ? '' : `<button class="rowbtn" data-zoomin="${n.id}" title="view only this branch (nothing else changes) — a double-click on the row does the same"><span class="ic">◱</span><span class="lbl">View only this branch</span></button>`}
         <button class="rowbtn ${(S.favorites || []).includes(n.id) ? 'on' : ''}" data-fav="${n.id}" title="${(S.favorites || []).includes(n.id) ? 'unpin from favorites' : 'favorite: pin this node to the top of search'}"><span class="ic">★</span><span class="lbl">${(S.favorites || []).includes(n.id) ? 'Unfavorite' : 'Favorite'}</span></button>
         <button class="rowbtn ${S.home === n.id ? 'on' : ''}" data-sethome="${n.id}" title="${S.home === n.id ? 'this is the home page — click to unset (home falls back to the whole map)' : 'set as the home page — the home button (top of the map) zooms here'}"><span class="ic">${HOME_ICO}</span><span class="lbl">${S.home === n.id ? 'Unset as home' : 'Set as home'}</span></button>
         <button class="rowbtn" data-add="${n.id}" title="add an unnamed sub-node here and focus it — the map names it from what you talk about next"><span class="ic">+</span><span class="lbl">Add a sub-node</span></button>
@@ -2546,13 +2546,14 @@ $('tree').addEventListener('click', async (e) => {
     return;
   }
 });
-// Mark 2026-10-09 ("when we double click a node let's not zoom it in as it is very confusing"): a double-click opens the node's
-// details (the full text, who said it, history, edit) — never a zoom. "View only this branch" stays a labelled line in the ⋯ menu.
+// Mark 2026-10-09 (with Jacob: "the zoom function is important"): a SINGLE click on the name opens the details; a DOUBLE-click zooms
+// into the node ("view only this branch"). The double-click's first click has already opened the detail, so the pane shows the node
+// the view just zoomed into — no delay on the single click. The details are also the first button of the row (ⓘ).
 document.getElementById('tree').addEventListener('dblclick', (e) => {
   const row = e.target.closest('.nrow'); if (!row || row.classList.contains('tosort')) return;
   if (e.target.closest('button, [data-fold], input, textarea, select')) return;
   const id = row.querySelector('[data-edit]')?.dataset.edit;
-  if (id) { if (window.getSelection) window.getSelection()?.removeAllRanges(); openNodeDetail(id); }
+  if (id && id !== zoomId) { if (window.getSelection) window.getSelection()?.removeAllRanges(); setZoom(id); if (detailId && detailId !== id) openNodeDetail(id); }
 });
 
 // ---- place picker (M52+M53): the map agent fetches candidate homes; the
