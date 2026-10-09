@@ -867,7 +867,8 @@ function renderCrumbs() {
       if (back) { back.disabled = prev === undefined; back.title = prev === undefined ? 'back — no earlier view yet' : `back to “${histName(prev)}”`; }
       if (fwd) { fwd.disabled = next === undefined; fwd.title = next === undefined ? 'forward — nothing ahead' : `forward to “${histName(next)}”`; }
       if (zo) zo.title = zoomId ? `up one level, to “${histName(node(zoomId)?.parentId ?? null)}”` : 'up one level — already at the whole map'; }
-    { const fsl = $('focus-slot'), tr = $('trail'); if (fsl && tr && tr.nextElementSibling === fsl) tr.before(fsl); } }
+    // Mark 2026-10-09 ("put the current path immediately next to the 4 buttons and then focus"): ← → ↑ ⌂ · the trail · the focus chip.
+    { const fsl = $('focus-slot'), tr = $('trail'); if (fsl && tr && fsl.nextElementSibling === tr) fsl.before(tr); } }
   const parts = [`<span class="crumb" data-crumb="">whole map</span>`];
   if (zoomId && node(zoomId)) {
     // M123b (Jacob): the genealogy trail broke with long names (untitled
