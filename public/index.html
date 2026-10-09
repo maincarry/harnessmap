@@ -232,7 +232,34 @@
   #map-pane > header #proj-sel { flex: 1 1 60px; min-width: 60px; max-width: 180px; font-weight: 600; color: var(--ink); font-size: 13px; }
   #header-right { flex: none; }
   #map-pane > header #auto-btn { white-space: nowrap; flex: none; }
-  #map-pane #crumbs #trail { flex: 0 0 auto; max-width: 40%; }
+  /* Mark 2026-10-09 ("Can we fit all in one line elegantly so user know where the path ends?"): the nav row is three zones — the
+     navigation cluster (← → ↑ ⌂), the ADDRESS FIELD (the path in a subtle field, flex: it takes the room; the last crumb bold =
+     where you are; a long path collapses its middle into one "…" crumb), and the right cluster (▶ focus chip · ★ favorites popover ·
+     🔍 search). One line; a narrow pane (#crumbs.narrow, set by a ResizeObserver) wraps the right cluster onto a second line. */
+  #map-pane #crumbs #trail { flex: 1 1 160px; min-width: 120px; max-width: none; border: 1px solid var(--hair); border-radius: 8px; padding: 2px 10px; background: var(--bg); line-height: 1.5; height: 22px; box-sizing: border-box; display: flex; align-items: center; }
+  #map-pane #crumbs #trail .crumb { color: var(--muted); font-weight: 500; }
+  #map-pane #crumbs #trail .crumb:hover { color: var(--accent); }
+  #map-pane #crumbs #trail .crumb.cur { color: var(--ink); font-weight: 650; }
+  #map-pane #crumbs #trail .crumb.more { color: var(--muted); letter-spacing: .1em; }
+  #map-pane #crumbs #trail > span { white-space: nowrap; }
+  #map-pane #crumbs #trail .crumb.cur { overflow: hidden; text-overflow: ellipsis; min-width: 4ch; }
+  #nav-right { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; margin-left: auto; position: relative; }
+  #crumbs.narrow { flex-wrap: wrap; row-gap: 4px; }
+  #crumbs.narrow #nav-right { flex: 1 0 100%; justify-content: flex-end; margin-top: 0; }
+  #nav-right #focus-slot { display: inline-flex; min-width: 0; max-width: 220px; }
+  #nav-right #focus-slot .focus-away { max-width: 100%; margin: 0; }
+  #nav-right #fav-btn { font-size: 13px; padding: 2px 6px; }
+  #nav-right #fav-btn.has { color: var(--warn); }
+  #nav-right #search-btn { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 8px; font-size: 12px; padding: 0 10px; height: 22px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  #nav-right #search-btn:hover { border-color: var(--accent); color: var(--accent); }
+  #nav-right #search-btn kbd { font: inherit; font-size: 10px; color: var(--muted); border: 1px solid var(--hair); border-radius: 4px; padding: 0 4px; }
+  #fav-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 40; min-width: 220px; max-width: 360px; background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 6px 22px rgba(0,0,0,.14); padding: 4px; display: flex; flex-direction: column; gap: 1px; }
+  #fav-pop[hidden] { display: none; }
+  #fav-pop .bm { cursor: pointer; color: var(--ink); font-size: 13px; padding: 5px 8px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #fav-pop .bm:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  #fav-pop .bm::before { content: '★ '; color: var(--warn); }
+  #fav-pop .empty-fav { font-size: 12px; color: var(--muted); padding: 6px 8px; }
+  #map-pane #crumbs > #bookmarks { display: none; } /* the favorites bar became the ★ popover in the nav row */
   #map-pane #crumbs > #bookmarks { flex: 1 1 100px; }
   #header-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
   #header-right > button, #header-right #other-btn { border: 1px solid var(--hair); background: var(--bg); color: var(--muted); border-radius: 6px; font-size: 12px; cursor: pointer; padding: 3px 9px; white-space: nowrap; }
@@ -841,10 +868,10 @@ function subtreeIds(id) {
 // Mark 2026-10-09 ("add a backward button at the left most similar to windows ui so user can go back to previous path easily, and then a
 // > button and an up button"): the view history — every zoom change the person or the map makes is a step; ← and → walk it like a file
 // browser; ↑ (zoom out) is one level up. Back/forward replay a step without recording a new one.
-const zoomHist = [zoomId]; let zoomPos = 0;
+const zoomHist = [zoomId]; let zoomPos = 0; let trailFull = false; // the collapsed middle of the path, expanded by a click on its “…” until the next zoom
 function setZoom(id, opts = {}) {
   if (!opts.fromHistory && id !== zoomId) { zoomHist.splice(zoomPos + 1); zoomHist.push(id); if (zoomHist.length > 60) zoomHist.shift(); zoomPos = zoomHist.length - 1; }
-  zoomId = id;
+  zoomId = id; trailFull = false;
   if (id) localStorage.setItem('hm-zoom', id); else localStorage.removeItem('hm-zoom');
   renderAll();
 }
@@ -876,16 +903,33 @@ function renderCrumbs() {
       if (back) { back.disabled = prev === undefined; back.title = prev === undefined ? 'back — no earlier view yet' : `back to “${histName(prev)}”`; }
       if (fwd) { fwd.disabled = next === undefined; fwd.title = next === undefined ? 'forward — nothing ahead' : `forward to “${histName(next)}”`; }
       if (zo) zo.title = zoomId ? `up one level, to “${histName(node(zoomId)?.parentId ?? null)}”` : 'up one level — already at the whole map'; }
-    // Mark 2026-10-09 ("put the current path immediately next to the 4 buttons and then focus"): ← → ↑ ⌂ · the trail · the focus chip.
-    { const fsl = $('focus-slot'), tr = $('trail'); if (fsl && tr && fsl.nextElementSibling === tr) fsl.before(tr); } }
-  const parts = [`<span class="crumb" data-crumb="">whole map</span>`];
+    // Mark 2026-10-09: the right cluster — ▶ focus chip · ★ favorites · 🔍 search — pinned to the right end, after the address field.
+    if (!$('nav-right')) {
+      const right = document.createElement('div'); right.id = 'nav-right';
+      const fsl = $('focus-slot'); if (fsl) right.appendChild(fsl);
+      const fav = document.createElement('button'); fav.id = 'fav-btn'; fav.className = 'navico'; fav.textContent = '★'; fav.title = 'favorites — the nodes you pinned with ★'; right.appendChild(fav);
+      const pop = document.createElement('div'); pop.id = 'fav-pop'; pop.hidden = true; right.appendChild(pop);
+      const sb = $('search-btn'); if (sb) { sb.innerHTML = '🔍 <span>search…</span><kbd>⌘K</kbd>'; right.appendChild(sb); }
+      el.appendChild(right);
+      fav.onclick = (e) => { e.stopPropagation(); pop.hidden = !pop.hidden; };
+      pop.onclick = (e) => { const c = e.target.closest('[data-bm]'); if (c) { pop.hidden = true; setZoom(c.dataset.bm); } };
+      document.addEventListener('click', (e) => { if (!pop.hidden && !e.target.closest('#fav-pop, #fav-btn')) pop.hidden = true; });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !pop.hidden) pop.hidden = true; });
+      // a narrow pane wraps the right cluster onto a second line (the ResizeObserver sets the class; CSS does the wrap)
+      if (window.ResizeObserver) new ResizeObserver(() => { el.classList.toggle('narrow', el.clientWidth < 620); }).observe(el);
+      el.classList.toggle('narrow', el.clientWidth < 620);
+    } }
+  const parts = [`<span class="crumb${zoomId ? '' : ' cur'}" data-crumb="">whole map</span>`];
   if (zoomId && node(zoomId)) {
-    // M123b (Jacob): the genealogy trail broke with long names (untitled
-    // nodes carry whole sentences) — clip each segment, full name on hover.
-    for (const n of pathOf(zoomId)) {
+    // M123b (Jacob): clip each segment, full name on hover. Mark 2026-10-09: the last crumb is where you are (bold, never clipped
+    // away); a path deeper than three collapses its middle into one "…" crumb that expands on click (until the next zoom).
+    const chain = pathOf(zoomId); const last = chain.length - 1;
+    chain.forEach((n, i) => {
       const t = disp(n);
-      parts.push(`<span class="sep">›</span><span class="crumb" data-crumb="${n.id}" title="${esc(t)}">${esc(t.length > 26 ? t.slice(0, 25) + '…' : t)}</span>`);
-    }
+      const hidden = !trailFull && chain.length > 3 && i > 0 && i < last - 1;
+      if (hidden) { if (i === 1) parts.push(`<span class="sep">›</span><span class="crumb more" data-crumb-more="1" title="${esc(chain.slice(1, last - 1).map(disp).join(' › '))} — click to show the whole path">…</span>`); return; }
+      parts.push(`<span class="sep">›</span><span class="crumb${i === last ? ' cur' : ''}" data-crumb="${n.id}" title="${esc(t)}">${esc(i === last ? t : (t.length > 26 ? t.slice(0, 25) + '…' : t))}</span>`);
+    });
   }
   // The focus chip is ALWAYS visible (it used to appear only when zoomed —
   // effectively lost). Amber when the focus is outside the current view.
@@ -905,6 +949,10 @@ function renderBookmarks() {
   const favs = (S.favorites || []).map((id) => node(id)).filter((n) => n && n.status !== 'removed');
   el.hidden = !favs.length;
   el.innerHTML = favs.map((n) => { const t = disp(n); return `<span class="bm" data-bm="${n.id}" title="★ ${esc(t)} — click to zoom here">★ ${esc(t.length > 22 ? t.slice(0, 21) + '…' : t)}</span>`; }).join('');
+  // Mark 2026-10-09: the favorites live in the nav row's ★ popover (the bar grew a line with every pin)
+  const pop = $('fav-pop'), btn = $('fav-btn');
+  if (pop) pop.innerHTML = favs.length ? favs.map((n) => `<div class="bm" data-bm="${n.id}" title="${esc(disp(n))} — click to view this branch">${esc(disp(n))}</div>`).join('') : '<div class="empty-fav">no favorites yet — ★ on any row (in its ⋯ menu) pins one here</div>';
+  if (btn) { btn.classList.toggle('has', favs.length > 0); btn.title = favs.length ? `favorites (${favs.length}) — click to pick one` : 'favorites — none yet; ★ on any row (in its ⋯ menu) pins one here'; }
 }
 $('bookmarks')?.addEventListener('click', (e) => { const c = e.target.closest('[data-bm]'); if (c) setZoom(c.dataset.bm); });
 
@@ -948,6 +996,7 @@ $('crumbs').addEventListener('click', async (e) => {
     }
     return;
   }
+  if (e.target.closest('[data-crumb-more]')) { trailFull = true; renderCrumbs(); return; }
   const c = e.target.closest('[data-crumb]');
   if (c) setZoom(c.dataset.crumb || null);
 });
