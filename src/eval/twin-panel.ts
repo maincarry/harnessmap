@@ -73,11 +73,11 @@ function endMapFromSqlite(path: string): string {
 // M426 (Jacob 2026-10-07 05:13: "are these persona using the talking to map function at all? Some of their complaints seems to be
 // easily solvable by talk to map"): with --ask, a throwaway server is started on a COPY of the kept map and the map's own answers to
 // the questions a user would ask are shown beside the tree, so the personas judge the product with its talk-to-map, not the tree alone.
-const ASK_QUESTIONS = [
-  'What is the user working on RIGHT NOW, most recently? one line',
-  'What is still OPEN or unresolved in this session? a short list',
-  'What is settled in this session, and what is still open? a short list of each', // Jacob 2026-10-07 07:02: "nodes are not decisions" — the earlier "what did the user DECIDE" baited the brain into decision voice
-  'Summarize this session in five lines for someone coming back tomorrow.',
+const ASK_QUESTIONS = [ // M469 (Jacob 2026-10-09 03:40–03:46: "why are folks so focused on the status of opening? … the map is about what topics are discussed"): the questions ask what was discussed and said — never what is open or closed
+  'What topics did we discuss in this session? a short list, most recent first, one line each',
+  'For each topic, what was said or decided — the numbers, limits, rules and the reasons, in my own words where I set them? a short list',
+  'What did I correct or reject in this session, and what replaced it? a short list',
+  'Summarize this session in five lines for me coming back tomorrow: what was discussed, what was concluded, and what I said comes next.',
 ];
 async function mapAnswers(path: string): Promise<string> {
   const dir = mkdtempSync('/tmp/claude-1000/harnessmap-panel-ask-'); const db = join(dir, 'map.sqlite'); copyFileSync(path, db);
