@@ -598,7 +598,11 @@ console.log('\n== 17. round text via prompt stash + session close (M99) ==');
   await observe('s-def', 'quick note after the cleanup: the pricing page needs a short FAQ about annual billing', 'Noted — a short FAQ on annual billing goes on the pricing page.');
   const afterViews = await hostChatsOf('s-def');
   const s17b = await state();
-  check('a session whose view was archived gets a fresh live view, and its round lands there (M481)', afterViews.length >= 1 && (beforeViews.length === 0 || afterViews[0] !== beforeViews[0]) && s17b.chats.some((c: any) => c.id === afterViews[0] && c.host?.sessionId === 's-def'), `live views before ${archivedViews}, s-def views before ${JSON.stringify(beforeViews)} after ${JSON.stringify(afterViews)}`);
+  // detail for the record: every view of the active project with its RAW host id (hostSessionId, set at creation) beside the
+  // computed host (null when the session row is missing), so a failure says whether the view exists at all, where, and why hidden
+  const raw17 = (s17b.chats ?? []).map((c: any) => `${c.id.slice(0, 6)}:${c.hostSessionId ?? '-'}:${c.host ? (c.host.status ?? 'host') : 'nohost'}:${c.status}`).join(' ');
+  const act17 = (s17b.projects ?? []).find((p: any) => p.id === s17b.projectId)?.name;
+  check('a session whose view was archived gets a fresh live view, and its round lands there (M481)', afterViews.length >= 1 && (beforeViews.length === 0 || afterViews[0] !== beforeViews[0]) && s17b.chats.some((c: any) => c.id === afterViews[0] && c.host?.sessionId === 's-def'), `live views before ${archivedViews}; s-def views before ${JSON.stringify(beforeViews)} after ${JSON.stringify(afterViews)}; active project ${act17}; views now [${raw17}]; audit ${(await get('/api/audit?limit=12')).map((r: any) => r.kind).join(',')}`);
   check('the round after the archive is on the map (not lost in the hidden view)', s17b.nodes.some((n: any) => /annual billing|FAQ/i.test(n.content || '')));
 }
 
