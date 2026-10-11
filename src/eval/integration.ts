@@ -548,7 +548,8 @@ console.log('\n== 17. round text via prompt stash + session close (M99) ==');
   const b17 = await filerCount();
   await post('/api/harness/observe', { session_id: 's-def', assistant_text: 'Proof sourdough at 24-26C; cooler slows it, warmer risks over-proofing.' });
   await waitRound(b17);
-  const CH17 = (await state()).mainChatId;
+  // M251: a host session has its OWN view — the stashed text lands in s-def's chat, not necessarily the page's main chat
+  const CH17 = (await state()).chats.find((c: any) => c.host?.sessionId === 's-def')?.id ?? (await state()).mainChatId;
   const turns = await get(`/api/chats/${CH17}/turns`);
   const userTurns = (Array.isArray(turns) ? turns : []).filter((t: any) => t.role === 'user');
   check('user text recovered from prompt stash', userTurns.some((t: any) => t.content.includes('sourdough proof')));
@@ -1008,7 +1009,10 @@ console.log('\n== 34. update visibility (M161) ==');
   check('menu check returns latest vs current', uc.status === 200 && uc.body.updateAvailable === '99.0.0' && typeof uc.body.current === 'string');
   await post('/api/dev/setting', { key: 'update_nudged', value: '' }); // earlier sections consumed today's nudge
   const s1 = await post('/api/harness/session-start', { session_id: 's-upd', cwd: CWD_DEF });
-  check('startup announce carries ONE concise upgrade line (correct command)', /upgrade available \(v99\.0\.0\).*\/plugin update map@harnessmap/.test(s1.body.announce ?? ''));
+  // M265/M281 wording: "a newer map is available (v…)" + the way to update for THIS install (a git checkout → say "update map"; a
+  // plugin → /plugin update map@harnessmap; Codex → the installer). One line, once per new build. (M478c: regex followed the text.)
+  const an34 = s1.body.announce ?? '';
+  check('startup announce carries ONE concise upgrade line naming the way to update', /a newer map is available \(v99\.0\.0/.test(an34) && /update map|\/plugin update map@harnessmap|installer/.test(an34) && (an34.match(/a newer map is available/g) ?? []).length === 1);
   const s2 = await post('/api/harness/session-start', { session_id: 's-upd2', cwd: CWD_DEF });
   check('same-day second start: no repeat (no bombardment)', !/upgrade available/.test(s2.body.announce ?? ''));
   await post('/api/dev/setting', { key: 'latest_ver', value: '0.0.1' });
@@ -1071,7 +1075,9 @@ console.log('\n== 39. no child ever sees an API key (M185) ==');
 console.log('\n== 40. sign-in & billing transparency (M186) ==');
 {
   const a = await (await fetch(`${BASE}/api/auth-info`)).json();
-  check('backend + billing stated plainly', a.backend === 'subscription' && /subscription/.test(a.billing));
+  // the engine is whatever this box runs (M264): the billing line must name the right payer for it (M478c: was pinned to subscription)
+  const payer40 = ({ subscription: /Claude subscription/, codex: /ChatGPT plan/, api: /ANTHROPIC_API_KEY/ } as Record<string, RegExp>)[a.backend];
+  check(`backend + billing stated plainly (engine: ${a.backend})`, !!payer40 && payer40.test(a.billing));
   check('key scrub visible (fake key was scrubbed)', a.keyScrubbed === true);
   check('source presence booleans, never secrets', typeof a.sources.envToken === 'boolean' && !JSON.stringify(a).includes('sk-'));
   check('call health carried', 'lastOkAt' in a && 'lastErrAt' in a);

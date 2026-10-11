@@ -1,1 +1,1 @@
-fix: "create a map for this folder" now really creates the folder's map (it landed on default since mid-September)
+fix: import sources work again on the default map (README, past sessions, Claude memory of the folder you work in)

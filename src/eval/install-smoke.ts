@@ -440,6 +440,17 @@ console.log('\n== 6l. which map: the list, the folder map, throwaway folders, a 
   const sc2 = await sj({ session_id: 'choice-3', cwd: fresh3, map: 'folder-choice' });
   const stE = await (await fetch(`${BASE}/api/state`)).json();
   check('choosing it again from the same folder lands on the same map — no duplicate (M479)', sc2.status === 200 && stE.projects.filter((p: any) => p.name === 'folder-choice').length === 1 && (await listFor(fresh3)).folderMap?.id === fm?.id);
+  // M480: a folder that stays on the default map (no choice made) still counts as that map's folder for IMPORT — its README,
+  // its past sessions and its Claude memory are offered, and "import this file" accepts a path inside it.
+  const fresh4 = join(TMP, 'unbound-notes'); mkdirSync(fresh4, { recursive: true }); wf(join(fresh4, 'README.md'), '# Unbound notes\n\n- a plan\n');
+  const sd = await sj({ session_id: 'unbound-1', cwd: fresh4 });
+  const stF = await (await fetch(`${BASE}/api/state`)).json();
+  const defP = (stF.projects ?? []).find((p: any) => p.name === 'default');
+  const srcs = await (await fetch(`${BASE}/api/import/sources`)).json();
+  check('a session from a folder with no map lands on default and stays UNBOUND (the offer stays open)', sd.status === 200 && stF.projectId === defP?.id && (await listFor(fresh4)).folderMap === null);
+  check('import sources for the default map include that folder\'s README (M480)', (srcs.files ?? []).some((f: any) => f.name === 'README.md' && f.dir === fresh4));
+  const big = await fetch(`${BASE}/api/import/large`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'file', path: join(fresh4, 'README.md') }) });
+  check('"import this file" accepts a path inside that folder (M480)', big.status === 200 || (big.status !== 400 && big.status !== 404));
   // a throwaway folder with no choice joins the map the page shows
   try { ul(join(HOME, 'session')); } catch {}
   wf(join(HOME, 'session'), 'scratch-1');

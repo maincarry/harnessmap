@@ -619,6 +619,16 @@ function defaultProjectId(): string {
   if (d) return d.id;
   const pid = store.createProject('default'); bootstrapProject(pid); return pid;
 }
+// M480 (found by the integration suite, 2026-10-11): the folders a map "owns" for import — the folders bound to it, PLUS, for
+// the default map only, the folders of recent sessions that have no map of their own (M268 lands them on default without
+// binding, so the "create a map for this folder" offer stays open). Before this, a person working on the default map saw an
+// empty import list: no README, no past sessions, no Claude memory, and "import this file" said "outside the project folders".
+function foldersOf(pid: string): string[] {
+  const bound = store.cwdsForProject(pid);
+  if (pid !== defaultProjectId()) return bound;
+  const extra = activeCwds(store).filter((c) => !store.projectForCwd(c) && !scratchRootOf(c) && !bound.includes(c));
+  return [...bound, ...extra];
+}
 // M244 (Mark, Windows Codex, 2026-09-10): under the session gate (M239) a
 // session is claimed at its first PROMPT after "open map" — its SessionStart
 // ran gated and never bound a cwd. Such a session fell through sessionPair
@@ -3362,7 +3372,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     }
     // The map's bound directories (for the new-tab picker).
     if (path === '/api/dirs' && req.method === 'GET') {
-      return json({ dirs: store.cwdsForProject(projectId) });
+      return json({ dirs: foldersOf(projectId) });
     }
 
     // M142: IMPORT — sources live on this machine only; reading is tightly
@@ -3370,7 +3380,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     // Code transcript dir for sessions). The proposal applies through the
     // normal reorganize pipeline (guards + undo).
     if (path === '/api/import/sources' && req.method === 'GET') {
-      const dirs = store.cwdsForProject(projectId);
+      const dirs = foldersOf(projectId);
       const files: any[] = [];
       for (const d of dirs) {
         for (const cand of ['CLAUDE.md', 'AGENTS.md', 'README.md', 'readme.md', 'NOTES.md', 'TODO.md']) {
@@ -3422,17 +3432,17 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       let text = '', label = '';
       if (b.kind === 'text') { text = (b.text ?? '').trim(); label = 'pasted notes'; }
       else if (b.kind === 'file' && b.path) {
-        const dirs = store.cwdsForProject(projectId);
+        const dirs = foldersOf(projectId);
         if (!dirs.some((d) => b.path!.startsWith(d + '/')) || !/\.(md|txt)$/i.test(b.path)) return json({ error: 'file outside the project folders' }, 400);
         try { text = readFileSync(b.path, 'utf8'); } catch { return json({ error: 'could not read the file' }, 400); }
         label = `document: ${basename(b.path)}`;
       } else if (b.kind === 'session' && b.sessionFile) {
         const base = basename(b.sessionFile);
         let raw = '';
-        for (const d of store.cwdsForProject(projectId)) {
+        for (const d of foldersOf(projectId)) {
           try { raw = readFileSync(join(homedir(), '.claude', 'projects', d.replace(/\//g, '-'), base), 'utf8'); break; } catch {}
         }
-        if (!raw) { const cx = codexRolloutsFor(store.cwdsForProject(projectId)).find((r) => r.file === base); if (cx) { try { raw = readFileSync(join(cx.dir, cx.file), 'utf8'); } catch {} } } // M245
+        if (!raw) { const cx = codexRolloutsFor(foldersOf(projectId)).find((r) => r.file === base); if (cx) { try { raw = readFileSync(join(cx.dir, cx.file), 'utf8'); } catch {} } } // M245
         if (!raw) return json({ error: 'session transcript not found for this project' }, 400);
         text = extractTranscript(raw);
         label = `past session: ${base.slice(0, 12)}…`;
@@ -3506,19 +3516,19 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       let text = '', label = '';
       if (b.kind === 'text') { text = (b.text ?? '').trim(); label = 'pasted notes'; }
       else if (b.kind === 'file' && b.path) {
-        const dirs = store.cwdsForProject(projectId);
+        const dirs = foldersOf(projectId);
         if (!dirs.some((d) => b.path!.startsWith(d + '/')) || !/\.(md|txt)$/i.test(b.path)) return json({ error: 'file outside the project folders' }, 400);
         try { text = readFileSync(b.path, 'utf8'); } catch { return json({ error: 'could not read the file' }, 400); }
         label = `document: ${basename(b.path)}`;
       } else if (b.kind === 'memory' && b.sessionFile) {
         const base = basename(b.sessionFile);
-        for (const d of store.cwdsForProject(projectId)) {
+        for (const d of foldersOf(projectId)) {
           try { text = readFileSync(join(homedir(), '.claude', 'projects', d.replace(/\//g, '-'), 'memory', base), 'utf8'); break; } catch {}
         }
         if (!text) return json({ error: 'memory file not found for this project' }, 400);
         label = `Claude's memory: ${base}`;
       } else if (b.kind === 'session' && b.sessionFile) {
-        const dirs = store.cwdsForProject(projectId);
+        const dirs = foldersOf(projectId);
         const base = basename(b.sessionFile);
         let raw = '';
         for (const d of dirs) {
