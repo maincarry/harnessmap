@@ -403,7 +403,11 @@ const menuGroupOf = async (id: string) => {
   await sleep(300);
   {
     const ov = [...document.querySelectorAll('.overlay')].pop();
-    check('sign-in & billing modal states who pays', !!ov && /Who pays/.test(ov.textContent!) && /subscription/.test(ov.textContent!));
+    // who pays depends on the engine in use (M264): subscription (claude), ChatGPT plan (codex) or your own key (api) — the
+    // modal must quote the server's own billing line, whichever engine this box runs
+    const ai = await (await fetch(BASE + '/api/auth-info')).json();
+    const payer = { codex: /ChatGPT plan/, api: /ANTHROPIC_API_KEY/, subscription: /Claude subscription/ }[ai.backend as string] ?? /subscription|ChatGPT|API_KEY/;
+    check(`sign-in & billing modal states who pays (engine: ${ai.backend})`, !!ov && /Who pays/.test(ov.textContent!) && ov.textContent!.includes(ai.billing) && payer.test(ai.billing));
     (ov?.querySelector('#ai-close') as any)?.click(); await sleep(60);
   }
 
@@ -485,48 +489,26 @@ await click($('other-btn'), '≡ close after sweep', 80);
   await sleep(150);
 }
 
-// ---------- mobile view (M133) ----------
+// ---------- narrow windows: side view (M254b) ----------
+// The phone shell (M133–M135b: mobile bar, flip, drawer, action sheet) is RETIRED on Mark's word — its code stays dormant
+// and is never switched on. What replaced it: a narrow window shows the map only (body.companion), and ▯ side view makes
+// that a remembered choice at any width. (M478b: the shell checks described a retired surface.)
 {
   Object.defineProperty(window, 'innerWidth', { value: 480, configurable: true });
   window.dispatchEvent(new window.Event('resize'));
   await sleep(150);
-  check('narrow viewport → mobile mode', document.body.classList.contains('mobile'));
-  check('mobile: bottom bar visible, chat hidden', window.getComputedStyle($('mob-bar')).display === 'flex' && window.getComputedStyle($('chat-pane')).display === 'none');
-  check('slim top bar with ☰ and map name', window.getComputedStyle($('mob-top')).display === 'flex' && $('mob-title')!.textContent!.length > 0);
-  check('desktop toolbars hidden on mobile', window.getComputedStyle($('zoom-tools')).display === 'none');
-  check('composer pill present on map view', window.getComputedStyle($('mob-ask')).display !== 'none');
-  const fl = $('mob-flip') as any;
-  await click(fl, 'flip → chat');
-  // happy-dom caches an element's computed style and misses body-class
-  // invalidation (probed + reproduced) — the earlier "composer present" check
-  // primed #mob-ask. Assert the cascade on a FRESH element instead: a clone
-  // with the same id computes uncached.
-  const askProbe = (() => { const orig: any = $('mob-ask'); const parent = orig.parentElement; orig.id = 'mob-ask-tmp'; const c: any = orig.cloneNode(); c.id = 'mob-ask'; parent.appendChild(c); const d = window.getComputedStyle(c).display; c.remove(); orig.id = 'mob-ask'; return d; })();
-  check('chat shown, composer pill hidden', document.body.classList.contains('mob-chat') && askProbe === 'none');
-  await click(fl, 'flip → map');
-  check('map back', !document.body.classList.contains('mob-chat'));
-  await click($('mob-menu'), '☰ opens the drawer');
-  check('drawer has sessions, maps, and actions', document.querySelectorAll('#mob-drawer .dr-row').length >= 15 && document.querySelectorAll('[data-dr-sess]').length >= 1);
-  await click(document.querySelector('[data-dr-act="home-btn"]'), 'drawer action: home');
-  check('drawer closed after action', !document.querySelector('#mob-drawer-ov'));
-  // M135b: rows are plain text — tap a parent to fold/unfold, tap a leaf for
-  // its sheet (long-press = sheet anywhere on real touch).
-  await click(rowFor(trip), 'tap parent row → expands');
-  check('parent tap expanded (flights visible)', !!rowFor(flights));
-  await click(rowFor(flights), 'tap flights → expands');
-  const aisleId = S()?.nodes.find((n: any) => n.content === 'aisle seat preference')?.id;
-  await click(rowFor(aisleId), 'tap leaf row → action sheet');
-  check('action sheet listed labeled actions', document.querySelectorAll('#sheet .sh-row').length >= 6 && !!document.querySelector('#sheet .sh-row .d'));
-  const sheetFocus = [...document.querySelectorAll('#sheet .sh-row')].find((r: any) => r.textContent.includes('talk about this'));
-  await click(sheetFocus, 'sheet action executes (focus)');
-  check('sheet closed after action', !document.querySelector('#sheet-ov'));
-  await click(rowFor(trip), 'tap parent again → collapses');
-  check('parent tap collapsed', !rowFor(flights));
-  await click(rowFor(trip), 're-expand for later tests');
+  check('narrow window never turns the retired phone shell on', !document.body.classList.contains('mobile') && !document.body.classList.contains('mob-chat'));
+  check('narrow window shows the map only (companion layout)', document.body.classList.contains('companion'));
   Object.defineProperty(window, 'innerWidth', { value: 1600, configurable: true });
   window.dispatchEvent(new window.Event('resize'));
   await sleep(150);
-  check('wide viewport → desktop restored', !document.body.classList.contains('mobile'));
+  check('wide again: both panes back', !document.body.classList.contains('companion'));
+  const sv = $('sideview-btn')!;
+  check('▯ side view starts off', !sv.classList.contains('on') && window.localStorage.getItem('hm-sideview') !== '1');
+  await click(sv, '▯ side view on', 150);
+  check('side view on: map only at full width, remembered in this browser', document.body.classList.contains('companion') && sv.classList.contains('on') && window.localStorage.getItem('hm-sideview') === '1');
+  await click(sv, '▮ side view off', 150);
+  check('side view off: conversation pane back, memory cleared', !document.body.classList.contains('companion') && !sv.classList.contains('on') && window.localStorage.getItem('hm-sideview') !== '1');
 }
 
 // ---------- mode-A chat: markdown, streaming, copy, talk-choice (M137-140) ----------
