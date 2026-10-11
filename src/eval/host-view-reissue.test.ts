@@ -54,3 +54,33 @@ test('a later hook keeps the fresh view — no view per prompt', async () => {
   expect(again.length).toBe(1);
   expect(again[0].id).toBe(fresh.id);
 });
+
+// The big suite's §17 shape: several page views, the PAGE's main view is NOT the session's, everything but the main view is
+// archived (so the session's view goes too), then the session speaks. This is the path the integration run reports as
+// "s-def views: []" — a deterministic version of it either reproduces the lead or clears the server of suspicion.
+test('§17 shape: main view elsewhere, archive all but main, the session still gets a fresh live view on its next hook', async () => {
+  const sid = 's2'; const cwd2 = join(home, 'proj2'); mkdirSync(cwd2, { recursive: true });
+  expect((await post('/api/harness/session-start', { session_id: sid, cwd: cwd2, harness: 'claude' })).status).toBe(200);
+  const [own] = await viewsOf(sid);
+  expect(own).toBeTruthy();
+  // two more page views, and make one of them the main view (the page is looking elsewhere)
+  const f1 = await (await post('/api/chats', { mode: 'fresh' })).json() as any;
+  const f2 = await (await post('/api/chats', { mode: 'fork' })).json() as any;
+  const other = f1.chatId ?? f1.id;
+  expect((await post(`/api/chats/${other}/activate`)).status).toBe(200);
+  let s = await get('/api/state');
+  expect(s.mainChatId).toBe(other);
+  // archive every view but the main one (the suite's burn-down) — the session's own view is among the archived
+  for (const c of s.chats as any[]) if (c.id !== s.mainChatId) expect((await post(`/api/chats/${c.id}/archive`, {})).status).toBe(200);
+  s = await get('/api/state');
+  expect(s.chats.length).toBe(1);
+  expect((await viewsOf(sid)).length).toBe(0);
+  // the session speaks again
+  expect((await post('/api/harness/prompt', { session_id: sid, cwd: cwd2, text: 'still here after the cleanup' })).status).toBe(200);
+  const views = await viewsOf(sid);
+  const all = ((await get('/api/state')).chats as any[]).map((c) => `${c.id.slice(0, 6)}:${c.hostSessionId ?? '-'}:${c.host ? 'host' : 'nohost'}:${c.status}`);
+  expect({ views: views.length, newId: views[0]?.id !== own.id, all }).toEqual({ views: 1, newId: true, all });
+  expect(((await get('/api/audit?limit=30')) as any[]).map((r) => r.kind)).toContain('host_view_reissued');
+  void f2;
+});
+
