@@ -1,11 +1,11 @@
 # HarnessMap
 
-**Your AI forgets. The map doesn't.**
+**Your AI chats, organized as you talk. No idea gets buried.**
 
-HarnessMap is a live map of everything you and your coding agent talk about. Goals, decisions,
-limits, open questions: each one files itself onto the map as you work, in your words. Next session
-the agent still knows. You see the whole map, you decide what the agent sees, and all of it stays on
-your machine.
+Long sessions and many sessions pile up, and the good parts sink: the decision from Tuesday, the
+limit you set once, the question you meant to come back to. HarnessMap files what you and your
+coding agent discuss onto a live map, in your words, as you talk. Every point stays findable, the
+agent keeps it in mind, and all of it stays on your machine.
 
 Works beside **Claude Code** and **OpenAI Codex** (CLI and app). Open source. No account, no key,
 no server of ours.
@@ -14,12 +14,12 @@ no server of ours.
 
 ## Why
 
-Long sessions drift. Context windows fill up and get compacted. You said "never cast a return code
-to void" on Tuesday and the agent proposes it again on Thursday. You open a new session and spend the
-first ten minutes re-explaining yourself.
+A chat is a line. Work is a tree. In a line, what you said an hour ago is already under a hundred
+messages, and what you said last week is in another chat you would have to find first. The agent
+has the same problem: its context fills up, gets compacted, and your "never cast a return code to
+void" from Tuesday comes back as a proposal on Thursday.
 
-HarnessMap turns the conversation into a map that keeps itself. Three ideas, and everything else
-follows:
+HarnessMap keeps the tree. Three ideas, and everything else follows:
 
 1. **The map** — a tree of your work that files itself as you talk.
 2. **Focus ▶** — *talk about this.* The agent's attention goes where you point.
