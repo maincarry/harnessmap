@@ -215,8 +215,8 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
 
 // ---------- import modal (M142) ----------
 {
-  if ($('other-menu')!.hasAttribute('hidden')) await click($('other-btn'), '⋯ open (import)', 80);
-  await click($('import-btn'), '⇪ import opens the modal', 500);
+  await viaMore('import-btn', '⇪ import opens the modal');
+  await sleep(300);
   check('import modal: paste area + source sections', !!document.querySelector('#im-text') && !!document.querySelector('#im-files') && !!document.querySelector('#im-sess'));
   check('apply hidden until a proposal exists', document.querySelector('#im-apply')!.hasAttribute('hidden'));
   await click(document.querySelector('#im-cancel'), 'import modal cancel');
@@ -224,8 +224,7 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
 
 // ---------- sessions overview (M146) ----------
 {
-  if ($('other-menu')!.hasAttribute('hidden')) await click($('other-btn'), '⋯ open (sessions)', 80);
-  await click($('sessions-btn'), '▦ sessions panel opens');
+  await viaMore('sessions-btn', '▦ sessions panel opens');
   check('overview lists sessions with pin/open', document.querySelectorAll('[data-spin]').length >= 1 && document.querySelectorAll('[data-sopen]').length >= 1);
   await click(document.querySelector('[data-spin]'), '📌 pin a session', 500);
   await pump();
@@ -234,9 +233,17 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
   document.querySelectorAll('.overlay').forEach((o: any) => o.remove());
 }
 
+// where a control sits in the ≡ menu (the tiers are gone; placement is by group)
+const menuGroupOf = async (id: string) => {
+  if (!$('hm-menu')) await click($('other-btn'), `≡ open (placement of ${id})`, 80);
+  const it = document.querySelector(`#hm-menu .hm-it[data-cb="${id}"]`) as any;
+  const g = it?.closest('[data-hmg]')?.querySelector('h4')?.textContent ?? null;
+  await click($('other-btn'), '≡ close', 60);
+  return g;
+};
 // ---------- text size (M144) ----------
 {
-  check('update check hidden in +more (M161)', !!$('update-btn') && $('update-btn')!.closest('#other-more') !== null && /check for updates/.test($('update-btn')!.textContent!));
+  check('update check lives under ≡ Account (M161 → ≡ menu)', !!$('update-btn') && (await menuGroupOf('update-btn')) === 'Account' && /check for updates/.test($('update-btn')!.textContent!));
   {
     const rl = $('round-line')!;
     // M170: while work is in flight the line breathes and never fades/reverts
@@ -331,7 +338,7 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     check('ordinary replies carry no inline button', !/msg-mapchat/.test(plain));
   }
 
-  check('agent view hidden in +more (M162)', !!$('agent-view-btn') && $('agent-view-btn')!.closest('#other-more') !== null && /what the agent sees/.test($('agent-view-btn')!.textContent!));
+  check('agent view lives under ≡ Agent (M162 → ≡ menu)', !!$('agent-view-btn') && (await menuGroupOf('agent-view-btn')) === 'Agent' && /what the agent sees/.test($('agent-view-btn')!.textContent!));
 
   await viaMore('agent-view-btn', '👁 what the agent sees opens');
   await sleep(400);
@@ -343,59 +350,44 @@ document.querySelectorAll('#changes-panel').forEach((o: any) => o.remove());
     check('agent view modal closes', !document.querySelector('.overlay'));
   }
 
-  // M164/M164b (Jacob): ★ favorites FOLDER inside the zoomed PINNED band —
-  // flat 快捷方式 rows, alongside to-sort.
+  // ★ FAVORITES — the in-tree favorites folder (M164) became the ★ popover in the nav row (Mark 2026-10-04 / 10-09):
+  // #fav-btn → #fav-pop, one .bm[data-bm] per favorite, click = zoom there. (M478b: the band checks described a retired surface.)
   await post(`/api/nodes/${trip}/favorite`, { on: true });
   await pump();
-  check('favorites folder present in whole-map view too (band rides everywhere)', !!document.querySelector('.favhead'));
-  check('folders start CLOSED — no auto-expand on load (M165b)', !document.querySelector('.srow.sind'));
   {
-    const tidyH = [...document.querySelectorAll('.favhead')].find((h: any) => h.textContent.includes('to tidy'));
-    check('empty folder shows · like empty to-sort, no expander (M167d)', !!tidyH && tidyH.querySelector('.caret')!.textContent === '·' && !tidyH.hasAttribute('data-tidyfold'));
+    const fb = $('fav-btn')!, pop = $('fav-pop')!;
+    check('★ button sits in the nav row and lights up when a favorite exists', !!fb && fb.classList.contains('has') && /favorites \(1\)/.test(fb.title));
+    check('★ popover is closed until asked', !!pop && pop.hidden);
+    await click(fb, '★ opens the favorites popover', 100);
+    check('popover lists the favorite by name', !pop.hidden && !!pop.querySelector(`.bm[data-bm="${trip}"]`) && pop.textContent!.includes('trip planning'));
+    (pop.querySelector(`.bm[data-bm="${trip}"]`) as any).click(); await sleep(250);
+    check('picking a favorite closes the popover and zooms to it', pop.hidden && document.querySelector('#crumbs')!.textContent!.includes('trip planning'));
+    await click($('home-btn'), 'back to whole map after the jump', 200);
+    check('no in-tree favorites folder or shortcut rows remain', !document.querySelector('.favhead') && !document.querySelector('.srow.sind'));
+    await post(`/api/nodes/${trip}/favorite`, { on: false });
+    await pump();
+    check('unfavorite — popover shows its empty state, button unlit, node survives', !!pop.querySelector('.empty-fav') && !fb.classList.contains('has') && !!S()!.nodes.find((n: any) => n.content === 'trip planning'));
   }
-  window.__setZoom?.(flights) ?? (document.querySelector(`[data-zoomin="${flights}"]`) as any)?.click();
-  await sleep(300);
-  {
-    const head = document.querySelector('.favhead');
-    check('zoomed: ★ favorites folder in the pinned band', !!head && head.textContent!.includes('favorites'));
-    (head as any).click(); await sleep(150); // open the folder (persists via localStorage)
-    check('opening persists', window.localStorage.getItem('hm-favs-open') === '1');
-    const row = document.querySelector('.srow.sind');
-    check('folder holds the shortcut row', !!row && row.textContent!.includes('trip planning'));
-    check('shortcut has ▶ ☀ ✕, no parents', !!row!.querySelector('[data-focus]') && !!row!.querySelector('[data-lit]') && !!row!.querySelector('[data-fav]'));
-    (document.querySelector('.favhead') as any).click(); await sleep(150);
-    check('folder folds', !document.querySelector('.srow.sind'));
-    (document.querySelector('.favhead') as any).click(); await sleep(150);
-    (document.querySelector('.srow.sind [data-lit]') as any).click(); await sleep(400); await pump();
-    check('shortcut ☀ acts on the REAL node', !!document.querySelector('.srow.sind [data-lit][data-on]'));
-    (document.querySelector('.srow.sind') as any).click(); await sleep(250);
-    check('shortcut click jumps to the node', window.document.querySelector('#crumbs')!.textContent!.includes('trip planning'));
-    await click($('home-btn'), 'back to whole map after jump', 200);
-    window.__setZoom?.(flights) ?? (document.querySelector(`[data-zoomin="${flights}"]`) as any)?.click();
-    await sleep(300);
-    (document.querySelector('.srow.sind [data-fav]') as any)?.click(); await sleep(400); await pump();
-    const favHead = [...document.querySelectorAll('.favhead')].find((h: any) => h.textContent.includes('favorites'));
-    check('✕ unfavorites — folder STAYS with empty state, node survives', !!favHead && favHead.textContent!.includes('empty') && !!S()!.nodes.find((n: any) => n.content === 'trip planning'));
-    await click($('home-btn'), 'back to whole map', 200);
-  }
-  // M165: ⟳ to tidy folder — suggestions live in the pinned band, not row dots
+  // ⟳ SUGGESTIONS — no pseudo-folder (Mark 2026-10-04): a ⟳ mark on the affected row, a count chip in the status strip,
+  // and the chip opens the suggestions panel (local state, no server call).
   {
     S()!.suggestions.push({ id: 'sg-fake', nodeId: flights, kind: 'restructure' });
     window.__setZoom?.(null); await sleep(200);
-    const heads = [...document.querySelectorAll('.favhead')];
-    const tidy = heads.find((h: any) => h.textContent.includes('to tidy'));
-    check('to-tidy folder shows its count', !!tidy && tidy.textContent!.includes('1 inside'));
-    check('to-tidy starts closed; rows have no dots anymore', !document.querySelector('.srow.sind[data-sug]') && !document.querySelector('.nrow .sdot'));
-    (tidy as any)?.click(); await sleep(150);
-    check('to-tidy opens to shortcut rows', !!document.querySelector('.srow.sind[data-sug]'));
+    if (!rowFor(flights)) { await click(caretOf(trip), 'expand trip to see the flights row', 150); }
+    check('⟳ mark on the affected row', !!rowFor(flights)?.querySelector(`[data-sug="${flights}"]`));
+    check('status strip counts it', !$('sug-chip')!.hidden && /1 suggestion from the map/.test($('sug-chip')!.textContent!));
+    check('rows carry no dots and no tidy folder anymore', !document.querySelector('.nrow .sdot') && !document.querySelector('.srow.sind[data-sug]'));
+    await click($('sug-chip'), '⟳ chip opens the suggestions panel', 200);
+    check('panel lists the suggestion as a row', !!document.querySelector('.overlay .srow[data-sg]'));
+    document.querySelectorAll('.overlay').forEach((o: any) => o.remove());
     S()!.suggestions.pop();
-    (tidy as any)?.click(); await sleep(100);
+    window.__setZoom?.(null); await sleep(150);
+    check('chip hides again when nothing is pending', $('sug-chip')!.hidden);
   }
 
-  // M172: direct feedback button, tier 1
-  await click($('other-btn'), '⋯ open (feedback)', 80);
-  check('feedback button lives in tier 1', !!$('feedback-btn') && $('feedback-btn')!.closest('#other-menu') !== null && !$('feedback-btn')!.closest('#other-more'));
-  await click($('feedback-btn'), '🐞 send feedback opens');
+  // M172: direct feedback button — now one ≡ item under Account
+  check('feedback lives under ≡ Account (M172 → ≡ menu)', !!$('feedback-btn') && (await menuGroupOf('feedback-btn')) === 'Account');
+  await viaMore('feedback-btn', '🐞 send feedback opens');
   {
     const ov = [...document.querySelectorAll('.overlay')].pop();
     check('feedback stage 1: one ask — write and save', !!ov && !!ov.querySelector('#fb-text') && !!ov.querySelector('#fb-save') && ov.querySelector('#fb-stage2')!.hasAttribute('hidden'));
@@ -477,10 +469,9 @@ const tooltipSweep = (label: string) => {
 tooltipSweep('main view');
 await click(caretOf(trip), 'expand for tooltip sweep', 100);
 tooltipSweep('expanded rows');
-await click($('other-btn'), '⋯ open for tooltip sweep', 80);
-await click($('other-more-btn'), 'expand tiers for tooltip sweep', 80);
-tooltipSweep('⋯ menu, both tiers');
-await click($('other-btn'), '⋯ close after sweep', 80);
+await click($('other-btn'), '≡ open for tooltip sweep', 80);
+tooltipSweep('≡ menu');
+await click($('other-btn'), '≡ close after sweep', 80);
 
 // the instant-tooltip mechanism itself: hover shows #tip, leaving hides it
 {
