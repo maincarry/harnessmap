@@ -714,9 +714,14 @@ async function foregroundWindow(hostPid: number): Promise<{ ok: boolean; detail:
   return a.code === 0 ? { ok: true, detail: 'brought the session window to the front' } : { ok: false, detail: 'wmctrl could not activate the window' };
 }
 function ensureSessionBound(sessionId: string | null | undefined, cwd: string | null | undefined, harness?: string | null, forkedFrom?: string | null, mapChoice?: string | null): void {
-  if (!sessionId || !cwd) return;
-  const h = harness === 'codex' ? 'codex' : harness === 'claude' ? 'claude' : null;
+  if (!sessionId) return;
   const row = hostRow(sessionId);
+  // M482 (found by the integration suite, 2026-10-11): a hook payload without cwd (an observe that only carries the turn) used
+  // to skip binding entirely — so a known session whose view had been archived kept filing into the archived view (M481's
+  // reissue never ran). A session the server already knows has a folder on record: use it.
+  if (!cwd) cwd = row?.cwd ?? null;
+  if (!cwd) return;
+  const h = harness === 'codex' ? 'codex' : harness === 'claude' ? 'claude' : null;
   let pid: string;
   const chosen = !sessionChat(sessionId) && mapChoice ? resolveMapChoice(mapChoice, cwd) : null;
   if (chosen) { pid = chosen; if (!row) recordSessionStart(store, sessionId, null, null, cwd); }

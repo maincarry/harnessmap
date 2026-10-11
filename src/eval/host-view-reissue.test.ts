@@ -84,3 +84,18 @@ test('§17 shape: main view elsewhere, archive all but main, the session still g
   void f2;
 });
 
+// M482: the hook payload may carry no cwd (an observe with only the turn). A session the server knows has a folder on
+// record; binding must still run, so the archived-view reissue still happens.
+test('M482: a hook WITHOUT cwd still re-binds a known session — archived view reissued', async () => {
+  const sid = 's3'; const cwd3 = join(home, 'proj3'); mkdirSync(cwd3, { recursive: true });
+  expect((await post('/api/harness/session-start', { session_id: sid, cwd: cwd3, harness: 'claude' })).status).toBe(200);
+  const [own] = await viewsOf(sid);
+  expect((await post(`/api/chats/${own.id}/archive`, {})).status).toBe(200);
+  // observe with NO cwd (inference is off: the turn is not filed, only the binding matters here)
+  expect([200, 202]).toContain((await post('/api/harness/observe', { session_id: sid, user_text: 'a turn with no folder in the payload', assistant_text: 'noted' })).status); // 202 = accepted, filed asynchronously
+  const views = await viewsOf(sid);
+  expect(views.length).toBe(1);
+  expect(views[0].id).not.toBe(own.id);
+  expect(views[0].status).toBe('active');
+});
+

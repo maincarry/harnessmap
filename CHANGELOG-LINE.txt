@@ -1,1 +1,1 @@
-fix: a session whose view was archived on the page gets a fresh view; its rounds no longer vanish into the archived one
+fix: a session hook without a folder still re-binds a known session (its archived view is reissued, rounds never vanish)
