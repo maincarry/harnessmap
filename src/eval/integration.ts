@@ -49,7 +49,11 @@ const ownRoot = (st: any): string => st.nodes.find((x: any) => x.parentId === nu
 const litOfActive = (s: any) => ((s.chats ?? []).find((c: any) => c.id === s.mainChatId)?.lit ?? []) as string[];
 const activeChat = (s: any) => (s.chats ?? []).find((c: any) => c.id === s.mainChatId);
 // M251: a host session (s-def, s-beta…) has its OWN view — its rounds, focus and lit set live there, not in the page's main chat
-const hostChatOf = async (sid: string) => ((await state()).chats ?? []).find((c: any) => c.host?.sessionId === sid)?.id as string | undefined;
+// A session can own more than one view over this suite's life (re-attach after a close, project switches): prefer the live one
+// with the newest activity, and when AIMING a session, aim every view it owns (aiming a stale one is harmless).
+const hostChatsOf = async (sid: string) => ((await state()).chats ?? []).filter((c: any) => c.host?.sessionId === sid).sort((a: any, b: any) => (Number(b.host?.status !== 'closed') - Number(a.host?.status !== 'closed')) || String(b.lastActivity ?? '').localeCompare(String(a.lastActivity ?? ''))).map((c: any) => c.id as string);
+const hostChatOf = async (sid: string) => (await hostChatsOf(sid))[0];
+const aimSession = async (sid: string, nodeId: string) => { for (const id of await hostChatsOf(sid)) await post(`/api/chats/${id}/focus`, { nodeId }); };
 const litOfChat = (s: any, id?: string) => ((s.chats ?? []).find((c: any) => c.id === id)?.lit ?? []) as string[];
 
 // ---------- boot ----------
@@ -345,7 +349,7 @@ console.log('\n== 8b. the fetch: a set-aside topic the question NAMES is served 
   const CH8 = (await state()).mainChatId;
   await post(`/api/chats/${CH8}/lit`, { nodeId: zepId, on: false, bulk: true });
   const defHost8 = await hostChatOf('s-def');
-  if (defHost8) await post(`/api/chats/${defHost8}/lit`, { nodeId: zepId, on: false, bulk: true });
+  for (const id of await hostChatsOf('s-def')) await post(`/api/chats/${id}/lit`, { nodeId: zepId, on: false, bulk: true });
   await post('/api/nodes', { content: 'noise change so a delta exists' });
   // M230 (Jacob): the question IS the consent — a dim node the message NAMES is served in full at the top of the block, marked
   // SET-ASIDE, and stays set aside afterwards. (M194's offer-with-token for NAMED topics was superseded; tokens remain for
@@ -665,8 +669,7 @@ console.log('\n== 21. add-node: always unnamed + focused, named by first round (
   let s21 = await state();
   check('new node is focused and lit', activeChat(s21)?.focusContainerId === nid && litOfActive(s21).includes(nid));
   const b21 = await filerCount();
-  const defHost21 = await hostChatOf('s-def'); // M251: the round lands in s-def's own view — aim THAT view at the new node
-  if (defHost21) await post(`/api/chats/${defHost21}/focus`, { nodeId: nid });
+  await aimSession('s-def', nid); // M251: the round lands in s-def's own view — aim THAT view at the new node
   await post('/api/harness/prompt', { session_id: 's-def', text: 'let us plan the garden irrigation: drip lines for the beds, timer at the tap' });
   await post('/api/harness/observe', { session_id: 's-def', assistant_text: 'Drip irrigation plan: run drip lines along each bed, add a battery timer at the tap, water at dawn.' });
   await waitRound(b21);
@@ -952,7 +955,7 @@ console.log('\n== 31. touched-node memory (M156 slice 1) ==');
   s31 = await state();
   const herb = s31.nodes.find((n: any) => n.content === 'balcony herb garden')?.id;
   await post(`/api/chats/${mainCh31}/focus`, { nodeId: herb });
-  const defHost31 = await hostChatOf('s-def'); if (defHost31) await post(`/api/chats/${defHost31}/focus`, { nodeId: herb }); // M251
+  await aimSession('s-def', herb); // M251
   await observe('s-def', 'for the balcony herb garden: basil needs the sunniest corner, mint must stay in its own pot or it takes over', 'Agreed: basil in the south corner; mint contained in a separate pot — it spreads aggressively through shared soil.');
   // async memory batch settles — poll up to 25s (two model calls can queue)
   const kids31 = (await state()).nodes.filter((n: any) => n.parentId === herb);
@@ -971,7 +974,9 @@ console.log('\n== 31. touched-node memory (M156 slice 1) ==');
   let focusMemText = ''; const tm31 = Date.now();
   for (let i = 0; i < 50 && focusMemText.length <= 20; i++) { const fm = await get(`/api/nodes/${herb}/memory`); focusMemText = (fm.memory ?? fm.text ?? '') as string; if (focusMemText.length <= 20) await sleep(3000); }
   const au31 = (await get('/api/audit?limit=40')).filter((r: any) => /memory|inference/.test(r.kind)).map((r: any) => r.kind + (r.kind === 'inference' ? ':' + (JSON.stringify(r.detail).match(/"task":"(\w+)"/)?.[1] ?? '') : '')).slice(0, 12).join(',');
-  check('focus node accumulated memory (M41 baseline)', focusMemText.length > 20, `waited ${Math.round((Date.now() - tm31) / 1000)}s; audit since: ${au31}`);
+  const sv31 = await state();
+  const views31 = (sv31.chats ?? []).filter((c: any) => c.host?.sessionId === 's-def').map((c: any) => `${c.id.slice(0, 6)}:${c.host?.status}:focus=${sv31.nodes.find((n: any) => n.id === c.focusContainerId)?.content?.slice(0, 20)}`);
+  check('focus node accumulated memory (M41 baseline)', focusMemText.length > 20, `waited ${Math.round((Date.now() - tm31) / 1000)}s; s-def views: ${JSON.stringify(views31)}; audit since: ${au31}`);
   check('a touched NON-focus node accumulated memory too (M156)', kids31.length === 0 || touchedMem);
 }
 
@@ -985,7 +990,7 @@ console.log('\n== 32. cold-branch resume via lit memory (M156 slice 4) ==');
   s32 = await state();
   const sour = s32.nodes.find((n: any) => n.content === 'sourdough starter care')?.id;
   await post(`/api/chats/${s32.mainChatId}/focus`, { nodeId: sour });
-  const defHost32 = await hostChatOf('s-def'); if (defHost32) await post(`/api/chats/${defHost32}/focus`, { nodeId: sour }); // M251: the round lands in s-def's own view
+  await aimSession('s-def', sour); // M251: the round lands in s-def's own view
   await observe('s-def', 'for the sourdough starter: we settled the feed ratio at 1:5:5 and the jar temperature at 24C, right?', 'Yes — 1:5:5 flour:water:starter, and hold the jar at 24C; cooler slows fermentation noticeably.');
   // the planted details must be IN the branch's memory before a cold chat can be served them — poll the write (async model call)
   for (let i = 0; i < 50; i++) { const m = await get(`/api/nodes/${sour}/memory`); if (/1\s*:\s*5\s*:\s*5|24/.test((m.memory ?? m.text ?? '') as string)) break; await sleep(3000); }
