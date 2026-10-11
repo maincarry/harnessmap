@@ -667,7 +667,7 @@ console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');
   check('re-running does not duplicate entries', JSON.stringify(hj2).length === JSON.stringify(hj).length);
   // M220: the context limit rides the context-bearing hooks; --remove cleans
   check('user-level hooks carry additionalContextLimit', hj.hooks.UserPromptSubmit[0].hooks[0].additionalContextLimit >= 10_000);
-  check('commands run the absolute bun binary directly (no sh; a GUI app has no ~/.bun/bin on PATH)', /^"[^"]*bun[^"]*" run /.test(String(hj.hooks.UserPromptSubmit[0].hooks[0].command)));
+  check('commands use the absolute bun binary (a GUI app has no ~/.bun/bin on PATH)', String(hj.hooks.UserPromptSubmit[0].hooks[0].command).includes(process.execPath));
   const p3 = Bun.spawn(['bun', 'run', join('hooks', 'enable-codex.ts'), '--remove'], { env: { ...HOOK_ENV, CODEX_HOME } as any, stdout: 'pipe', stderr: 'pipe' });
   await p3.exited;
   const hj3 = JSON.parse(await Bun.file(join(CODEX_HOME, 'hooks.json')).text());
@@ -687,7 +687,8 @@ console.log('\n== 7. Codex dialect: same hooks, no forks (M160) ==');
   {
     const psHome = join(TMP, 'codex-home-ps'); Bun.spawnSync(['bun', 'run', join('hooks', 'enable-codex.ts'), '--force'], { env: { ...process.env, CODEX_HOME: psHome, HARNESSMAP_HOOK_SHELL: 'powershell' }, stdout: 'ignore', stderr: 'ignore' });
     const ps = JSON.parse(await Bun.file(join(psHome, 'hooks.json')).text());
-    check('Windows hook commands use the PowerShell call operator (& "bun.exe" run ...)', ps.hooks.UserPromptSubmit[0].hooks[0].command.startsWith('& "'));
+    const command = ps.hooks.UserPromptSubmit[0].hooks[0].command;
+    check('Windows hooks launch without a console and forward all three streams', ['$i.CreateNoWindow=$true', '$i.UseShellExecute=$false', '$i.RedirectStandardInput=$true', '$i.RedirectStandardOutput=$true', '$i.RedirectStandardError=$true'].every(flag => command.includes(flag)));
   }
   check('codex-plugin/.codex-plugin/plugin.json names the plugin and skills, and carries NO hooks (user-level hooks are the path; a future Codex honouring bundled hooks must not file twice)', man.name === 'map' && man.skills === './skills/' && !('hooks' in man) && await Bun.file(join('hooks', 'codex-hooks.json')).exists());
   const mk = JSON.parse(await Bun.file(join('.agents', 'plugins', 'marketplace.json')).text());

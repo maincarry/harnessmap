@@ -320,7 +320,7 @@ async function selfUpdate(): Promise<{ ok: boolean; changed?: boolean; from?: st
       const companionChanged = changedFiles.some((f) => f.startsWith('companion/'));
       if (companionInstalled && companionChanged && existsSync(script) && process.platform !== 'win32') {
         const log = join(home, '.harnessmap', 'companion-install.log');
-        Bun.spawn(['sh', '-c', 'nohup bash "$HM_SCRIPT" --rebuild >> "$HM_LOG" 2>&1 &'], {
+        spawnHidden(['sh', '-c', 'nohup bash "$HM_SCRIPT" --rebuild >> "$HM_LOG" 2>&1 &'], {
           env: { ...process.env, HARNESSMAP_APP: root, HM_SCRIPT: script, HM_LOG: log },
           stdout: 'ignore', stderr: 'ignore', stdin: 'ignore',
         });
