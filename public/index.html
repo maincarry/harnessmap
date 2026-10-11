@@ -4,9 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/fonts/fonts.css"><!-- M477: fonts are served by the map itself; the page makes no third-party request -->
 <title>harnessmap</title>
 <style>
   :root {
@@ -4019,7 +4017,7 @@ function renderHostStrip() {
   strip.hidden = false;
   strip.classList.toggle('live', h.status !== 'closed' && !h.idle);
   $('composer').style.display = 'none';
-  const where = h.harness ? esc(h.label) : 'your session';
+  const where = h.harness ? esc(h.label) : 'your'; // M477: read "your session is quiet", never "your session session"
   const resumeCopy = h.resume ? `To continue it${h.harness === 'codex' ? ', reopen the thread in the Codex app, or in a terminal run' : ', in a terminal run'} <code>${esc(h.resume)}</code> — ` : 'Resume it in the harness it ran in — ';
   strip.innerHTML = h.status === 'closed'
     // M375: a session that went quiet without a clean close — don't promise "type there"; it may be detached. Self-heals on next activity.

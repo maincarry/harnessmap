@@ -230,7 +230,11 @@ async function fetchChanges(): Promise<void> {
     store.setSetting('latest_changes', JSON.stringify(latestChanges));
   } catch { /* offline is fine */ }
 }
+// M477 (launch): HARNESSMAP_NO_UPDATE_CHECK=1 turns the version check off entirely — no request to GitHub, ever,
+// not even from the ⬆ menu or the doctor. The README promises this switch.
+export const UPDATE_CHECK_OFF = /^(1|true|yes)$/i.test(process.env.HARNESSMAP_NO_UPDATE_CHECK ?? '');
 async function checkLatest(force = false): Promise<string | null> {
+  if (UPDATE_CHECK_OFF) return latestKnown;
   if (process.env.HARNESSMAP_LATEST_BUILD_OVERRIDE) latestBuild = process.env.HARNESSMAP_LATEST_BUILD_OVERRIDE;
   if (process.env.HARNESSMAP_LATEST_OVERRIDE) { latestKnown = process.env.HARNESSMAP_LATEST_OVERRIDE; return latestKnown; }
   const last = Number(store.getSetting('latest_checked') ?? 0);
@@ -1710,6 +1714,11 @@ function writeMapFiles() {
         ? body.replace(chats.previewMapOnly(mainChatId), chats.previewMapOnly(activeChatOf(pid)))
         : body;
       mkdirSync(join(cwd, '.harnessmap'), { recursive: true });
+      // M477 (launch): the mirror is for the agent on this machine, not for the project's repository — a .gitignore
+      // written once beside it keeps `.harnessmap/` out of `git status` and out of accidental commits. Written only
+      // when absent, so a person who wants the file tracked can empty it.
+      const gi = join(cwd, '.harnessmap', '.gitignore');
+      if (!existsSync(gi)) writeFileSync(gi, '# written by harnessmap: the map mirror stays on this machine\n*\n');
       writeFileSync(join(cwd, '.harnessmap', 'MAP.md'), cwdBody);
     } catch { /* host dir gone — fine */ }
   }
@@ -2236,6 +2245,13 @@ const server = Bun.serve({
       // (ga-*.png sprites carry a content hash in the name, so they stay cacheable.)
       const headers = /^galaxy\.(js|css)$/.test(name) ? { 'cache-control': 'no-cache' } : undefined;
       return new Response(f, headers ? { headers } : undefined);
+    }
+    // M477 (launch): the page's fonts are served by the map itself — no request to Google Fonts (or anyone) leaves the
+    // page. Names are fixed and the files never change, so they may be cached for a year.
+    if (path.startsWith('/fonts/')) {
+      const name = path.slice('/fonts/'.length).replace(/[^\w.\-]/g, '');
+      const type = name.endsWith('.css') ? 'text/css; charset=utf-8' : name.endsWith('.woff2') ? 'font/woff2' : 'application/octet-stream';
+      return new Response(Bun.file(join(here, '..', 'public', 'fonts', name)), { headers: { 'content-type': type, 'cache-control': 'public, max-age=31536000, immutable' } });
     }
     // M387: brand assets — the favicon (E1 constellation mark) and /brand/*.svg.
     if (path === '/favicon.svg') {

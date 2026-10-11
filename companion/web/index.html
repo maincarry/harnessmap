@@ -1,7 +1,6 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!-- M477: fonts come from the map server itself once its port is known (below); no third-party request -->
 <title>harnessmap companion</title>
 <style>
 :root{--panel:#fdfdfb;--panel2:#f4f6f1;--ink:#202b36;--muted:#5c6c7a;--faint:#8695a2;--hair:#dce1d9;--accent:#2560b8;--ok:#3f9d5a;--warn:#b57e22;
@@ -355,6 +354,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel
 (async () => {
   try { PORT = await invoke('map_port_cmd'); } catch { PORT = 8790; }
   API = `http://127.0.0.1:${PORT}`; WSB = `ws://127.0.0.1:${PORT}`;
+  document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'stylesheet', href: `${API}/fonts/fonts.css` })); // M477: self-hosted fonts
   announce(); // play the appear animation on launch so it's easy to spot
   await loadState();
   loadHistory(); // shared guide history (one conversation across app + browser)

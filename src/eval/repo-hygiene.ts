@@ -28,5 +28,16 @@ for (const f of files) {
     }
   }
 }
+// M477 (launch): the README promises that the map's pages make no request to any third party. A stylesheet, script,
+// font or preconnect pulled from an https:// host would break that promise silently (Google Fonts did, until launch).
+// Every tracked page under public/ and companion/web/ must load its assets from the map server itself.
+for (const f of files) {
+  if (!/^(public|companion\/web)\/.*\.html$/.test(f)) continue;
+  const text = await Bun.file(f).text().catch(() => '');
+  for (const m of text.matchAll(/<(link|script)\b[^>]*\b(href|src)=["']https?:\/\/[^"']+["'][^>]*>/gi)) {
+    const line = text.slice(0, m.index ?? 0).split('\n').length;
+    console.log(`✗ third-party asset on a page — ${f}:${line} ${m[0].slice(0, 90)}`); bad++;
+  }
+}
 console.log(bad ? `repo hygiene: ${bad} problem(s)` : `repo hygiene: clean (${files.length} tracked files)`);
 process.exit(bad ? 1 : 0);
