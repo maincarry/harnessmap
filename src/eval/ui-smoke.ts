@@ -51,8 +51,11 @@ await post('/api/nodes', { content: 'aisle seat preference', parentId: flights }
 
 // ---------- boot the page (DOM from happy-dom, script run natively) ----------
 const rawHtml = await Bun.file('public/index.html').text();
-const script = rawHtml.match(/<script>([\s\S]*)<\/script>/)![1];
-const htmlNoScript = rawHtml.replace(/<script src="[^"]*"><\/script>/g, '').replace(/<script>[\s\S]*<\/script>/, '');
+// M478: the page carries a SECOND inline <script> since the galaxy island (2026-09-21); a greedy match swallowed the HTML
+// between the two and the harness died at parse ("Unexpected token '<'"). The app script is the FIRST block; every
+// inline block is stripped from the DOM copy.
+const script = rawHtml.match(/<script>([\s\S]*?)<\/script>/)![1];
+const htmlNoScript = rawHtml.replace(/<script src="[^"]*"><\/script>/g, '').replace(/<script>[\s\S]*?<\/script>/g, '');
 const window: any = new Window({ url: BASE + '/' });
 window.document.write(htmlNoScript);
 const document = window.document;
@@ -127,7 +130,7 @@ await click($('other-more-btn'), '＋ more expands');
 check('secondary tier visible, more-btn gone', !$('other-more')!.hasAttribute('hidden') && $('other-more-btn')!.hasAttribute('hidden'));
 check('third tier still folded behind ＋ settings', $('other-settings')!.hasAttribute('hidden') && !$('other-settings-btn')!.hasAttribute('hidden'));
 await click($('other-settings-btn'), '＋ settings expands');
-check('third tier visible (M168)', !$('other-settings')!.hasAttribute('hidden') && !!$('dev-btn')!.closest('#other-settings'));
+check('third tier visible (M168)', !$('other-settings')!.hasAttribute('hidden') && !!$('update-btn')!.closest('#other-settings'));
 await click($('other-btn'), '⋯ closes');
 await click($('other-btn'), '⋯ reopens folded');
 check('reopen resets the fold', $('other-more')!.hasAttribute('hidden') && !$('other-more-btn')!.hasAttribute('hidden') && $('other-settings')!.hasAttribute('hidden'));
@@ -145,21 +148,6 @@ const pf = document.querySelector('#pf-text') as any;
 check('prefs modal opened', !!pf);
 if (pf) { pf.value = '- test pref'; await click(document.querySelector('#pf-save'), 'prefs save'); }
 document.querySelectorAll('.overlay').forEach((o: any) => o.remove());
-
-// ---------- dev mode ----------
-if ($('other-menu')!.hasAttribute('hidden')) await click($('other-btn'), '⋯ open (dev)', 80);
-window.localStorage.setItem('hm-dev-ok', '1'); // pass the founders' gate (M159c)
-await click($('dev-btn'), '🔧 dev mode on + panel', 600);
-check('dev panel opened', !!$('dev-panel'));
-const dm = document.querySelector('#dev-mobile') as any;
-check('dev panel has 📱 test mobile', !!dm);
-check('dev panel tools row has 👁 (M159); 🐞 button removed per M159b', !!document.querySelector('#dev-ctx') && !document.querySelector('#dev-bug'));
-await click(dm, '📱 opens iPhone frame');
-const pframe: any = document.querySelector('#phone-frame iframe');
-check('iPhone-size frame with live app iframe', !!pframe && pframe.getAttribute('src') === '/');
-await click(document.querySelector('#phone-close'), 'phone preview close');
-check('phone preview closed', !document.querySelector('#phone-ov'));
-await click(document.querySelector('#dev-close'), 'dev panel close');
 
 // ---------- tree interactions ----------
 const rowFor = (id: string) => [...document.querySelectorAll('.nrow')].find((r: any) => r.querySelector(`[data-edit="${id}"]`)) as any;

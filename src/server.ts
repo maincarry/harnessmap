@@ -21,7 +21,6 @@ import { proposeAutolit, proposeReaim, litSetCost, litCap, resultingLit, aimCasc
 import { proposeTopicRec } from './translator/recommend.js';
 import { checkMap } from './translator/mapcheck.js';
 import { answerMapQuestion, suggestedQueries } from './translator/mapchat.js';
-import { CAST_GRAPH } from './translator/cast.js';
 import { recordUserWords, learnFromRename, parseGlossaryLine, addGlossary, removeGlossary, glossary, userWords } from './map/vocab.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend, HARNESSES, harnessAvailability } from './term.js';
 import { codexBin } from './harness-bins.js';
@@ -2154,7 +2153,6 @@ function state() {
       }));
     })(),
     harnessesInstalled: Object.entries(harnessAvailability()).filter(([, v]) => v).map(([k]) => k), // M251: the map's own chat is a dev tool when a harness is installed
-    dev: store.getSetting('dev_mode') === '1',
     suggestions: store.getOpenSuggestions(projectId),
     // M162: lit branches whose full statements did not fit this turn's budget
     // — the map shows a loud mark so a lit choice is never silently ignored.
@@ -3766,10 +3764,6 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const other = Object.entries(byTask).filter(([t]) => !ROLES.some((ro) => ro.task === t)).map(([task, v]) => ({ task, label: task, group: 'other', perTurn: false, ...v }));
       return json({ window: win, roles: [...roles, ...other], total, backend: backendName(), note: 'tokens ≈ prompt chars / 4 (output assumed 8%); dollars at list prices — on a subscription or codex backend the plan pays instead. Calls made by scripts outside the server (test runs, conversions) are not counted.' });
     }
-    // The cast as a network — dev mode's roadmap of who reads what and writes what.
-    if (path === '/api/cast' && req.method === 'GET') {
-      return json({ ...CAST_GRAPH, models: Object.fromEntries(ROLES.map((r) => [r.task, modelFor(r.task)])) });
-    }
     if (path === '/api/prefs' && req.method === 'GET') {
       return json({ text: store.getSetting(`prefs:${projectId}`) ?? '', glossary: glossary(store as any, projectId), words: userWords(store as any, projectId, 40, 2) });
     }
@@ -3879,7 +3873,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ entries: store.listFeedback() });
     }
 
-    // M113: dev mode — toggle + traces.
+    // M113 dev mode, M478: the UI is gone (Mark, launch); the toggle and the traces stay as localhost TEST SEAMS —
+    // the integration suite turns recording on to read the exact prompts the agents received.
     if (path === '/api/dev' && req.method === 'GET') {
       // keyScrubbed: M185 invariant — on the subscription path no child of
       // this server can ever see an API key.

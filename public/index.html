@@ -365,18 +365,6 @@
                    background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; padding: 10px 12px;
                    box-shadow: 0 6px 24px rgba(0,0,0,.15); z-index: 60; font-size: 13px; }
   #changes-panel h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
-  #dev-panel { position: absolute; top: 44px; bottom: 34px; left: 12px; right: 12px; overflow-y: auto; z-index: 45;
-    background: var(--panel, #16181d); border: 1px solid var(--line, #2a2e37); border-radius: 8px; padding: 10px 12px; box-shadow: 0 8px 30px rgba(0,0,0,.45); }
-  #dev-panel h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); font-weight: 600; display: flex; gap: 8px; align-items: center; }
-  .dev-row { border: 1px solid var(--line, #2a2e37); border-radius: 6px; margin-bottom: 6px; }
-  .dev-row > summary { list-style: none; cursor: pointer; display: flex; gap: 10px; align-items: baseline; padding: 6px 8px; font-size: 12px; }
-  .dev-row > summary::-webkit-details-marker { display: none; }
-  .dev-row .dv-task { font-weight: 600; }
-  .dev-row .dv-meta { color: var(--muted); font-size: 11px; }
-  .dev-row .dv-fail { color: #e66; }
-  .dev-row pre { margin: 0 8px 8px; padding: 8px; font-size: 11px; line-height: 1.45; max-height: 260px; overflow: auto;
-    background: rgba(0,0,0,.25); border-radius: 5px; white-space: pre-wrap; word-break: break-word; }
-  .dev-row .dv-sec { margin: 2px 8px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
   .chg-row { display: flex; gap: 8px; padding: 3px 6px; border-radius: 6px; cursor: pointer; align-items: baseline; }
   .chg-row:hover { background: var(--user); }
   .chg-k { flex: none; font-size: 11px; width: 58px; color: var(--muted); }
@@ -698,14 +686,13 @@
           <button id="prefs-btn" title="standing preferences every map agent follows — how to group, name, and clean your maps; edit anytime">☰ map preferences</button>
           <button id="models-btn" title="choose the model behind each role — the filer that runs every turn, the map guide, the brain, the import…">⚙ models</button>
           <button id="lit-mgr-btn" title="manage focus and background for the whole map in one list">▶☀ manage</button>
-          <button id="other-settings-btn" title="rare, set-and-forget: the agent's view, sessions overview, updates, influence, dev mode">＋ more…<span class="nudge-dot" hidden>●</span></button>
+          <button id="other-settings-btn" title="rare, set-and-forget: the agent's view, sessions overview, updates, influence">＋ more…<span class="nudge-dot" hidden>●</span></button>
           <div id="other-settings" hidden>
           <button id="agent-view-btn" title="what the chat agent receives from the map each turn — the context composition, and the exact text if you want it">👁 what the agent sees</button>
           <button id="sessions-btn" title="all sessions on this map in one list — each with its topic and summary; pin the ones you live in, close the rest">▦ sessions</button>
           <button id="authinfo-btn" title="full transparency: how the map's agents sign in, who gets billed, and whether calls are working">🔑 sign-in &amp; billing</button>
           <button id="update-btn" title="check whether a newer harnessmap exists — updating is one command you run (Claude Code: /plugin update; Codex: the installer), never automatic">⬆ check for updates<span class="nudge-dot" hidden>●</span></button>
           <button id="influence-btn" title="close the map's influence: your Claude sessions get NO map context and the map is never mentioned — while the map keeps updating quietly. Reopen here anytime">⏻ close map influence</button>
-          <button id="dev-btn" title="dev mode — record every map-agent call and context injection in full, and open the trace timeline">🔧 dev mode</button>
           </div></div></div>
       </div>
     </div>
@@ -1169,7 +1156,7 @@ function renderTabs() {
   if (!list) return;
   // M251: host sessions (Claude Code / Codex) are the sessions; the map's own chat views are a dev tool once a harness is installed
   const all = [...(S.chats || [])].sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || (b.lastActivity || '').localeCompare(a.lastActivity || ''));
-  const mapChatsHidden = (S.harnessesInstalled || []).length > 0 && !S.dev;
+  const mapChatsHidden = (S.harnessesInstalled || []).length > 0;
   let chats = mapChatsHidden ? all.filter((c) => c.host || c.id === S.mainChatId) : all;
   if (!chats.length) chats = all;
   const cutoff = Date.now() - 7 * 86400_000;
@@ -1345,8 +1332,8 @@ $('tab-add').onclick = () => {
         : 'this map has no bound folder yet — chat only (start claude or codex in a folder to enable the terminal)';
       const termRadios = [...ov.querySelectorAll('input[name="nc-talk"][value="term"]')];
       const chatRadio = ov.querySelector('input[name="nc-talk"][value="chat"]');
-      // M251 (Mark): the map's own chat is for dev mode and testing; harness users create sessions in their harness
-      if ((S.harnessesInstalled || []).length && !S.dev && termRadios.some((r) => !r.disabled)) { chatRadio.closest('label').hidden = true; localStorage.removeItem('hm-talk'); }
+      // M251 (Mark): the map's own chat is for testing; harness users create sessions in their harness
+      if ((S.harnessesInstalled || []).length && termRadios.some((r) => !r.disabled)) { chatRadio.closest('label').hidden = true; localStorage.removeItem('hm-talk'); }
       const remembered = localStorage.getItem('hm-talk');
       if (!sessionRoot) { for (const r of termRadios) r.disabled = true; chatRadio.checked = true; }
       else if (remembered === 'chat') chatRadio.checked = true;
@@ -1410,30 +1397,6 @@ function checkMobile() {
   document.body.classList.toggle('companion', sideViewOn() || window.innerWidth <= 960);
   { const b = $('sideview-btn'); if (b) { b.classList.toggle('on', sideViewOn()); b.textContent = sideViewOn() ? '▮' : '▯'; b.title = sideViewOn() ? 'side view is on: map only — click to show the conversation pane again' : 'side view: map only — for the Codex app\'s side panel or a narrow window (remembered in this browser)'; } }
   if (!on) document.body.classList.remove('mob-chat');
-}
-// M133c (Jacob): the mobile test is a real device simulation — the app loaded
-// in an iPhone-sized frame (402×874 logical, iPhone 16/17 class), so the
-// mobile layout activates from the frame's own viewport width, exactly as on
-// the device. Scaled down if the desktop window is shorter than the phone.
-function openPhoneSim() {
-  if ($('phone-ov')) { $('phone-ov').remove(); return; }
-  const ov = document.createElement('div');
-  ov.id = 'phone-ov';
-  ov.innerHTML = `<div id="phone-frame">
-      <button id="phone-close" title="close the phone preview">✕</button>
-      <iframe src="/" title="mobile preview"></iframe>
-      <div id="phone-note">iPhone-size preview (402×874) — live app, same map</div>
-    </div>`;
-  document.body.appendChild(ov);
-  const fit = () => {
-    const frame = ov.querySelector('#phone-frame');
-    const scale = Math.min(1, (window.innerHeight - 80) / 902, (window.innerWidth - 80) / 430);
-    frame.style.transform = `scale(${scale})`;
-  };
-  fit();
-  window.addEventListener('resize', fit);
-  ov.querySelector('#phone-close').onclick = () => ov.remove();
-  ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
 }
 window.addEventListener('resize', checkMobile);
 // M135: ChatGPT-style mobile shell — flip icon, guide composer, ☰ drawer.
@@ -1507,7 +1470,6 @@ function openDrawer() {
     ${act('prefs-btn', '☰', 'map preferences')}
     ${act('models-btn', '⚙', 'models per role')}
     ${act('legend-btn', '?', 'tutorial & reference')}
-    ${act('dev-btn', '🔧', 'dev mode')}
   </div>`;
   document.body.appendChild(ov);
   ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
@@ -2198,7 +2160,6 @@ const CONTROLS = [
     ['influence-btn', '⏻', 'map influence', 'close or reopen the map’s influence on your sessions'],
     ['sideview-btn', '▯', 'side view: map only', 'for the Codex app’s built-in browser or a narrow window; remembered in this browser'],
     ['feedback-btn', '🐞', 'send feedback', 'report a problem or an idea to the developers'],
-    ['dev-btn', '🔧', 'dev mode', 'record every agent call; the agent network; for the developers'],
   ] },
 ];
 // ≡ MENU (Jacob 2026-10-05: "the functioning of the ⋯ is still mysterious" → "Yes this is good implement"): the controls board
@@ -2211,7 +2172,7 @@ const MENU_GROUPS = [
   ['Tidy', [['tidy-top', '⟳', 'Tidy this view'], ['map-check', '⟳', 'Check the whole map'], ['auto-rename', '✎', 'Auto-rename long names'], ['enrich-btn', '✚', 'Enrich thin nodes'], ['undo-btn', '↩', 'Undo last change']]],
   ['Map', [['import-btn', '⇪', 'Import notes, files or a session…'], ['map-save-btn', '⤓', 'Save as .map'], ['map-open-btn', '⤒', 'Open a .map'], ['prefs-btn', '☰', 'Preferences & glossary'], ['mapstatus-btn', '🩺', 'Map status'], ['influence-btn', '⏻', 'Map influence on sessions']]],
   ['Sessions', [['tab-add', '＋', 'New session'], ['sessions-btn', '▦', 'All sessions']]],
-  ['Account', [['authinfo-btn', '🔑', 'Sign-in & billing'], ['update-btn', '⬆', 'Check for updates'], ['feedback-btn', '🐞', 'Send feedback'], ['dev-btn', '🔧', 'Dev mode']]], // Jacob 06:25: map influence belongs under Map
+  ['Account', [['authinfo-btn', '🔑', 'Sign-in & billing'], ['update-btn', '⬆', 'Check for updates'], ['feedback-btn', '🐞', 'Send feedback']]], // Jacob 06:25: map influence belongs under Map
   ['Beta', [['galaxy-btn', '🪐', 'Galaxy view']]], // Jacob 2026-10-05 06:25: "move galaxy view to beta"
 ];
 const CONTROL_SUB = Object.fromEntries(CONTROLS.flatMap((grp) => grp.items.map(([id, , , sub]) => [id, sub])));
@@ -3989,7 +3950,6 @@ function openLegend() {
         <tr><td>🔑 sign-in &amp; billing</td><td>full transparency about the map's background agents: who gets billed (your subscription, unless you explicitly chose API mode), where sign-in is looked for, and whether calls are working — nothing leaves this machine</td></tr>
         <tr><td>⬆ check for updates</td><td>asks whether a newer harnessmap exists and shows the command to update — updating itself always happens in Claude Code, never automatically</td></tr>
         <tr><td>⏻ close map influence</td><td>your Claude sessions get NO map context and the map is never mentioned — while the map keeps quietly filing; reopen anytime, same place</td></tr>
-        <tr><td>🔧 dev mode</td><td>for the developers — records every agent call and injection verbatim (password-gated)</td></tr>
         <tr><td>+ session</td><td>new session, three ways: ▶ focus on a topic (pick or create what it talks about), ⑂ fork this view (same focus+lighting), ✳ start fresh (all dimmed) — then optionally open a real Claude Code terminal bound to it. ✕ closes a tab (filings stay); ⟳ re-fits a terminal</td></tr>
         <tr><td>maps</td><td>each map is completely separate — one per repo by default; the name at the top-left switches, creates, or merges maps (irreversible)</td></tr>
         <tr><td colspan="2"><hr><b>Fine print</b> — nodes also carry a category and status under the hood (the agents use them; see and edit both in the node editor — click any node's text).</td></tr>
@@ -4378,161 +4338,6 @@ $('round-line').addEventListener('click', async () => {
   const close = (e) => { if (!panel.contains(e.target) && e.target !== $('round-line')) { panel.remove(); document.removeEventListener('click', close); } };
   setTimeout(() => document.addEventListener('click', close), 0);
 });
-
-// M113 (Jacob): dev mode — full visibility into the map agents and injected
-// context. The button toggles recording on the server, then shows a trace
-// timeline; each row expands to the verbatim system prompt, input, and
-// response of that call (or the injected block, for injections).
-let devTimer = null;
-// Who is talking to whom, per task — so the timeline reads as a story, not
-// raw task ids. Two kinds of row: the server PROMPTING a one-shot map
-// specialist (kind=call), and the server SLIPPING map context into the chat
-// agent's next turn (kind=inject). The chat agent is never prompted directly.
-const DEV_CAST = {
-  attention:    { who: 'the map’s attention', does: 'why each topic was shown at the detail it was, this turn' },
-  filer:        { who: 'server → filer agent', does: 'files your last chat round onto the map' },
-  memory:       { who: 'server → memory agent', does: 'updates or combines a node’s memory' },
-  relations:    { who: 'server → relations agent', does: 'describes how a node relates to its neighbors' },
-  title:        { who: 'server → naming agent', does: 'names a node' },
-  summary:      { who: 'server → summary agent', does: 'folds chat turns into the rolling summary' },
-  autolit:      { who: 'server → lighting agent', does: 'picks background nodes for the current focus' },
-  recommend:    { who: 'server → focus/zoom agent', does: 'suggests what to talk about or show' },
-  place:        { who: 'server → placement agent', does: 'suggests homes for a node' },
-  mapchat:      { who: 'server → map guide', does: 'answers your talk-to-map question' },
-  tidy:         { who: 'server → tidy agent', does: 'proposes restructuring' },
-  mapcheck:     { who: 'server → tidy agent', does: 'reviews the whole map' },
-  inject_full:  { who: 'server ⇢ YOUR CHAT AGENT', does: 'whole map slipped into its next turn' },
-  inject_delta: { who: 'server ⇢ YOUR CHAT AGENT', does: 'map changes slipped into its next turn' },
-};
-function closeDevPanel() { $('dev-panel')?.remove(); if (devTimer) { clearInterval(devTimer); devTimer = null; } }
-async function openDevPanel() {
-  closeDevPanel();
-  const panel = document.createElement('div');
-  panel.id = 'dev-panel';
-  panel.innerHTML = `<h4 style="display:flex;align-items:center;gap:8px">🔧 dev mode
-    <button id="dev-close" class="hbtn" style="margin-left:auto" data-tip="close the panel (keeps recording)">✕ close</button></h4>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;padding:2px 0 8px;border-bottom:1px solid var(--hair)">
-    <button id="dev-ctx" class="hbtn" data-tip="the exact map description the chat agent receives on its next turn — verbatim">👁 agent's view</button>
-    <button id="dev-mobile" class="hbtn" hidden data-tip="the phone shell is retired (M254b) — this preview stays for the day it is polished">📱 test mobile</button>
-    <button id="dev-cast" class="hbtn" data-tip="the roadmap of every agent as a network — what each one reads, what it writes, what it only proposes, and which model it runs on">🕸 agent network</button>
-    <button id="dev-off" class="hbtn" data-tip="stop recording traces and close dev mode">■ stop recording</button>
-  </div>
-  <div id="dev-fb-wrap" hidden>
-    <div style="padding:8px 0 4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">reported feedback (what the user chose to report — recorded here only)</div>
-    <div id="dev-fb" style="font-size:12px;max-height:16vh;overflow-y:auto"></div>
-  </div>
-  <div style="display:flex;align-items:center;gap:8px;padding:8px 0 4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">
-    traces — every agent call and injection, newest first, stored only on this machine
-    <select id="dev-filter" class="hbtn" style="margin-left:auto;text-transform:none;letter-spacing:0" data-tip="show only one kind of row"><option value="">everything</option></select>
-  </div>
-    <div style="font-size:12px;color:var(--muted);line-height:1.5;margin:8px 0;padding:6px 8px;border:1px solid var(--line,#2a2e37);border-radius:6px">
-      <b>Who’s who.</b> Your <b>chat agent</b> is the host session in the tab (Claude Code or Codex) — a separate session the server never prompts. It meets the map two ways only: <b>⇢ inject</b> rows (the server slips map context into its next turn) and observation (the server reads its replies afterward to file them). Every <b>→</b> row is the server prompting a one-shot <b>map specialist</b> — no session, no memory of its own; the full prompt it saw is right there in the row.
-    </div>
-    <div id="dev-rows"><div style="color:var(--muted);font-size:12px">recording… traces appear here as the map agents run. Send a message in a session or press an auto-button to generate some.</div></div>`;
-  $('map-pane').appendChild(panel);
-  const seen = new Set();
-  const refresh = async () => {
-    if (!$('dev-panel')) return;
-    let d; try { d = await post2get(`/api/dev/traces?limit=100`); } catch { return; }
-    const filter = $('dev-filter').value;
-    const traces = (d.traces || []).filter(t => !filter || t.task === filter);
-    const tasks = [...new Set((d.traces || []).map(t => t.task))].sort();
-    const sel = $('dev-filter');
-    if (sel.options.length !== tasks.length + 1) {
-      const cur = sel.value;
-      sel.innerHTML = '<option value="">everything</option>' + tasks.map(t => `<option value="${esc(t)}">${esc(DEV_CAST[t]?.who ?? t)}</option>`).join('');
-      sel.value = cur;
-    }
-    const rows = $('dev-rows');
-    const key = traces.map(t => t.id).join(',') + '|' + filter;
-    if (rows.dataset.key === key) return;   // don't rebuild (and collapse open rows) when nothing changed
-    rows.dataset.key = key;
-    if (!traces.length) { rows.innerHTML = '<div style="color:var(--muted);font-size:12px">no traces yet' + (filter ? ' for this task' : '') + ' — recording is on; traces appear as the map agents run.</div>'; return; }
-    rows.innerHTML = '';
-    for (const t of traces) {
-      const el = document.createElement('details');
-      el.className = 'dev-row';
-      const when = t.ts ? new Date(t.ts + 'Z').toLocaleTimeString() : '';
-      const cast = DEV_CAST[t.task] ?? { who: `server → ${t.task}`, does: '' };
-      el.innerHTML = `<summary><span class="dv-task">${esc(cast.who)}</span>
-        <span class="dv-meta">${esc(cast.does)}${t.kind !== 'inject' && t.model ? ` · ${esc(t.model)}` : ''}${t.ms != null ? ` · ${t.ms}ms` : ''} · ${when}</span>
-        ${t.ok === 0 ? '<span class="dv-fail">✗ failed</span>' : ''}</summary>`
-        + (t.system ? `<div class="dv-sec">the agent’s standing instructions (system prompt)</div><pre>${esc(t.system)}</pre>` : '')
-        + (t.user ? `<div class="dv-sec">${t.kind === 'inject' ? 'which chat session received it' : t.kind === 'attention' ? 'what prompted this composition' : 'what the server sent it (input)'}</div><pre>${esc(t.user)}</pre>` : '')
-        + (t.response ? `<div class="dv-sec">${t.kind === 'inject' ? 'the exact context slipped into the chat agent’s next turn' : t.kind === 'attention' ? 'how the map chose what to show (by reason)' : (t.ok === 0 ? 'the error it returned' : 'what it returned (response)')}</div><pre>${esc(t.response)}</pre>` : '');
-      rows.appendChild(el);
-    }
-  };
-  $('dev-filter').onchange = refresh;
-  panel.querySelector('#dev-mobile').onclick = () => openPhoneSim();
-  panel.querySelector('#dev-ctx').onclick = () => $('ctx-btn').click();
-  (async () => {
-    try {
-      const fb = await post2get('/api/feedback');
-      if ((fb.entries ?? []).length) {
-        panel.querySelector('#dev-fb-wrap').hidden = false;
-        panel.querySelector('#dev-fb').innerHTML = fb.entries.map(e =>
-          `<div style="padding:4px 0;border-top:1px solid var(--hair)"><span style="color:var(--muted);font-size:11px">${esc(new Date(e.createdAt + 'Z').toLocaleString())} · ${esc(e.source)}</span><br>${esc(e.text.slice(0, 200))}</div>`).join('');
-      }
-    } catch {}
-  })();
-  $('dev-close').onclick = closeDevPanel;
-  $('dev-off').onclick = async () => { await post('/api/dev/toggle', {}); closeDevPanel(); $('round-line').textContent = 'dev mode off — recording stopped (traces kept until restart cap)'; };
-  // M217 (Jacob): the cast as a network. Three columns — what is read (left),
-  // the agents (middle), what is written or proposed (right); a store appears
-  // on both sides when it is both read and written. Lines: gray = reads,
-  // solid accent = writes directly, dashed accent = proposes (needs approval).
-  $('dev-cast').onclick = async () => {
-    let g; try { g = await post2get('/api/cast'); } catch (err) { $('round-line').textContent = `could not load the cast: ${err.message}`; return; }
-    const rows = $('dev-rows');
-    const W = Math.max(720, rows.clientWidth - 8), colW = 230, rowH = 34, pad = 12;
-    const agents = g.agents, stores = g.stores;
-    const storeById = Object.fromEntries(stores.map((s) => [s.id, s]));
-    const readIds = [...new Set(agents.flatMap((a) => a.reads))], outIds = [...new Set(agents.flatMap((a) => [...a.writes, ...a.proposes]))];
-    const H = pad * 2 + rowH * Math.max(agents.length, readIds.length, outIds.length) + 40;
-    const xL = pad, xM = W / 2 - colW / 2, xR = W - colW - pad;
-    const yOf = (i, n) => pad + 30 + i * rowH + (Math.max(agents.length, readIds.length, outIds.length) - n) * rowH / 2;
-    const yL = Object.fromEntries(readIds.map((id, i) => [id, yOf(i, readIds.length)]));
-    const yA = Object.fromEntries(agents.map((a, i) => [a.id, yOf(i, agents.length)]));
-    const yR = Object.fromEntries(outIds.map((id, i) => [id, yOf(i, outIds.length)]));
-    const box = (x, y, label, sub, kind) => `<g><rect x="${x}" y="${y - 13}" width="${colW}" height="28" rx="6" fill="${kind === 'agent' ? 'var(--bg)' : 'transparent'}" stroke="${kind === 'agent' ? 'var(--accent,#c8a24a)' : 'var(--hair)'}" stroke-width="${kind === 'agent' ? 1.2 : 1}"/><text x="${x + 8}" y="${y + 4}" font-size="11.5" fill="var(--ink)">${esc(label)}</text>${sub ? `<text x="${x + colW - 6}" y="${y + 4}" font-size="9.5" text-anchor="end" fill="var(--muted)">${esc(sub)}</text>` : ''}</g>`;
-    const curve = (x1, y1, x2, y2, stroke, dash) => `<path d="M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}" fill="none" stroke="${stroke}" stroke-width="1" ${dash ? 'stroke-dasharray="4 3"' : ''} opacity="${dash ? 0.9 : 0.55}"/>`;
-    let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="font-family:inherit;max-width:100%">`;
-    svg += `<text x="${xL}" y="${pad + 8}" font-size="10.5" fill="var(--muted)" letter-spacing=".05em">READS</text><text x="${xM}" y="${pad + 8}" font-size="10.5" fill="var(--muted)" letter-spacing=".05em">AGENTS · model</text><text x="${xR}" y="${pad + 8}" font-size="10.5" fill="var(--muted)" letter-spacing=".05em">WRITES (solid) · PROPOSES (dashed)</text>`;
-    for (const a of agents) {
-      for (const r of a.reads) svg += curve(xL + colW, yL[r], xM, yA[a.id], 'var(--muted)', false);
-      for (const w of a.writes) svg += curve(xM + colW, yA[a.id], xR, yR[w], 'var(--accent,#c8a24a)', false);
-      for (const w of a.proposes) svg += curve(xM + colW, yA[a.id], xR, yR[w], 'var(--accent,#c8a24a)', true);
-    }
-    for (const id of readIds) svg += box(xL, yL[id], storeById[id].label, '', 'store');
-    for (const a of agents) svg += box(xM, yA[a.id], a.label, a.model ? (g.models[a.task] || '') : 'mechanical', 'agent');
-    for (const id of outIds) svg += box(xR, yR[id], storeById[id].label, '', 'store');
-    svg += '</svg>';
-    const legend = `<div style="font-size:12px;color:var(--muted);line-height:1.5;margin:6px 0 10px">${esc(g.rule)} Hover a row below for what each store holds; change a model in ⚙ models.</div>`;
-    const table = `<table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>${agents.map((a) => `<tr style="border-top:1px solid var(--hair);vertical-align:top"><td style="padding:5px 6px;white-space:nowrap"><b>${esc(a.label)}</b><div style="color:var(--muted);font-size:11px">${a.model ? esc(g.models[a.task] || '') : 'mechanical'}</div></td><td style="padding:5px 6px;color:var(--muted)">${esc(a.what)}</td><td style="padding:5px 6px;white-space:nowrap;color:var(--muted);font-size:11px">reads: ${a.reads.map((r) => esc(storeById[r].label)).join(', ')}<br>${a.writes.length ? 'writes: ' + a.writes.map((r) => esc(storeById[r].label)).join(', ') : ''}${a.proposes.length ? (a.writes.length ? '<br>' : '') + 'proposes: ' + a.proposes.map((r) => esc(storeById[r].label)).join(', ') : ''}</td></tr>`).join('')}</tbody></table>`;
-    const storesTable = `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px">the stores (the only shared ground)</div><table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>${stores.map((s) => `<tr style="border-top:1px solid var(--hair)"><td style="padding:4px 6px;white-space:nowrap"><b>${esc(s.label)}</b></td><td style="padding:4px 6px;color:var(--muted)">${esc(s.what)}</td></tr>`).join('')}</tbody></table>`;
-    rows.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><b style="font-size:12px">🕸 the agents as a network</b><button id="dev-cast-back" class="hbtn" style="margin-left:auto">← back to traces</button></div><div style="overflow-x:auto">${svg}</div>${legend}${table}${storesTable}`;
-    if (devTimer) { clearInterval(devTimer); devTimer = null; }
-    $('dev-cast-back').onclick = () => openDevPanel();
-  };
-  await refresh();
-  devTimer = setInterval(refresh, 2500);
-}
-$('dev-btn').onclick = async () => {
-  $('other-menu').hidden = true;
-  // M159c (Jacob): "dev mode are for us" — a simple gate, not security (the
-  // code is public and the data is the user's own): it keeps ordinary users
-  // out of developer tooling.
-  if (!localStorage.getItem('hm-dev-ok')) {
-    const pw = await uiPrompt('dev mode is for the developers — password:', '', 'enter', 'password');
-    if (pw !== 'marco123') { if (pw !== null) $('round-line').textContent = 'dev mode is for the developers'; return; }
-    localStorage.setItem('hm-dev-ok', '1');
-  }
-  if ($('dev-panel')) { closeDevPanel(); return; }
-  const st = await post2get('/api/dev');
-  if (!st.on) await post('/api/dev/toggle', {});
-  openDevPanel();
-};
 
 // ---- turn-lifecycle beat (M62): visual per-turn health ----
 // M-loop 2026-10-04 (Jacob: "the user should know where the filer is at with more clarity" → the bottom-left
