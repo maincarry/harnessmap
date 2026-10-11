@@ -99,3 +99,20 @@ test('M482: a hook WITHOUT cwd still re-binds a known session — archived view 
   expect(views[0].status).toBe('active');
 });
 
+// M483: a hook from a folder with no map of its own (it lands on "default") must not re-select the map when default is
+// already active — that re-selection cleared every nudge and re-broadcast the map on EVERY turn.
+test('M483: hooks from an unbound folder select the default map once, not on every turn', async () => {
+  const sid = 's4'; const cwd4 = join(home, 'proj4'); mkdirSync(cwd4, { recursive: true });
+  const before = ((await get('/api/audit?limit=200')) as any[]).filter((r) => r.kind === 'project_default').length;
+  await post('/api/harness/session-start', { session_id: sid, cwd: cwd4, harness: 'claude' });
+  await post('/api/harness/prompt', { session_id: sid, cwd: cwd4, text: 'one' });
+  await post('/api/harness/observe', { session_id: sid, cwd: cwd4, user_text: 'one', assistant_text: 'ok' });
+  await post('/api/harness/prompt', { session_id: sid, cwd: cwd4, text: 'two' });
+  await post('/api/harness/observe', { session_id: sid, user_text: 'two', assistant_text: 'ok' }); // M482 path, no cwd
+  const after = ((await get('/api/audit?limit=200')) as any[]).filter((r) => r.kind === 'project_default').length;
+  // default was already the active map throughout this file: no re-selection at all for these five hooks
+  expect(after - before).toBe(0);
+  const s = await get('/api/state');
+  expect(s.projects.find((p: any) => p.id === s.projectId)?.name).toBe('default');
+});
+

@@ -609,8 +609,11 @@ function projectForCwdOrCreate(cwd: string): string {
   // person chose "create a map for this folder" in the open skill's question (resolveMapChoice binds it).
   if (!pid) {
     pid = defaultProjectId();
-    setActive(pid);
-    store.audit('project_default', { folder: basename(cwd) });
+    // M483 (found by the integration suite after M482, 2026-10-11): this ran setActive(default) on EVERY hook from a folder
+    // with no map — and setActive clears every nudge and re-broadcasts the map. For anyone working on the default map the
+    // one-shot focus notice (M75) and the drift nudges (M74) were wiped on the very next turn, before the agent or the page
+    // could see them. The map switches only when it actually changes.
+    if (pid !== projectId) { setActive(pid); store.audit('project_default', { folder: basename(cwd) }); }
   } else if (!store.projectForCwd(cwd)) store.bindCwd(cwd, pid);
   return pid;
 }

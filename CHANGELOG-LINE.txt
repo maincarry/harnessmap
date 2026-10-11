@@ -1,1 +1,1 @@
-fix: a session hook without a folder still re-binds a known session (its archived view is reissued, rounds never vanish)
+fix: a turn from a folder on the default map no longer re-selects the map and wipes the nudges on every hook
