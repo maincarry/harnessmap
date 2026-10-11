@@ -965,9 +965,13 @@ console.log('\n== 31. touched-node memory (M156 slice 1) ==');
     }
   }
   // the focus memory is a second, async model call after the round (live probe 2026-10-11: ~12 s under codex) — poll, do not peek once
-  let focusMemText = '';
-  for (let i = 0; i < 15 && focusMemText.length <= 20; i++) { const fm = await get(`/api/nodes/${herb}/memory`); focusMemText = (fm.memory ?? fm.text ?? '') as string; if (focusMemText.length <= 20) await sleep(3000); }
-  check('focus node accumulated memory (M41 baseline)', focusMemText.length > 20);
+  // Live reproduction 2026-10-11 (small map): the memory is there within 20 s. In this suite the two memory calls per round queue
+  // behind ONE inference worker (HARNESSMAP_INFERENCE_CONCURRENCY=1) with a 100+ node map, so the wait is generous; on failure
+  // the detail says how long we waited and what the audit saw since the round.
+  let focusMemText = ''; const tm31 = Date.now();
+  for (let i = 0; i < 50 && focusMemText.length <= 20; i++) { const fm = await get(`/api/nodes/${herb}/memory`); focusMemText = (fm.memory ?? fm.text ?? '') as string; if (focusMemText.length <= 20) await sleep(3000); }
+  const au31 = (await get('/api/audit?limit=40')).filter((r: any) => /memory|inference/.test(r.kind)).map((r: any) => r.kind + (r.kind === 'inference' ? ':' + (JSON.stringify(r.detail).match(/"task":"(\w+)"/)?.[1] ?? '') : '')).slice(0, 12).join(',');
+  check('focus node accumulated memory (M41 baseline)', focusMemText.length > 20, `waited ${Math.round((Date.now() - tm31) / 1000)}s; audit since: ${au31}`);
   check('a touched NON-focus node accumulated memory too (M156)', kids31.length === 0 || touchedMem);
 }
 
@@ -984,7 +988,8 @@ console.log('\n== 32. cold-branch resume via lit memory (M156 slice 4) ==');
   const defHost32 = await hostChatOf('s-def'); if (defHost32) await post(`/api/chats/${defHost32}/focus`, { nodeId: sour }); // M251: the round lands in s-def's own view
   await observe('s-def', 'for the sourdough starter: we settled the feed ratio at 1:5:5 and the jar temperature at 24C, right?', 'Yes — 1:5:5 flour:water:starter, and hold the jar at 24C; cooler slows fermentation noticeably.');
   // the planted details must be IN the branch's memory before a cold chat can be served them — poll the write (async model call)
-  for (let i = 0; i < 15; i++) { const m = await get(`/api/nodes/${sour}/memory`); if (/1\s*:\s*5\s*:\s*5|24/.test((m.memory ?? m.text ?? '') as string)) break; await sleep(3000); }
+  for (let i = 0; i < 50; i++) { const m = await get(`/api/nodes/${sour}/memory`); if (/1\s*:\s*5\s*:\s*5|24/.test((m.memory ?? m.text ?? '') as string)) break; await sleep(3000); }
+  { const m = await get(`/api/nodes/${sour}/memory`); check('the planted details reached the branch\'s memory (M156 slice 4 precondition)', /1\s*:\s*5\s*:\s*5|24/.test((m.memory ?? m.text ?? '') as string), ((m.memory ?? m.text ?? '') as string).slice(0, 80)); }
 
   const fc = await post('/api/chats', { mode: 'fresh' });
   const freshCh = fc.body.chatId ?? fc.body.id;
