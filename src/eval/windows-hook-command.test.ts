@@ -2,7 +2,7 @@ import { afterAll, expect, test } from 'bun:test';
 import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
-import { windowsHookCommand } from '../../hooks/windows-hook-command.ts';
+import { windowsHookCommand } from '../windows-hook-command.js';
 
 const root = mkdtempSync(join(tmpdir(), 'harnessmap-hook-'));
 const repo = resolve(import.meta.dir, '../..');

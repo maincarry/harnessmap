@@ -13,7 +13,7 @@ import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { codexHooksFrom } from './build-codex-hooks.ts';
-import { windowsHookCommand } from './windows-hook-command.ts';
+import { windowsHookCommand } from '../src/windows-hook-command.js';
 
 const CODEX_HOME = process.env.CODEX_HOME ?? join(homedir(), '.codex');
 const HOOKS_DIR = fileURLToPath(new URL('.', import.meta.url)).replace(/[\\/]$/, '');
