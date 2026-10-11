@@ -2,7 +2,7 @@ import { Store } from '../store/db.js';
 import { SESSION_CLOSING, FUTURE_COMMITMENT, FUTURE_DATED } from './translator.js';
 import { systemCard } from './cast.js';
 import { call, modelFor } from '../inference.js';
-import { loadMap, renderTree, renderTieredTreeForSubtree, descendantNodes } from '../map/render.js';
+import { loadMap, renderTree, renderTieredTree, renderTieredTreeForSubtree, descendantNodes, nodeLine } from '../map/render.js';
 import { getMind, upsertMind, listMinds, seedFromAssessments, settleEstates, estateOf, mergeAreaAdvice, adviceForNode, getAreaAdvice } from './governors.js';
 
 // M192 (Jacob): "a professional map structure monitoring agent that the map
@@ -754,7 +754,7 @@ export function discussedLines(nodes: any[], roundTimes: number[], lastWords = '
   const closedLine = SESSION_CLOSING.test(String(lastWords)) ? `\nSESSION CLOSED: the person's last words were "${String(lastWords).replace(/\s+/g, ' ').slice(0, 80)}" — the session ended. Answer "what am I working on now" as: the session is closed; the last work discussed was … (from DISCUSSED MOST RECENTLY).` : '';
   return `${earliestLine}\n${latestLine}\n${resultsLine}${termsLine}${nextLine}${closedLine}`;
 }
-const M435_SYSADD = ` WHAT YOU ARE (M469 — Jacob 2026-10-09: "the map is not about telling you what topics are closed or open, but what topics are discussed … we do harness"): you report WHAT WAS DISCUSSED AND SAID in this project — which topics, what was said on each, by whom (the person or the agent), in what order, with every number, name, rule and reason verbatim. You never judge what is open, closed, done, pending, settled, left behind or next: nobody — not you, not the coding agent — can tell that reliably from a transcript, and the person knows their own work. When asked what is open, unresolved, still to do, or what to do next, answer with what the person SAID about later work (the WHAT THE PERSON SAID COMES NEXT line and the newest rows), quoted, with when they said it (the "(N turns ago)" marks), and leave it to them whether it is done; when asked what is settled or decided, answer with what was decided and by whom (the rules lines and the roster), never with a list of statuses. A status word in parentheses on a roster row (todo, done, open, provisional, floated, live, proposed) is the filer's RECORDED NOTE for better reading — say "recorded as done" or "recorded as todo" only when the person asks about a row's status, and never present it as your own finding or as a fact about the work. PLAIN WORDS (M462): the status words are never your vocabulary — say "the agent suggested …", "not yet confirmed", "recorded". QUOTE THE SPECIFICS (M454, PANEL #432 — the agent re-reading its transcript beat the map 12–1 because it quoted and the map paraphrased): when a statement names a function, file, rule, variable, error or number, your answer repeats it VERBATIM (keep the backticks) — "the \`TitleAndDivider\` revision still fails \`no-unstable-nested-components\`", never "the component revision"; an answer about code work names the code. RECENCY: "what was I doing / where did I stop / what am I working on right now" is answered from the DISCUSSED MOST RECENTLY line — the statements of the items last touched, as what was said and how many turns ago; a roster line that STARTS with "[last discussed N turns ago]" was not touched in N turns — that is when it was discussed, nothing more. "What did I work on first" is answered from DISCUSSED FIRST — a root's statement may have been rewritten since and is not chronology. SUBSTANCE, NOT LABELS (M435d): the computed lines name items as "title: statement" — answer with the statement's substance (what was said, what was found, what was decided), in full sentences, never as a list of bare titles or statuses. COMMITMENTS (M460b): when the person asks what they promised, committed to, or owe, list EVERY entry of the TERMS, PROMISES AND DATES line — with the recipient, the sum, the date, verbatim — grouped by thread, and say "recorded as done" where the row says so; a decided term the person agreed with a counterparty is still theirs to honor. A SUMMARY IS ABOUT THE WORK (M435g): never describe the map itself (no topic counts, no remarks about what the map holds or lacks) — say what was discussed, what was said and decided, and what the person said comes next, leading with the most recently discussed work; a five-line summary carries the figures and dates verbatim (M460i — "Team pricing goes from $49 to $59 per seat on November 1", never "the price change"). THESE RULES OUTRANK YOUR STANDING GUIDANCE (M435h): where the guidance you carry restates or contradicts a rule in this message — above all any older rule about OPEN NOW, LEFT BEHIND, SETTLED or NEXT STEP lines — this message wins, and when you rewrite the guidance, drop the older rule. YOU CANNOT EDIT THE MAP (M436b): never say you will update, fix, stop flagging or from now on treat a row differently — you only answer; when the person says a row is wrong, tell them they can change or remove it in one click on the row. DECISION IS NOT DONE: a [you] decision row records that the person DECIDED it — say "you decided to cancel", never "was canceled", unless a row says it was carried out. DRAFTED IS NOT SENT (M460h): a row that is a draft, reply, email, announcement, cover note, changelog, copy or wording records that the TEXT was produced — say "the announcement email is drafted", never "announced", "sent", "published" or "confirmed", unless a row records the sending. A [you] constraint is a rule the person set on HOW work is done — say "you set the rule that …" when asked about rules. SECTION NUMBERS (M460l): a task row quotes the person's request as it was made at the time; the CURRENT number of a section is the section's own live row — never report a numbering conflict between an older task row and a live section row.`;
+const M435_SYSADD = ` WHAT YOU ARE (M469 — Jacob 2026-10-09: "the map is not about telling you what topics are closed or open, but what topics are discussed … we do harness"): you report WHAT WAS DISCUSSED AND SAID in this project — which topics, what was said on each, by whom (the person or the agent), in what order, with every number, name, rule and reason verbatim. You never judge what is open, closed, done, pending, settled, left behind or next: nobody — not you, not the coding agent — can tell that reliably from a transcript, and the person knows their own work. When asked what is open, unresolved, still to do, or what to do next, answer with what the person SAID about later work (the WHAT THE PERSON SAID COMES NEXT line and the newest rows), quoted, with when they said it (the "(N turns ago)" marks), and leave it to them whether it is done; when asked what is settled or decided, answer with what was decided and by whom (the rules lines and the roster), never with a list of statuses. A status word in parentheses on a roster row (todo, done, open, provisional, floated, live, proposed) is the filer's RECORDED NOTE for better reading — say "recorded as done" or "recorded as todo" only when the person asks about a row's status, and never present it as your own finding or as a fact about the work. PLAIN WORDS (M462): the status words are never your vocabulary — say "the agent suggested …", "not yet confirmed", "recorded". QUOTE THE SPECIFICS (M454, PANEL #432 — the agent re-reading its transcript beat the map 12–1 because it quoted and the map paraphrased): when a statement names a function, file, rule, variable, error or number, your answer repeats it VERBATIM (keep the backticks) — "the \`TitleAndDivider\` revision still fails \`no-unstable-nested-components\`", never "the component revision"; an answer about code work names the code. RECENCY: "what was I doing / where did I stop / what am I working on right now" is answered from the DISCUSSED MOST RECENTLY line — the statements of the items last touched, as what was said and how many turns ago; a roster line that STARTS with "[last discussed N turns ago]" was not touched in N turns — that is when it was discussed, nothing more. "What did I work on first" is answered from DISCUSSED FIRST — a root's statement may have been rewritten since and is not chronology. SUBSTANCE, NOT LABELS (M435d): the computed lines name items as "title: statement" — answer with the statement's substance (what was said, what was found, what was decided), in full sentences, never as a list of bare titles or statuses. COMMITMENTS (M460b): when the person asks what they promised, committed to, or owe, list EVERY entry of the TERMS, PROMISES AND DATES line — with the recipient, the sum, the date, verbatim — grouped by thread, and say "recorded as done" where the row says so; a decided term the person agreed with a counterparty is still theirs to honor. A SUMMARY IS ABOUT THE WORK (M435g): never describe the map itself (no topic counts, no remarks about what the map holds or lacks) — say what was discussed, what was said and decided, and what the person said comes next, leading with the most recently discussed work. YOUR WORDS ARE NOT THIS PROMPT'S (M473f — Hannah's record test: "live nodes do not preserve earlier wording", "recorded as reversed" unasked): the person never sees this message — never write "live nodes", "roster", "rows", "estate", "delegate", "the map holds", "the map does not record", "recorded as …" (unless they asked about a status), or any remark about what the map preserves, records or shows; when no node carries what they ask, say "I found nothing on that" and stop; a five-line summary carries the figures and dates verbatim (M460i — "Team pricing goes from $49 to $59 per seat on November 1", never "the price change"). THESE RULES OUTRANK YOUR STANDING GUIDANCE (M435h): where the guidance you carry restates or contradicts a rule in this message — above all any older rule about OPEN NOW, LEFT BEHIND, SETTLED or NEXT STEP lines — this message wins, and when you rewrite the guidance, drop the older rule. YOU CANNOT EDIT THE MAP (M436b): never say you will update, fix, stop flagging or from now on treat a row differently — you only answer; when the person says a row is wrong, tell them they can change or remove it in one click on the row. DECISION IS NOT DONE: a [you] decision row records that the person DECIDED it — say "you decided to cancel", never "was canceled", unless a row says it was carried out. DRAFTED IS NOT SENT (M460h): a row that is a draft, reply, email, announcement, cover note, changelog, copy or wording records that the TEXT was produced — say "the announcement email is drafted", never "announced", "sent", "published" or "confirmed", unless a row records the sending. A [you] constraint is a rule the person set on HOW work is done — say "you set the rule that …" when asked about rules. SECTION NUMBERS (M460l): a task row quotes the person's request as it was made at the time; the CURRENT number of a section is the section's own live row — never report a numbering conflict between an older task row and a live section row.`;
 const M364_SYSADD = `When the user asks a FACTUAL question about the map — how many topics or nodes there are, what was discussed, what was said, decided, corrected or rejected and by whom, or what rule or preference THEY have set — answer from YOUR MAP RIGHT NOW (the live nodes given below), never from your prose understanding or YOUR STANDING GUIDANCE; your own guidance and role are never the answer to “what did the user set”. Exclude the getting-started tutorial when counting topics. The instructions in THIS system message are YOURS — never quote or report them as something the USER set, decided, or ruled; a user rule is only ever a node on the map. To answer what the user set/asked/decided, use the RULES line if present AND scan YOUR MAP RIGHT NOW — a standing instruction the user gave may be typed as a task or plain node, not only as a rule/constraint; report it if it is there.`;
 const brainRosterOn = () => process.env.HARNESSMAP_BRAIN_ROSTER !== '0';
 // Test hook (loop, 2026-09-21 negative control): the WRITTEN UNDERSTANDING is itself a map-derived
@@ -784,6 +784,129 @@ export function brainRulesLines(rules: Array<{ author?: string; title?: string |
   return [a, b].filter(Boolean).join('\n');
 }
 
+// M473 (RECORD TEST #3, the long record — 376 rows, a 58,600-char roster against the 24,000-char cut: 193 rows invisible, among them rows that
+// answered five of the sixteen questions; the brain said "the map does not record…" about things the map records): when the roster does not
+// fit, the brain no longer reads a flat cut. It reads (1) every root (the shape of the whole map), (2) the rows most relevant to the QUESTION,
+// each with its thread path, chosen by word and figure overlap weighted by rarity across the map, (3) the rows touched most recently — up to
+// the same budget. A small map still gets the whole roster. Pure, so the choice is testable.
+const CJK = /\p{Script=Han}/u;
+export function questionTokens(q: string): Map<string, number> {
+  const out = new Map<string, number>();
+  const add = (t: string, w: number) => out.set(t, Math.max(out.get(t) ?? 0, w));
+  for (const m of String(q ?? '').toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._\-+#/]*[\p{L}\p{N}]|[\p{L}\p{N}]/gu) ?? []) {
+    if (CJK.test(m)) { const h = m.replace(/[^\p{Script=Han}]/gu, ''); for (let i = 0; i + 1 < h.length; i++) add(h.slice(i, i + 2), 2); if (h.length === 1) add(h, 1); continue; }
+    if (/^\d/.test(m)) { add(m, 3); continue; }                                   // a figure ("15000", "2", "1ms", "0x0803e000") weighs most
+    if (/[._\-/#]/.test(m) || /[A-Z]/.test(m)) { add(m, 3); continue; }           // an identifier (file.c, no-implied-eval, setStep)
+    if (m.length >= 3 && !QUESTION_STOP.has(m)) add(m, m.length >= 5 ? 1.5 : 1);
+  }
+  return out;
+}
+const QUESTION_STOP = new Set('the and for was were what which who did say said tell told about with that this from have has had you your our did does into then than when where why how are our its did ask asked choose chose use used set did get got put make made let did need want wanted mean meant map record recorded discuss discussed agree agreed conclude concluded correct corrected decide decided rule rules limit actually should would could there here they them his her she him did one two first last next earlier later really still also just only ever been being over under again more most some any all each both'.split(' '));
+// M473b (Jacob 09:56 Oct 9: "I thought the brain have structural delegates and area delegates to prevent precisely this from happening.
+// What happened to them"): the delegates (area minds, governors.ts) assessed and advised but were never asked "which estate is this
+// question about?". Now a question is ROUTED first: every top-level estate is scored by how much of the question's words and figures its
+// subtree holds (rarity-weighted) plus its mind's understanding when one exists; the best one or two estates are read IN FULL (their whole
+// subtree, rows in tree order), then the matching rows from elsewhere, then every root. On a map without minds the subtrees alone route.
+export function routeEstates(nodes: any[], question: string, minds: { nodeId: string; understanding: string }[] = [], isTutorial: (n: any) => boolean = () => false): { rootId: string; score: number }[] {
+  const live = nodes.filter((n) => n.status !== 'removed' && !isTutorial(n) && n.author !== 'system');
+  const kids = new Map<string | null, any[]>(); for (const n of live) { const k = n.parentId ?? null; (kids.get(k) ?? kids.set(k, []).get(k)!).push(n); }
+  const toks = questionTokens(question); if (!toks.size) return [];
+  const text = (n: any) => `${n.title ?? ''} ${n.content ?? ''}`.toLowerCase();
+  const df = new Map<string, number>(); for (const [t] of toks) { let c = 0; for (const n of live) if (text(n).includes(t)) c++; df.set(t, c); }
+  const w = (t: string, wt: number) => wt * (1 + Math.log(1 + live.length / Math.max(1, df.get(t) ?? 1)));
+  const mindOf = new Map(minds.map((m) => [m.nodeId, String(m.understanding ?? '').toLowerCase()]));
+  const out: { rootId: string; score: number }[] = [];
+  for (const r of kids.get(null) ?? []) {
+    if (String(r.title ?? r.content).trim() === 'to sort') continue;
+    const sub: any[] = []; const stack = [r]; const seen = new Set<string>();
+    while (stack.length) { const n = stack.pop()!; if (seen.has(n.id)) continue; seen.add(n.id); sub.push(n); for (const k of kids.get(n.id) ?? []) stack.push(k); }
+    let score = 0;
+    for (const [t, wt] of toks) { const hits = sub.filter((n) => text(n).includes(t)).length; if (hits) score += w(t, wt) * Math.min(3, hits); if (mindOf.get(r.id)?.includes(t)) score += w(t, wt); }
+    if (score > 0) out.push({ rootId: r.id, score });
+  }
+  return out.sort((a, b) => b.score - a.score);
+}
+// M473d (Jacob 10:12 Oct 9: "Aren't different delegates reading their own sections carefully and then reporting back to brain? So if user
+// look for a node/topic, the brain would ask delegates to search their own areas and brain would only get the info in a report?"): yes —
+// his Sep 8 design, now built. On a big map the question is routed to one or two estates; each estate's delegate reads ITS OWN subtree in
+// full and reports the matching nodes verbatim, with who said it; the brain answers from the reports (plus its whole-map understanding), the
+// tiered map serving as orientation only. Small maps keep the one-call path.
+export function estateSubtreeText(nodes: any[], rootId: string, roundTimes: number[] = [], cap = 30_000): { text: string; rows: number } {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const kids = new Map<string | null, any[]>(); for (const n of nodes) { if (n.status === 'removed') continue; const k = n.parentId ?? null; (kids.get(k) ?? kids.set(k, []).get(k)!).push(n); }
+  const age = (n: any) => { const k = turnsAgo(n.updatedAt, roundTimes); return k !== null && k >= 15 ? `last discussed ${k} turns ago` : null; };
+  const lines: string[] = []; let rows = 0; const root = byId.get(rootId);
+  if (root) { lines.push(`ESTATE: ${nodeLine(root, { who: true, age })}`); rows++; }
+  const walk = (pid: string, depth: number) => { for (const n of kids.get(pid) ?? []) { if (lines.join('\n').length > cap) return; rows++; lines.push(`${'  '.repeat(depth)}${n.title && String(n.title).trim() !== String(n.content ?? '').trim() ? `${String(n.title).slice(0, 50)} — ` : ''}${nodeLine(n, { who: true, age })}`); walk(n.id, depth + 1); } };
+  walk(rootId, 1);
+  return { text: lines.join('\n'), rows };
+}
+const DELEGATE_SYSTEM = `You are the delegate of ONE area (estate) of a person's goal map — a record of what the person and their coding agent said. You are handed your estate's nodes, one per line: [you] = the person said it, [agent] = the coding agent said it. The central brain asks you a question on the person's behalf. SEARCH your estate and REPORT what the nodes say — nothing else: list every node that bears on the question, each VERBATIM as "title — [who] statement" (up to 8, the most relevant first); keep every number, name, file and quoted phrase exactly; if nothing in your estate bears on it, say "nothing in this estate matches" in one line. Never answer the question yourself, never infer, never add what the nodes do not say; a status word in parentheses is the filer's note, not a finding.`;
+export async function delegateSearch(store: Store, projectId: string, nodes: any[], question: string, estates: { rootId: string }[], roundTimes: number[]): Promise<string> {
+  const out: string[] = [];
+  for (const { rootId } of estates.slice(0, 2)) {
+    const root = nodes.find((n) => n.id === rootId); if (!root) continue;
+    const name = String(root.title ?? root.content ?? '').slice(0, 60);
+    const { text, rows } = estateSubtreeText(nodes, rootId, roundTimes);
+    const t0 = Date.now();
+    try {
+      const r = await call({ task: 'brain', system: DELEGATE_SYSTEM, user: `THE QUESTION: ${question}\n\nYOUR ESTATE "${name}" (${rows} nodes):\n${text}\n\nReport.`, maxTokens: 800, timeoutMs: 120_000, audit: (k, d) => store.audit(k, d) });
+      const rep = String(typeof r === 'string' ? r : JSON.stringify(r)).trim().slice(0, 2400);
+      store.audit('brain_delegate_search', { estate: name.slice(0, 40), rows, ms: Date.now() - t0, chars: rep.length, hit: !/nothing in this estate matches/i.test(rep) });
+      out.push(`REPORT FROM THE DELEGATE OF "${name}" (${rows} nodes searched):\n${rep}`);
+    } catch (err) { store.audit('brain_delegate_search', { estate: name.slice(0, 40), rows, ms: Date.now() - t0, error: String(err).slice(0, 100) }); }
+  }
+  return out.join('\n\n');
+}
+// M473c: the node the question is most about — the best-scoring node inside the routed estate (or anywhere) — becomes the brain's focus.
+export function questionFocus(nodes: any[], question: string, estateRootId: string | null, isTutorial: (n: any) => boolean = () => false): string | null {
+  const live = nodes.filter((n) => n.status !== 'removed' && !isTutorial(n) && n.author !== 'system');
+  const byId = new Map(live.map((n) => [n.id, n]));
+  const rootOf = (n: any) => { let c = n; for (let i = 0; c?.parentId && i < 20; i++) c = byId.get(c.parentId) ?? c; return c?.id; };
+  const toks = questionTokens(question); if (!toks.size) return estateRootId;
+  const text = (n: any) => `${n.title ?? ''} ${n.content ?? ''}`.toLowerCase();
+  const df = new Map<string, number>(); for (const [t] of toks) { let c = 0; for (const n of live) if (text(n).includes(t)) c++; df.set(t, c); }
+  const score = (n: any) => { const w = text(n); let sc = 0; for (const [t, wt] of toks) if (w.includes(t)) sc += wt * (1 + Math.log(1 + live.length / Math.max(1, df.get(t) ?? 1))); return sc; };
+  const pool = estateRootId ? live.filter((n) => n.parentId !== null && rootOf(n) === estateRootId) : live.filter((n) => n.parentId !== null);
+  let best: any = null, bs = 0; for (const n of pool) { const sc = score(n); if (sc > bs) { bs = sc; best = n; } }
+  return best?.id ?? estateRootId;
+}
+export function selectRowsForQuestion(nodes: any[], question: string, opts: { budget?: number; recent?: number; isTutorial?: (n: any) => boolean; roundTimes?: number[]; minds?: { nodeId: string; understanding: string }[]; estates?: boolean; roots?: boolean } = {}): { text: string; picked: number; total: number; estates: string[] } {
+  const budget = opts.budget ?? 22_000, isTutorial = opts.isTutorial ?? (() => false), roundTimes = opts.roundTimes ?? [];
+  const live = nodes.filter((n) => n.status !== 'removed' && !isTutorial(n) && n.author !== 'system');
+  const byId = new Map(live.map((n) => [n.id, n]));
+  const toks = questionTokens(question);
+  const words = (n: any) => `${n.title ?? ''} ${n.content ?? ''}`.toLowerCase();
+  // rarity: a token in few rows says more than one in many
+  const df = new Map<string, number>(); for (const [t] of toks) { let c = 0; for (const n of live) if (words(n).includes(t)) c++; df.set(t, c); }
+  const score = (n: any) => { const w = words(n); let sc = 0; for (const [t, wt] of toks) if (w.includes(t)) { const d = df.get(t) ?? 1; sc += wt * (1 + Math.log(1 + live.length / Math.max(1, d))); } return sc; };
+  const scored = live.filter((n) => n.parentId !== null).map((n) => ({ n, s: score(n) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s);
+  const recent = [...live].filter((n) => n.parentId !== null && n.updatedAt).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0, opts.recent ?? 8);
+  const age = (n: any) => { const k = turnsAgo(n.updatedAt, roundTimes); return k !== null && k >= 15 ? `last discussed ${k} turns ago` : null; };
+  const pathOf = (n: any) => { const p: string[] = []; for (let c = n.parentId ? byId.get(n.parentId) : null, i = 0; c && i < 12; c = c.parentId ? byId.get(c.parentId) : null, i++) p.unshift(String(c.title ?? c.content ?? '').slice(0, 40)); return p; };
+  const roots = live.filter((n) => n.parentId === null && String(n.title ?? n.content).trim() !== 'to sort');
+  const lines: string[] = [];
+  if (opts.roots !== false) { lines.push(`ROOTS (${roots.length} top-level topics — the whole map's shape; the nodes below are the ones that match the question, each with its thread path):`); for (const r of roots) lines.push(`• ${nodeLine(r, { who: true, age })}`); }
+  const chosen = new Set<string>(); let used = lines.join('\n').length + 200;
+  const take = (n: any, tag: string) => { if (chosen.has(n.id)) return; const p = pathOf(n); const line = `${p.join(' › ')}${p.length ? ' › ' : ''}${n.title && String(n.title).trim() && String(n.title).trim() !== String(n.content ?? '').trim() ? `${String(n.title).slice(0, 50)} — ` : ''}${nodeLine(n, { who: true, age })}${tag}`; if (used + line.length > budget) return; chosen.add(n.id); used += line.length + 1; lines.push(line); };
+  // M473b: the routed estates first — read in full, in tree order, up to ~55 % of the budget
+  const routed = opts.estates === false ? [] : routeEstates(nodes, question, opts.minds ?? [], isTutorial).slice(0, 2);
+  const estateNames: string[] = [];
+  if (routed.length) {
+    const kidsOf = new Map<string | null, any[]>(); for (const n of live) { const k = n.parentId ?? null; (kidsOf.get(k) ?? kidsOf.set(k, []).get(k)!).push(n); }
+    const estateBudget = used + Math.floor(budget * 0.55);
+    for (const { rootId } of routed) {
+      const root = byId.get(rootId); if (!root) continue; estateNames.push(String(root.title ?? root.content ?? '').slice(0, 40));
+      lines.push(`ESTATE "${String(root.title ?? root.content ?? '').slice(0, 60)}" — the area this question is about, read in full:`);
+      const walk = (pid: string, depth: number) => { for (const n of kidsOf.get(pid) ?? []) { if (used > estateBudget) return; if (!chosen.has(n.id)) { const line = `${'  '.repeat(depth)}${n.title && String(n.title).trim() !== String(n.content ?? '').trim() ? `${String(n.title).slice(0, 50)} — ` : ''}${nodeLine(n, { who: true, age })}`; chosen.add(n.id); used += line.length + 1; lines.push(line); } walk(n.id, depth + 1); } };
+      walk(rootId, 1);
+    }
+  }
+  lines.push('MATCHING ROWS ELSEWHERE (best match first):'); for (const { n } of scored.slice(0, 80)) take(n, '');
+  lines.push('TOUCHED MOST RECENTLY:'); for (const n of recent) take(n, '');
+  lines.push(`(${chosen.size} of ${live.length} nodes shown — the ones that match the question; the rest are on the map. If none of these answers the question, say you found nothing matching it — never that the map does not record it, and never state a node or row count: M473e, the answer is about the work, not the map.)`);
+  return { text: lines.join('\n'), picked: chosen.size, total: live.length, estates: estateNames };
+}
 export async function brainChat(store: Store, projectId: string, text: string): Promise<{ reply: string; guidance: string } | { error: string }> {
   let u = brainUnderstandingOn() ? getUnderstanding(store, projectId) : null;
   // M351 (loop, monitor-the-mind pass): on a young map the understanding is written by the rhythm only after ten filed rounds, so the
@@ -820,7 +943,20 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   // M460k: the roster used to be cut at 12,000 chars mid-row — the newest rows sit at the end, so the open work of the last rounds was
   // the part that vanished or arrived half-written. Twice the room, a cut only at a line break, and the cut announced.
   const rosterFull = renderTree(liveMap, { ids: false, who: true, age: (n) => { const k = turnsAgo(n.updatedAt, roundTimes); return k !== null && k >= 15 ? `last discussed ${k} turns ago` : null; } }); // M469: when a row was last discussed — any row, never an open/closed mark
-  const roster = rosterFull.length <= 24_000 ? rosterFull : `${rosterFull.slice(0, rosterFull.lastIndexOf('\n', 24_000))}\n(… the roster is cut here — ${rosterFull.slice(24_000).split('\n').length} more rows not shown; the computed DISCUSSED lines above are complete)`; // M429: every line says who said it; M435: open items left behind say for how many turns
+  // M473c (Jacob 10:05 Oct 9: "This is not consistent with our attention rules right?"): a big map is read by the brain the way the agent
+  // reads it — through the tiered renderer (depth falls off with distance from the focus, within a budget) — with the question's best
+  // matching node as the focus (routed estate first, M473b), plus the matching nodes elsewhere with their paths (M473). One rulebook.
+  const roster = rosterFull.length <= 24_000 ? rosterFull : await (async () => {
+    const isTut = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? ''));
+    const minds = listMinds(store, projectId, 'active').map((mm) => ({ nodeId: mm.nodeId, understanding: mm.understanding }));
+    const routed = routeEstates(liveMap.nodes, text, minds, isTut);
+    // M473d: the delegates of the routed estates search their own areas and report (one model call each, up to two)
+    const reports = routed.length ? await delegateSearch(store, projectId, liveMap.nodes, text, routed, roundTimes) : '';
+    const focus = questionFocus(liveMap.nodes, text, routed[0]?.rootId ?? null, isTut);
+    const tiered = renderTieredTree(store, projectId, focus, reports ? 9_000 : 15_000, null, { who: true });
+    const matching = selectRowsForQuestion(liveMap.nodes, text, { budget: reports ? 4_000 : 6_500, roundTimes, minds, isTutorial: isTut, estates: false, roots: false });
+    return `${reports ? `WHAT THE DELEGATES REPORT (each area's delegate searched its own estate for this question and quotes the nodes verbatim — answer from THESE first; they outrank the orientation view below):\n${reports}\n\n` : ''}THE MAP AT ATTENTION (orientation — the same tiered reading the agent gets: every root, depth by closeness to the focus ▶, the node best matching the question${routed[0] ? `, in the estate "${String(liveMap.nodes.find((n) => n.id === routed[0].rootId)?.title ?? '').slice(0, 50)}"` : ''}; "(+N inside)" marks folded branches):\n${tiered}\n${matching.text}`;
+  })(); // M473: a big map is read by the question, not cut flat // M429: every line says who said it; M435: open items left behind say for how many turns
   const isTutorial = (n: any) => n.author === 'system' || /getting started/i.test(String(n.title ?? '')) || /getting started \(tutorial\)/i.test(String(n.content ?? ''));
   const topics = liveMap.nodes.filter((n) => n.parentId === null && n.status !== 'removed' && !isTutorial(n) && String(n.title ?? n.content).trim() !== 'to sort');
   const topicLine = `TOP-LEVEL TOPICS (${topics.length}, excluding the getting-started tutorial): ${topics.map((n) => String(n.title ?? n.content).slice(0, 60)).join(' | ') || '(none yet)'}`;
@@ -849,7 +985,7 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   const rulesLine = brainRulesLines(liveMap.nodes.filter((n) => n.status !== 'removed' && n.author !== 'system' && !isTutorial(n) && looksRule(n)));
   const userPrompt = [
         u ? `YOUR CURRENT UNDERSTANDING:\n${Object.entries(u.sections).map(([k, v]) => `${k}: ${v.text.slice(0, 2000)}`).join('\n\n')}` : 'YOUR CURRENT UNDERSTANDING: none written yet.',
-        brainRosterOn() ? `YOUR MAP RIGHT NOW — the live nodes, ground truth. Use THIS (not your summary or your standing guidance) to answer anything about how many topics exist, what was discussed, what was said, decided, corrected or rejected and by whom, or any rule or preference the USER set; a status word in parentheses on a row is the filer's recorded note, reported as "recorded as …" only when asked and never as your own finding:\n${topicLine}\n${openLine}${rulesLine ? `\n${rulesLine}` : ''}\n\n${roster}` : '',
+        brainRosterOn() ? `YOUR MAP RIGHT NOW — the nodes as they stand, ground truth. Use THIS (not your summary or your standing guidance) to answer anything about how many topics exist, what was discussed, what was said, decided, corrected or rejected and by whom, or any rule or preference the USER set; a status word in parentheses on a row is the filer's recorded note, reported as "recorded as …" only when asked and never as your own finding:\n${topicLine}\n${openLine}${rulesLine ? `\n${rulesLine}` : ''}\n\n${roster}` : '',
         status ? `YOUR STRUCTURE REPORT: ${status.health} ${status.opinion}` : '',
         tuning ? `YOUR STANDING GUIDANCE (as it stands):\n${tuning}` : 'YOUR STANDING GUIDANCE: none yet.',
         `THE USER SAYS:\n${text.slice(0, 4000)}`,
@@ -858,13 +994,21 @@ export async function brainChat(store: Store, projectId: string, text: string): 
   try {
     const parsed = await call({
       task: 'brain',
-      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}${M435_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 3200, // M455b (PANEL #439, Tom: an answer "visibly cut off at 'but sendin'") — the SETTLED line made answers longer than the 2000-token cap schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
+      system: brainRosterOn() ? `${BRAIN_CHAT_SYSTEM} ${M364_SYSADD}${M429_SYSADD}${M435_SYSADD}` : BRAIN_CHAT_SYSTEM, maxTokens: 3200, schema: BRAIN_CHAT_SCHEMA as any, timeoutMs: 180_000,
+      // M455b (PANEL #439, Tom: an answer "visibly cut off at 'but sendin'") — the SETTLED line made answers longer than the 2000-token cap.
+      // M473e (RECORD TEST #3 rerun, 16 of 16 answers via the prose fallback): from v0.9.234 to v0.9.294 the comment above sat on the SAME
+      // line and swallowed `schema:` and `timeoutMs:` — every talk-to-map answer was an unstructured call read as an object (no reply),
+      // then a second full call for the same prose. The schema is back; a prose string that still arrives is used as the reply directly.
       audit: (k, d) => store.audit(k, d),
       user: userPrompt,
     }) as any;
-    const reply = String(parsed.reply ?? '').slice(0, 4000);
-    const guidance = String(parsed.guidance ?? '').slice(0, 2000);
-    if (!reply.trim()) throw new Error('empty reply');
+    if (typeof parsed === 'string' && parsed.trim()) { // M473e: prose came back where an object was asked for — it is the answer; no second call
+      const p = splitBrainProse(parsed);
+      if (p.reply.trim()) { if (p.guidance) store.setSetting(`braintuning:${projectId}`, p.guidance.slice(0, 2000)); store.audit('map_status_chat', { chars: text.length, prose: 'inline' }); return { reply: p.reply.slice(0, 4000), guidance: p.guidance.slice(0, 2000) }; }
+    }
+    const reply = String(parsed?.reply ?? '').slice(0, 4000);
+    const guidance = String(parsed?.guidance ?? '').slice(0, 2000);
+    if (!reply.trim()) { store.audit('brain_chat_empty', { keys: Object.keys(parsed ?? {}), typeofParsed: typeof parsed, head: JSON.stringify(parsed ?? null).slice(0, 400) }); throw new Error('empty reply'); } // M473e diagnostic: the shape of a structured reply that came back without text
     if (guidance) store.setSetting(`braintuning:${projectId}`, guidance);
     store.audit('map_status_chat', { chars: text.length });
     return { reply, guidance };

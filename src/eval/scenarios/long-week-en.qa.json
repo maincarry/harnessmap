@@ -1,0 +1,152 @@
+{
+  "sealed": "M470 record test — generated from the record by a model call; the answer key is the record's own words. Not read by the loop; not used for any fix.",
+  "scenario": "long-week-en.json",
+  "panelChat": "day2-panorama-homography",
+  "generatedAt": "2026-10-09T08:53:33.780Z",
+  "questions": [
+    {
+      "kind": "discussed",
+      "question": "What did we discuss as the cause of the ten-hour panorama run?",
+      "answer": "The image warping and merging used inefficient nested loops, especially costly for large images.",
+      "quote": "The most likely reason for the long runtime is that the image warping and merging process is inefficient when implemented using nested for loops. This becomes especially apparent when working with larger images.",
+      "turn": 83,
+      "who": "agent",
+      "chat": "day1-panorama-homography"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did I say was actually wrong with the random-number code?",
+      "answer": "I said random.radint was good; the problem was the variable name.",
+      "quote": "the random.radint is good, the problem is with the name",
+      "turn": 12,
+      "who": "you",
+      "chat": "day1-random-numbers"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What limit and ordering rule did I set for the random-number file?",
+      "answer": "Generate numbers until 15000, then output the first 10 in ascending order.",
+      "quote": "make a python code which types random numbers into a text file until the number is 15000, and write the first 10 out in ascending order",
+      "turn": 15,
+      "who": "you",
+      "chat": "day1-random-numbers"
+    },
+    {
+      "kind": "rejected",
+      "question": "What random-number method did I reject, why, and what replaced it?",
+      "answer": "random.uniform(1, 1000) was rejected because it was not working; random.randrange() replaced it.",
+      "quote": "If the `random.uniform(1, 1000)` function isn't working for you, you can try using a different method to generate random numbers. One option is to use the `randrange()` function from the `random` module to generate random integers within a given range.",
+      "turn": 10,
+      "who": "agent",
+      "chat": "day1-random-numbers"
+    },
+    {
+      "kind": "who-said",
+      "question": "Was it me or the agent who chose to be X?",
+      "answer": "you",
+      "quote": "I want to be x",
+      "turn": 32,
+      "who": "you",
+      "chat": "day1-tictactoe"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did I say my winning tic-tac-toe positions were?",
+      "answer": "Positions 2, 5, and 8.",
+      "quote": "Positions 2,5, and 8.",
+      "turn": 37,
+      "who": "you",
+      "chat": "day1-tictactoe"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What was the Connect Four winning-number rule?",
+      "answer": "Connect four same-color discs vertically, horizontally, or diagonally.",
+      "quote": "The objective of the game is to connect four of your own discs of the same color vertically, horizontally, or diagonally in a line.",
+      "turn": 43,
+      "who": "agent",
+      "chat": "day1-tictactoe"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did I ask the step function to let me choose?",
+      "answer": "Whether to move backward by -1 or forward by +1.",
+      "quote": "rewrite the previous function in a way where i can choose whether to go a step backwards (-1) or forwards (+1)",
+      "turn": 49,
+      "who": "you",
+      "chat": "day1-react-eslint"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What delay did we use in documentReady, and with what rule?",
+      "answer": "A 1ms delay using setTimeout instead of eval.",
+      "quote": "The updated code uses `setTimeout()` instead of `eval()` to delay the function execution by 1ms, which is considered a best practice to avoid the use of `eval()`.",
+      "turn": 52,
+      "who": "agent",
+      "chat": "day1-react-eslint"
+    },
+    {
+      "kind": "rejected",
+      "question": "What did we correct about Quizizz's API, and what replaced it?",
+      "answer": "The public API claim was rejected because Quizizz no longer offered a public API or documentation; LTI integration was the replacement.",
+      "quote": "It appears that Quizizz no longer offers a public API for developers, and their API documentation is no longer available. However, Quizizz still offers integration options via their LTI integration, which allows for Quizizz to be embedded into learning management systems (LMS) like Canvas, Moodle, Blackboard, and more.",
+      "turn": 67,
+      "who": "agent",
+      "chat": "day1-quizlet-drifts"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did I report about Quizlet's help API-docs link?",
+      "answer": "I said the Quizlet help API-docs URL redirected.",
+      "quote": "quizlet https://quizlet.com/help/api-docs api docs redirected?",
+      "turn": 64,
+      "who": "you",
+      "chat": "day1-quizlet-drifts"
+    },
+    {
+      "kind": "discussed",
+      "question": "What did we discuss about interactive behavior on non-interactive elements?",
+      "answer": "Avoid click or keyboard handlers on non-interactive elements; use buttons, inputs, or links instead.",
+      "quote": "Avoid using non-interactive elements with click or keyboard event handlers that produce interactive behavior, such as toggling menus, opening links, or triggering special effects. Consider using more appropriate elements, such as buttons, input elements, or links, that are designed to handle user interaction and reduce the risk of accessibility issues.",
+      "turn": 59,
+      "who": "agent",
+      "chat": "day1-react-eslint"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What minimum VPS resources were recommended for Python?",
+      "answer": "2 CPU cores and 2 GB RAM.",
+      "quote": "For Python code, a recommended minimum configuration is 2 CPU cores and 2 GB RAM.",
+      "turn": 69,
+      "who": "agent",
+      "chat": "day1-quizlet-drifts"
+    },
+    {
+      "kind": "said-about",
+      "question": "How did I say the ground-truth homographies should be used?",
+      "answer": "I suggested using them to compute the homographies, like an initial reference.",
+      "quote": "no, may be I am wrong but shouldn't ground truth homographies be used to computed homographies. Like initial reference ?",
+      "turn": 74,
+      "who": "you",
+      "chat": "day1-panorama-homography"
+    },
+    {
+      "kind": "who-said",
+      "question": "Was it me or the agent who said to compute the SVD of matrix A?",
+      "answer": "the agent",
+      "quote": "It computes the SVD of the matrix `A`.",
+      "turn": 75,
+      "who": "agent",
+      "chat": "day1-panorama-homography"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did we conclude was the correct healthier-diet sentence?",
+      "answer": "I'm trying to eat a healthier diet.",
+      "quote": "I'm trying to eat a healthier diet.",
+      "turn": 20,
+      "who": "agent",
+      "chat": "day1-grammar-quiz"
+    }
+  ]
+}

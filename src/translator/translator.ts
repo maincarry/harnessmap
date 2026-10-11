@@ -215,7 +215,7 @@ const CLIENT_VERBS = new Set('Revise Start Run Save Draft Fix Update Check Rewri
 // decision, not a commitment you personally made" (she stopped the day). A decision the person states in their own words is theirs:
 // when the user's turn carries a first-person commitment and the node's statement shares the turn's words, the author is "user".
 // M472: a decision spoken as an order — a sentence that OPENS with a deciding verb (the person telling the agent what the rule or the choice is).
-export const IMPERATIVE_DECISION = /(?:^|[.!?]\s+)(?:take|keep|use|never|always|do not|don'?t|move|put|set|reserve|allocate|stick with|go with|drop|cut|merge|raise|lower|switch to|treat|leave|choose|pick|prefer|make|hold|cap|limit|require|forbid|allow)\b/i;
+export const IMPERATIVE_DECISION = /(?:^|[.!?]\s+)(?:take|keep|use|never|always|do not|don'?t|move|put|set|reserve|allocate|stick with|go with|drop|cut|merge|raise|lower|switch to|treat|leave|choose|pick|prefer|make|hold|cap|limit|require|forbid|allow)\b|[,;—–]\s*(?:but |and |then |just )?(?:do not|don'?t|never|not yet|hold off)\b/i; // M472c (Hannah t23 "…, but don’t switch the search endpoint yet"): a negated instruction after a comma or "but" is the person's order too
 export const FIRST_PERSON = /\b(?:let'?s|I'?ll|I will|we'?ll|we will|I'?m (?:willing|going|happy) to|I want|I(?:'ve| have)? decided|we(?:'ve| have)? decided|go with|settle (?:at|on|for)|I'?d (?:rather|prefer)|say (?:we|I|that we)|tell (?:them|him|her|the customer)|make (?:it|that|a) |record (?:these|this|it|that) as (?:my )?(?:a )?commitments?|my commitments?|I (?:sent|promised|committed|agreed|told|confirmed))\b/i; // M442d (TWIN #443): "Record these as commitments", "I sent both replies"
 // M443 (TWIN LONG #426, Noor, step 29 "List every commitment I made today, grouped by who it is for"): the recap turn filed two new
 // containers ("Harbor commitments", "Team pricing commitments") with six mirrored task rows restating rows the map already held — and
@@ -469,6 +469,7 @@ export class Translator {
       alterations = this.guardUserRetires(alterations, map, params); // M431 (TWIN #417 Elena): 'cut “X”' retires the live row titled X; 'merge X into Y' moves X under Y
       alterations = this.guardTitleTwinChild(alterations, map); // M467 (PANEL #454b): a same-titled child is the parent's new state, not a second row
       alterations = this.guardOutlineConfirmed(alterations, map, params); // M468 (PANEL #456a): "treat this as the current outline: 1 …, 2 …" settles the sections it names
+      alterations = this.guardSpecificsKept(alterations, map, params); // M474 (RECORD TEST #3; Jacob 09:49 "This is a serious bug… don't we have rules that guard this already?"): a figure, identifier or quoted phrase the person stated must land in a row this round — or it is filed verbatim as theirs
       const result: RoundResult = { summary, alterations };
       // M342: a retry must never apply a round twice — if this turn already has a round (a replay raced the original), keep the first.
       const prior = this.store.roundForTurn(params.turnId);
@@ -527,11 +528,13 @@ export class Translator {
   // M442 (TWIN LONG #426): see FIRST_PERSON. For a create_node or update_node that sets a solid status (decided/accepted/chosen/done)
   // or is typed decision/constraint, when the person's turn carries a first-person commitment and the statement shares at least three
   // distinctive words (and 30 %) with that turn, the author becomes "user". Audit guard_decision_author {id, from, shared}.
-  private guardDecisionAuthor(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
+  private guardDecisionAuthor(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string; focusContainerId?: string }): any[] {
     const raw = String(params.userText ?? '');
     // M442c (LONG #440: a grammar-quiz sentence “…we'll have a cup of tea” flipped the agent's option to the person's): quoted
     // spans carry no commitment of the person's, and a "which is correct / choose one" turn is a question, not a decision.
-    const ut = raw.replace(/[“"‘'][^”"’']{3,200}[”"’']/g, ' ');
+    // M472c: curly apostrophes (don’t, I’ll — what people and twins actually type) read as straight ones; a quote span opens after a space and closes
+    // before punctuation, so an apostrophe inside a word never opens one (the old pattern blanked "…don't … it's…" between two apostrophes).
+    const ut = raw.replace(/[’‘]/g, "'").replace(/(?:^|(?<=\s))[“"][^”"]{3,200}[”"](?=[\s.,;:!?)]|$)/g, ' ').replace(/(?:^|(?<=\s))'[^']{3,200}'(?=[\s.,;:!?)]|$)/g, ' ');
     // M472 (RECORD TEST #1 proof, Amir round 25: "Take the 8 KB for the log ring buffer from the application region's free tail, never from
     // the config area. Keep the config page fixed at 0x0803E000." — filed as two [decided] rows of the AGENT's; the brain: "The agent picked
     // both"): a decision the person issues as an IMPERATIVE ("Take…", "Keep…", "Never…", "Use…", "Move…") carries no first-person phrase, so
@@ -558,6 +561,20 @@ export class Translator {
       if (shared < 3 || shared / mine.size < 0.3) continue;
       this.store.audit('guard_decision_author', { id: String(a.id ?? '').slice(0, 8), from: author, shared, title: String(a.title ?? a.content ?? '').slice(0, 40), ...(imperative ? { how: 'imperative' } : {}) });
       a.author = 'user';
+    }
+    // M472b (Amir refile on v0.9.290, round 25: "Take the 8 KB for the log ring buffer from the application region's free tail, never from the
+    // config area. Keep the config page fixed at 0x0803E000." landed ONLY as rewrites of the agent's two evidence nodes from the turn before
+    // ("Application region", "Config area" [agent, noted]) — the figures were on the map, so M474 had nothing to add, and the record said the
+    // agent noted the layout; nobody decided anything): an imperative decision of the person's that lands in no node of theirs becomes
+    // their decision node, in their words, under the round's focus — the agent's evidence stays as it is.
+    if (imperative && !alterations.some((a) => (a?.op === 'create_node' || a?.op === 'update_node') && a.author === 'user')) {
+      const sents = ut.split(/(?<=[.!?。！？])\s+|\n+/).map((x) => x.trim()).filter((x) => x && IMPERATIVE_DECISION.test(x)).slice(0, 3);
+      if (sents.length) {
+        const content = sents.join(' ').slice(0, 400);
+        const parentId = params.focusContainerId ?? alterations.find((a) => a?.op === 'update_node' && a.id)?.id ?? null;
+        this.store.audit('guard_decision_author', { how: 'imperative-new-row', content: content.slice(0, 60) });
+        alterations.push({ op: 'create_node', id: randomUUID(), parentId, type: 'decision', status: 'decided', author: 'user', title: content.slice(0, 48).replace(/\s+\S*$/, ''), content });
+      }
     }
     return alterations;
   }
@@ -1361,6 +1378,44 @@ export class Translator {
       else continue;
       this.store.audit('guard_outline_confirmed', { id: n.id.slice(0, 8), title: String(n.title ?? '').slice(0, 40), from: n.status });
     }
+    return out;
+  }
+  // M474 (RECORD TEST #3 — the long record: the specifics of seven of sixteen questions never reached a row although every turn was filed:
+  // the 15,000 limit stood in 14 turns' text and 0 rows, the winning positions 2/5/8, the Connect Four rule, the −1/+1 choice, 2 CPU / 2 GB,
+  // "no public API", "I'll be X"; on the Amir refile his whole flash-layout decision produced no row. Jacob 09:49: "This is a serious bug,
+  // why didn't you notice it? Also don't we have rules that guard this already?" — the filer prompt says capture everything (M2) and never
+  // invent (M365); nothing CHECKED. Now the harness checks: after the round's filing, every figure (a number with or without a unit, a hex
+  // address), identifier (file.c, no-implied-eval, `code`) and quoted phrase in the PERSON's turn must appear in a row created or rewritten
+  // this round, or already on the map; the sentences carrying what is missing are filed verbatim as the person's own row under the focus.
+  // The agent's figures with a unit (2 CPU cores, 2 GB RAM, 1 ms, 15 %) get the same treatment, one row, as the agent's evidence. Audited as
+  // guard_specifics_kept {who, missed} so the capture rate can be counted. Fenced code is ignored on both sides.
+  private guardSpecificsKept(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string; assistantText?: string; focusContainerId?: string }): any[] {
+    const strip = (t: string) => String(t ?? '').replace(/```[\s\S]*?```/g, ' ');
+    const ut = strip(params.userText ?? ''), at = strip(params.assistantText ?? '');
+    if (ut.trim().length < 8 && at.trim().length < 8) return alterations;
+    const norm = (x: string) => x.toLowerCase().replace(/[,，]/g, '').replace(/\s+/g, ' ').trim();
+    const presentText = norm([...alterations.map((a) => `${a?.title ?? ''} ${a?.content ?? ''}`), ...map.nodes.filter((n) => n.status !== 'removed').map((n) => `${n.title ?? ''} ${n.content ?? ''}`)].join(' \n '));
+    const has = (sp: string) => { const k = norm(sp); if (!k) return true; if (presentText.includes(k)) return true; const bare = k.replace(/^[+-]/, '').replace(/\s?(?:ms|s|sec|seconds?|min|minutes?|h|hours?|days?|weeks?|%|kb|mb|gb|mah|ma|µa|ua|v|cores?|cpu|ram|px|words?|turns?)$/, ''); return bare.length >= 2 && new RegExp(`(?<![\\d.])${bare.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\d])`).test(presentText); };
+    const UNIT = '(?:ms|s|sec|seconds?|min|minutes?|h|hours?|days?|weeks?|%|kb|mb|gb|mah|ma|µa|ua|v|cores?|cpu|ram|px|words?|turns?)';
+    const figures = (t: string) => [...t.matchAll(new RegExp(`(?<![\\w.\\-])(?:0x[0-9a-fA-F]{3,}|[+-]?\\d(?:[\\d,]*\\d)?(?:\\.\\d+)?)(?:\\s?${UNIT})?(?!\\w)`, 'gi'))].map((m) => m[0].trim()).filter((f) => /^0x/i.test(f) || /\d{2,}/.test(f) || /[a-zµ%]$/i.test(f)).filter((f) => !/^(?:19|20)\d\d$/.test(f));
+    const idents = (t: string) => [...t.matchAll(/`([^`\n]{2,60})`|(?<![\w/])([A-Za-z][\w-]*\.(?:c|h|ts|js|py|ld|json|md|txt|cpp|rs|go|yaml|yml|toml|sh|sql))(?![\w/])|(?<!\w)([a-z]+(?:-[a-z]+){2,})(?!\w)/g)].map((m) => (m[1] ?? m[2] ?? m[3]).trim()).filter((x) => x.length >= 3);
+    const quoted = (t: string) => [...t.matchAll(/[“"]([^”"\n]{4,80})[”"]/g)].map((m) => m[1].trim());
+    const sentencesOf = (t: string) => t.split(/(?<=[.!?。！？])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
+    const out = [...alterations];
+    const file = (who: 'user' | 'agent', text: string, specifics: string[], type?: string) => {
+      const missed = [...new Set(specifics)].filter((sp) => !has(sp));
+      if (!missed.length) return;
+      const sents = sentencesOf(text).filter((sn) => missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
+      if (!sents.length) return;
+      const content = sents.join(' ').slice(0, 400);
+      const parentId = params.focusContainerId ?? out.find((a) => a?.op === 'create_node' && a.parentId)?.parentId ?? null;
+      this.store.audit('guard_specifics_kept', { who, missed: missed.slice(0, 6).map((m) => m.slice(0, 30)), content: content.slice(0, 60) });
+      out.push({ op: 'create_node', id: randomUUID(), parentId, content, title: content.slice(0, 48).replace(/\s+\S*$/, ''), author: who, status: who === 'user' ? 'live' : 'noted', ...(type ? { type } : {}) });
+    };
+    if (ut.trim().length >= 8) file('user', ut, [...figures(ut), ...idents(ut), ...quoted(ut)]);
+    // the agent's figures: only sentences short enough to be a stated fact, with a unit — never a paragraph of code or prose
+    const agentSents = sentencesOf(at).filter((sn) => sn.length <= 220 && new RegExp(`\\d\\s?${UNIT}\\b`, 'i').test(sn));
+    if (agentSents.length) file('agent', agentSents.join(' '), agentSents.flatMap((sn) => figures(sn)).filter((f) => /[a-zµ%]$/i.test(f)), 'evidence');
     return out;
   }
   private guardTitleTwinChild(alterations: any[], map: { nodes: MapNode[] }): any[] {

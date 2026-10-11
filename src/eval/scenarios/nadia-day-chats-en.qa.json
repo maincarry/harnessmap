@@ -1,0 +1,116 @@
+{
+  "sealed": "M470 record test — generated from the record by a model call; the answer key is the record's own words. Not read by the loop; not used for any fix.",
+  "scenario": "nadia-day-chats-en.json",
+  "panelChat": "chat-delacroix",
+  "generatedAt": "2026-10-09T21:00:26.122Z",
+  "questions": [
+    {
+      "kind": "discussed",
+      "question": "What did we cover in the Delacroix migration outline?",
+      "answer": "Discovery, catalogue cleanup, Shopify configuration, integrations, testing, launch, and post-launch support, as a separate proposal workstream.",
+      "quote": "I drafted a six-week Delacroix Cosmetics migration outline, from discovery and catalogue cleanup through Shopify configuration, integrations, testing, launch, and post-launch support. I’ve kept it as a separate proposal workstream.",
+      "turn": 15,
+      "who": "agent",
+      "chat": "chat-delacroix"
+    },
+    {
+      "kind": "discussed",
+      "question": "What did we cover in the final Marchetti refund review?",
+      "answer": "Removing the duplicate refund adjustment, calculating VAT from the post-refund taxable net, regression coverage for sale-plus-refund totals and the PDF VAT line, coverage for multiple refunds and ordinary invoices, and the remaining mixed-VAT-rate refund risk.",
+      "quote": "The final diff removes the duplicate refund adjustment and calculates VAT from the post-refund taxable net. Regression coverage now checks sale-plus-refund totals and the PDF VAT line, while the full suite covers multiple refunds and ordinary invoices. The remaining risk is unusual mixed VAT-rate refunds, which are not represented in the current fixtures.",
+      "turn": 22,
+      "who": "agent",
+      "chat": "chat-marchetti"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did I say the Orbit PATCH limiter had to return?",
+      "answer": "A 429 response with the standard rate-limit headers and Retry-After, without affecting other routes.",
+      "quote": "Return 429 with the standard rate-limit headers and Retry-After, and don’t affect other routes. Then show me the changed files.",
+      "turn": 30,
+      "who": "you",
+      "chat": "chat-orbit"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did we conclude was the main Huang query bottleneck?",
+      "answer": "Scanning the large ledger_entries table and repeatedly joining it to accounts without a useful index on the join and date-filter columns.",
+      "quote": "Most of the runtime is spent scanning the large ledger_entries table and repeatedly joining it to accounts without a useful index on the join and date-filter columns. I’ve identified the expensive plan nodes and have not changed the database.",
+      "turn": 23,
+      "who": "agent",
+      "chat": "chat-huang"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did I say had to be checked on the Marchetti sample PDF?",
+      "answer": "The invoice lines, subtotal, refund, VAT, and final total had to be inspected for internal consistency.",
+      "quote": "Generate a sample PDF from the regression fixture and inspect the invoice lines, subtotal, refund, VAT, and final total. Don’t change anything yet; tell me whether the displayed amounts are internally consistent.",
+      "turn": 6,
+      "who": "you",
+      "chat": "chat-marchetti"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What exact limit and window did we set for Orbit PATCH requests?",
+      "answer": "30 requests per minute per authenticated user.",
+      "quote": "I implemented the authenticated-user rate limiter only on PATCH /users/:id, after authentication and before the handler. It allows 30 requests per minute and returns 429 with rate-limit and Retry-After headers when exceeded.",
+      "turn": 30,
+      "who": "agent",
+      "chat": "chat-orbit"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What exact Marchetti full-refund values did we use?",
+      "answer": "A €100 sale with a €100 refund had to produce a €0 net total.",
+      "quote": "I added one focused test asserting that a €100 sale with a €100 refund produces a €0 net total; the full invoice suite still passes.",
+      "turn": 5,
+      "who": "agent",
+      "chat": "chat-marchetti"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What execution-time improvement did the Huang join rewrite produce?",
+      "answer": "It improved execution from about 8 seconds to roughly 3 seconds.",
+      "quote": "The plan avoids the repeated join work and improves execution from about 8 seconds to roughly 3 seconds with the new index. Production was not touched.",
+      "turn": 27,
+      "who": "agent",
+      "chat": "chat-huang"
+    },
+    {
+      "kind": "rejected",
+      "question": "What did we reject about the original Marchetti refund calculation, why, and what replaced it?",
+      "answer": "We rejected subtracting the €10 refund both during CSV normalization and aggregation because it produced €80 instead of €90; the duplicate adjustment was to be removed.",
+      "quote": "The fixture produces a net total of €80 instead of the expected €90: the €10 refund is subtracted once while normalizing CSV rows and again when invoice totals are aggregated. I’ve traced both code paths and can now remove the duplicate adjustment.",
+      "turn": 2,
+      "who": "agent",
+      "chat": "chat-marchetti"
+    },
+    {
+      "kind": "rejected",
+      "question": "What did we reject about the Huang join, why, and what replaced it?",
+      "answer": "We rejected repeatedly joining raw filtered ledger entries to accounts because it caused unnecessary repeated work; it was replaced by aggregating the filtered ledger entries before the join.",
+      "quote": "I rewrote the join to aggregate the filtered ledger entries before joining to accounts, then ran EXPLAIN ANALYZE locally. The plan avoids the repeated join work and improves execution from about 8 seconds to roughly 3 seconds with the new index.",
+      "turn": 27,
+      "who": "agent",
+      "chat": "chat-huang"
+    },
+    {
+      "kind": "who-said",
+      "question": "Was it me or the agent who picked the Huang composite-index column order?",
+      "answer": "The agent.",
+      "quote": "I recommend a composite index on ledger_entries (account_id, posted_at): account_id supports the join and posted_at narrows each account’s rows by date. I have not created it.",
+      "turn": 24,
+      "who": "agent",
+      "chat": "chat-huang"
+    },
+    {
+      "kind": "who-said",
+      "question": "Was it me or the agent who required the Codex approval change to stay repo-only?",
+      "answer": "You.",
+      "quote": "Quick Codex CLI question before I continue: on Windows, how can I stop it asking for approval on every shell command in this repo only? I don’t want to weaken the setting globally.",
+      "turn": 13,
+      "who": "you",
+      "chat": "chat-codex"
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "sealed": "M470 record test — generated from the record by a model call; the answer key is the record's own words. Not read by the loop; not used for any fix.",
+  "scenario": "hannah-day-chats-en.json",
+  "panelChat": "chat-safari",
+  "generatedAt": "2026-10-09T11:54:08.122Z",
+  "questions": [
+    {
+      "kind": "discussed",
+      "question": "What did we cover in the final webhook diff?",
+      "answer": "The processed-event table, atomic claims and rollback-safe retries, `invoice.payment_failed` handling, duplicate-notification protection, and concurrency and retry regression tests.",
+      "quote": "I added the changelog entry and reviewed the final webhook diff. It now includes the processed-event table, atomic claims and rollback-safe retries, `invoice.payment_failed` handling, duplicate-notification protection, and the concurrency and retry regression tests.",
+      "turn": 10,
+      "who": "agent",
+      "chat": "chat-webhook"
+    },
+    {
+      "kind": "discussed",
+      "question": "What did we cover in the Studio profile accessibility pass?",
+      "answer": "Explicit labels and associated error descriptions, visual-order keyboard navigation, focus on the first invalid field after failure, and aria-live save-status announcements.",
+      "quote": "I completed the accessibility pass. Each field now has an explicit label and associated error description, keyboard order follows the visual layout, failed submission focuses the first invalid field, and save success or failure is announced through an aria-live status region.",
+      "turn": 16,
+      "who": "agent",
+      "chat": "chat-settings"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did I say the Stripe idempotency should be keyed by?",
+      "answer": "The Stripe event ID, stored in Postgres with an atomic claim so simultaneous events cannot race.",
+      "quote": "Add idempotency keyed by the Stripe event ID. Store processed event IDs in Postgres and make the claim atomic so two events arriving together can't race.",
+      "turn": 3,
+      "who": "you",
+      "chat": "chat-webhook"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did I say the Studio profile form should do after a failed optimistic save?",
+      "answer": "Restore the previous values while keeping inline server errors working.",
+      "quote": "Add an optimistic update for the Studio profile save. Update the visible profile immediately, restore the previous values if the request fails, and keep the inline server errors working.",
+      "turn": 15,
+      "who": "you",
+      "chat": "chat-settings"
+    },
+    {
+      "kind": "said-about",
+      "question": "What did I say the photo search backfill needed for production rows?",
+      "answer": "It had to be safe on existing rows, run in batches instead of one huge transaction, and provide dry-run or progress output.",
+      "quote": "Add the backfill for the new photo search vector now. Make it safe to run on existing production rows, batch the work so it doesn’t hold one huge transaction, and add a dry-run or progress output so we can see what it will touch.",
+      "turn": 24,
+      "who": "you",
+      "chat": "chat-search"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What exact ranking order did I set for photo search fields?",
+      "answer": "Title highest, then tags, then caption.",
+      "quote": "Implement the weighted Postgres full-text search vector over title, tags, and caption now, with title weighted highest, then tags, then caption. Add the GIN index and migration, but don’t switch the search endpoint yet.",
+      "turn": 23,
+      "who": "you",
+      "chat": "chat-search"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What rule did we establish for when deploy previews are created?",
+      "answer": "One is created for each pull request after CI passes.",
+      "quote": "Deploy previews are created for each pull request after CI passes. The hosting integration posts the preview URL on the PR and updates it on subsequent pushes.",
+      "turn": 20,
+      "who": "agent",
+      "chat": "chat-readme"
+    },
+    {
+      "kind": "number-rule",
+      "question": "What exactly-once rule did I set for the concurrent Stripe test?",
+      "answer": "Two different Stripe events sent simultaneously must each be processed exactly once.",
+      "quote": "Write a concurrency test that sends two different Stripe events at the same time and proves both are processed exactly once. Also add a duplicate-delivery test for the same event ID.",
+      "turn": 4,
+      "who": "you",
+      "chat": "chat-webhook"
+    },
+    {
+      "kind": "rejected",
+      "question": "What search approach did we reject, why, and what replaced it?",
+      "answer": "We rejected the trigram variant because it produced noisier rankings and added another index to maintain; the weighted full-text approach remained the better fit unless fuzzy search became a separate requirement.",
+      "quote": "It helps with misspellings and partial strings, but produces noisier rankings for our title, tag, and caption fixtures and adds another index to maintain. I don’t recommend keeping it; the weighted full-text approach is the better fit unless fuzzy search becomes a separate requirement.",
+      "turn": 26,
+      "who": "agent",
+      "chat": "chat-search"
+    },
+    {
+      "kind": "rejected",
+      "question": "What did we correct about whitespace-only studio names, and what replaced it?",
+      "answer": "We rejected the server accepting whitespace-only names while the client rejected them; both paths now normalize before validation and consistently reject cleared or whitespace-only names.",
+      "quote": "I found that the client rejected whitespace-only names, but the server accepted them after a direct request. I normalized the value before validation on both paths, reject cleared or whitespace-only names consistently, and added tests covering both cases.",
+      "turn": 18,
+      "who": "agent",
+      "chat": "chat-settings"
+    },
+    {
+      "kind": "who-said",
+      "question": "Was it me or the agent who said not to fix the Safari bug yet?",
+      "answer": "you",
+      "quote": "Don't fix it yet — I need to park a clear finding and get back to the webhook.",
+      "turn": 8,
+      "who": "you",
+      "chat": "chat-safari"
+    },
+    {
+      "kind": "who-said",
+      "question": "Was it me or the agent who proposed using `websearch_to_tsquery` with a GIN-indexed weighted vector?",
+      "answer": "the agent",
+      "quote": "The smallest plan is to add a weighted `tsvector` over title, tags, and caption, index it with GIN, update the query to use `websearch_to_tsquery`, and add a backfill plus ranking tests before switching the endpoint.",
+      "turn": 22,
+      "who": "agent",
+      "chat": "chat-search"
+    }
+  ]
+}
