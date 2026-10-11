@@ -755,7 +755,12 @@ function hostRow(sessionId: string): any | null {
 function ensureHostChat(sessionId: string, pid: string, harness: string | null, opts: { follow?: boolean; forkedFrom?: string | null } = {}): string {
   const db = (store as any).db;
   const row = hostRow(sessionId);
-  let chatId: string | null = row?.chat_id && store.getChat(row.chat_id) ? row.chat_id : null;
+  // M481 (found by the integration suite, 2026-10-11): a session's recorded view may have been ARCHIVED on the page while the
+  // session lives on (archive = "gone" for the person). Every later round then filed into that hidden view and the page never
+  // showed them again. An archived view counts as absent: the session gets a fresh live view (its own, from the active one).
+  const recorded = row?.chat_id ? store.getChat(row.chat_id) : null;
+  if (recorded && recorded.status === 'archived') store.audit('host_view_reissued', { session: sessionId.slice(0, 8), archived: recorded.id.slice(0, 8) });
+  let chatId: string | null = recorded && recorded.status !== 'archived' ? recorded.id : null;
   let created = false;
   if (!chatId) {
     // M255: a forked thread's view is a fork of its PARENT session's view (same focus and light at the moment of the

@@ -590,6 +590,16 @@ console.log('\n== 17. round text via prompt stash + session close (M99) ==');
   while (live.length > 1) { await post(`/api/chats/${live[0].id === (await state()).mainChatId ? live[1].id : live[0].id}/archive`, {}); live = (await state()).chats; }
   const last = await post(`/api/chats/${live[0].id}/archive`, {});
   check('closing the only session is refused', last.status === 400);
+  // M481 (found here, 2026-10-11): the burn-down above archived s-def's own view while the session lives on. Before the fix every
+  // later round from s-def filed into that archived, hidden view (§21/§31/§32 failed for seven runs on exactly this). A session
+  // whose recorded view is archived must get a FRESH live view, and its next round must land there.
+  const archivedViews = ((await get('/api/state')).chats ?? []).length; // for the record: how many live views remain (one)
+  const beforeViews = await hostChatsOf('s-def');
+  await observe('s-def', 'quick note after the cleanup: the pricing page needs a short FAQ about annual billing', 'Noted — a short FAQ on annual billing goes on the pricing page.');
+  const afterViews = await hostChatsOf('s-def');
+  const s17b = await state();
+  check('a session whose view was archived gets a fresh live view, and its round lands there (M481)', afterViews.length >= 1 && (beforeViews.length === 0 || afterViews[0] !== beforeViews[0]) && s17b.chats.some((c: any) => c.id === afterViews[0] && c.host?.sessionId === 's-def'), `live views before ${archivedViews}, s-def views before ${JSON.stringify(beforeViews)} after ${JSON.stringify(afterViews)}`);
+  check('the round after the archive is on the map (not lost in the hidden view)', s17b.nodes.some((n: any) => /annual billing|FAQ/i.test(n.content || '')));
 }
 
 console.log('\n== 19. protected focus path (M111) ==');

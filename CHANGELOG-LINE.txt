@@ -1,1 +1,1 @@
-fix: import sources work again on the default map (README, past sessions, Claude memory of the folder you work in)
+fix: a session whose view was archived on the page gets a fresh view; its rounds no longer vanish into the archived one
