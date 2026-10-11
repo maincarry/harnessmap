@@ -114,7 +114,6 @@ Open the map page and press **?** for the guided tour. The short version:
 | **⟳ to tidy** | the map's own cleanup proposals; nothing applies without you |
 | **↩ undo** | every delete, merge, tidy, or move is reversible (Ctrl/Cmd+Z) |
 | **+ session** | start a new session aimed at a topic you pick, from an embedded terminal or the built-in chat |
-| **🔧 dev mode** | see every call the map makes and every piece of context it hands the agent, verbatim |
 
 Slash commands inside Claude Code:
 
