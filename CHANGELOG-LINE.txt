@@ -1,1 +1,1 @@
-fix: a turn from a folder on the default map no longer re-selects the map and wipes the nudges on every hook
+fix: a served topic no longer reveals the content of set-aside neighbours in its related-elsewhere line

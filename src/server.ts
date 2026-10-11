@@ -899,9 +899,12 @@ function reAnchorPanes(pid: string): void {
 const pullupTokens = new Map<string, { nodeId: string; chatId: string; exp: number; used: boolean }>();
 // M232: the thread the question started continues to the served node's kin — its
 // relatives in other branches, one line each.
-function kinLines(pid: string, nodeId: string): string {
+// M484 (found by src/eval/pullup-token.test.ts, 2026-10-11): the kin line printed every related node's statement — including
+// SET-ASIDE (dim) neighbours, so a served node leaked the content of a dim node two lines above the offer that promised
+// "its content is withheld". Kin that is dim in this view is skipped: the token path is the only door to a set-aside node.
+function kinLines(pid: string, nodeId: string, litSet?: Set<string>): string {
   try {
-    const kin = kinOf(store, pid, nodeId, 3).map((k) => ({ k, n: store.getNode(k.id) })).filter((x) => x.n && x.n.status !== 'removed');
+    const kin = kinOf(store, pid, nodeId, 3).map((k) => ({ k, n: store.getNode(k.id) })).filter((x) => x.n && x.n.status !== 'removed' && (!litSet || litSet.has(x.n.id)));
     if (!kin.length) return '';
     return `\n  related elsewhere on the map: ${kin.map((x) => `"${x.n!.title || x.n!.content.slice(0, 50)}" — ${getNodeCard(store, x.n!.id).minimal || x.n!.content.slice(0, 160)}`).join(' · ')}`;
   } catch { return ''; }
@@ -952,7 +955,7 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
       // any real node stays (an import root's 90k statement once rode along);
       // when it bites, the audit says so instead of a silent 2,500-char clip.
       if (String(best.n.content).length > 30_000) store.audit('pullup_ceiling', { node: best.n.id.slice(0, 8), chars: String(best.n.content).length });
-      outs.push(`[harnessmap] the message touches "${name}" (lit, far from focus) — served in full for this turn:\n${String(best.n.content).slice(0, 30_000)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}${kinLines(pid, best.n.id)}`.slice(0, 4000));
+      outs.push(`[harnessmap] the message touches "${name}" (lit, far from focus) — served in full for this turn:\n${String(best.n.content).slice(0, 30_000)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}${kinLines(pid, best.n.id, litSet)}`.slice(0, 4000));
       continue;
     }
     // Dim but named by the question: served in full for this turn (M230).
@@ -962,7 +965,7 @@ function matchPullup(pid: string, chatId: string, promptText: string, includeLit
       const full = (c as any).long && String((c as any).long).length > String(best.n.content).length ? String((c as any).long) : `${String(best.n.content).slice(0, 30_000)}${c.minimal ? `\n${c.minimal}` : ''}${details ? `\n${details}` : ''}`;
       store.audit('pullup_served_by_question', { node: best.n.id.slice(0, 8), lit: false });
       store.metric(pid, 'interaction.pullup_served_by_question');
-      outs.push(`[harnessmap] the message names "${name}" — a SET-ASIDE topic, served in full for this turn because you asked about it (it stays set aside afterwards):\n${full.slice(0, 30_000)}${kinLines(pid, best.n.id)}`);
+      outs.push(`[harnessmap] the message names "${name}" — a SET-ASIDE topic, served in full for this turn because you asked about it (it stays set aside afterwards):\n${full.slice(0, 30_000)}${kinLines(pid, best.n.id, litSet)}`);
       continue;
     }
     }
