@@ -190,7 +190,7 @@ console.log('\n== 6f. a host session is mirrored, never forked (M251) ==');
   check('the page follows the attached session (it is the active view)', st1.mainChatId === hostChat?.id);
   check('the round filed into that view (mirrored turns)', hostChat && (await (await fetch(`${BASE}/api/chats/${hostChat.id}/turns`)).json()).some((t: any) => /cobalt header/.test(t.content)));
   check('the view carries a title (the harness thread name, or the first user line)', typeof hostChat?.host?.title === 'string' && hostChat.host.title.length > 0);
-  check('state names the installed harnesses and the dev flag', Array.isArray(st1.harnessesInstalled) && typeof st1.dev === 'boolean');
+  check('state names the installed harnesses (the dev flag left with dev mode, M478)', Array.isArray(st1.harnessesInstalled) && !('dev' in st1));
   const r403 = await fetch(`${BASE}/api/chats/${hostChat?.id}/messages`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: 'typing here must be refused' }) });
   check('the page cannot type into a host session view (403)', r403.status === 403);
   const rEnd = runH('session-end.ts', { session_id: 'host-A', cwd: PROJ3, reason: 'other' });
@@ -427,6 +427,19 @@ console.log('\n== 6l. which map: the list, the folder map, throwaway folders, a 
   check('"open map Thesis notes" creates the map when absent and attaches the session to it', claim.code === 0 && !!thesis && stC.projectId === thesis.id && !!view);
   const l4 = await listFor(fresh2);
   check('the real folder remembers the choice as its folder map', l4.folderMap?.id === thesis?.id);
+  // M479: the offered line itself — "create a map for this folder: <name>" — chosen by that very name must CREATE the folder map
+  // (before the fix it fell to the folder rule, which since M268 lands on "default": the offer did nothing).
+  const fresh3 = join(TMP, 'folder-choice'); mkdirSync(fresh3, { recursive: true });
+  const l5 = await listFor(fresh3);
+  const sj = (b: any) => fetch(`${BASE}/api/harness/session-start`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) });
+  const sc = await sj({ session_id: 'choice-2', cwd: fresh3, map: l5.suggestedFolderMapName });
+  const stD = await (await fetch(`${BASE}/api/state`)).json();
+  const fm = (stD.projects ?? []).find((p: any) => p.name === 'folder-choice');
+  const l6 = await listFor(fresh3);
+  check('choosing the offered "create a map for this folder: <name>" creates that map and binds the folder (M479)', sc.status === 200 && l5.suggestedFolderMapName === 'folder-choice' && !!fm && l6.folderMap?.id === fm.id && stD.projectId !== (stC.projects ?? []).find((p: any) => p.name === 'default')?.id);
+  const sc2 = await sj({ session_id: 'choice-3', cwd: fresh3, map: 'folder-choice' });
+  const stE = await (await fetch(`${BASE}/api/state`)).json();
+  check('choosing it again from the same folder lands on the same map — no duplicate (M479)', sc2.status === 200 && stE.projects.filter((p: any) => p.name === 'folder-choice').length === 1 && (await listFor(fresh3)).folderMap?.id === fm?.id);
   // a throwaway folder with no choice joins the map the page shows
   try { ul(join(HOME, 'session')); } catch {}
   wf(join(HOME, 'session'), 'scratch-1');

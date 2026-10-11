@@ -632,9 +632,18 @@ function resolveMapChoice(choice: string, cwd: string): string | null {
   const all = store.listProjects();
   let pid = all.find((p) => p.id === c)?.id ?? all.find((p) => p.name.toLowerCase() === c.toLowerCase())?.id ?? null;
   if (!pid) {
-    const folderName = (basename(cwd) || 'workspace').toLowerCase();
-    if (c.toLowerCase() === 'folder' || c.toLowerCase() === folderName) return null; // "this folder's map" → the folder rule below
-    pid = store.createProject(c.slice(0, 60)); bootstrapProject(pid); store.audit('project_created', { id: pid.slice(0, 8), name: c.slice(0, 40), by: 'open map' });
+    const folderName = basename(cwd) || 'workspace';
+    if (c.toLowerCase() === 'folder' || c.toLowerCase() === folderName.toLowerCase()) {
+      // M479 (found by the integration suite, 2026-10-11): the open skill offers "create a map for this folder: <folder name>"
+      // exactly when the folder has no map. This branch used to hand the choice to the folder rule — which, since M268, lands
+      // on "default" and creates nothing — so the one offered way to make a folder map did nothing. The choice now CREATES
+      // the folder's map (named after the folder) and returns an existing one; a throwaway app folder still never gets one.
+      if (scratchRootOf(cwd)) return null;
+      const existing = store.projectForCwd(cwd); if (existing) return existing;
+      pid = store.createProject(folderName.slice(0, 60)); bootstrapProject(pid); store.audit('project_created', { id: pid.slice(0, 8), name: folderName.slice(0, 40), by: 'open map (create a map for this folder)' });
+    } else {
+      pid = store.createProject(c.slice(0, 60)); bootstrapProject(pid); store.audit('project_created', { id: pid.slice(0, 8), name: c.slice(0, 40), by: 'open map' });
+    }
   }
   if (!scratchRootOf(cwd)) store.bindCwd(cwd, pid); // the folder remembers this choice
   return pid;

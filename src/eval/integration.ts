@@ -75,7 +75,8 @@ console.log('\n== 1. boot & migration-fresh ==');
 {
   const s = await state();
   check('fresh DB boots the default project + the Example map as its own map, default active', s.projects.length === 2 && s.projects.some((p: any) => p.name === 'default') && s.projects.some((p: any) => p.name === 'Example map') && s.projects.find((p: any) => p.id === s.projectId)?.name === 'default');
-  check('bootstrap seeds a clean map: no example nodes beside the root, system to-sort present (M178/M278, 2026-10-05)', !s.nodes.some((n: any) => /^Example map|month of one long/.test(n.title || n.content || '')) && s.nodes.some((n: any) => n.content === 'to sort' && n.parentId === null) && s.nodes.some((n: any) => /calorie|snacking|essay/.test(n.content || '')));
+  // M278 moved the example nodes into their own "Example map" project — the default map boots EMPTY: root + the to-sort tray.
+  check('bootstrap seeds a clean default map: root + system to-sort only, example nodes live in their own map (M178/M278; M478c)', !s.nodes.some((n: any) => /^Example map|month of one long/.test(n.title || n.content || '')) && s.nodes.some((n: any) => n.content === 'to sort' && n.parentId === null) && s.nodes.length === 2 && s.projects.some((p: any) => p.name === 'Example map'));
   check('bootstrap created one chat, active + in list', s.chats.length === 1 && s.chats[0].id === s.mainChatId);
   check('root is lit', litOfActive(s).includes(s.nodes.find((n: any) => n.content === 'untitled').id));
 }
@@ -83,8 +84,12 @@ console.log('\n== 1. boot & migration-fresh ==');
 console.log('\n== 1.5 binding: adoption, announcements, subtree (M91) ==');
 {
   const r1 = await post('/api/harness/session-start', { session_id: 's-def', cwd: CWD_DEF });
-  check('first bind ADOPTS the default project (renamed from dirname)', (await state()).projects.some((p: any) => p.name === 'proj-def'));
-  check('no ghost default project left', !(await state()).projects.some((p: any) => p.name === 'default'));
+  // M268 (Jacob, 2026-09-15): a folder with no map of its own lands on the map named "default", which always exists and is
+  // never renamed (M91's adoption is retired). A folder map exists only when the person chooses one (§3). (M478c)
+  { const s15 = await state(); const defId = s15.projects.find((p: any) => p.name === 'default')?.id;
+    check('first bind from a folder with no map lands on "default" — no new project, no rename (M268)', !!defId && !s15.projects.some((p: any) => p.name === 'proj-def') && s15.projectId === defId);
+    const again = await post('/api/harness/session-start', { session_id: 's-def-2', cwd: CWD_DEF }); const s15b = await state();
+    check('the folder is now bound to the default map (a second session from it lands there too)', again.status === 200 && s15b.projectId === defId && s15b.projects.length === s15.projects.length); }
   const an1 = r1.body.announce ?? '';
   check('first-run intro announced', /first run/i.test(an1) && /localhost|127\.0\.0\.1/.test(an1));
   check('intro states local-only storage with path', /stays on this machine/i.test(an1) && an1.includes('.sqlite'));
@@ -107,7 +112,7 @@ let BETA = '';
   check('create project ok', r.status === 200 && !!BETA);
   const s = await state();
   check('new project becomes active with its own empty map (+to-sort)', s.projectId === BETA && s.nodes.length === 2);
-  check('projects list has both', s.projects.length === 2);
+  check('projects list grew by exactly one (default, Example map, beta book)', s.projects.length === 3 && ['default', 'Example map', 'beta book'].every((n) => s.projects.some((p: any) => p.name === n)));
   const bad = await post('/api/projects/none-such/activate');
   check('activate unknown project → 404', bad.status === 404);
   const noname = await post('/api/projects', {});
@@ -116,13 +121,15 @@ let BETA = '';
   check('re-activate default ok', back.status === 200 && (await state()).projectId === DEF);
 }
 
-console.log('\n== 3. cwd → project: auto-create per new directory ==');
+console.log('\n== 3. cwd → project: a folder map exists only when the person chooses one (M268) ==');
 let PBETA = '';
 {
-  const r = await post('/api/harness/session-start', { session_id: 's-beta', cwd: CWD_BETA });
+  // the open skill's question offers "create a map for this folder: <name>"; the hook passes the choice as `map` — a name
+  // no map has yet creates it and binds the folder to it (resolveMapChoice). (M478c: replaces the retired auto-create.)
+  const r = await post('/api/harness/session-start', { session_id: 's-beta', cwd: CWD_BETA, map: 'proj-beta' });
   const s3 = await state();
   PBETA = (s3.projects.find((p: any) => p.name === 'proj-beta') ?? {}).id;
-  check('unknown directory auto-creates its own project', !!PBETA);
+  check('choosing "create a map for this folder" creates it and binds the folder', !!PBETA && (await post('/api/harness/session-start', { session_id: 's-beta-2', cwd: CWD_BETA })).status === 200 && (await state()).projects.some((p: any) => p.id === PBETA));
   check('new-project short announce names it', /proj-beta/.test(r.body.announce ?? '') && !/first run/i.test(r.body.announce ?? ''));
   await post(`/api/projects/${DEF}/activate`); // UI back on the main test project
 }
@@ -1098,8 +1105,8 @@ console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
   check('every parent resolves inside the import', creates.every((a: any) => !a.parentId || ids.has(a.parentId)));
   const ap = await post('/api/reorganize/apply', { alterations: job.alterations, chatId: (await state()).mainChatId, containerName: 'big notes', memories: job.memories });
   check('apply lands with memories', ap.status === 200);
-  const memId = Object.keys(job.memories)[0];
-  const mem = await (await fetch(`${BASE}/api/nodes/${memId}/memory`)).json();
+  const memId = Object.keys(job?.memories ?? {})[0]; // M478c: a job without memories is a FAIL below, not a crash that hides every later section
+  const mem = memId ? await (await fetch(`${BASE}/api/nodes/${memId}/memory`)).json() : {};
   check('imported node memory readable through the normal channel', typeof mem.text === 'string' && mem.text.length > 20);
 
   // == 41b. M195e: a proposal applies to the project it was proposed for ==

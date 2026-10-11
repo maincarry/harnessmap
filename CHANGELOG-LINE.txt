@@ -1,1 +1,1 @@
-launch: public README, MIT license, fonts served by the map itself (no third-party requests), dev mode removed from the page
+fix: "create a map for this folder" now really creates the folder's map (it landed on default since mid-September)
