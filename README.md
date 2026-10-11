@@ -8,10 +8,12 @@ them into a live map. That map is what the agent remembers, and you hold the con
 agent at one topic, dim what it should forget, and see exactly what it knows at any moment. Nothing
 gets buried. Everything stays on your machine.
 
-- **Easy to install.** Two commands in Claude Code, one line for Codex.
-- **Works with your harness.** Claude Code and OpenAI Codex, CLI or app.
+- **Easy to install.** Under a minute, and your agent can help you do it. Then it works beside your
+  harness and gets in the way of nothing.
+- **Claude Code and OpenAI Codex.** CLI or app, macOS, Linux, and Windows (Codex).
 - **Stays on your machine.** No account, no key, no server of ours.
-- **You steer the memory.** Point. Dim. See what it knows.
+- **You control what the agent sees.** Add this topic, drop that one, and the agent stays on what
+  you are working on right now.
 
 ![The map beside a live session: the tree on the left files itself as the conversation on the right goes on](public/readme/map.png)
 
