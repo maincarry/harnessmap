@@ -123,23 +123,30 @@ document.querySelectorAll('.overlay').forEach((o: any) => o.remove());
 await click($('map-chat'), '🗨 talk to map (open modal)');
 document.querySelectorAll('.overlay').forEach((o: any) => o.remove());
 
-// ---------- ⋯ other: tiers ----------
-await click($('other-btn'), '⋯ other opens');
-check('primary tier visible, secondary folded', !$('other-menu')!.hasAttribute('hidden') && $('other-more')!.hasAttribute('hidden'));
-await click($('other-more-btn'), '＋ more expands');
-check('secondary tier visible, more-btn gone', !$('other-more')!.hasAttribute('hidden') && $('other-more-btn')!.hasAttribute('hidden'));
-check('third tier still folded behind ＋ settings', $('other-settings')!.hasAttribute('hidden') && !$('other-settings-btn')!.hasAttribute('hidden'));
-await click($('other-settings-btn'), '＋ settings expands');
-check('third tier visible (M168)', !$('other-settings')!.hasAttribute('hidden') && !!$('update-btn')!.closest('#other-settings'));
-await click($('other-btn'), '⋯ closes');
-await click($('other-btn'), '⋯ reopens folded');
-check('reopen resets the fold', $('other-more')!.hasAttribute('hidden') && !$('other-more-btn')!.hasAttribute('hidden') && $('other-settings')!.hasAttribute('hidden'));
+// ---------- ≡ menu ----------
+// The ⋯ tiers (M168) became ONE searchable menu on 2026-10-05 (Jacob: "the functioning of the ⋯ is still mysterious"):
+// #other-btn opens #hm-menu; every item proxies to the still-present hidden control, so handlers and nudges are unchanged.
+// (M478: the old tier checks described a retired surface — replaced, not loosened.)
+await click($('other-btn'), '≡ menu opens');
+const menuItems = () => [...document.querySelectorAll('#hm-menu .hm-it')] as any[];
+check('≡ menu rendered with its groups', !!$('hm-menu') && document.querySelectorAll('#hm-menu [data-hmg]').length >= 6);
+check('≡ every item proxies an existing control (none dangling)', menuItems().length > 20 && menuItems().every((b) => !!$(b.dataset.cb)));
+check('≡ menu carries no dev mode (M478)', !/dev mode/i.test($('hm-menu')!.textContent || ''));
+const hs = $('hm-search') as any;
+hs.value = 'text size'; hs.dispatchEvent(new window.Event('input'));
+check('≡ filter narrows to the matching item', menuItems().some((b) => !b.hidden) && menuItems().filter((b) => !b.hidden).every((b) => b.dataset.cb === 'font-btn'));
+hs.value = ''; hs.dispatchEvent(new window.Event('input'));
+check('≡ clearing the filter shows everything again', menuItems().every((b) => !b.hidden));
+await click($('other-btn'), '≡ second press closes');
+check('≡ menu closed', !$('hm-menu'));
 await click($('dim-outside'), '◐ dim all outside (no zoom → explains)');
+// reach a control THROUGH the menu, the way a person does: open ≡, click the item, which closes the menu and fires the control
 const viaMore = async (id: string, name: string) => {
-  if ($('other-menu')!.hasAttribute('hidden')) await click($('other-btn'), `⋯ open (for ${name})`, 80);
-  if ($('other-more')!.hasAttribute('hidden')) await click($('other-more-btn'), `expand (for ${name})`, 80);
-  if ($('other-settings')!.hasAttribute('hidden')) await click($('other-settings-btn'), `settings tier (for ${name})`, 80);
-  await click($(id), name);
+  if (!$('hm-menu')) await click($('other-btn'), `≡ open (for ${name})`, 80);
+  const it = document.querySelector(`#hm-menu .hm-it[data-cb="${id}"]`) as any;
+  check(`≡ lists ${name}`, !!it);
+  await click(it ?? $(id), name);
+  check(`≡ closed itself after ${name}`, !$('hm-menu'));
 };
 await viaMore('lit-all', '☀ light all (view)');
 await viaMore('dim-all', '◐ dim all (view)');
