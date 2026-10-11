@@ -604,6 +604,8 @@ console.log('\n== 17. round text via prompt stash + session close (M99) ==');
   const act17 = (s17b.projects ?? []).find((p: any) => p.id === s17b.projectId)?.name;
   check('a session whose view was archived gets a fresh live view, and its round lands there (M481)', afterViews.length >= 1 && (beforeViews.length === 0 || afterViews[0] !== beforeViews[0]) && s17b.chats.some((c: any) => c.id === afterViews[0] && c.host?.sessionId === 's-def'), `live views before ${archivedViews}; s-def views before ${JSON.stringify(beforeViews)} after ${JSON.stringify(afterViews)}; active project ${act17}; views now [${raw17}]; audit ${(await get('/api/audit?limit=12')).map((r: any) => r.kind).join(',')}`);
   check('the round after the archive is on the map (not lost in the hidden view)', s17b.nodes.some((n: any) => /annual billing|FAQ/i.test(n.content || '')));
+  // IT_STOP_AT=17: end the run here (section-level debugging without the 25-minute tail). Same pattern can be added after any section.
+  if (process.env.IT_STOP_AT === '17') { console.log(`\n== stopped after §17 by IT_STOP_AT: ${pass} passed, ${fail} failed ==`); for (const f of failures) console.log('  - ' + f); server.kill(); process.exit(fail ? 1 : 0); }
 }
 
 console.log('\n== 19. protected focus path (M111) ==');
