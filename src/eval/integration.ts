@@ -522,7 +522,8 @@ console.log('\n== 16. embedded terminal (M97) ==');
   ws.onmessage = (ev: any) => { out += ev.data; };
   await new Promise((res) => { (ws as any).onopen = res; });
   ws.send(JSON.stringify({ t: 'in', d: 'echo TERM_ROUNDTRIP && exit\n' }));
-  await sleep(2500);
+  // a PTY under load can take a few seconds to echo and exit (one flake in nine runs at a fixed 2.5 s) — poll up to 8 s for both
+  for (let i = 0; i < 32 && !(out.includes('TERM_ROUNDTRIP') && out.includes('[session ended]')); i++) await sleep(250);
   check('terminal roundtrip: input in, output back', out.includes('TERM_ROUNDTRIP'));
   check('exit notice delivered', out.includes('[session ended]'));
   const killed = await fetch(`${BASE}/api/term/${mk.body.id}`, { method: 'DELETE' });
