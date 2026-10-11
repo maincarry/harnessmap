@@ -48,6 +48,9 @@ const state = () => get('/api/state');
 const ownRoot = (st: any): string => st.nodes.find((x: any) => x.parentId === null && x.status !== 'removed' && x.author !== 'system' && !/^to sort/.test(String(x.title || x.content || ''))).id;
 const litOfActive = (s: any) => ((s.chats ?? []).find((c: any) => c.id === s.mainChatId)?.lit ?? []) as string[];
 const activeChat = (s: any) => (s.chats ?? []).find((c: any) => c.id === s.mainChatId);
+// M251: a host session (s-def, s-beta…) has its OWN view — its rounds, focus and lit set live there, not in the page's main chat
+const hostChatOf = async (sid: string) => ((await state()).chats ?? []).find((c: any) => c.host?.sessionId === sid)?.id as string | undefined;
+const litOfChat = (s: any, id?: string) => ((s.chats ?? []).find((c: any) => c.id === id)?.lit ?? []) as string[];
 
 // ---------- boot ----------
 rmSync(TMP, { recursive: true, force: true });
@@ -258,7 +261,8 @@ console.log('\n== 6. round pipeline routes by cwd (model) ==');
   await post(`/api/projects/${PBETA}/activate`);
   const sBeta = await state();
   check('session cwd project got the material', sBeta.nodes.some((n: any) => /sauerkraut|ferment/i.test(n.content)));
-  check('round nodes born lit in that chat', sBeta.nodes.filter((n: any) => /sauerkraut|ferment/i.test(n.content)).every((n: any) => litOfActive(sBeta).includes(n.id)));
+  const betaHost = await hostChatOf('s-beta');
+  check('round nodes born lit in that session\'s own view (M66/M251)', !!betaHost && sBeta.nodes.filter((n: any) => /sauerkraut|ferment/i.test(n.content)).every((n: any) => litOfChat(sBeta, betaHost).includes(n.id)));
   await post(`/api/projects/${DEF}/activate`);
 }
 
@@ -332,33 +336,30 @@ console.log('\n== 8. injection mechanics: full / delta / notice / re-anchor ==')
   check('after ⟲ refresh → FULL block with the /compact notice', c6.kind === 'full' && /\/compact/.test(c6.context ?? ''));
 }
 
-console.log('\n== 8b. the fetch: dim offer, consented one-turn pull-up (M194 rulings 3+4) ==');
+console.log('\n== 8b. the fetch: a set-aside topic the question NAMES is served in full for that turn (M230; M194 rulings 3+4 before it) ==');
 {
-  // A set-aside topic with distinctive words, far from focus.
-  // The secret must live BEYOND the 60-char name boundary: an offer shows
-  // the node's NAME (existence is visible under dim), never its content.
+  // A set-aside topic with distinctive words, far from focus. The secret lives BEYOND the 60-char name boundary.
   const mk = await post('/api/nodes', { content: 'zeppelin mooring procedure and hangar rules — the winch tension is set to seventeen turns before the doors open' });
   const zepId = mk.body?.id ?? (await state()).nodes.find((n: any) => /zeppelin mooring/.test(n.content))?.id;
-  // A short explicit title: the offer and notices show the NAME; the healer
-  // has nothing to fix (no coupling with the rename-sweep section).
   await post(`/api/nodes/${zepId}`, { title: 'zeppelin mooring' });
   const CH8 = (await state()).mainChatId;
   await post(`/api/chats/${CH8}/lit`, { nodeId: zepId, on: false, bulk: true });
-  // The question names it → the delta carries an OFFER with a token, never content.
+  const defHost8 = await hostChatOf('s-def');
+  if (defHost8) await post(`/api/chats/${defHost8}/lit`, { nodeId: zepId, on: false, bulk: true });
   await post('/api/nodes', { content: 'noise change so a delta exists' });
+  // M230 (Jacob): the question IS the consent — a dim node the message NAMES is served in full at the top of the block, marked
+  // SET-ASIDE, and stays set aside afterwards. (M194's offer-with-token for NAMED topics was superseded; tokens remain for
+  // weaker matches, which this suite does not construct — see OQ.)
   const cz = await get(`/api/harness/context?session_id=s-def&prompt=${encodeURIComponent('what was the zeppelin mooring procedure again?')}`);
-  const offer = /pullupToken "([a-z0-9-]+)"/.exec(cz.context ?? '');
-  check('a dim topic the question names becomes a consented offer', !!offer && /SET-ASIDE/.test(cz.context ?? '') && !/seventeen/.test(cz.context ?? ''));
-  // Without the token: refused, as always.
+  const ctx8 = cz.context ?? '';
+  check('a set-aside topic the question names is served in full, labeled SET-ASIDE (M230)', /SET-ASIDE topic, served in full/.test(ctx8) && /seventeen/.test(ctx8) && /zeppelin mooring/.test(ctx8));
+  check('it is served as a one-turn block, not lit', !litOfChat(await state(), defHost8 ?? CH8).includes(zepId));
+  // Without the question naming it: a direct recall of the dim node is still refused.
   const r0 = await post('/api/recall', { nodeId: zepId, chatId: CH8 });
   check('recall without consent still refuses the dim node', r0.body?.setAside === true);
-  // With the token: served once, lit untouched.
-  const r1 = await post('/api/recall', { nodeId: zepId, chatId: CH8, pullupToken: offer?.[1] });
-  check('the token serves the set-aside node once', !!r1.body?.card && /seventeen/.test(r1.body.card.statement ?? ''));
-  check('the lit set never moved', !((await state()).lit ?? []).includes?.(zepId) || !(await get(`/api/chats/${CH8}/context`)).context?.includes?.('zeppelin mooring — lit'));
-  // Single use: the same token is dead.
-  const r2 = await post('/api/recall', { nodeId: zepId, chatId: CH8, pullupToken: offer?.[1] });
-  check('the token is single-use', r2.body?.setAside === true);
+  const czNo = await get(`/api/harness/context?session_id=s-def&prompt=${encodeURIComponent('how is the pricing strategy coming along?')}`);
+  check('a question that does not name it gets nothing of it', !/seventeen/.test(czNo.context ?? ''));
+  check('the lit set never moved', !litOfChat(await state(), CH8).includes(zepId));
 }
 
 console.log('\n== 9. dots: mapcheck → precompute → cached preview → apply (model) ==');
@@ -399,7 +400,10 @@ console.log('\n== 10. specialists: autolit preview/apply, rename sweep (model) =
   const pv = await post(`/api/chats/${CH}/autolit`, { preview: true });
   check('autolit preview returns plan without applying', pv.status === 200 && Array.isArray(pv.body.lit) && Array.isArray(pv.body.dim) && pv.body.preview === true);
   const ap = await post(`/api/chats/${CH}/autolit`, { apply: { lit: pv.body.lit.map((x: any) => x.id), dim: pv.body.dim.map((x: any) => x.id) }, summary: pv.body.summary });
-  check('autolit apply applies exact lists', ap.status === 200 && ap.body.lit === pv.body.lit.length && ap.body.dim === pv.body.dim.length);
+  // M80: the EXACT previewed lists are applied (no recompute) — judged on the resulting lit set, not on change counts (apply reports
+  // how many nodes actually changed; a previewed node that was already lit counts zero).
+  const litAfter10 = litOfChat(await state(), CH);
+  check('autolit apply applies exact lists', ap.status === 200 && pv.body.lit.every((x: any) => litAfter10.includes(x.id)) && pv.body.dim.every((x: any) => !litAfter10.includes(x.id)), `lit ${ap.body.lit} dim ${ap.body.dim}`);
 
   await post('/api/nodes', { content: 'a rather excessively long node name that runs way past any sensible limit for display' });
   const rs = await post('/api/rename-sweep');
@@ -661,6 +665,8 @@ console.log('\n== 21. add-node: always unnamed + focused, named by first round (
   let s21 = await state();
   check('new node is focused and lit', activeChat(s21)?.focusContainerId === nid && litOfActive(s21).includes(nid));
   const b21 = await filerCount();
+  const defHost21 = await hostChatOf('s-def'); // M251: the round lands in s-def's own view — aim THAT view at the new node
+  if (defHost21) await post(`/api/chats/${defHost21}/focus`, { nodeId: nid });
   await post('/api/harness/prompt', { session_id: 's-def', text: 'let us plan the garden irrigation: drip lines for the beds, timer at the tap' });
   await post('/api/harness/observe', { session_id: 's-def', assistant_text: 'Drip irrigation plan: run drip lines along each bed, add a battery timer at the tap, water at dawn.' });
   await waitRound(b21);
@@ -946,6 +952,7 @@ console.log('\n== 31. touched-node memory (M156 slice 1) ==');
   s31 = await state();
   const herb = s31.nodes.find((n: any) => n.content === 'balcony herb garden')?.id;
   await post(`/api/chats/${mainCh31}/focus`, { nodeId: herb });
+  const defHost31 = await hostChatOf('s-def'); if (defHost31) await post(`/api/chats/${defHost31}/focus`, { nodeId: herb }); // M251
   await observe('s-def', 'for the balcony herb garden: basil needs the sunniest corner, mint must stay in its own pot or it takes over', 'Agreed: basil in the south corner; mint contained in a separate pot — it spreads aggressively through shared soil.');
   // async memory batch settles — poll up to 25s (two model calls can queue)
   const kids31 = (await state()).nodes.filter((n: any) => n.parentId === herb);
@@ -1027,7 +1034,10 @@ console.log('\n== 35. context visibility (M162) ==');
   check('agent-view: exact text + budget + total', av.text.startsWith('[map state') && av.budget > 0 && av.total === av.text.length);
   check("budget derives from harness window (~5% of 200k tokens)", av.budget === 40_000);
   check('nothing trimmed at full budget', (await state()).trimmedLit.length === 0);
-  // Shrink the budget via the settings seam; the big planted map must overflow.
+  // Light every top-level branch in the page's chat so the lit set is large, then shrink the budget via the settings seam: the
+  // lit map must overflow and the trimmed branch tops must be reported (M162). (M478c: the lit set had thinned under M251's per-view
+  // lighting, so nothing was ever trimmed and the check passed only vacuously.)
+  { const s35 = await state(); for (const n of s35.nodes.filter((x: any) => x.parentId === null && x.status !== 'removed')) await post(`/api/chats/${s35.mainChatId}/lit`, { nodeId: n.id, on: true, bulk: true }); }
   await post('/api/dev/setting', { key: 'map_budget', value: '1800' });
   const s2 = await state();
   check('lit-but-trimmed branches surface in state', Array.isArray(s2.trimmedLit) && s2.trimmedLit.length > 0);
@@ -1108,7 +1118,8 @@ console.log('\n== 41. large import: chunked, memory-seeded (M187) ==');
   check('node count scales past the old cap regime', creates.length >= 10, `${creates.length} creates`);
   check('depth landed in memories with provenance', Object.keys(job?.memories ?? {}).length >= 3);
   const ids = new Set(creates.map((a: any) => a.id));
-  check('every parent resolves inside the import', creates.every((a: any) => !a.parentId || ids.has(a.parentId)));
+  const existing41 = new Set(((await state()).nodes as any[]).map((n) => n.id));
+  check('every parent resolves inside the import or to an existing node (placeCreates re-homes strays to the map root)', creates.every((a: any) => !a.parentId || ids.has(a.parentId) || existing41.has(a.parentId)));
   const ap = await post('/api/reorganize/apply', { alterations: job.alterations, chatId: (await state()).mainChatId, containerName: 'big notes', memories: job.memories });
   check('apply lands with memories', ap.status === 200);
   const memId = Object.keys(job?.memories ?? {})[0]; // M478c: a job without memories is a FAIL below, not a crash that hides every later section
