@@ -189,13 +189,19 @@ await click($('home-btn'), 'home zooms to the set node');
 check('view zoomed to home (trip visible)', !!rowFor(trip));
 await click($('zoom-out'), 'zoom out from home');
 
-// add node (M114: no dialog, focused)
-await click($('add-root'), '+ add node (unnamed + focused)', 500);
+// add a sub-node (M114: no dialog, focused). The root "+ add node" button left on 2026-10-04 (Mark: users don't
+// hand-file nodes); adding now lives in a row's ⋯ more-actions popover as "Add a sub-node" (M478b: check replaced).
+await click(rowFor(trip)?.querySelector('[data-rowmore]'), '⋯ row more-actions opens', 200);
+check('row popover shows the add control', !!rowFor(trip)?.querySelector('[data-add]') && rowFor(trip)?.classList.contains('ops-open'));
+await click(rowFor(trip)?.querySelector('[data-add]'), '+ add a sub-node under trip (unnamed + focused)', 500);
 await pump();
-check('untitled node created', S()?.nodes.some((n: any) => n.content === 'untitled'));
+// (the ROOT's content is also 'untitled' — pick the child under trip, not the first match)
+const untitledNode = S()?.nodes.find((n: any) => n.content === 'untitled' && n.parentId === trip);
+check('untitled node created UNDER trip', !!untitledNode);
+check('new node is the focus (M114)', !!untitledNode && S()?.chats?.find((c: any) => c.id === S()?.mainChatId)?.focusContainerId === untitledNode.id);
 
 // delete with a focused session → warning modal (M123), then cancel
-const untitled = S()?.nodes.find((n: any) => n.content === 'untitled')?.id;
+const untitled = untitledNode?.id;
 if (untitled) {
   await click(rowFor(untitled)?.querySelector('[data-ndel]'), '✕ delete focused node → warning modal');
   check('delete warning modal listed the focused session', !!document.querySelector('#dl-go'));
