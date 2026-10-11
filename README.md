@@ -177,3 +177,7 @@ refuses them and key-like strings. Enable it once per clone:
 ```sh
 git config core.hooksPath .githooks
 ```
+
+## License
+
+[MIT](LICENSE).

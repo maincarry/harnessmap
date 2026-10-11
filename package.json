@@ -1,9 +1,9 @@
 {
   "name": "harnessmap",
   "version": "0.9.298",
-  "private": true,
   "type": "module",
-  "description": "A map-based AI harness: chat with an agent while a live map of your goals, decisions, and questions maintains itself.",
+  "description": "Take control of what your AI keeps in mind. A live, local map of everything you and your coding agent discuss. Works with Claude Code and Codex.",
+  "license": "MIT",
   "bin": {
     "harnessmap": "./dist/server.js"
   },
