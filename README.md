@@ -1,17 +1,17 @@
 # HarnessMap
 
-**Takes notes from your AI chats, so no idea gets buried.**
+**Take control of what your AI keeps in mind.**
 
-Every conversation with your coding agent is full of decisions, limits, ideas, and open questions,
-and they sink under the next hundred messages or into last week's chat. HarnessMap notes them down
-as you talk and organizes them into a live map. It is not a transcript: the agent reads the map
-back, and you decide exactly what it sees.
+HarnessMap is a file manager for your AI's memory. It notes down every decision, limit, idea, and
+open question from your chats with your favorite harness, such as Claude Code and Codex, and files
+them into a live map. That map is what the agent remembers, and you hold the controls: point the
+agent at one topic, dim what it should forget, and see exactly what it knows at any moment. Nothing
+gets buried. Everything stays on your machine.
 
 - **Easy to install.** Two commands in Claude Code, one line for Codex.
 - **Works with your harness.** Claude Code and OpenAI Codex, CLI or app.
 - **Stays on your machine.** No account, no key, no server of ours.
-- **You control the memory.** Point the agent at a topic. Dim what it should forget. See everything
-  it knows, and shape it.
+- **You steer the memory.** Point. Dim. See what it knows.
 
 ![The map beside a live session: the tree on the left files itself as the conversation on the right goes on](public/readme/map.png)
 
@@ -22,8 +22,7 @@ messages, and what you said last week is in another chat you would have to find 
 has the same problem: its context fills up, gets compacted, and your "never cast a return code to
 void" from Tuesday comes back as a proposal on Thursday.
 
-HarnessMap keeps the notes as a tree, and the agent works from that tree. Three ideas, and
-everything else follows:
+HarnessMap keeps the tree, and the agent works from it. Three ideas, and everything else follows:
 
 1. **The map** — a tree of your work that files itself as you talk.
 2. **Focus ▶** — *talk about this.* The agent's attention goes where you point.
