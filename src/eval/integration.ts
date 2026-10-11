@@ -964,8 +964,10 @@ console.log('\n== 31. touched-node memory (M156 slice 1) ==');
       if ((m.memory ?? m.text ?? '').length > 20) { touchedMem = true; break; }
     }
   }
-  const focusMem = await get(`/api/nodes/${herb}/memory`);
-  check('focus node accumulated memory (M41 baseline)', ((focusMem.memory ?? focusMem.text ?? '') as string).length > 20);
+  // the focus memory is a second, async model call after the round (live probe 2026-10-11: ~12 s under codex) — poll, do not peek once
+  let focusMemText = '';
+  for (let i = 0; i < 15 && focusMemText.length <= 20; i++) { const fm = await get(`/api/nodes/${herb}/memory`); focusMemText = (fm.memory ?? fm.text ?? '') as string; if (focusMemText.length <= 20) await sleep(3000); }
+  check('focus node accumulated memory (M41 baseline)', focusMemText.length > 20);
   check('a touched NON-focus node accumulated memory too (M156)', kids31.length === 0 || touchedMem);
 }
 
@@ -979,8 +981,10 @@ console.log('\n== 32. cold-branch resume via lit memory (M156 slice 4) ==');
   s32 = await state();
   const sour = s32.nodes.find((n: any) => n.content === 'sourdough starter care')?.id;
   await post(`/api/chats/${s32.mainChatId}/focus`, { nodeId: sour });
+  const defHost32 = await hostChatOf('s-def'); if (defHost32) await post(`/api/chats/${defHost32}/focus`, { nodeId: sour }); // M251: the round lands in s-def's own view
   await observe('s-def', 'for the sourdough starter: we settled the feed ratio at 1:5:5 and the jar temperature at 24C, right?', 'Yes — 1:5:5 flour:water:starter, and hold the jar at 24C; cooler slows fermentation noticeably.');
-  await sleep(6000); // memory batch settles
+  // the planted details must be IN the branch's memory before a cold chat can be served them — poll the write (async model call)
+  for (let i = 0; i < 15; i++) { const m = await get(`/api/nodes/${sour}/memory`); if (/1\s*:\s*5\s*:\s*5|24/.test((m.memory ?? m.text ?? '') as string)) break; await sleep(3000); }
 
   const fc = await post('/api/chats', { mode: 'fresh' });
   const freshCh = fc.body.chatId ?? fc.body.id;
