@@ -32,6 +32,22 @@ export function keySpecifics(key: string, quote = ''): string[] {
 
 const norm = (s: string) => s.toLowerCase().replace(/[\s ]+/g, '').replace(/[,]/g, '.').replace(/µ/g, 'u');
 
+// Prose keys ("Restore the previous values while keeping inline server errors working") carry no figure or identifier; for those the
+// check falls back to the key's distinctive words — six letters or more, a small stoplist removed, the longest eight — matched by stem
+// (the first five letters or all but the last two) so "batched" finds "batches" and "provides" finds "provide". Weaker than a specific:
+// the thresholds below say so.
+const STOP = new Set(['should','would','could','before','after','because','without','within','between','through','during','against','another','something','nothing','always','really','whether','rather','instead','already','around','across','toward','towards','their','there','these','those','which','while','where','every','about','being','having','though','although','whatever','however','itself','themselves','please','exactly','actually','correctly','properly']);
+export function keyWords(key: string, quote = ''): string[] {
+  const words = `${key} ${quote}`.toLowerCase().split(/[^a-z]+/).filter((w) => w.length >= 6 && !STOP.has(w));
+  return [...new Set(words)].sort((a, b) => b.length - a.length).slice(0, 8);
+}
+const stem = (w: string) => w.slice(0, Math.max(5, w.length - 2));
+export function wordsInRecord(recordText: string, words: string[]): { present: string[]; absent: string[] } {
+  const present: string[] = []; const absent: string[] = [];
+  for (const w of words) (recordText.includes(stem(w)) ? present : absent).push(w);
+  return { present, absent };
+}
+
 export function loadRecordText(dbPath: string): string {
   const db = new Database(dbPath, { readonly: true });
   try {
@@ -47,10 +63,23 @@ export function specificsInRecord(recordText: string, specifics: string[]): { pr
 }
 
 export type MissKind = 'record-gap' | 'in-record' | 'unclassified';
-export function classifyMiss(verdict: string, rec: { present: string[]; absent: string[] }): MissKind | null {
+export type Basis = 'specifics' | 'words' | 'none';
+// specifics: one absent = a record gap. words: two thirds or more present = in record; a third or less = a record gap; between = unclassified.
+export function classifyMiss(verdict: string, rec: { present: string[]; absent: string[] }, basis: Basis = 'specifics'): MissKind | null {
   if (verdict === 'right') return null;
-  if (rec.present.length + rec.absent.length === 0) return 'unclassified';
-  return rec.absent.length ? 'record-gap' : 'in-record';
+  const n = rec.present.length + rec.absent.length;
+  if (n === 0 || basis === 'none') return 'unclassified';
+  if (basis === 'specifics') return rec.absent.length ? 'record-gap' : 'in-record';
+  const share = rec.present.length / n;
+  return share >= 2 / 3 ? 'in-record' : share <= 1 / 3 ? 'record-gap' : 'unclassified';
+}
+// The whole read for one key: specifics when the key has any, else its distinctive words.
+export function probeKey(recordText: string, key: string, quote = ''): { basis: Basis; items: string[]; present: string[]; absent: string[] } {
+  const sp = keySpecifics(key, quote);
+  if (sp.length) return { basis: 'specifics', items: sp, ...specificsInRecord(recordText, sp) };
+  const ws = keyWords(key, quote);
+  if (ws.length) return { basis: 'words', items: ws, ...wordsInRecord(recordText, ws) };
+  return { basis: 'none', items: [], present: [], absent: [] };
 }
 
 // CLI: bun run src/eval/record-specifics.ts <scenario>.qa.json <snapshot.sqlite> [results.json]  — re-reads a past run without a model call
@@ -63,9 +92,9 @@ if (import.meta.main) {
   const text = loadRecordText(dbPath);
   const counts: Record<string, number> = { 'record-gap': 0, 'in-record': 0, unclassified: 0 };
   questions.forEach((q, i) => {
-    const sp = keySpecifics(q.answer, q.quote); const rec = specificsInRecord(text, sp);
-    const verdict = grades?.[i]?.verdict ?? '?'; const kind = classifyMiss(verdict, rec); if (kind) counts[kind]++;
-    console.log(`Q${i + 1} [${q.kind}] ${verdict}${kind ? ` → ${kind}` : ''} · in record ${rec.present.length}/${sp.length}${rec.absent.length ? ` · absent: ${rec.absent.join(', ')}` : ''}`);
+    const rec = probeKey(text, q.answer, q.quote);
+    const verdict = grades?.[i]?.verdict ?? '?'; const kind = classifyMiss(verdict, rec, rec.basis); if (kind) counts[kind]++;
+    console.log(`Q${i + 1} [${q.kind}] ${verdict}${kind ? ` → ${kind}` : ''} · ${rec.basis} ${rec.present.length}/${rec.items.length}${rec.absent.length ? ` · absent: ${rec.absent.join(', ')}` : ''}`);
   });
   if (grades) console.log(`misses: ${counts['record-gap']} record gap, ${counts['in-record']} in record (brain misread or record distortion), ${counts.unclassified} unclassified`);
 }

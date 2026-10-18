@@ -34,3 +34,19 @@ test('specifics are found in the record regardless of case and spacing; a miss i
   expect(classifyMiss('right', r2)).toBeNull();
   expect(classifyMiss('missing', { present: [], absent: [] })).toBe('unclassified');
 });
+
+import { keyWords, wordsInRecord, probeKey } from './record-specifics.js';
+test('a prose key falls back to its distinctive words, matched by stem', () => {
+  const ws = keyWords('Restore the previous values while keeping inline server errors working.');
+  expect(ws).toEqual(expect.arrayContaining(['restore', 'previous', 'values', 'inline', 'server', 'errors', 'keeping', 'working']));
+  const record = 'studio profile saving uses an optimistic update: submitted values appear immediately, failed requests restore the previous profile. server validation errors map back to the fields as inline errors.'.replace(/\s+/g, '');
+  const r = wordsInRecord(record, ws);
+  expect(r.present).toEqual(expect.arrayContaining(['restore', 'previous', 'values', 'server', 'errors']));
+  expect(classifyMiss('missing', r, 'words')).toBe('in-record'); // six of eight present (keeping, working absent)
+  expect(classifyMiss('missing', { present: ['restore'], absent: ['previous', 'values', 'inline', 'server', 'errors'] }, 'words')).toBe('record-gap');
+  expect(classifyMiss('missing', { present: ['restore', 'previous', 'values'], absent: ['inline', 'server', 'errors'] }, 'words')).toBe('unclassified');
+  const bf = keyWords('It had to be safe on existing rows, run in batches instead of one huge transaction, and provide dry-run or progress output.');
+  expect(wordsInRecord('a batched, resumable backfill was added for existing photo rows, avoiding one long transaction; the backfill provides dry-run and progress output'.replace(/\s+/g, ''), bf).absent).toEqual([]);
+  expect(probeKey('x', 'RCC_CSR had IWDGRSTF set').basis).toBe('specifics');
+  expect(probeKey('x', 'Restore the previous values.').basis).toBe('words');
+});
