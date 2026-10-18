@@ -1706,9 +1706,13 @@ export class Translator {
         if (head.length >= 3 && head !== anyA.title.trim()) { this.store.audit('guard_title_full_stop', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(head.length, head.length + 30) }); anyA.title = head; }
       }
       // M402b (sqlsugar-nested-zh title "本轮回滚结论"): the same round-talk lead on a NAME goes; the name keeps its subject.
-      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /^(?:本轮|这一轮|此轮|上一轮)/.test(anyA.title)) {
-        const t2 = anyA.title.replace(/^(?:本轮|这一轮|此轮|上一轮)(?:的)?(?:回答|回复)?[，,：:]?\s*/, '').trim();
-        if (t2.length >= 2 && t2 !== anyA.title) { this.store.audit('guard_title_round_talk', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(0, 40) }); anyA.title = t2; }
+      // M491 (nfconntrack-zh 2026-10-18, title "IPv6 模块支持检视者核心观点的直接落实：本轮不涉及结构重组建议"): the same round-talk
+      // as a TAIL after a separator is the filer talking about its round, not a name — the tail goes; so does a head that is only the
+      // filer's own meta-phrase ("…的直接落实" / "检视者核心观点") once the tail is gone, and the healer names the node from its content.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /(?:^|[，,：:；;—\-]\s*)(?:本轮|这一轮|此轮|上一轮)/.test(anyA.title)) {
+        let t2 = anyA.title.replace(/^(?:本轮|这一轮|此轮|上一轮)(?:的)?(?:回答|回复)?[，,：:]?\s*/, '').replace(/[，,：:；;—\-]\s*(?:本轮|这一轮|此轮|上一轮)[^，,。]*$/, '').trim();
+        if (/(?:检视者|审阅者|评审者)?(?:核心观点|要点)(?:的)?(?:直接)?(?:落实|体现)$/.test(t2)) t2 = t2.replace(/(?:检视者|审阅者|评审者)?(?:核心观点|要点)(?:的)?(?:直接)?(?:落实|体现)$/, '').replace(/(?:检视者|审阅者|评审者)$/, '').trim();
+        if (t2 !== anyA.title.trim()) { this.store.audit('guard_title_round_talk', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(0, 40), to: t2.slice(0, 40) }); anyA.title = t2.length >= 2 ? t2 : ''; }
       }
       // M394 (data-platform-zh #301, codex/luna): the filer glued its own OP NAME to a title — "字段展开超限处理者::create_node" — and it
       // reached the map (the M354 leak guard reads content only). Sweep 2026-10-05: 1 title / 115 kept maps, 0 false positives, 0 in
