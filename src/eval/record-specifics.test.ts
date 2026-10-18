@@ -50,3 +50,22 @@ test('a prose key falls back to its distinctive words, matched by stem', () => {
   expect(probeKey('x', 'RCC_CSR had IWDGRSTF set').basis).toBe('specifics');
   expect(probeKey('x', 'Restore the previous values.').basis).toBe('words');
 });
+
+import { refineByAuthor, loadRecordTexts } from './record-specifics.js';
+import { Database as DB2 } from 'bun:sqlite';
+import { mkdtempSync as mk2 } from 'node:fs'; import { join as j2 } from 'node:path'; import { tmpdir as td2 } from 'node:os';
+test('a "what did I say" key whose words sit only on the agent\'s nodes is authorship-lost, not in-record', () => {
+  const dir = mk2(j2(td2(), 'hm-rs-')); const path = j2(dir, 'map.sqlite'); const db = new DB2(path);
+  db.run(`create table nodes (id text, parent_id text, content text, type text, status text, author text, created_at text, updated_at text, title text)`);
+  db.run(`insert into nodes values ('a1','p','Implement atomic idempotency keyed by Stripe event ID; store processed event IDs in a processed_stripe_events Postgres table.','task','done','agent','t','t','Capture and fix events')`);
+  db.run(`insert into nodes values ('u1','p','Write a concurrency test and a duplicate-delivery test.','decision','decided','user','t','t','Tests to write')`);
+  db.close();
+  const texts = loadRecordTexts(path);
+  const key = 'The Stripe event ID, stored in Postgres with an atomic claim so simultaneous events cannot race.';
+  const all = probeKey(texts.all, key); const mine = probeKey(texts.user, key);
+  expect(classifyMiss('missing', all, all.basis)).toBe('in-record');
+  expect(refineByAuthor('in-record', 'you', mine)).toBe('authorship-lost');
+  expect(refineByAuthor('in-record', 'agent', mine)).toBe('in-record'); // the agent's own statement is where it should be
+  expect(refineByAuthor('record-gap', 'you', mine)).toBe('record-gap'); // only in-record misses are refined
+  expect(refineByAuthor(null, 'you', mine)).toBeNull();
+});

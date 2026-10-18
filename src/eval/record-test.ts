@@ -44,7 +44,7 @@ mkdirSync(OUT, { recursive: true });
 const EARLY = argv.includes('--early');
 const MODEL = process.env.RECORD_TEST_MODEL; // the generator and the grader may run on a different model than the brain (same backend)
 
-import { loadRecordText, probeKey, classifyMiss } from './record-specifics.js';
+import { loadRecordTexts, probeKey, classifyMiss, refineByAuthor } from './record-specifics.js';
 // ---------- the record ----------
 const sc = JSON.parse(readFileSync(scenarioPath, 'utf8'));
 const rounds: any[] = sc.rounds ?? [];
@@ -184,10 +184,14 @@ for (const job of jobs) { const s = sides.find((x) => x.name === job.side)!; gra
 
 // The mechanical half (record-specifics.ts): which of each key's specifics the snapshot holds — a map miss is then a RECORD GAP
 // (a specific absent) or IN RECORD (all present: the brain misread it, or the record distorts it — a hand read decides).
-const recordText = mapPath ? (() => { try { return loadRecordText(mapPath); } catch { return null; } })() : null;
-const inRecord = questions.map((q) => recordText === null ? { basis: 'none' as const, items: [] as string[], present: [] as string[], absent: [] as string[] } : probeKey(recordText, q.answer, q.quote));
-const missKind = (i: number) => grades.map ? classifyMiss(grades.map[i].verdict, inRecord[i], inRecord[i].basis) : null;
-const missWords = () => { if (!grades.map) return ''; const c = { 'record-gap': 0, 'in-record': 0, unclassified: 0 } as Record<string, number>; questions.forEach((_, i) => { const k = missKind(i); if (k) c[k]++; }); const n = c['record-gap'] + c['in-record'] + c.unclassified; return n ? ` — of the ${n} map miss(es): ${c['record-gap']} record gap (a specific the map never kept), ${c['in-record']} in record (the brain misread it or the record distorts it), ${c.unclassified} unclassified (no specific in the key, or its words only half there)` : ' — no map misses'; };
+const recordTexts = mapPath ? (() => { try { return loadRecordTexts(mapPath); } catch { return null; } })() : null;
+const recordText = recordTexts?.all ?? null;
+const empty = () => ({ basis: 'none' as const, items: [] as string[], present: [] as string[], absent: [] as string[] });
+const inRecord = questions.map((q) => recordTexts === null ? empty() : probeKey(recordTexts.all, q.answer, q.quote));
+const asYours = questions.map((q) => recordTexts === null || q.who !== 'you' ? null : probeKey(recordTexts.user, q.answer, q.quote));
+const missKind = (i: number) => grades.map ? refineByAuthor(classifyMiss(grades.map[i].verdict, inRecord[i], inRecord[i].basis), q(i).who, asYours[i]) : null;
+const q = (i: number) => questions[i] as any;
+const missWords = () => { if (!grades.map) return ''; const c = { 'record-gap': 0, 'in-record': 0, 'authorship-lost': 0, unclassified: 0 } as Record<string, number>; questions.forEach((_, i) => { const k = missKind(i); if (k) c[k]++; }); const n = c['record-gap'] + c['in-record'] + c['authorship-lost'] + c.unclassified; return n ? ` — of the ${n} map miss(es): ${c['record-gap']} record gap (a specific the map never kept), ${c['in-record']} in record (the brain misread it or the record distorts it), ${c['authorship-lost']} authorship lost (the person's words are on the map only as the agent's nodes), ${c.unclassified} unclassified (no specific in the key, or its words only half there)` : ' — no map misses'; };
 const tally = (name: string) => { const g = grades[name]; const c = { right: 0, partly: 0, wrong: 0, missing: 0, wrongStatements: 0 }; for (const x of g) { c[x.verdict]++; c.wrongStatements += x.wrong_statements; } return c; };
 const words = (name: string) => { const c = tally(name); return `${name}: of ${questions.length} questions, ${c.right} right, ${c.partly} partly, ${c.wrong} wrong, ${c.missing} missing — ${c.wrongStatements} statement(s) the record contradicts`; };
 const byKind = (name: string) => { const m: Record<string, { n: number; right: number; wrong: number }> = {}; questions.forEach((q, i) => { const e = m[q.kind] ?? (m[q.kind] = { n: 0, right: 0, wrong: 0 }); e.n++; if (grades[name][i].verdict === 'right') e.right++; if (grades[name][i].verdict === 'wrong') e.wrong++; }); return Object.entries(m).map(([k, v]) => `${k} ${v.right}/${v.n} right${v.wrong ? `, ${v.wrong} wrong` : ''}`).join(' · '); };
@@ -197,9 +201,9 @@ lines.push(`\nscenario ${scenarioPath} · map ${mapPath ?? '(none)'} · control 
 lines.push(`\n## The counts\n`);
 for (const s of sides) lines.push(`- **${words(s.name)}** (by kind: ${byKind(s.name)})${s.name === 'map' ? missWords() : ''}`);
 lines.push(`\n## Per question\n\n| # | kind | question | key (turn, who) | in record | ${sides.map((s) => `${s.name}`).join(' | ')} |\n|---|---|---|---|---|${sides.map(() => '---').join('|')}|`);
-questions.forEach((q, i) => lines.push(`| ${i + 1} | ${q.kind} | ${q.question.replace(/\|/g, '/').slice(0, 140)} | ${q.answer.replace(/\|/g, '/').slice(0, 160)} (t${q.turn}, ${q.who}) | ${recordText === null ? 'n/a' : `${inRecord[i].basis === 'words' ? 'words ' : ''}${inRecord[i].present.length}/${inRecord[i].items.length}${inRecord[i].absent.length ? ` (absent: ${inRecord[i].absent.join(', ').slice(0, 80)})` : ''}${missKind(i) ? ` → ${missKind(i)}` : ''}`} | ${sides.map((s) => `**${grades[s.name][i].verdict}**${grades[s.name][i].wrong_statements ? ` ×${grades[s.name][i].wrong_statements}` : ''} — ${grades[s.name][i].why.replace(/\|/g, '/').slice(0, 160)}`).join(' | ')} |`));
+questions.forEach((q, i) => lines.push(`| ${i + 1} | ${q.kind} | ${q.question.replace(/\|/g, '/').slice(0, 140)} | ${q.answer.replace(/\|/g, '/').slice(0, 160)} (t${q.turn}, ${q.who}) | ${recordText === null ? 'n/a' : `${inRecord[i].basis === 'words' ? 'words ' : ''}${inRecord[i].present.length}/${inRecord[i].items.length}${asYours[i] ? ` · as yours ${asYours[i]!.present.length}/${asYours[i]!.items.length}` : ''}${inRecord[i].absent.length ? ` (absent: ${inRecord[i].absent.join(', ').slice(0, 80)})` : ''}${missKind(i) ? ` → ${missKind(i)}` : ''}`} | ${sides.map((s) => `**${grades[s.name][i].verdict}**${grades[s.name][i].wrong_statements ? ` ×${grades[s.name][i].wrong_statements}` : ''} — ${grades[s.name][i].why.replace(/\|/g, '/').slice(0, 160)}`).join(' | ')} |`));
 lines.push(`\n## The answers\n`);
 for (const s of sides) { lines.push(`### ${s.name}\n`); questions.forEach((q, i) => lines.push(`**Q${i + 1}** ${q.question}\n\n${s.answers[i].slice(0, 2500)}\n\n_grade: ${grades[s.name][i].verdict}${grades[s.name][i].wrong_statements ? ` (${grades[s.name][i].wrong_statements} contradicted)` : ''} — ${grades[s.name][i].why} · evidence: ${grades[s.name][i].evidence}_\n`)); }
 writeFileSync(join(OUT, 'REPORT.md'), lines.join('\n') + '\n');
-writeFileSync(join(OUT, 'results.json'), JSON.stringify({ scenario: scenarioPath, map: mapPath, control: CONTROL, controlLabel, questions, sides: sides.map((s) => ({ name: s.name, answers: s.answers, grades: grades[s.name], tally: tally(s.name) })), inRecord: inRecord.map((r, i) => ({ ...r, miss: missKind(i) })) }, null, 2) + '\n');
+writeFileSync(join(OUT, 'results.json'), JSON.stringify({ scenario: scenarioPath, map: mapPath, control: CONTROL, controlLabel, questions, sides: sides.map((s) => ({ name: s.name, answers: s.answers, grades: grades[s.name], tally: tally(s.name) })), inRecord: inRecord.map((r, i) => ({ ...r, asYours: asYours[i], miss: missKind(i) })) }, null, 2) + '\n');
 console.log(`[record-test] ${sides.map((s) => words(s.name)).join(' · ')} → ${join(OUT, 'REPORT.md')}`);

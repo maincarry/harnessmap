@@ -48,11 +48,15 @@ export function wordsInRecord(recordText: string, words: string[]): { present: s
   return { present, absent };
 }
 
-export function loadRecordText(dbPath: string): string {
+export function loadRecordText(dbPath: string): string { return loadRecordTexts(dbPath).all; }
+// The whole record, and the part of it the PERSON authored — a "what did I say" key answered only by the agent's nodes is a
+// different miss (authorship lost) from one the map never kept. author is 'user' for the person on every map the runner makes.
+export function loadRecordTexts(dbPath: string): { all: string; user: string } {
   const db = new Database(dbPath, { readonly: true });
   try {
-    const rows = db.query(`select title, content from nodes where status is null or status != 'removed'`).all() as { title: string | null; content: string | null }[];
-    return norm(rows.map((r) => `${r.title ?? ''} ${r.content ?? ''}`).join('\n'));
+    const rows = db.query(`select title, content, author from nodes where status is null or status != 'removed'`).all() as { title: string | null; content: string | null; author: string | null }[];
+    const text = (rs: typeof rows) => norm(rs.map((r) => `${r.title ?? ''} ${r.content ?? ''}`).join('\n'));
+    return { all: text(rows), user: text(rows.filter((r) => r.author === 'user')) };
   } finally { db.close(); }
 }
 
@@ -62,7 +66,7 @@ export function specificsInRecord(recordText: string, specifics: string[]): { pr
   return { present, absent };
 }
 
-export type MissKind = 'record-gap' | 'in-record' | 'unclassified';
+export type MissKind = 'record-gap' | 'in-record' | 'authorship-lost' | 'unclassified';
 export type Basis = 'specifics' | 'words' | 'none';
 // specifics: one absent = a record gap. words: two thirds or more present = in record; a third or less = a record gap; between = unclassified.
 export function classifyMiss(verdict: string, rec: { present: string[]; absent: string[] }, basis: Basis = 'specifics'): MissKind | null {
@@ -72,6 +76,13 @@ export function classifyMiss(verdict: string, rec: { present: string[]; absent: 
   if (basis === 'specifics') return rec.absent.length ? 'record-gap' : 'in-record';
   const share = rec.present.length / n;
   return share >= 2 / 3 ? 'in-record' : share <= 1 / 3 ? 'record-gap' : 'unclassified';
+}
+// A miss that reads in-record on the whole map but NOT on the person's own nodes, for a key the person said, is authorship-lost:
+// the substance is there as the agent's work and a "what did I say" question finds nothing in their name.
+export function refineByAuthor(kind: MissKind | null, who: string | undefined, userProbe: { basis: Basis; present: string[]; absent: string[] } | null): MissKind | null {
+  if (kind !== 'in-record' || who !== 'you' || !userProbe) return kind;
+  const onUser = classifyMiss('missing', userProbe, userProbe.basis);
+  return onUser === 'in-record' ? 'in-record' : 'authorship-lost';
 }
 // The whole read for one key: specifics when the key has any, else its distinctive words.
 export function probeKey(recordText: string, key: string, quote = ''): { basis: Basis; items: string[]; present: string[]; absent: string[] } {
@@ -89,12 +100,12 @@ if (import.meta.main) {
   const { readFileSync } = await import('node:fs');
   const qa = JSON.parse(readFileSync(qaPath, 'utf8')); const questions: any[] = qa.questions ?? qa;
   const grades: any[] | null = resultsPath ? (JSON.parse(readFileSync(resultsPath, 'utf8')).sides.find((s: any) => s.name === 'map')?.grades ?? null) : null;
-  const text = loadRecordText(dbPath);
-  const counts: Record<string, number> = { 'record-gap': 0, 'in-record': 0, unclassified: 0 };
+  const texts = loadRecordTexts(dbPath); const text = texts.all;
+  const counts: Record<string, number> = { 'record-gap': 0, 'in-record': 0, 'authorship-lost': 0, unclassified: 0 };
   questions.forEach((q, i) => {
-    const rec = probeKey(text, q.answer, q.quote);
-    const verdict = grades?.[i]?.verdict ?? '?'; const kind = classifyMiss(verdict, rec, rec.basis); if (kind) counts[kind]++;
-    console.log(`Q${i + 1} [${q.kind}] ${verdict}${kind ? ` → ${kind}` : ''} · ${rec.basis} ${rec.present.length}/${rec.items.length}${rec.absent.length ? ` · absent: ${rec.absent.join(', ')}` : ''}`);
+    const rec = probeKey(text, q.answer, q.quote); const urec = probeKey(texts.user, q.answer, q.quote);
+    const verdict = grades?.[i]?.verdict ?? '?'; const kind = refineByAuthor(classifyMiss(verdict, rec, rec.basis), q.who, urec); if (kind) counts[kind]++;
+    console.log(`Q${i + 1} [${q.kind}] ${verdict}${kind ? ` → ${kind}` : ''} · ${rec.basis} ${rec.present.length}/${rec.items.length}${q.who === 'you' ? ` · as yours ${urec.present.length}/${urec.items.length}` : ''}${rec.absent.length ? ` · absent: ${rec.absent.join(', ')}` : ''}`);
   });
-  if (grades) console.log(`misses: ${counts['record-gap']} record gap, ${counts['in-record']} in record (brain misread or record distortion), ${counts.unclassified} unclassified`);
+  if (grades) console.log(`misses: ${counts['record-gap']} record gap, ${counts['in-record']} in record (brain misread or record distortion), ${counts['authorship-lost']} authorship lost (the person's words only on the agent's nodes), ${counts.unclassified} unclassified`);
 }
