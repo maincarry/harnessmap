@@ -46,3 +46,35 @@ test('an update that would overwrite a statement with a traceback keeps the stat
   expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
   expect(r.audits.map((a) => a.kind)).toEqual(expect.arrayContaining(['guard_rewrite_to_child', 'guard_traceback_paste']));
 });
+
+// M488: the specifics guard (M474) is where the numbered-line nodes were born — an UNFENCED traceback's line numbers counted as the
+// person's figures and the code lines were filed verbatim as her sentence. Driven directly here.
+function specifics(nodes: any[], userText: string, alts: any[] = []) {
+  const audits: { kind: string; d: any }[] = [];
+  const store: any = new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string, d: any) => audits.push({ kind, d }); if (k === 'getSetting') return () => undefined; return () => undefined; } });
+  const t = new Translator(store);
+  const out = (t as any).guardSpecificsKept(alts, { nodes }, { userText, assistantText: '', focusContainerId: 'p1' }) as any[];
+  return { out, audits };
+}
+const TRACEBACK = 'the error persist in warp_perspective(img, H, target_shape)     148     warped_image = np.zeros((*img.shape[:2], 3), dtype=np.uint8)     149     for i in range(3): --> 150         warped_image[..., i][valid_target_coordinates[1], valid_target_coordinates[0]] = img[..., i][valid_source_coordinates[1], valid_source_coordinates[0]] IndexError: index 973 is out of bounds for axis 0 with size 973';
+
+test('an unfenced traceback in the turn files no source line as the person\'s sentence; the error message is the specific kept', () => {
+  const r = specifics([root], TRACEBACK);
+  const creates = r.out.filter((a) => a.op === 'create_node');
+  for (const c of creates) {
+    expect(c.title).not.toMatch(/^\s*\d{1,4}\s{2,}/);
+    expect(c.content).not.toMatch(/warped_image = np\.zeros/);
+  }
+  const missed = r.audits.filter((a) => a.kind === 'guard_specifics_kept').flatMap((a) => a.d.missed as string[]);
+  expect(missed).not.toContain('148'); expect(missed).not.toContain('149'); expect(missed).not.toContain('150');
+  // the error's figure is still a specific: either already on the map or filed as her words
+  if (creates.length) expect(creates.some((c) => /973|warp_perspective/.test(c.content))).toBe(true);
+});
+
+test('the specifics guard still files a real missed figure stated in prose', () => {
+  const r = specifics([root], 'Generate numbers until 15000, then print the first 10 in ascending order.');
+  const creates = r.out.filter((a) => a.op === 'create_node');
+  expect(creates).toHaveLength(1);
+  expect(creates[0].content).toMatch(/15000/);
+  expect(r.audits.some((a) => a.kind === 'guard_specifics_kept' && (a.d.missed as string[]).includes('15000'))).toBe(true);
+});

@@ -1390,7 +1390,22 @@ export class Translator {
   // The agent's figures with a unit (2 CPU cores, 2 GB RAM, 1 ms, 15 %) get the same treatment, one row, as the agent's evidence. Audited as
   // guard_specifics_kept {who, missed} so the capture rate can be counted. Fenced code is ignored on both sides.
   private guardSpecificsKept(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string; assistantText?: string; focusContainerId?: string }): any[] {
-    const strip = (t: string) => String(t ?? '').replace(/```[\s\S]*?```/g, ' ');
+    // M488 (2026-10-18, numpy-panorama p3 on v0.9.307 — the M487 drop never saw these creates because THIS guard made them): a traceback
+    // pasted UNFENCED ("the error persist in warp_perspective(…)     148     warped_image = np.zeros(…)     149     for i in range(3): --> 150 …
+    // IndexError: index 973 is out of bounds") is not fenced code, so its line numbers counted as the person's figures and the code lines
+    // were filed verbatim as her sentence — "142     warped_image =" ×3 on one map. A traceback span (two or more numbered source lines, or a
+    // "--> N" arrow, or a Python "File …, line N" frame) is cut from the text before specifics are read; the error message inside it
+    // (IndexError: index 973 …) is a real specific and is kept as prose. A sentence that is itself a code line is never filed.
+    const TB_TOKEN = /(?:^|\s{2,}|\n)\d{1,4}\s{2,}\S|(?:^|\s)-{2,}>\s*\d{1,5}\s|File "[^"\n]+", line \d+|Traceback \(most recent call last\)/;
+    const cutTraceback = (s: string) => {
+      const m = TB_TOKEN.exec(s); if (!m) return s;
+      const tokens = s.match(new RegExp(TB_TOKEN.source, 'g')) ?? [];
+      if (tokens.length < 2 && !/-{2,}>\s*\d|Traceback \(|File "/.test(s)) return s;
+      const head = s.slice(0, m.index); const span = s.slice(m.index);
+      const errors = span.match(/\b[A-Z][A-Za-z]*(?:Error|Exception|Warning)\b:?[^\n]{0,200}/g) ?? [];
+      return `${head} ${errors.join(' ')}`.trim();
+    };
+    const strip = (t: string) => cutTraceback(String(t ?? '').replace(/```[\s\S]*?```/g, ' '));
     const ut = strip(params.userText ?? ''), at = strip(params.assistantText ?? '');
     if (ut.trim().length < 8 && at.trim().length < 8) return alterations;
     const norm = (x: string) => x.toLowerCase().replace(/[,，]/g, '').replace(/\s+/g, ' ').trim();
@@ -1405,7 +1420,8 @@ export class Translator {
     const file = (who: 'user' | 'agent', text: string, specifics: string[], type?: string) => {
       const missed = [...new Set(specifics)].filter((sp) => !has(sp));
       if (!missed.length) return;
-      const sents = sentencesOf(text).filter((sn) => missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
+      const codeLine = (sn: string) => /^\s*\d{1,4}\s{2,}\S/.test(sn) || /(?:^|\s)-{2,}>\s*\d{1,5}\s/.test(sn); // M488: a source line is never the sentence filed
+      const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
       if (!sents.length) return;
       const content = sents.join(' ').slice(0, 400);
       const parentId = params.focusContainerId ?? out.find((a) => a?.op === 'create_node' && a.parentId)?.parentId ?? null;
