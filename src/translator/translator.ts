@@ -1705,6 +1705,12 @@ export class Translator {
         const head = anyA.title.split(/[。．]|(?<=[？！])(?=[^\s？！?!)）」』"”])/u)[0].replace(/[\s.:：;；,，]+$/u, '').trim();
         if (head.length >= 3 && head !== anyA.title.trim()) { this.store.audit('guard_title_full_stop', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(head.length, head.length + 30) }); anyA.title = head; }
       }
+      // M492 (oracle-shortest 2026-10-18, title "Worker query correctness.?"): a Latin full stop glued before the terminal ? or ! is a slip,
+      // not punctuation — it goes and the question mark stays. Only after a letter, so "v1.?" and "3.?" are left alone.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\p{L}\.\s*[?!？！]\s*$/u.test(anyA.title)) {
+        this.store.audit('guard_title_full_stop', { id: String(anyA.id ?? '').slice(0, 8), dropped: '.' });
+        anyA.title = anyA.title.replace(/(\p{L})\.\s*([?!？！])\s*$/u, '$1$2');
+      }
       // M402b (sqlsugar-nested-zh title "本轮回滚结论"): the same round-talk lead on a NAME goes; the name keeps its subject.
       // M491 (nfconntrack-zh 2026-10-18, title "IPv6 模块支持检视者核心观点的直接落实：本轮不涉及结构重组建议"): the same round-talk
       // as a TAIL after a separator is the filer talking about its round, not a name — the tail goes; so does a head that is only the
