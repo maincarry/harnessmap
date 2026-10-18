@@ -48,3 +48,23 @@ test('a version number before a question mark is left alone', () => {
   const r = run('Is it v1.?');
   expect(r.title).toBe('Is it v1.?');
 });
+
+// M494: a parenthetical aside ending in a question mark at a title's tail is the filer wondering aloud, not part of the name.
+test('"(not allowed?)" at a title\'s tail goes; the name keeps its own mark', () => {
+  const r = run('rs7412 序列出处核验仍需完成了？ (not allowed?)', 'rs7412 位点的 TaqMan 探针及相关引物序列据称来自 Kupstyte 等人 2011 年的论文；具体序列仍需核对原始论文。');
+  expect(r.title).toBe('rs7412 序列出处核验仍需完成了？');
+});
+test('a parenthetical that is part of the name stays', () => {
+  const r = run('MGB (minor groove binder) 探针', 'MGB（minor groove binder）可增强探针与目标 DNA 的结合力。');
+  expect(r.title).toBe('MGB (minor groove binder) 探针');
+});
+
+// M495: an invented question tail after a bare conjunction takes the conjunction with it.
+test('"Retranslate button and functionary?" on a task becomes "Retranslate button"', () => {
+  const r = run('Retranslate button and functionary?', 'Add a new Retranslate button to the Translation tool that retranslates the untranslated text with the current prompt.');
+  expect(r.title).toBe('Retranslate button');
+});
+test('a residue ending in "only if" still leaves the title alone (M421b lesson)', () => {
+  const r = run('Rebuild tasks only if changed?', 'Rebuild the tasks when the inputs differ from the last run.');
+  expect(r.title).toBe('Rebuild tasks only if changed?');
+});

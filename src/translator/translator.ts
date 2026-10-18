@@ -1715,6 +1715,13 @@ export class Translator {
         this.store.audit('guard_title_full_stop', { id: String(anyA.id ?? '').slice(0, 8), dropped: '.' });
         anyA.title = anyA.title.replace(/(\p{L})\.\s*([?!？！])\s*$/u, '$1$2');
       }
+      // M494 (taqman-apoe-zh 2026-10-18, title "rs7412 序列出处核验仍需完成了？ (not allowed?)"): a parenthetical ASIDE ending in a question
+      // mark at a title's tail — "(not allowed?)", "(maybe?)" — is the filer wondering aloud, not part of a name. One instance across every
+      // kept map; no guard had touched it. The aside goes; the name keeps its own terminal mark.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\s*[(（][^()（）\n]{1,40}[?？][)）]\s*$/.test(anyA.title)) {
+        const to = anyA.title.replace(/\s*[(（][^()（）\n]{1,40}[?？][)）]\s*$/, '').trim();
+        if (to.length >= 2) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(to.length).trim().slice(0, 40) }); anyA.title = to; }
+      }
       // M402b (sqlsugar-nested-zh title "本轮回滚结论"): the same round-talk lead on a NAME goes; the name keeps its subject.
       // M491 (nfconntrack-zh 2026-10-18, title "IPv6 模块支持检视者核心观点的直接落实：本轮不涉及结构重组建议"): the same round-talk
       // as a TAIL after a separator is the filer talking about its round, not a name — the tail goes; so does a head that is only the
@@ -1849,6 +1856,10 @@ export class Translator {
           const rx = new RegExp(`\\b${x}\\b`); if (rx.test(hay) || rx.test(words.slice(0, -1).join(' ').toLowerCase())) break;
           words = words.slice(0, -1); dropped++;
         }
+        // M495 (tk-translate 2026-10-18, task titled "Retranslate button and functionary?"): when the residue would end in a bare conjunction
+        // ("… and"), the conjunction goes with the invented word — "Retranslate button" is the name. Other function-word residues still leave
+        // the title untouched (the "…tasks only if changed?" lesson above).
+        if (dropped && words.length >= 3 && /^(?:and|or|but|nor)$/i.test(words[words.length - 1])) words = words.slice(0, -1);
         if (dropped && words.length >= 2 && !FUNC.test(words[words.length - 1])) { const to = words.join(' '); this.store.audit('guard_title_qtail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-30), to: to.slice(-30) }); anyA.title = to; }
       }
       // M419d (REFILE #7 Priya chats, v0.9.268): the wrap-up chat's root was retitled "Tomorrow's report cell all set" at round 32 — the
