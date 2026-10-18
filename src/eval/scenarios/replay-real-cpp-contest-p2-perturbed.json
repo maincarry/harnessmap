@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "NO|X\\.\\.|wrong|correct"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

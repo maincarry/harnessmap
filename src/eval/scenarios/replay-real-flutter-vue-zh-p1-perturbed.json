@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "Vue|React|ERP|后台"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

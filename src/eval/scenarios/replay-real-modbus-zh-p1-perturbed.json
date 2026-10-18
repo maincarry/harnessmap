@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "Namespace|measure|AttributeError|属性"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

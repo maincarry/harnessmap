@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "sequentialfs|rows"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

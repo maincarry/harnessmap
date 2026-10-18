@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "reshape|elements"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

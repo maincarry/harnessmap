@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "panorama|expected|result|merge"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

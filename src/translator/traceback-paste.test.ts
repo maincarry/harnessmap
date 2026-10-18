@@ -92,3 +92,21 @@ test('a quoted lead-in ("Here is the description of the dataset:") files nothing
   expect(kept).toHaveLength(1);
   expect(kept[0].content).toMatch(/never kick the watchdog/);
 });
+
+// M490: string literals inside unfenced pasted code are not quoted phrases, and a pasted statement is never the row filed.
+const PASTED_CODE = 'Here is the code:\n\ndef read_ground_truth_homographies(dataset_path):\n    H_files = sorted(glob.glob(os.path.join(dataset_path, "H_.txt")))\n    ground_truth_homographies = []\n    for filename in H_files:\n        H = np.loadtxt(filename)\n        ground_truth_homographies.append(H)\n    return ground_truth_homographies\n\nprint(f"Image {i} was skipped due to homography failure")\nimages = sorted(glob.glob(os.path.join(dataset_path, "*.png")))\n';
+test('unfenced pasted Python files no statement as the person\'s row, and its string literals are not specifics', () => {
+  const r = specifics([root], PASTED_CODE);
+  const creates = r.out.filter((a) => a.op === 'create_node');
+  for (const c of creates) {
+    expect(c.content).not.toMatch(/H_files = sorted|^def |print\(f"/);
+    expect(c.title).not.toMatch(/^H_files =/);
+  }
+  const missed = r.audits.filter((a) => a.kind === 'guard_specifics_kept').flatMap((a) => a.d.missed as string[]);
+  expect(missed.some((m) => /^Image \{i\}|^\*\.png$/.test(m))).toBe(false);
+  // a filename spoken in prose is still a specific worth keeping
+  const prose = specifics([root], 'Please keep the ground truth list in homographies.txt, not in the notebook, so the grader can read it.');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/homographies\.txt/);
+});

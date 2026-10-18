@@ -139,6 +139,9 @@
         {
           "atMostTitles": "版本|Python 3",
           "max": 2
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

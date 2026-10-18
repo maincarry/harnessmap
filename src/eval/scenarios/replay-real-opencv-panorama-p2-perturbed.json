@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "same error|image_sizes|exact|shape"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

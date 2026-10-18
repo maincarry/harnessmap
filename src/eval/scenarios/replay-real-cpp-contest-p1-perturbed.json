@@ -90,6 +90,9 @@
         },
         {
           "nodeMatching": "YES|wrong|still"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

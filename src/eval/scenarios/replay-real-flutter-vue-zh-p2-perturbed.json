@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "Pluralsight|程序员|质量"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

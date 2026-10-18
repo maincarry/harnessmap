@@ -121,6 +121,9 @@
         {
           "statusOf": "line 27|строк[аеи] 27|ошибк|error",
           "is": "open|active|todo|doing|live|noted|provisional|answered"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

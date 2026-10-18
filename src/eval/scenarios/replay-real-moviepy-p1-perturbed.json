@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "border|blink"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

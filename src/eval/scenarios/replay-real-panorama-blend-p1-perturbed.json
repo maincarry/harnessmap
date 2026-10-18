@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "error|matches|main"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

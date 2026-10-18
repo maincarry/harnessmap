@@ -113,6 +113,9 @@
         {
           "atMostTitles": "隔离|脱离|c方法|C 方法",
           "max": 3
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

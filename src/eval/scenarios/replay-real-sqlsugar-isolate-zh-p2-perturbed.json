@@ -117,6 +117,9 @@
         {
           "statusOf": "不开启新|新的数据库连接|只用委托|不新建连接",
           "is": "active|accepted|decided|noted|live|open|answered"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

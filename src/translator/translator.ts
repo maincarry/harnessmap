@@ -1419,13 +1419,22 @@ export class Translator {
     // as her row under a title that had nothing to do with it. A quote that ends in a colon, or opens with here is / here's / this is /
     // below is / the following, is a handle on what follows, not a thing said; and a sentence that is such a lead-in is never the one filed.
     const LEAD_IN = /^(?:here(?:'s| is| are)|this is|these are|below is|the following|as follows)\b/i;
-    const quoted = (t: string) => [...t.matchAll(/[“"]([^”"\n]{4,80})[”"]/g)].map((m) => m[1].trim()).filter((q) => !/[:：]\s*$/.test(q) && !LEAD_IN.test(q));
+    // M490 (panorama-memory p1, 2026-10-18): string literals inside UNFENCED pasted code — glob("H_.txt"), print(f"Image {i} was skipped…") —
+    // counted as quoted phrases the filer missed, and the code line was filed verbatim as her row ("H_files = sorted(glob.glob(…"). A quote
+    // that sits in code context (after ( [ , = + : or an f/r/b prefix, before ) ] , +), or carries a {placeholder}, is a literal, not speech.
+    const CODE_BEFORE = /[(\[,=+]\s*[fFrRbBuU]?$|\b[fFrRbB]$/; const CODE_AFTER = /^\s*[)\],+]/;
+    const quoted = (t: string) => [...t.matchAll(/[“"]([^”"\n]{4,80})[”"]/g)]
+      .filter((m) => !CODE_BEFORE.test(t.slice(Math.max(0, m.index! - 3), m.index!)) && !CODE_AFTER.test(t.slice(m.index! + m[0].length, m.index! + m[0].length + 3)) && !/\{\w+\}/.test(m[1]))
+      .map((m) => m[1].trim()).filter((q) => !/[:：]\s*$/.test(q) && !LEAD_IN.test(q));
     const sentencesOf = (t: string) => t.split(/(?<=[.!?。！？])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
     const out = [...alterations];
     const file = (who: 'user' | 'agent', text: string, specifics: string[], type?: string) => {
       const missed = [...new Set(specifics)].filter((sp) => !has(sp));
       if (!missed.length) return;
-      const codeLine = (sn: string) => /^\s*\d{1,4}\s{2,}\S/.test(sn) || /(?:^|\s)-{2,}>\s*\d{1,5}\s/.test(sn); // M488: a source line is never the sentence filed
+      const prose = (sn: string) => /\b(?:[A-Za-z]+\s+){4,}[A-Za-z]+[.!?](?:\s|$)/.test(sn) || /[\u4e00-\u9fff]{6,}/.test(sn);
+      const codeLine = (sn: string) => /^\s*\d{1,4}\s{2,}\S/.test(sn) || /(?:^|\s)-{2,}>\s*\d{1,5}\s/.test(sn) // M488: a source line is never the sentence filed
+        || (!prose(sn) && (/^\s*(?:def |class |import |from \w[\w.]* import |return\b|print\(|(?:if|for|while|elif|with|try|except)\b.*:\s*$)/.test(sn) // M490: nor a pasted statement
+          || /^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=|-=)\s*\S/.test(sn) || /^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$/.test(sn)));
       const leadIn = (sn: string) => LEAD_IN.test(sn.trim()) && /[:：]/.test(sn); // M489: "Here is my assignment description if that helps: …" is a handle, not a statement
       const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && !leadIn(sn) && missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
       if (!sents.length) return;

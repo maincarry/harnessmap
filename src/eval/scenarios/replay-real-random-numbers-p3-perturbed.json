@@ -113,6 +113,9 @@
         {
           "mentions": "rand_num|variable name|name",
           "must": "name|variable|identifier|editor|red|lint|VS Code|Visual Studio"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

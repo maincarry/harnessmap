@@ -113,6 +113,9 @@
         {
           "mentions": "image|wide|overflow",
           "must": "does not work|did not work|not work|still|open|unresolved"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

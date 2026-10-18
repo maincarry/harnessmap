@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "documentReady|implied"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

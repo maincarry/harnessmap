@@ -116,6 +116,9 @@
         {
           "atMostTitles": "rand_num|randnum|rand num",
           "max": 2
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

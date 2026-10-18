@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "暂停|代理|订阅|停止"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

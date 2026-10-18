@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "wsgi|启动|判断"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

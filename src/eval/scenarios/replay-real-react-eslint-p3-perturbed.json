@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "no-unstable-nested|nested"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

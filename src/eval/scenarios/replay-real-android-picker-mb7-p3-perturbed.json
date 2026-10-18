@@ -105,6 +105,9 @@
         {
           "mentions": "photo|image",
           "must": "still|not|doesn't|open|unresolved|again"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

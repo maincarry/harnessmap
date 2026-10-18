@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "安装|GitHub|编译"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

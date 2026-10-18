@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "压缩包|编译|源代码|make"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

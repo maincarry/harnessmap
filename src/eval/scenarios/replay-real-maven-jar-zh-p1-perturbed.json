@@ -113,6 +113,9 @@
         {
           "atMostTitles": "主类配置",
           "max": 3
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

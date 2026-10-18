@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "name|NameError|未定义"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

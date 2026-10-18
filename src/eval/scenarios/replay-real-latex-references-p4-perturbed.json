@@ -121,6 +121,9 @@
         {
           "atMostTitles": "resolution|resize|lower",
           "max": 3
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

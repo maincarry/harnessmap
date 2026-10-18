@@ -124,6 +124,9 @@
         {
           "atMostTitles": "thank|bye",
           "max": 0
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

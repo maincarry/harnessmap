@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "RecordRTC|iOS|WebM|MP4"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

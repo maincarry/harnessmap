@@ -90,6 +90,9 @@
         },
         {
           "nodeMatching": "slow|dynamic|DP|speed"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

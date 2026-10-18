@@ -151,6 +151,9 @@
         {
           "atMostTitles": "空白|界面.*空|blank",
           "max": 2
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

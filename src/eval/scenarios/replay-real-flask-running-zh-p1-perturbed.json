@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "Serving|启动|lazy"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

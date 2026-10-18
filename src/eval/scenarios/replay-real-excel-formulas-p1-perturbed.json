@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "VBA|split"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

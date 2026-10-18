@@ -117,6 +117,9 @@
         {
           "atMostTitles": "empty|no question|didn't receive",
           "max": 0
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

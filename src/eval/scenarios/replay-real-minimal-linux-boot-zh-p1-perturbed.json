@@ -113,6 +113,9 @@
         {
           "atMostTitles": "root参数|initramfs 仍|仍然使用 initramfs|root= 无效",
           "max": 2
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

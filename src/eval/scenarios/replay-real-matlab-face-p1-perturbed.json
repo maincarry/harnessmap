@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "cov"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

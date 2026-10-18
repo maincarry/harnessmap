@@ -117,6 +117,9 @@
         {
           "notStatus": "项目地址|检测器网址|变化检测网址|github\\.com/EnriqueMoraga",
           "statuses": "noted|answered|accepted|live"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

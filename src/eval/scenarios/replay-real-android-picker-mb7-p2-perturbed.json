@@ -113,6 +113,9 @@
         {
           "statusOf": "whole code|all the code|changed files|send.*code",
           "is": "active|accepted|decided|noted|live"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

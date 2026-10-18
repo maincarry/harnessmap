@@ -113,6 +113,9 @@
         {
           "atMostTitles": "DataFrame|dataframe",
           "max": 3
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

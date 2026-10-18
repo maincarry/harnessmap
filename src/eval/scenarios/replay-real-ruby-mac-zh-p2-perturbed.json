@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "rbenv versions|当前|星号|已安装"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

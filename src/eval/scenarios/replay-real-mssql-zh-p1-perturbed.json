@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "ALTER TABLE|PAGE|压缩表|第二"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

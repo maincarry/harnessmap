@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "MongoDB|集合|Collection"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

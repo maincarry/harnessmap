@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "still|last character|YES"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "merge_images|error|shape"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

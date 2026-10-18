@@ -125,6 +125,9 @@
         {
           "statusOf": "children|undefined|props",
           "is": "open|active|todo|doing|live|noted|provisional|answered|failed"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

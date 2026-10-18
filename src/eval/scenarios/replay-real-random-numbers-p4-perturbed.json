@@ -93,6 +93,9 @@
         {
           "atMostTitles": "15000|text file|random numbers",
           "max": 4
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

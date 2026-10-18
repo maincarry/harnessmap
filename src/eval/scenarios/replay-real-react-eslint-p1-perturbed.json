@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "currStep|step"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

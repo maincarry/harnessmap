@@ -114,6 +114,9 @@
           "atMostTitles": "空格",
           "type": "question",
           "max": 1
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

@@ -81,6 +81,9 @@
         {
           "countUnder": "proj",
           "max": 18
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

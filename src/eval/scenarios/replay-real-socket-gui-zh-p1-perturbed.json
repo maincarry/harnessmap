@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "程序|bug|问题|类变量|connected"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

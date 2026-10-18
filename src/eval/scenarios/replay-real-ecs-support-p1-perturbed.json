@@ -112,6 +112,9 @@
         },
         {
           "noNodeMatching": "cannot see|As an AI|language model"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

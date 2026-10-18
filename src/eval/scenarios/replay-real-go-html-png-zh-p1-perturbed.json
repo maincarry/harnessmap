@@ -143,6 +143,9 @@
         {
           "mentions": "Go-Screenshot|Screenshot",
           "must": "无头|headless|需要|依赖|违反|不符合|冲突"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

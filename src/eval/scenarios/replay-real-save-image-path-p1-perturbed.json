@@ -113,6 +113,9 @@
         {
           "mentions": "errno|import",
           "must": "not|without|avoid|no |exist_ok|drop"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

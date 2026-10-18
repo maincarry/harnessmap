@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "5 1 2 3 1 2|wrong|returns 4|should return 5|test"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

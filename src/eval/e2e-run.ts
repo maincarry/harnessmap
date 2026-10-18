@@ -9,7 +9,7 @@
 //   · {inToSort: regex} · {notInToSort: regex} · {lit: key} · {dark: key} · {audit: kind, matching?: regex}
 //   · {noAudit: kind} · {statusOf: regex, is: status} · {authorOf: regex, is: 'user'|'agent'} · {atMostRoots: n} · {countUnder: key, max: n} · {topLevelMatching: regex}
 //   stance (M356+): {notStatus: regex, statuses: 'a|b'} · {underKey: regex, key} · {mentions: regex, must: regex} · {atMostTitles: regex, max, type?} · {brainMust: regex} · {brainMustNot: regex}
-//   · {undoNext: regex} · {do: 'undo'|'focus'|'light'|'dim'|'release'|'pin', key?, depth?}
+//   · {noCodeNodes: true} (M490: no live node is a pasted source line) · {undoNext: regex} · {do: 'undo'|'focus'|'light'|'dim'|'release'|'pin', key?, depth?}
 import { rmSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync, symlinkSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 
@@ -261,6 +261,12 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.atMostRoots !== undefined) { const roots = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && (n.parentId ?? n.parent_id ?? null) === null && n.author !== 'system' && String(n.content ?? '').trim() !== 'untitled' && !String(n.content ?? '').startsWith('to sort')); check(label, roots.length <= a.atMostRoots, roots.map((n: any) => (n.title || n.content).slice(0, 40)).join(' | ')); } // M441 proof: the thread count
       else if (a.authorOf) { const hits = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && match(s, n, a.authorOf)); check(label, hits.length > 0 && hits.some((n: any) => n.author === a.is), hits.map((n: any) => `${n.author}: ${(n.title || n.content).slice(0, 50)}`).join(' | ') || 'no match'); } // M442 proof: who the map says said it
       else if (a.statusOf) { const ns = (s.nodes ?? []).filter((x: any) => x.status !== 'removed' && match(s, x, a.statusOf)); const hit = ns.find((n: any) => rx(`^(${a.is})$`).test(n.status ?? '')); check(label, !!hit, hit ? `status=${hit.status} (${(hit.title || hit.content).slice(0, 40)})` : ns.length ? ns.map((n: any) => `${n.status}: ${(n.title || n.content).slice(0, 30)}`).join('; ') : 'no node'); } // stance semantics (sqlsugar replay): ANY matching live node with the status passes, not the first match
+      else if (a.noCodeNodes) { // M490 2026-10-18: no live node may be a pasted source line (numbered traceback line, def/import/print, an assignment, a bare call) — the record keeps what was said, never the code itself
+        const CODE = /^\s*\d{1,4}\s{2,}\S|^\s*(?:def |class |import |from \w[\w.]* import |print\()|^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=)\s*\S.*[()\[\]]|^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$/;
+        const PROSE = /\b(?:[A-Za-z]+\s+){4,}[A-Za-z]+[.!?](?:\s|$)/;
+        const bad = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && !PROSE.test(String(n.content ?? '')) && (CODE.test(String(n.content ?? '')) || CODE.test(String(n.title ?? ''))));
+        check(label, bad.length === 0, bad.length ? `code nodes: ${bad.slice(0, 3).map((n: any) => JSON.stringify(String(n.title ?? n.content ?? '').slice(0, 50))).join(' | ')}` : 'none');
+      }
       else if (a.countUnder) check(label, (s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length <= a.max, `count=${(s.nodes ?? []).filter((n: any) => n.parentId === keys[a.countUnder]).length}`);
       else if (a.topLevelMatching) check(label, (s.nodes ?? []).some((n: any) => n.parentId === null && match(s, n, a.topLevelMatching)));
       else if (a.projectMatching) check(label, (s.projects ?? []).some((p: any) => rx(a.projectMatching).test(p.name)), (s.projects ?? []).map((p: any) => p.name).join(', ') || 'no projects'); // 2026-10-05: the Example map is its own map — assert on the map list, not on nodes

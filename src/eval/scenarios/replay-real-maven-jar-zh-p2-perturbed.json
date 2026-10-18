@@ -143,6 +143,9 @@
         {
           "mentions": "catch|Exception|IDEA",
           "must": "拼写|Execption|错误|typo|导入|import"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

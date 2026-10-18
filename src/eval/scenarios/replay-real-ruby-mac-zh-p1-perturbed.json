@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "sqlite3|LoadError|缺少"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

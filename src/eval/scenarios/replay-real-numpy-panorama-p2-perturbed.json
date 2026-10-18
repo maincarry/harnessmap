@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "dataset|apolog|great|project|hard"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "zip_name_locate|源码|-1|索引"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

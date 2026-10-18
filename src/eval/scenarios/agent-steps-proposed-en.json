@@ -1,0 +1,25 @@
+{
+  "name": "M437 proof (PANEL #422): the agent's setup steps are filed as proposals, not the person's to-do list — the person asked how, the agent listed steps, nobody committed",
+  "seed": [{ "key": "proj", "content": "Side project: a small Python script that needs somewhere to run" }],
+  "focus": "proj",
+  "auto": { "on": true },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "user": "is there any free VPS I could run this on? how would I even set one up",
+      "assistant": "Yes — AWS Free Tier gives you a small EC2 instance for 12 months. The steps would be: 1. Create an AWS account at aws.amazon.com. 2. Open the EC2 Free Tier page and pick a t2.micro. 3. Launch the instance with Ubuntu. 4. Create a key pair and download the .pem file to SSH in. Oracle Cloud also has an always-free tier if you prefer.",
+      "then": [
+        { "nodeMatching": "AWS|EC2|free tier" },
+        { "notStatus": "create (an )?AWS account|EC2|key pair|launch (the )?instance", "statuses": "todo|doing" }
+      ]
+    },
+    {
+      "user": "ok good to know, I'll think about it. back to the script: the loop still double counts the last line",
+      "assistant": "The double count comes from reading the last line twice — once in the loop and once after it. Drop the trailing read and the total is right.",
+      "then": [
+        { "notStatus": "create (an )?AWS account|EC2|key pair|launch (the )?instance", "statuses": "todo|doing" },
+        { "nodeMatching": "double count|last line" }
+      ]
+    }
+  ]
+}

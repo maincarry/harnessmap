@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "compute_homography_matrix|example|function"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

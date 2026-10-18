@@ -81,6 +81,9 @@
         },
         {
           "chatName": "renamed mid-thread"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

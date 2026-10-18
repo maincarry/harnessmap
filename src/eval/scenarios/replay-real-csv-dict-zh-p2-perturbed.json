@@ -143,6 +143,9 @@
         {
           "mentions": "DictWriter|fieldnames",
           "must": "必须|需要|不能省略|TypeError|错误|required"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

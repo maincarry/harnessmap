@@ -117,6 +117,9 @@
         {
           "atMostTitles": "c.*不.*回滚|不回滚|回滚规则|回滚要求",
           "max": 3
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

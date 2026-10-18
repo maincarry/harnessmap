@@ -93,6 +93,9 @@
         {
           "atMostTitles": "日期格式",
           "max": 3
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

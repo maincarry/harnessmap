@@ -143,6 +143,9 @@
         {
           "mentions": "homography|link",
           "must": "dead|not work|broken|invalid|open|alternative|unverified"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

@@ -117,6 +117,9 @@
         {
           "atMostTitles": "15000|text file",
           "max": 3
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

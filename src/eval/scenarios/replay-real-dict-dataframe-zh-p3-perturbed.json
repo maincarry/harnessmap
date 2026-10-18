@@ -62,6 +62,9 @@
         {
           "mentions": "from_dict",
           "must": "错|报错|失败|orient|参数|用法|一直"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

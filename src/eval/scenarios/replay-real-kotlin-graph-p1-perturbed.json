@@ -93,6 +93,9 @@
         },
         {
           "nodeMatching": "10 days|Sunday|missing|daily"
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }

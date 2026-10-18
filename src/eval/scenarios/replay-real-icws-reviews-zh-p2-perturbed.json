@@ -143,6 +143,9 @@
         {
           "atMostTitles": "review|Review|评审",
           "max": 4
+        },
+        {
+          "noCodeNodes": true
         }
       ]
     }
