@@ -1422,7 +1422,9 @@ export class Translator {
     // M490 (panorama-memory p1, 2026-10-18): string literals inside UNFENCED pasted code — glob("H_.txt"), print(f"Image {i} was skipped…") —
     // counted as quoted phrases the filer missed, and the code line was filed verbatim as her row ("H_files = sorted(glob.glob(…"). A quote
     // that sits in code context (after ( [ , = + : or an f/r/b prefix, before ) ] , +), or carries a {placeholder}, is a literal, not speech.
-    const CODE_BEFORE = /[(\[,=+]\s*[fFrRbBuU]?$|\b[fFrRbB]$/; const CODE_AFTER = /^\s*[)\],+]/;
+    // M493 (tk-translate 2026-10-18): the paste was SMART-QUOTED (“role”: “user”) — a quote followed by a colon is a key, not speech, and
+    // an opening brace before it is code context like a bracket.
+    const CODE_BEFORE = /[(\[{,=+]\s*[fFrRbBuU]?$|\b[fFrRbB]$/; const CODE_AFTER = /^\s*[)\]},+:：]/;
     const quoted = (t: string) => [...t.matchAll(/[“"]([^”"\n]{4,80})[”"]/g)]
       .filter((m) => !CODE_BEFORE.test(t.slice(Math.max(0, m.index! - 3), m.index!)) && !CODE_AFTER.test(t.slice(m.index! + m[0].length, m.index! + m[0].length + 3)) && !/\{\w+\}/.test(m[1]))
       .map((m) => m[1].trim()).filter((q) => !/[:：]\s*$/.test(q) && !LEAD_IN.test(q));
@@ -1433,8 +1435,10 @@ export class Translator {
       if (!missed.length) return;
       const prose = (sn: string) => /\b(?:[A-Za-z]+\s+){4,}[A-Za-z]+[.!?](?:\s|$)/.test(sn) || /[\u4e00-\u9fff]{6,}/.test(sn);
       const codeLine = (sn: string) => /^\s*\d{1,4}\s{2,}\S/.test(sn) || /(?:^|\s)-{2,}>\s*\d{1,5}\s/.test(sn) // M488: a source line is never the sentence filed
-        || (!prose(sn) && (/^\s*(?:def |class |import |from \w[\w.]* import |return\b|print\(|(?:if|for|while|elif|with|try|except)\b.*:\s*$)/.test(sn) // M490: nor a pasted statement
-          || /^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=|-=)\s*\S/.test(sn) || /^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$/.test(sn)));
+        || (!prose(sn) && (/^\s*(?:def |class |import |from \w[\w.]* import |return\b|print\(|(?:if|for|while|elif|else|with|try|except|finally)\b.*:\s*$)/.test(sn) // M490: nor a pasted statement
+          || /^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=|-=)\s*\S/.test(sn) || /^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$/.test(sn)
+          // M493: a smart-quoted dict key, a keyword-argument call, a dotted call continuation, a lone bracket, a code comment
+          || /^\s*[“"'][\w-]+[”"']\s*[:：]/.test(sn) || /^\s*(?:[A-Za-z_][\w.]*\s*=\s*)?[A-Za-z_][\w.]*\([^()\n]*\b\w+=/.test(sn) || /^\s*\.\w+\(/.test(sn) || /^\s*[{}\[\]()]+,?\s*$/.test(sn) || /^\s*#\s/.test(sn)));
       const leadIn = (sn: string) => LEAD_IN.test(sn.trim()) && /[:：]/.test(sn); // M489: "Here is my assignment description if that helps: …" is a handle, not a statement
       const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && !leadIn(sn) && missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
       if (!sents.length) return;

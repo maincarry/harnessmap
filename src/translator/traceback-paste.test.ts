@@ -110,3 +110,25 @@ test('unfenced pasted Python files no statement as the person\'s row, and its st
   expect(kept).toHaveLength(1);
   expect(kept[0].content).toMatch(/homographies\.txt/);
 });
+
+// M493: a smart-quoted, unindented code paste (WildChat shape) files no fragment as the person's row; a curly-quoted phrase in prose still does.
+const SMART_PASTE = 'Here is my code:\nprompt_logfile = “prompt.txt”\ntry:\nwith open(prompt_logfile, “r”, encoding=“utf-8”) as f:\nprompt_text = f.read()\nexcept FileNotFoundError:\n# If the prompt log file doesn’t exist, use the default prompt text\nprompt_text = “Translate the following text: {text_to_translate}”\ncompletion = openai.ChatCompletion.create(\nmodel=“gpt-3.5-turbo-0301”,\ntemperature=1,\nmessages=[\n{\n“role”: “user”,\n“content”: f"{prompt}“,\n}\n],\n)\ntranslated_text = (\ncompletion[“choices”][0]\n.get(“message”)\n.get(“content”)\n)\nuntranslated_textbox = tk.Text(root, font=font.Font(family=“Arial”, size=10), bg=“white”, width=50)\n';
+test('a smart-quoted unindented paste files no code fragment; its keys and literals are not specifics', () => {
+  const r = specifics([root], SMART_PASTE);
+  const creates = r.out.filter((a) => a.op === 'create_node');
+  for (const c of creates) expect(c.content).not.toMatch(/“role”|font\.Font|prompt_logfile =|\.get\(|^\s*[{}\]],?\s*$/m);
+  const missed = r.audits.filter((a) => a.kind === 'guard_specifics_kept').flatMap((a) => a.d.missed as string[]);
+  expect(missed.some((m) => /^(role|user|content|white|Arial)$/.test(m))).toBe(false);
+  const prose = specifics([root], 'She told me to keep the “white” theme as the default, so leave it there.');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/keep the “white” theme/);
+});
+
+// M493b: a prose sentence that mentions a call with keyword arguments is prose, not a code line.
+test('prose that names a keyword-argument call still files its own specifics', () => {
+  const r = specifics([root], 'Update the matching-plot loop to call cv2.drawMatches(img1, kp1, img2, kp2, matches, None, flags=2) for each pair, limit 50 matches.');
+  const kept = r.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/matching-plot loop/);
+});
