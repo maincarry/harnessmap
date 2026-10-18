@@ -33,3 +33,6 @@ src/eval/*segment*.json
 companion/src-tauri/target/
 companion/src-tauri/gen/
 companion/src-tauri/icons/
+
+# exported maps written beside scenarios by e2e runs are run artifacts (tracked exports live in src/eval/maps)
+src/eval/scenarios/*.map
