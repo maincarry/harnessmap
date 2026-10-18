@@ -44,7 +44,7 @@ mkdirSync(OUT, { recursive: true });
 const EARLY = argv.includes('--early');
 const MODEL = process.env.RECORD_TEST_MODEL; // the generator and the grader may run on a different model than the brain (same backend)
 
-import { loadRecordTexts, probeKey, classifyMiss, refineByAuthor } from './record-specifics.js';
+import { loadRecordTexts, probeKey, probeText, classifyMiss, refineByAuthor } from './record-specifics.js';
 // ---------- the record ----------
 const sc = JSON.parse(readFileSync(scenarioPath, 'utf8'));
 const rounds: any[] = sc.rounds ?? [];
@@ -187,8 +187,8 @@ for (const job of jobs) { const s = sides.find((x) => x.name === job.side)!; gra
 const recordTexts = mapPath ? (() => { try { return loadRecordTexts(mapPath); } catch { return null; } })() : null;
 const recordText = recordTexts?.all ?? null;
 const empty = () => ({ basis: 'none' as const, items: [] as string[], present: [] as string[], absent: [] as string[] });
-const inRecord = questions.map((q) => recordTexts === null ? empty() : probeKey(recordTexts.all, q.answer, q.quote));
-const asYours = questions.map((q) => recordTexts === null || q.who !== 'you' ? null : probeKey(recordTexts.user, q.answer, q.quote));
+const inRecord = questions.map((q) => { const pt = probeText(q as any); return recordTexts === null ? empty() : probeKey(recordTexts.all, pt.key, pt.quote); });
+const asYours = questions.map((q) => { const pt = probeText(q as any); return recordTexts === null || q.who !== 'you' ? null : probeKey(recordTexts.user, pt.key, pt.quote); });
 const missKind = (i: number) => grades.map ? refineByAuthor(classifyMiss(grades.map[i].verdict, inRecord[i], inRecord[i].basis), q(i).who, asYours[i]) : null;
 const q = (i: number) => questions[i] as any;
 const missWords = () => { if (!grades.map) return ''; const c = { 'record-gap': 0, 'in-record': 0, 'authorship-lost': 0, unclassified: 0 } as Record<string, number>; questions.forEach((_, i) => { const k = missKind(i); if (k) c[k]++; }); const n = c['record-gap'] + c['in-record'] + c['authorship-lost'] + c.unclassified; return n ? ` — of the ${n} map miss(es): ${c['record-gap']} record gap (a specific the map never kept), ${c['in-record']} in record (the brain misread it or the record distorts it), ${c['authorship-lost']} authorship lost (the person's words are on the map only as the agent's nodes), ${c.unclassified} unclassified (no specific in the key, or its words only half there)` : ' — no map misses'; };

@@ -69,3 +69,15 @@ test('a "what did I say" key whose words sit only on the agent\'s nodes is autho
   expect(refineByAuthor('record-gap', 'you', mine)).toBe('record-gap'); // only in-record misses are refined
   expect(refineByAuthor(null, 'you', mine)).toBeNull();
 });
+
+import { probeText } from './record-specifics.js';
+test('a who-said question probes its quoted sentence, not its one-word answer', () => {
+  const q = { kind: 'who-said', answer: 'you', quote: 'I want to be x', who: 'you' };
+  expect(probeText(q)).toEqual({ key: 'I want to be x', quote: '' });
+  expect(probeText({ kind: 'said-about', answer: 'The Stripe event ID.', quote: 'Add idempotency keyed by the Stripe event ID.' })).toEqual({ key: 'The Stripe event ID.', quote: 'Add idempotency keyed by the Stripe event ID.' });
+  // "I want to be x": no word of six letters, no specific → nothing to probe → unclassified stays honest rather than reading 0/0 as in-record
+  const pt = probeText(q); expect(probeKey('theuserisxandtheagentiso', pt.key, pt.quote).basis).toBe('none');
+  const q2 = { kind: 'who-said', answer: 'the agent', quote: 'Compute the SVD of the essential matrix and take the last singular vector.' };
+  const r = probeKey('theagentsaidtocomputethesvdoftheessentialmatrixandtakethelastsingularvector', probeText(q2).key);
+  expect(r.basis).toBe('words'); expect(r.absent).toEqual([]);
+});

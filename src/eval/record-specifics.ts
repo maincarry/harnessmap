@@ -84,6 +84,11 @@ export function refineByAuthor(kind: MissKind | null, who: string | undefined, u
   const onUser = classifyMiss('missing', userProbe, userProbe.basis);
   return onUser === 'in-record' ? 'in-record' : 'authorship-lost';
 }
+// What to probe for a question: the key, except for a who-said question, whose key is one word ("you" / "the agent") —
+// there the quoted sentence is the thing the record must hold, so the quote is probed on its own.
+export function probeText(q: { kind?: string; answer: string; quote?: string }): { key: string; quote: string } {
+  return q.kind === 'who-said' && q.quote ? { key: q.quote, quote: '' } : { key: q.answer, quote: q.quote ?? '' };
+}
 // The whole read for one key: specifics when the key has any, else its distinctive words.
 export function probeKey(recordText: string, key: string, quote = ''): { basis: Basis; items: string[]; present: string[]; absent: string[] } {
   const sp = keySpecifics(key, quote);
@@ -103,7 +108,7 @@ if (import.meta.main) {
   const texts = loadRecordTexts(dbPath); const text = texts.all;
   const counts: Record<string, number> = { 'record-gap': 0, 'in-record': 0, 'authorship-lost': 0, unclassified: 0 };
   questions.forEach((q, i) => {
-    const rec = probeKey(text, q.answer, q.quote); const urec = probeKey(texts.user, q.answer, q.quote);
+    const pt = probeText(q); const rec = probeKey(text, pt.key, pt.quote); const urec = probeKey(texts.user, pt.key, pt.quote);
     const verdict = grades?.[i]?.verdict ?? '?'; const kind = refineByAuthor(classifyMiss(verdict, rec, rec.basis), q.who, urec); if (kind) counts[kind]++;
     console.log(`Q${i + 1} [${q.kind}] ${verdict}${kind ? ` → ${kind}` : ''} · ${rec.basis} ${rec.present.length}/${rec.items.length}${q.who === 'you' ? ` · as yours ${urec.present.length}/${urec.items.length}` : ''}${rec.absent.length ? ` · absent: ${rec.absent.join(', ')}` : ''}`);
   });
