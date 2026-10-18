@@ -1414,14 +1414,20 @@ export class Translator {
     const UNIT = '(?:ms|s|sec|seconds?|min|minutes?|h|hours?|days?|weeks?|%|kb|mb|gb|mah|ma|µa|ua|v|cores?|cpu|ram|px|words?|turns?)';
     const figures = (t: string) => [...t.matchAll(new RegExp(`(?<![\\w.\\-])(?:0x[0-9a-fA-F]{3,}|[+-]?\\d(?:[\\d,]*\\d)?(?:\\.\\d+)?)(?:\\s?${UNIT})?(?!\\w)`, 'gi'))].map((m) => m[0].trim()).filter((f) => /^0x/i.test(f) || /\d{2,}/.test(f) || /[a-zµ%]$/i.test(f)).filter((f) => !/^(?:19|20)\d\d$/.test(f));
     const idents = (t: string) => [...t.matchAll(/`([^`\n]{2,60})`|(?<![\w/])([A-Za-z][\w-]*\.(?:c|h|ts|js|py|ld|json|md|txt|cpp|rs|go|yaml|yml|toml|sh|sql))(?![\w/])|(?<!\w)([a-z]+(?:-[a-z]+){2,})(?!\w)/g)].map((m) => (m[1] ?? m[2] ?? m[3]).trim()).filter((x) => x.length >= 3);
-    const quoted = (t: string) => [...t.matchAll(/[“"]([^”"\n]{4,80})[”"]/g)].map((m) => m[1].trim());
+    // M489 (panorama-homography p3, 2026-10-18): a quoted LEAD-IN inside a paste — "Here is the description of the dataset:" — counted as a
+    // quoted phrase the filer missed, and the lead-in sentence ("Here is my assignment description if that helps: …") was filed verbatim
+    // as her row under a title that had nothing to do with it. A quote that ends in a colon, or opens with here is / here's / this is /
+    // below is / the following, is a handle on what follows, not a thing said; and a sentence that is such a lead-in is never the one filed.
+    const LEAD_IN = /^(?:here(?:'s| is| are)|this is|these are|below is|the following|as follows)\b/i;
+    const quoted = (t: string) => [...t.matchAll(/[“"]([^”"\n]{4,80})[”"]/g)].map((m) => m[1].trim()).filter((q) => !/[:：]\s*$/.test(q) && !LEAD_IN.test(q));
     const sentencesOf = (t: string) => t.split(/(?<=[.!?。！？])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
     const out = [...alterations];
     const file = (who: 'user' | 'agent', text: string, specifics: string[], type?: string) => {
       const missed = [...new Set(specifics)].filter((sp) => !has(sp));
       if (!missed.length) return;
       const codeLine = (sn: string) => /^\s*\d{1,4}\s{2,}\S/.test(sn) || /(?:^|\s)-{2,}>\s*\d{1,5}\s/.test(sn); // M488: a source line is never the sentence filed
-      const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
+      const leadIn = (sn: string) => LEAD_IN.test(sn.trim()) && /[:：]/.test(sn); // M489: "Here is my assignment description if that helps: …" is a handle, not a statement
+      const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && !leadIn(sn) && missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
       if (!sents.length) return;
       const content = sents.join(' ').slice(0, 400);
       const parentId = params.focusContainerId ?? out.find((a) => a?.op === 'create_node' && a.parentId)?.parentId ?? null;

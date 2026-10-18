@@ -78,3 +78,17 @@ test('the specifics guard still files a real missed figure stated in prose', () 
   expect(creates[0].content).toMatch(/15000/);
   expect(r.audits.some((a) => a.kind === 'guard_specifics_kept' && (a.d.missed as string[]).includes('15000'))).toBe(true);
 });
+
+// M489: a quoted lead-in inside a paste is not a specific, and a lead-in sentence is never the row filed.
+test('a quoted lead-in ("Here is the description of the dataset:") files nothing; a real quoted rule still files', () => {
+  const paste = 'Here is my assignment description if that helps: "Here is the description of the dataset: "Each image sequence contains a reference image and 5 target images taken under a different illumination and/or, for a planar scenes, a different viewpoint. The homographies are estimated with respect to the reference image.';
+  const r = specifics([root], paste);
+  const creates = r.out.filter((a) => a.op === 'create_node');
+  for (const c of creates) expect(c.content).not.toMatch(/^Here is my assignment description/);
+  const missed = r.audits.filter((a) => a.kind === 'guard_specifics_kept').flatMap((a) => a.d.missed as string[]);
+  expect(missed.some((m) => /^Here is the description/.test(m))).toBe(false);
+  const rule = specifics([root], 'Record this as my rule: "never kick the watchdog from inside a wait loop".');
+  const kept = rule.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/never kick the watchdog/);
+});
