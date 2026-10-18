@@ -836,6 +836,16 @@ export class Translator {
       this.store.audit('guard_correction_author', { id: String(a.id ?? '').slice(0, 8), op: a.op, status: st, title: String(a.title ?? a.content ?? '').slice(0, 40) });
       a.author = 'user';
     }
+    // M496 (krauss-model 2026-10-18: she said "actually that is wrong… space-continuous"; the retract-keeps-claim split filed her
+    // correction as a fresh node beside the agent's retracted claim — under the AGENT's name): in an objecting round, the source of an
+    // objection-to link filed this round is the person's correction, whatever words it borrows from the agent's apology.
+    for (const l of alterations) {
+      if (l?.op !== 'create_link' || l.type !== 'objection-to' || !l.fromItemId) continue;
+      const src = alterations.find((a) => a?.op === 'create_node' && a.id === l.fromItemId);
+      if (!src || src.author === 'user') continue;
+      this.store.audit('guard_correction_author', { id: String(src.id ?? '').slice(0, 8), op: 'create_node', how: 'objection-source', title: String(src.title ?? src.content ?? '').slice(0, 40) });
+      src.author = 'user';
+    }
     return alterations;
   }
 
