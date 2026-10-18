@@ -61,7 +61,8 @@
         },
         {
           "atMostTitles": "空格",
-          "max": 3
+          "type": "question",
+          "max": 2
         }
       ]
     },
