@@ -1,0 +1,48 @@
+import { test, expect } from 'bun:test';
+import { Translator } from './translator.js';
+
+// 2026-10-18 (numpy-panorama p3, the long week, week2): a pasted traceback filed as nodes — "142     warped_image =" as a TITLE, the
+// numbered source lines as content, eleven across four maps in one day. The error is already the person's evidence node; the source
+// lines are not a record of anything said. Real guard chain, stub store.
+function harness(nodes: any[]) {
+  const audits: { kind: string; d: any }[] = [];
+  const store: any = new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string, d: any) => audits.push({ kind, d }); if (k === 'getSetting') return () => undefined; return () => undefined; } });
+  const t = new Translator(store);
+  const map: any = { nodes, links: [], projectId: 'proj' };
+  return (alts: any[]) => ({ out: (t as any).guardScope(alts, new Set(nodes.map((n) => n.id)), map, { chatId: 'c', focusContainerId: 'p1', userText: '', assistantText: '' }) as any[], audits });
+}
+const at = '2026-10-18T18:54:38Z';
+const root = { id: 'p1', parentId: null, content: 'NumPy panorama stitching', title: 'NumPy panorama stitching', status: 'live', author: 'user', type: null, createdAt: at, updatedAt: at };
+const mk = (title: string, content: string) => ({ op: 'create_node', id: 'n' + Math.random().toString(16).slice(2, 8), parentId: 'p1', title, content, status: 'live', author: 'user' });
+
+test('a numbered source line as a title, with only traceback lines as content, is dropped', () => {
+  const r = harness([root])([mk('142     warped_image =', '142     warped_image = np.zeros((*img.shape[:2], 3), dtype=np.uint8) # Initialize a 3-channel image with zeros 143     for i in range(3): --> 144         warped_image[..., i][valid_target_coordinates[1], valid_target_coordinates[0]] = img[..., i][valid_source_coordinates[1], valid_source_coordinates[0]]')]);
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+  expect(r.audits.map((a) => a.kind)).toContain('guard_traceback_paste');
+});
+
+test('a traceback arrow head with no prose is dropped even when the title is a code fragment', () => {
+  const r = harness([root])([mk('134             destination_point =', '134             destination_point = np.array([j, i, 1]) 135             source_point = H @ destination_point')]);
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+  const r2 = harness([root])([mk('88         h1, w1 = ref_img.shape[:2] def', '88         h1, w1 = ref_img.shape[:2] def feature_extraction(sub_images, method="SIFT"):')]);
+  expect(r2.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+});
+
+test('a node with a worded title stays even when its content is code, and prose about a traceback stays', () => {
+  const kept = harness([root])([mk('Loop Through Pixels', '131 132     for i in range(h): --> 133         for j in range(w):')]);
+  expect(kept.out.filter((a) => a.op === 'create_node')).toHaveLength(1);
+  const prose = harness([root])([mk('Warp index error persists', '`warp_perspective` raises IndexError: index 973 is out of bounds for axis 0 with size 973 at the indexed assignment on line 144. The error persists after the shape fix.')]);
+  expect(prose.out.filter((a) => a.op === 'create_node')).toHaveLength(1);
+  const snippet = harness([root])([mk('Target array shape', 'Use `np.zeros((h, w, 3))` for the target so the channel axis is last; the loop over channels stays as it is.')]);
+  expect(snippet.out.filter((a) => a.op === 'create_node')).toHaveLength(1);
+  expect(kept.audits.concat(prose.audits, snippet.audits).filter((a) => a.kind === 'guard_traceback_paste')).toHaveLength(0);
+});
+
+test('an update that would overwrite a statement with a traceback keeps the statement and files nothing', () => {
+  // guard_rewrite_to_child (earlier in the chain) turns a content rewrite into a child create; the paste guard then drops that child.
+  const cur = { id: 'e1', parentId: 'p1', content: 'The warp raises an index error.', title: 'Warp index error', status: 'noted', author: 'user', type: 'evidence', createdAt: at, updatedAt: at };
+  const r = harness([root, cur])([{ op: 'update_node', id: 'e1', content: '142     warped_image = np.zeros(...) --> 144         warped_image[...]' }]);
+  expect(r.out.find((a) => a.op === 'update_node' && a.id === 'e1' && typeof a.content === 'string')).toBeUndefined();
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+  expect(r.audits.map((a) => a.kind)).toEqual(expect.arrayContaining(['guard_rewrite_to_child', 'guard_traceback_paste']));
+});

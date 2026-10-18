@@ -1496,6 +1496,22 @@ export class Translator {
         const items = (t: string) => (t.match(/(?:^|\s)\(?\d+[).]\s/g) ?? []).length;
         if (cur && items(cur.content) >= 3 && items(anyA.content) < 2 && anyA.content.length < cur.content.length * 0.6) { delete anyA.content; this.store.audit('guard_list_shrink', { id: String(anyA.id).slice(0, 8) }); }
       }
+      // M487 (2026-10-18: numpy-panorama p3, the long week, week2 — eleven such nodes across four maps in one day): a pasted TRACEBACK
+      // filed as nodes — "142     warped_image =" and "134             destination_point =" as TITLES, the numbered source lines as
+      // content. The error is already the person's evidence node ("Warp index error persists"); the source lines record nothing said.
+      // A create whose title is a numbered source line, or whose content opens on one or on a traceback arrow while its title is code
+      // too, and that carries no prose sentence anywhere, is dropped. A worded title keeps its node; prose about a traceback stays.
+      if (a.op === 'create_node') {
+        const tt = String(anyA.title ?? ''); const cc = String(anyA.content ?? '');
+        const numbered = /^\s*\d{1,4}\s{2,}\S/; const arrow = /(?:^|\s)-{2,}>\s*\d{1,5}\s/;
+        const codeTitle = numbered.test(tt) || arrow.test(tt) || /[=(){}\[\];]\s*$|[=(){}\[\]]/.test(tt) && !/[.!?。？！]$/.test(tt) && /\d/.test(tt);
+        const codeHead = numbered.test(cc) || arrow.test(cc);
+        const prose = /\b(?:[A-Za-z]+\s+){4,}[A-Za-z]+[.!?](?:\s|$)/.test(cc) || /[\u4e00-\u9fff]{6,}/.test(cc);
+        if (!prose && (numbered.test(tt) || (codeHead && (codeTitle || !tt.trim())))) {
+          this.store.audit('guard_traceback_paste', { id: String(anyA.id ?? '').slice(0, 8), title: tt.slice(0, 40) });
+          continue;
+        }
+      }
       // M302 (loop find, bug under M64/M271): a narrated move ("User requested to resume discussing internet setup") is not a fact —
       // the transcript's job, and the focus already records it. Dropped mechanically; the prompt says the same.
       if (a.op === 'create_node' && typeof anyA.content === 'string' && /^(the )?(user|person|they) (asked|requested|wants?|wanted|would like|decided|needs?) (to (resume|return|switch|go back|come back|pick (it |this )?back|talk|discuss|set aside|move on|understand|know|learn)|(for )?(detailed |more )?(information|details|info) (about|on))/i.test(anyA.content.trim())) { this.store.audit('guard_narration', { content: anyA.content.slice(0, 80) }); continue; }
