@@ -2021,8 +2021,8 @@ export class Translator {
     //     ("the URL no longer works") and retracted in the same alteration; the healer then titled the node after the correction, and
     //     the map said the unavailability was retracted. A retracting update that rewrites the content into a negation of the claim
     //     keeps the claim (retracted, as it was) and files the correction beside it, noted.
+    const NEG = /\b(?:no longer|not|n't|never|unavailable|broken|dead|invalid|wrong|incorrect|fails?|failed|does ?n[o']t|cannot|can't|isn't|aren't|wasn't|doesn't|didn't)\b|不再|无法|没有|不可用|失效|不存在|并非|不是|错误|无效/i;
     {
-      const NEG = /\b(?:no longer|not|n't|never|unavailable|broken|dead|invalid|wrong|incorrect|fails?|failed|does ?n[o']t|cannot|can't|isn't|aren't|wasn't|doesn't|didn't)\b|不再|无法|没有|不可用|失效|不存在|并非|不是|错误|无效/i;
       const extra: any[] = [];
       for (const a of out as any[]) {
         if (a?.op !== 'update_node' || a.status !== 'retracted' || typeof a.content !== 'string') continue;
@@ -2033,6 +2033,29 @@ export class Translator {
         const sib: any = { op: 'create_node', id: randomUUID(), parentId: cur.parentId, content: correction, status: 'noted', author: a.author ?? cur.author ?? 'agent' };
         extra.push(sib, { op: 'create_link', id: randomUUID(), type: 'objection-to', fromItemId: sib.id, toId: cur.id });
         this.store.audit('guard_retract_keeps_claim', { id: String(cur.id).slice(0, 8), correction: sib.id.slice(0, 8) });
+      }
+      out.push(...extra);
+    }
+    // (c) 2026-10-18 (Hannah's refile on v0.9.305, read for the record test): "Don't wire up saving yet." [you, decision] was filed at
+    //     round 13 and OVERWRITTEN at round 14 by "Wire up saving now…" with status reversed — her first sentence left the record and
+    //     the node contradicted itself (the new instruction, marked reversed). A reversal keeps the words it reversed: an update that
+    //     sets a no-longer-stands status (reversed / superseded / dropped / lifted) AND flips the statement's polarity keeps the old
+    //     statement on the old node (with the new status) and files the new statement beside it as its own node — same author, same
+    //     type, linked objection-to the old. The same shape as (b); (b) stays as it is for retracted. Audit guard_reversal_keeps_words.
+    {
+      const GONE = new Set(['reversed', 'superseded', 'dropped', 'lifted']);
+      const NEGC = /\b(?:don['’]?t|do not|won['’]?t|will not|shouldn['’]?t|should not|mustn['’]?t|must not|hold off|never)\b/i; // (b)'s NEG lacks the plain "don't" of an instruction
+      const neg = (s: string) => NEG.test(s) || NEGC.test(s);
+      const extra: any[] = [];
+      for (const a of out as any[]) {
+        if (a?.op !== 'update_node' || !GONE.has(a.status) || typeof a.content !== 'string') continue;
+        const cur = map.nodes.find((n) => n.id === a.id);
+        if (!cur || cur.content.trim() === a.content.trim()) continue;
+        if (neg(a.content) === neg(cur.content)) continue; // a rewording keeps being an edit; only a polarity flip is a new statement
+        const fresh = a.content; delete a.content; delete a.title;
+        const sib: any = { op: 'create_node', id: randomUUID(), parentId: cur.parentId, content: fresh, status: 'noted', author: a.author ?? cur.author ?? 'user', ...(cur.type ? { type: cur.type } : {}) };
+        extra.push(sib, { op: 'create_link', id: randomUUID(), type: 'objection-to', fromItemId: sib.id, toId: cur.id });
+        this.store.audit('guard_reversal_keeps_words', { id: String(cur.id).slice(0, 8), status: a.status, fresh: sib.id.slice(0, 8) });
       }
       out.push(...extra);
     }
