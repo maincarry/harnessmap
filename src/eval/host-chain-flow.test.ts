@@ -15,7 +15,12 @@ const server = Bun.spawn(['bun', 'run', 'src/server.ts'], {
   env: { ...process.env, HARNESSMAP_HOME: home, HARNESSMAP_DB: join(home, 'map.sqlite'), PORT: String(PORT), HARNESSMAP_INFERENCE: 'off', HARNESSMAP_NO_UPDATE_CHECK: '1' },
   stdout: Bun.file(join(home, 'server.log')), stderr: Bun.file(join(home, 'server.log')), windowsHide: true,
 });
-afterAll(() => { try { server.kill(); } catch {} rmSync(home, { recursive: true, force: true }); rmSync(cwd, { recursive: true, force: true }); });
+afterAll(async () => {
+  try { server.kill(); } catch {}
+  await server.exited; // Windows keeps the database and log locked until the server exits.
+  rmSync(home, { recursive: true, force: true });
+  rmSync(cwd, { recursive: true, force: true });
+});
 const get = async (p: string) => fetch(BASE + p);
 const post = async (p: string, body: unknown) => fetch(BASE + p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
 const ctx = async (sid: string) => (await get(`/api/harness/context?session_id=${sid}&cwd=${encodeURIComponent(cwd)}&harness=codex&prompt=hi`)).json() as Promise<any>;
@@ -25,26 +30,40 @@ for (let i = 0; i < 60 && !up; i++) { try { up = (await get('/api/state')).ok; }
 
 test('server comes up', () => { expect(up).toBe(true); });
 
-test('the context answer asks for the chain once a pid is known, and stops asking once the chain landed', async () => {
+test('context requests the chain before a racing prompt report, and the chain supplies the missing pid', async () => {
   const sid = 'chain-s1';
   expect((await post('/api/harness/session-start', { session_id: sid, cwd, harness: 'codex' })).status).toBe(200);
-  expect((await ctx(sid)).wantHostChain).toBeUndefined();                    // no pid yet → nothing to chain
-  expect((await post('/api/harness/prompt', { session_id: sid, cwd, text: 'hello', host_pid: 31337 })).status).toBe(200);
-  expect((await ctx(sid)).wantHostChain).toBe(true);                         // pid known, chain missing → ask
-  const chain = [{ pid: 31337, name: 'powershell.exe' }, { pid: 31000, name: 'codex.exe' }, { pid: 2200, name: 'WindowsTerminal.exe' }];
+  // on-prompt starts the prompt POST without awaiting it. The context request can arrive first.
+  expect((await hostOf(sid)).hostPid).toBeNull();
+  expect((await ctx(sid)).wantHostChain).toBe(true);
+  // Deliberately absent PIDs: the endpoint test must not activate a real desktop process.
+  const chain = [{ pid: 2000000001, name: 'powershell.exe' }, { pid: 2000000002, name: 'codex.exe' }, { pid: 2000000003, name: 'WindowsTerminal.exe' }];
   expect((await post('/api/harness/host-chain', { session_id: sid, chain })).status).toBe(200);
   expect((await ctx(sid)).wantHostChain).toBeUndefined();                    // once per session
   const h = await hostOf(sid);
-  expect(h.hostPid).toBe(31337);
+  expect(h.hostPid).toBe(2000000001);
+  expect(h.hostPidAt).toBeTruthy();
   expect(h.hostChain).toEqual(chain);
   // a later prompt with a NEW parent pid (every Windows prompt has one) does not ask again
-  expect((await post('/api/harness/prompt', { session_id: sid, cwd, text: 'again', host_pid: 31400 })).status).toBe(200);
+  expect((await post('/api/harness/prompt', { session_id: sid, cwd, text: 'again', host_pid: 2000000005 })).status).toBe(200);
   expect((await ctx(sid)).wantHostChain).toBeUndefined();
 });
 
 test('a bad chain is refused; an unknown session is refused', async () => {
   expect((await post('/api/harness/host-chain', { session_id: 'chain-s1', chain: [{ pid: 0 }] })).status).toBe(400);
   expect((await post('/api/harness/host-chain', { session_id: 'nobody', chain: [{ pid: 5, name: 'x' }] })).status).toBe(400);
+});
+
+test('a chain arriving after the prompt preserves its reported pid and timestamp', async () => {
+  const sid = 'chain-s2';
+  expect((await post('/api/harness/session-start', { session_id: sid, cwd, harness: 'codex' })).status).toBe(200);
+  expect((await post('/api/harness/prompt', { session_id: sid, cwd, text: 'hello', host_pid: 2000000006 })).status).toBe(200);
+  const before = await hostOf(sid);
+  expect((await ctx(sid)).wantHostChain).toBe(true);
+  expect((await post('/api/harness/host-chain', { session_id: sid, chain: [{ pid: 2000000007, name: 'powershell.exe' }] })).status).toBe(200);
+  const after = await hostOf(sid);
+  expect(after.hostPid).toBe(before.hostPid);
+  expect(after.hostPidAt).toBe(before.hostPidAt);
 });
 
 test('the button walks the chain and answers honestly when nothing can be activated here', async () => {
