@@ -58,6 +58,7 @@ body.open .chip{opacity:0;transform:scale(.92) translateY(6px);pointer-events:no
 .ver{padding:0 14px 12px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--faint);letter-spacing:.02em}
 .open-b{display:block;margin:0 14px 9px;text-align:center;font-weight:600;font-size:13px;padding:10px;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer}
 .open-b[hidden]{display:none}
+button.open-b{width:calc(100% - 28px);font-family:inherit}
 .open-b.alt{background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:-4px}
 .inf{display:flex;align-items:center;gap:8px;margin:0 14px 6px;padding:9px 12px;border:1px solid var(--hair);border-radius:11px;background:var(--panel2);font-size:12.5px;font-weight:600;cursor:pointer}
 .sw{margin-left:auto;width:38px;height:22px;border-radius:999px;background:var(--accent);position:relative;transition:background .3s;flex:0 0 auto}
@@ -133,6 +134,7 @@ body.nosess .hint{display:block}
     <div class="hint" id="p-hint">no session attached — say “open map” in your Codex or Claude Code session</div>
     <div class="open-b" id="open-map">open map</div>
     <div class="open-b alt" id="fg-session" hidden title="bring this session's terminal window to the front (only when you click)">⤒ bring session to front</div>
+    <button class="open-b alt" id="open-app-session" type="button" hidden title="open this local conversation in the Codex or ChatGPT desktop app">open session in desktop app</button>
     <div class="inf" id="inf-toggle"><span>map influence</span><span class="sw"><span class="knob"></span></span></div>
     <div class="infnote">your sessions won't see the map · it keeps filing quietly</div>
     <div class="talk">
@@ -180,11 +182,21 @@ const disp = (n) => n ? (n.title || n.content || '') : '';
 function activeChat() { return (S.chats||[]).find(c => c.id === S.mainChatId) || (S.chats||[])[0]; }
 // Target the most recently active attached host. If its identity has not arrived yet, wait for it:
 // filtering by pid first would silently target an older session instead. Filing a chat is not host activity.
-function currentSession() {
-  const hs = (S.chats||[]).filter(c => c.host && c.host.status !== 'closed' && !c.host.idle);
+function latestSession() {
+  const hs = (S?.chats||[]).filter(c => c.host && c.host.status !== 'closed' && !c.host.idle);
   hs.sort((a,b) => String(b.host.lastActive||b.lastActivity||'').localeCompare(String(a.host.lastActive||a.lastActivity||'')));
-  const latest = hs[0];
+  return hs[0] || null;
+}
+function currentSession() {
+  const latest = latestSession();
   return latest && (Number(latest.host.hostPid) > 0 || latest.host.hostChain?.length) ? latest : null;
+}
+// The desktop app accepts its local technical thread ID, not an MCP correlation ID or a map chat ID.
+// This is an explicit alternative to window activation; a daemon may have no window-owning parent.
+function desktopSession() {
+  const latest = latestSession();
+  const id = latest?.host.sessionId;
+  return core && latest?.host.harness === 'codex' && typeof id === 'string' && id.length === 36 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? latest : null;
 }
 function focusName() {
   const c = activeChat(); if (!c) return null;
@@ -219,6 +231,7 @@ function render() {
   B.classList.toggle('nosess', nosess);
   B.classList.toggle('attn', !!(ts || S.updateAvailable || nosess) && !S.influenceOff);
   const fgb = $("fg-session"); if (fgb) fgb.hidden = !currentSession(); // Show when the newest attached session has a PID or chain.
+  $('open-app-session').hidden = !desktopSession();
   const f = (S.filings || {});
   // Ghost (2026-10-04, Jacob perceived-speed): echo the in-flight turn immediately so the companion feels live at ~1s.
   // M503: a button's result line holds for 8 s — the 5 s poll used to wipe it before it could be read (Mark).
@@ -310,6 +323,15 @@ $('fg-session').onclick = async () => {
   try { const r = await apiFetch(`/api/chats/${ac.id}/foreground`, { method:'POST', headers:{'content-type':'application/json'}, body:'{}' }); const j = await r.json().catch(() => ({})); sayLast(j.detail || (j.ok ? 'brought to front' : 'could not bring it forward')); }
   catch { sayLast('could not reach the session'); }
   setTimeout(() => { b.textContent = old; }, 1600);
+};
+// A deep link selects the exact local thread in Codex/ChatGPT, including daemon-backed sessions.
+// Dispatch success does not prove which window Windows brought forward, so report only the request.
+$('open-app-session').onclick = async () => {
+  const ac = desktopSession(); if (!ac) return;
+  const b = $('open-app-session'); b.disabled = true;
+  try { await invoke('open_desktop_session', { threadId: ac.host.sessionId }); sayLast('requested this session in the desktop app'); }
+  catch { sayLast('could not open this session in the desktop app'); }
+  finally { b.disabled = false; }
 };
 // M502 (Mark): the power button — the ONLY way, besides the launch-time setting, that the companion starts the server.
 // Never automatic while it runs: "stop the map" must mean stopped.

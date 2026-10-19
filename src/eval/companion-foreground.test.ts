@@ -13,22 +13,24 @@ const chat = (id: string, lastActive: string, host: Record<string, unknown> = {}
   host: { sessionId: id, status: 'live', idle: false, lastActive, hostPid: 1234, ...host },
 });
 
-async function boot(chats: Chat[]) {
+async function boot(chats: Chat[], options: { native?: boolean; openError?: string } = {}) {
   const window = new Window({ url: 'http://localhost/' });
   windows.push(window);
   window.document.write(html.replace(/<script>[\s\S]*?<\/script>/g, '').replace(/<link\b[^>]*>/g, ''));
   window.document.body.classList.add('open');
-  const calls: { command: string; path?: string }[] = [];
+  const calls: { command: string; path?: string; threadId?: string }[] = [];
   const state = { projects: [], chats, nodes: [], filings: {} };
-  (window as any).__TAURI__ = { core: { invoke: async (command: string, args: any) => {
-    calls.push({ command, path: args?.path });
+  if (options.native !== false) (window as any).__TAURI__ = { core: { invoke: async (command: string, args: any) => {
+    calls.push({ command, path: args?.path, ...(args?.threadId ? { threadId: args.threadId } : {}) });
     if (command === 'map_port_cmd') return 8790;
     if (command === 'get_settings') return { launchAtLogin: false, startMapOnOpen: true };
     if (command === 'api') return JSON.stringify(args.path === '/api/state' ? state : { ok: true, detail: 'brought test app to the front' });
+    if (command === 'open_desktop_session' && options.openError) throw new Error(options.openError);
     return true;
   } } };
   const shims = {
     window, document: window.document, WebSocket: class {},
+    fetch: async () => ({ ok: true, json: async () => state }),
     setTimeout: () => 0, clearTimeout: () => {}, setInterval: () => 0,
   };
   new Function(...Object.keys(shims), script)(...Object.values(shims));
@@ -37,7 +39,9 @@ async function boot(chats: Chat[]) {
   const button = window.document.getElementById('fg-session')! as HTMLElement;
   calls.length = 0;
   const click = async () => { await (button as any).onclick(); };
-  return { window, button, calls, click };
+  const openButton = window.document.getElementById('open-app-session')! as HTMLElement;
+  const openSession = async () => { await (openButton as any).onclick(); };
+  return { window, button, calls, click, openButton, openSession };
 }
 
 test('a newer session awaiting its pid does not foreground an older session', async () => {
@@ -88,4 +92,55 @@ test('an empty map hides the foreground action with its actual stylesheet', asyn
   const { window, button } = await boot([]);
   expect(button.hidden).toBe(true);
   expect(window.getComputedStyle(button).display).toBe('none');
+});
+
+const threadId = '01234567-89ab-7cde-8fab-0123456789ab';
+
+test('desktop opening uses the host thread ID even without a PID, and never runs automatically', async () => {
+  const { window, button, openButton, calls, openSession } = await boot([
+    chat('map-chat-id', '2026-10-19 05:01:00', { harness: 'codex', sessionId: threadId, hostPid: null }),
+  ]);
+  expect(button.hidden).toBe(true);
+  expect(openButton.hidden).toBe(false);
+  expect(window.getComputedStyle(openButton).display).not.toBe('none');
+  expect(calls).toHaveLength(0);
+  await openSession();
+  expect(calls).toEqual([{ command: 'open_desktop_session', path: undefined, threadId }]);
+  expect(window.document.getElementById('p-last')!.textContent).toBe('requested this session in the desktop app');
+});
+
+test('desktop opening reports a failed dispatch without claiming a foreground change', async () => {
+  const { window, openButton, openSession } = await boot([
+    chat('map-chat-id', '2026-10-19 05:01:00', { harness: 'codex', sessionId: threadId }),
+  ], { openError: 'protocol handler unavailable' });
+  await openSession();
+  expect(window.document.getElementById('p-last')!.textContent).toBe('could not open this session in the desktop app');
+  expect(openButton.hasAttribute('disabled')).toBe(false);
+});
+
+test('desktop action never falls back to an older eligible session', async () => {
+  const { openButton, calls, openSession } = await boot([
+    chat('older', '2026-10-19 05:00:00', { harness: 'codex', sessionId: threadId }),
+    chat('newer', '2026-10-19 05:01:00', { harness: 'claude', sessionId: threadId }),
+  ]);
+  expect(openButton.hidden).toBe(true);
+  await openSession();
+  expect(calls).toHaveLength(0);
+});
+
+test('desktop action excludes opaque IDs, closed or idle sessions, and non-native previews', async () => {
+  for (const [host, options] of [
+    [{ harness: 'codex', sessionId: 'opaque-mcp-session' }, {}],
+    [{ harness: 'codex', sessionId: 'new' }, {}],
+    [{ harness: 'codex', sessionId: threadId + '\n' }, {}],
+    [{ harness: 'codex', sessionId: threadId, status: 'closed' }, {}],
+    [{ harness: 'codex', sessionId: threadId, idle: true }, {}],
+    [{ harness: 'codex', sessionId: threadId }, { native: false }],
+  ] as const) {
+    const { window, openButton, calls, openSession } = await boot([chat('map-chat-id', '2026-10-19 05:01:00', host)], options);
+    expect(openButton.hidden).toBe(true);
+    expect(window.getComputedStyle(openButton).display).toBe('none');
+    await openSession();
+    expect(calls).toHaveLength(0);
+  }
 });
