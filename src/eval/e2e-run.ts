@@ -9,7 +9,7 @@
 //   · {inToSort: regex} · {notInToSort: regex} · {lit: key} · {dark: key} · {audit: kind, matching?: regex}
 //   · {noAudit: kind} · {statusOf: regex, is: status} · {authorOf: regex, is: 'user'|'agent'} · {atMostRoots: n} · {countUnder: key, max: n} · {topLevelMatching: regex}
 //   stance (M356+): {notStatus: regex, statuses: 'a|b'} · {underKey: regex, key} · {mentions: regex, must: regex} · {atMostTitles: regex, max, type?} · {brainMust: regex} · {brainMustNot: regex}
-//   · {noCodeNodes: true} (M490: no live node is a pasted source line) · {undoNext: regex} · {do: 'undo'|'focus'|'light'|'dim'|'release'|'pin', key?, depth?}
+//   · {noCodeNodes: true} (M490: no live node is a pasted source line) · {recordedRejection: regex} (a matching node rejected/retracted/superseded by status, or rejecting words anywhere) · {undoNext: regex} · {do: 'undo'|'focus'|'light'|'dim'|'release'|'pin', key?, depth?}
 import { rmSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, existsSync, symlinkSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 
@@ -260,6 +260,13 @@ for (const [i, r] of (sc.rounds ?? []).entries()) {
       else if (a.auditAny) { const all = await audit(); const kinds = String(a.auditAny).split('|'); check(label, all.some((e: any) => kinds.includes(e.kind) && (!a.matching || rx(a.matching).test(JSON.stringify(e.detail)))), `kinds: ${[...new Set(all.map((e: any) => e.kind))].join(',').slice(0, 160)}`); }
       else if (a.atMostRoots !== undefined) { const roots = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && (n.parentId ?? n.parent_id ?? null) === null && n.author !== 'system' && String(n.content ?? '').trim() !== 'untitled' && !String(n.content ?? '').startsWith('to sort')); check(label, roots.length <= a.atMostRoots, roots.map((n: any) => (n.title || n.content).slice(0, 40)).join(' | ')); } // M441 proof: the thread count
       else if (a.authorOf) { const hits = (s.nodes ?? []).filter((n: any) => n.status !== 'removed' && match(s, n, a.authorOf)); check(label, hits.length > 0 && hits.some((n: any) => n.author === a.is), hits.map((n: any) => `${n.author}: ${(n.title || n.content).slice(0, 50)}`).join(' | ') || 'no match'); } // M442 proof: who the map says said it
+      else if (a.recordedRejection) { // 2026-10-19 (pattern-puzzle): "the pattern is wrong" is on the record either as a STATUS on the thing rejected (rejected/retracted/superseded/dropped — the map keeps the words and records the stance, Jacob Oct 9) or as words; a check that demands the word measures wording
+        const live = (s.nodes ?? []).filter((x: any) => x.status !== 'removed');
+        const byStatus = live.find((n: any) => match(s, n, a.recordedRejection) && /^(rejected|retracted|superseded|dropped|withdrawn)$/.test(String(n.status ?? '')));
+        const byWords = live.find((n: any) => /\b(?:wrong|incorrect|reject(?:ed|ion)?|not (?:the )?(?:pattern|rule|right|correct)|doesn['’]?t (?:match|work|fit))\b|不对|错误|不是/i.test(`${n.title ?? ''} ${n.content ?? ''}`));
+        const hit = byStatus ?? byWords;
+        check(label, !!hit, hit ? `${byStatus ? 'status=' + hit.status : 'said'} (${String(hit.title || hit.content).slice(0, 40)})` : 'no rejected node, no rejecting words');
+      }
       else if (a.statusOf) { const ns = (s.nodes ?? []).filter((x: any) => x.status !== 'removed' && match(s, x, a.statusOf)); const hit = ns.find((n: any) => rx(`^(${a.is})$`).test(n.status ?? '')); check(label, !!hit, hit ? `status=${hit.status} (${(hit.title || hit.content).slice(0, 40)})` : ns.length ? ns.map((n: any) => `${n.status}: ${(n.title || n.content).slice(0, 30)}`).join('; ') : 'no node'); } // stance semantics (sqlsugar replay): ANY matching live node with the status passes, not the first match
       else if (a.noCodeNodes) { // M490 2026-10-18: no live node may be a pasted source line (numbered traceback line, def/import/print, an assignment, a bare call) — the record keeps what was said, never the code itself
         const CODE = /^\s*\d{1,4}\s{2,}\S|^\s*(?:def |class |import |from \w[\w.]* import |print\()|^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=)\s*\S.*[()\[\]]|^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$|^\s*[“"'][\w-]+[”"']\s*[:：]|^\s*(?:[A-Za-z_][\w.]*\s*=\s*)?[A-Za-z_][\w.]*\([^()\n]*\b\w+=[^()\n]*|^\s*\.\w+\(|^\s*(?:try|except|else|finally|with|if|for|while)\b.*:\s*$/; // M493: smart-quoted keys, keyword-argument calls, dotted continuations, block headers

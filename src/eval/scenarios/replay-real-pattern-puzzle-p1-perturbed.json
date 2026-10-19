@@ -84,7 +84,7 @@
           "focus": false
         },
         {
-          "nodeMatching": "wrong|incorrect|reject|not (the )?pattern"
+          "recordedRejection": "[Pp]attern|[Cc]andidate|formula"
         },
         {
           "countUnder": "proj",
