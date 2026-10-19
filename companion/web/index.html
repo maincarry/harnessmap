@@ -153,7 +153,7 @@ body.nosess .hint{display:block}
 </div>
 
 <script>
-const COMPANION_VER = '0.9.326'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.327'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
@@ -181,9 +181,17 @@ const disp = (n) => n ? (n.title || n.content || '') : '';
 function activeChat() { return (S.chats||[]).find(c => c.id === S.mainChatId) || (S.chats||[])[0]; }
 // Target the most recently active attached host. If its identity has not arrived yet, wait for it:
 // filtering by pid first would silently target an older session instead. Filing a chat is not host activity.
+const byHostActivity = (a, b) => String(b.host.lastActive||b.lastActivity||'').localeCompare(String(a.host.lastActive||a.lastActivity||''));
 function latestSession() {
   const hs = (S?.chats||[]).filter(c => c.host && c.host.status !== 'closed' && !c.host.idle);
-  hs.sort((a,b) => String(b.host.lastActive||b.lastActivity||'').localeCompare(String(a.host.lastActive||a.lastActivity||'')));
+  hs.sort(byHostActivity);
+  return hs[0] || null;
+}
+// M508 (Mark): when nothing is running, the newest session that went quiet (idle or closed) within the last day — the one to RESUME.
+function recentIdleSession() {
+  const dayAgo = Date.now() - 24 * 3600 * 1000;
+  const hs = (S?.chats||[]).filter(c => c.host && (c.host.idle || c.host.status === 'closed') && Date.parse(String(c.host.lastActive||'').replace(' ', 'T') + 'Z') > dayAgo);
+  hs.sort(byHostActivity);
   return hs[0] || null;
 }
 // M506 (Mark): ONE button, "go to session". What it can do for the newest attached session:
@@ -192,7 +200,17 @@ function latestSession() {
 // The click tries the window first and falls back to the app; the label names where it will go.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function goSession() {
-  const latest = latestSession(); if (!latest) return null;
+  const latest = latestSession();
+  if (!latest) {
+    // M508: nothing running → offer to RESUME the newest quiet one. Same slot, honest verb. Codex: the app opens an old
+    // thread by the same deep link. Claude Code: `claude --desktop --resume`, run by the map on this click.
+    const idle = recentIdleSession(); if (!idle) return null;
+    const h = idle.host;
+    const app = !!(core && h.harness === 'codex' && typeof h.sessionId === 'string' && h.sessionId.length === 36 && UUID.test(h.sessionId));
+    const desk = !!(core && h.harness === 'claude' && h.canResumeInDesktop);
+    if (!app && !desk) return null;
+    return { chat: idle, resume: true, app, desk, web: false, win: false, label: app ? 'Codex app' : 'Claude Desktop' };
+  }
   const h = latest.host;
   const app = !!(core && h.harness === 'codex' && typeof h.sessionId === 'string' && h.sessionId.length === 36 && UUID.test(h.sessionId));
   // M507 (Mark): a Codex session goes to the Codex app, ALWAYS — the app lists CLI threads too, the deep link lands on the
@@ -239,7 +257,7 @@ function render() {
   B.classList.toggle('infoff', !!S.influenceOff);
   B.classList.toggle('nosess', nosess);
   B.classList.toggle('attn', !!(ts || S.updateAvailable || nosess) && !S.influenceOff);
-  const g = goSession(); const gb = $('go-session'); gb.hidden = !g; if (g) gb.textContent = 'go to session' + (g.label ? ' · ' + g.label : ''); // M506
+  const g = goSession(); const gb = $('go-session'); gb.hidden = !g; if (g) gb.textContent = (g.resume ? 'resume session' : 'go to session') + (g.label ? ' · ' + g.label : ''); // M506/M508
   const f = (S.filings || {});
   // Ghost (2026-10-04, Jacob perceived-speed): echo the in-flight turn immediately so the companion feels live at ~1s.
   // M503: a button's result line holds for 8 s — the 5 s poll used to wipe it before it could be read (Mark).
@@ -330,6 +348,10 @@ $('go-session').onclick = async () => {
   // a taskbar flash. No-op elsewhere; harmless on an older shell without the command.
   try { await invoke('allow_foreground'); } catch {}
   let done = false, detail = '';
+  if (g.resume && g.desk) {
+    try { const r = await apiFetch(`/api/chats/${g.chat.id}/resume-desktop`, { method:'POST', headers:{'content-type':'application/json'}, body:'{}' }); const j = await r.json().catch(() => ({})); done = !!j.ok; detail = j.detail || (j.ok ? 'resumed the session in Claude Desktop' : 'could not resume it'); }
+    catch { detail = 'could not reach the map'; }
+  }
   if (g.web) {
     // M507: the session's own page on claude.ai (Remote Control) — the same running session, in the browser.
     try { await invoke('open_claude_session', { webId: g.chat.host.webId }); done = true; detail = 'opened the session on claude.ai'; }

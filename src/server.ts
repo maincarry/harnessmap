@@ -689,6 +689,35 @@ function webIdFromRegistry(sessionId: string): string | null {
   } catch {}
   return null;
 }
+// M508 (Mark): "resume in Desktop" for an idle or closed Claude Code session — `claude --desktop --resume <id>` (documented,
+// 2.1.285+). The binary: the one that ran the session (CLAUDE_CODE_EXECPATH, reported by the hook), else a claude on PATH or
+// in the usual install places. A GUI-started server may carry no PATH worth the name, hence the list.
+function findClaudeExec(hint?: string | null): string | null {
+  const candidates: string[] = [];
+  if (hint && existsSync(hint)) return hint;
+  try { const w = Bun.which('claude'); if (w) return w; } catch {}
+  const h = homedir();
+  candidates.push(join(h, '.local', 'bin', 'claude'), '/usr/local/bin/claude', '/opt/homebrew/bin/claude', join(h, '.claude', 'local', 'claude'));
+  if (process.platform === 'win32') candidates.push(join(process.env.APPDATA ?? join(h, 'AppData', 'Roaming'), 'npm', 'claude.cmd'), join(process.env.LOCALAPPDATA ?? join(h, 'AppData', 'Local'), 'Programs', 'claude', 'claude.exe'));
+  return candidates.find((c) => { try { return existsSync(c); } catch { return false; } }) ?? null;
+}
+async function resumeInDesktop(sessionId: string, hint?: string | null): Promise<{ ok: boolean; detail: string }> {
+  const exe = findClaudeExec(hint);
+  if (!exe) return { ok: false, detail: 'could not find the claude command on this machine' };
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) return { ok: false, detail: 'that session has no resumable id' };
+  const { spawn } = await import('node:child_process');
+  return await new Promise((res) => {
+    try {
+      const p = spawn(exe, ['--desktop', '--resume', sessionId], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: true, shell: process.platform === 'win32' && /\.cmd$/i.test(exe) });
+      let err = ''; p.stderr?.on('data', (d) => (err += d));
+      let settled = false; const done = (r: { ok: boolean; detail: string }) => { if (!settled) { settled = true; res(r); } };
+      // Desktop takes the session over; the CLI either hands off within a moment or says why it cannot.
+      p.on('error', (e) => done({ ok: false, detail: `could not run claude: ${e.message}` }));
+      p.on('exit', (code) => done(code === 0 ? { ok: true, detail: 'resumed the session in Claude Desktop' } : { ok: false, detail: (err.trim().split('\n').pop() || `claude exited with ${code}`).slice(0, 160) }));
+      setTimeout(() => { try { p.unref(); } catch {} done({ ok: true, detail: 'asked Claude Desktop to resume the session' }); }, 2500);
+    } catch (e) { res({ ok: false, detail: `could not run claude: ${(e as Error).message}` }); }
+  });
+}
 function setHostPid(sessionId: string, hostPid: number): void {
   try { (store as any).db.prepare("UPDATE harness_sessions SET host_pid = ?, host_pid_at = datetime('now') WHERE session_id = ?").run(hostPid, sessionId); } catch {}
 }
@@ -839,7 +868,7 @@ function needsHostChain(sessionId: string | null | undefined): boolean {
   return !!row && !hostChainOf(row);
 }
 function hostRow(sessionId: string): any | null {
-  return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active, host_pid, host_pid_at, host_chain, host_window, host_web_id FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
+  return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active, host_pid, host_pid_at, host_chain, host_window, host_web_id, host_exec FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
 }
 function ensureHostChat(sessionId: string, pid: string, harness: string | null, opts: { follow?: boolean; forkedFrom?: string | null } = {}): string {
   const db = (store as any).db;
@@ -915,6 +944,7 @@ function hostSessionOf(chat: { id: string; hostSessionId?: string | null }): Rec
     title: (chat as any).name ?? row.title ?? (first ? first.replace(/\s+/g, ' ').slice(0, 60) : null), // M268: a name given on the map wins
     harnessTitle: row.title ?? null,
     resume: harness === 'codex' ? `codex resume ${chat.hostSessionId}` : harness === 'claude' ? `claude --resume ${chat.hostSessionId}` : null,
+    canResumeInDesktop: harness === 'claude' && (idle || status === 'closed') && !!findClaudeExec(row.host_exec), // M508: `claude --desktop --resume` exists (2.1.285+) and we can find a claude
     embedded,
     hostPid: row.host_pid ?? null, hostPidAt: row.host_pid_at ?? null, // M401: for the bring-to-foreground button (local only)
     hostChain: hostChainOf(row), // M503: the ancestor chain above that pid, [{pid,name}] nearest first (local only)
@@ -2855,6 +2885,18 @@ const server = Bun.serve({
       store.audit('session_foreground', { chat: c.id.slice(0, 8), pid, chain: candidates.length, window: !!win, ok: r.ok, gone: !!r.gone });
       return json({ ok: r.ok, detail: r.detail });
     }
+    // M508 (Mark): resume an idle/closed Claude Code session in Claude Desktop — a user-pressed button only.
+    const chatResumeMatch = path.match(/^\/api\/chats\/([\w-]+)\/resume-desktop$/);
+    if (chatResumeMatch && req.method === 'POST') {
+      const c = store.getChat(chatResumeMatch[1]);
+      if (!c || c.projectId !== projectId) return json({ error: 'unknown chat' }, 404);
+      const host = hostSessionOf({ id: c.id, hostSessionId: (c as any).hostSessionId }) as any;
+      if (!host || host.harness !== 'claude') return json({ ok: false, detail: 'only a Claude Code session can be resumed in Claude Desktop' });
+      if (!host.idle && host.status !== 'closed') return json({ ok: false, detail: 'that session is still running — use go to session' });
+      const r = await resumeInDesktop(host.sessionId, hostRow(host.sessionId)?.host_exec ?? null);
+      store.audit('session_resume_desktop', { chat: c.id.slice(0, 8), ok: r.ok });
+      return json({ ok: r.ok, detail: r.detail });
+    }
     const chatActMatch = path.match(/^\/api\/chats\/([\w-]+)\/activate$/);
     if (chatActMatch && req.method === 'POST') {
       const c = store.getChat(chatActMatch[1]);
@@ -4334,7 +4376,8 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ ok: true });
     }
     if (path === '/api/harness/prompt' && req.method === 'POST') {
-      const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string; forked_from?: string | null; map?: string | null; host_pid?: number | null; web_id?: string | null };
+      const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string; forked_from?: string | null; map?: string | null; host_pid?: number | null; web_id?: string | null; exec?: string | null };
+      if (body.session_id && typeof body.exec === 'string' && body.exec.length < 500 && !/[\n\r"'`]/.test(body.exec)) { try { (store as any).db.prepare('UPDATE harness_sessions SET host_exec = ? WHERE session_id = ?').run(body.exec, body.session_id); } catch {} } // M508
       ensureSessionBound(body.session_id, body.cwd, body.harness, body.forked_from ?? null, body.map ?? null);
       if (body.session_id && typeof body.web_id === 'string' && /^session_[A-Za-z0-9]{10,40}$/.test(body.web_id)) setHostWebId(body.session_id, body.web_id); // M507
       if (body.session_id) touchSession(store, body.session_id); // M502: a prompt IS hook activity — M375's liveness rule counts it (before, only session-start and the stop hook bumped last_active)

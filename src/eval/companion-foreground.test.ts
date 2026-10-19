@@ -147,3 +147,32 @@ test('a malformed web id is ignored, and the browser copy never opens claude.ai 
   const browser = await boot([chat('cc', '2026-10-19 05:01:00', { webId: 'session_01KrDXwmPDvypgLaGgRUH4dW', hostPid: null })], { native: false });
   expect(browser.button.hidden).toBe(true);
 });
+
+// M508: nothing running → the slot offers to RESUME the newest quiet session, with the verb saying so.
+const recent = () => new Date(Date.now() - 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+const old = '2026-01-01 00:00:00';
+
+test('an idle Codex session resumes in the Codex app by the same deep link', async () => {
+  const { button, calls, click, last } = await boot([chat('c', recent(), { harness: 'codex', sessionId: threadId, idle: true })]);
+  expect(button.textContent).toBe('resume session · Codex app');
+  await click();
+  expect(calls.map((c) => c.command)).toEqual(['allow_foreground', 'open_desktop_session']);
+  expect(last()).toBe('opened the session in the desktop app');
+});
+
+test('an idle Claude Code session resumes in Claude Desktop through the map, when the map can', async () => {
+  const yes = await boot([chat('cc', recent(), { idle: true, canResumeInDesktop: true })], { fg: { ok: true, detail: 'resumed the session in Claude Desktop' } });
+  expect(yes.button.textContent).toBe('resume session · Claude Desktop');
+  await yes.click();
+  expect(yes.calls).toEqual([{ command: 'allow_foreground', path: undefined }, { command: 'api', path: '/api/chats/cc/resume-desktop' }]);
+  expect(yes.last()).toBe('resumed the session in Claude Desktop');
+  const no = await boot([chat('cc', recent(), { idle: true, canResumeInDesktop: false })]);
+  expect(no.button.hidden).toBe(true);
+});
+
+test('a running session wins over an idle one; a week-old idle session is not offered', async () => {
+  const live = await boot([chat('old-idle', recent(), { harness: 'codex', sessionId: threadId, idle: true }), chat('live', recent())]);
+  expect(live.button.textContent).toBe('go to session');
+  const stale = await boot([chat('stale', old, { harness: 'codex', sessionId: threadId, idle: true })]);
+  expect(stale.button.hidden).toBe(true);
+});
