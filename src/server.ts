@@ -800,7 +800,9 @@ function hostChainOf(row: any): ChainEntry[] | null { try { return row?.host_cha
 function needsHostChain(sessionId: string | null | undefined): boolean {
   if (!sessionId) return false;
   const row = hostRow(sessionId);
-  return !!row && Number(row.host_pid) > 0 && !hostChainOf(row);
+  // The context GET can arrive before on-prompt's unawaited PID POST. The hook can capture its
+  // own ancestry without that POST, so request it as soon as the session is bound.
+  return !!row && !hostChainOf(row);
 }
 function hostRow(sessionId: string): any | null {
   return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active, host_pid, host_pid_at, host_chain FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
@@ -2803,9 +2805,9 @@ const server = Bun.serve({
       if (!c || c.projectId !== projectId) return json({ error: 'unknown chat' }, 404);
       const host = hostSessionOf({ id: c.id, hostSessionId: (c as any).hostSessionId });
       const pid = host && Number((host as any).hostPid) > 0 ? Number((host as any).hostPid) : 0;
-      if (!pid) return json({ ok: false, detail: 'that session has not reported its process yet — type one message in it, then try again' });
-      const chain = (host as any).hostChain as ChainEntry[] | null; // M503: nearest first
-      const candidates = chain && chain.length ? chain.map((e) => e.pid) : [pid];
+      const chain = host?.hostChain as ChainEntry[] | null; // M503: nearest first; sufficient without the separate PID report
+      const candidates = chain && chain.length ? chain.map((e) => e.pid) : pid ? [pid] : [];
+      if (!candidates.length) return json({ ok: false, detail: 'that session has not reported its process yet — type one message in it, then try again' });
       const r = await foregroundWindow(candidates, chain ? chain.map((e) => e.name) : []);
       if (r.gone && (c as any).hostSessionId) (store as any).db.prepare('UPDATE harness_sessions SET host_chain = NULL WHERE session_id = ?').run((c as any).hostSessionId); // recapture on the next prompt
       store.audit('session_foreground', { chat: c.id.slice(0, 8), pid, chain: candidates.length, ok: r.ok, gone: !!r.gone });
@@ -4302,7 +4304,9 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       const body = await req.json() as { session_id?: string; chain?: unknown };
       const chain = parseChain(body.chain);
       if (!body.session_id || !chain || !hostRow(body.session_id)) return json({ ok: false }, 400);
-      (store as any).db.prepare('UPDATE harness_sessions SET host_chain = ? WHERE session_id = ?').run(JSON.stringify(chain), body.session_id);
+      // The chain may beat the separate prompt POST. Supply its parent PID for older clients too,
+      // without overwriting a newer prompt's PID/timestamp if one has already arrived.
+      (store as any).db.prepare("UPDATE harness_sessions SET host_chain = ?, host_pid = COALESCE(host_pid, ?), host_pid_at = COALESCE(host_pid_at, datetime('now')) WHERE session_id = ?").run(JSON.stringify(chain), chain[0].pid, body.session_id);
       store.audit('host_chain_recorded', { session: body.session_id.slice(0, 8), depth: chain.length, names: chain.map((e) => e.name.replace(/\.exe$/i, '')).slice(0, 6) });
       return json({ ok: true });
     }

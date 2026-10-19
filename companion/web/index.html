@@ -57,6 +57,7 @@ body.open .chip{opacity:0;transform:scale(.92) translateY(6px);pointer-events:no
 .last{padding:2px 14px 11px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint);line-height:1.5;min-height:0}
 .ver{padding:0 14px 12px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--faint);letter-spacing:.02em}
 .open-b{display:block;margin:0 14px 9px;text-align:center;font-weight:600;font-size:13px;padding:10px;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer}
+.open-b[hidden]{display:none}
 .open-b.alt{background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:-4px}
 .inf{display:flex;align-items:center;gap:8px;margin:0 14px 6px;padding:9px 12px;border:1px solid var(--hair);border-radius:11px;background:var(--panel2);font-size:12.5px;font-weight:600;cursor:pointer}
 .sw{margin-left:auto;width:38px;height:22px;border-radius:999px;background:var(--accent);position:relative;transition:background .3s;flex:0 0 auto}
@@ -177,12 +178,13 @@ function sayLast(msg) { $('p-last').textContent = msg; holdLastUntil = Date.now(
 
 const disp = (n) => n ? (n.title || n.content || '') : '';
 function activeChat() { return (S.chats||[]).find(c => c.id === S.mainChatId) || (S.chats||[])[0]; }
-// M401: the session the foreground button targets — the live host session (Codex/Claude) most recently
-// active that has reported its process id. null when none qualifies (button hidden).
+// Target the most recently active attached host. If its identity has not arrived yet, wait for it:
+// filtering by pid first would silently target an older session instead. Filing a chat is not host activity.
 function currentSession() {
-  const hs = (S.chats||[]).filter(c => c.host && c.host.hostPid && c.host.status !== 'closed');
-  hs.sort((a,b) => String(b.lastActivity||'').localeCompare(String(a.lastActivity||'')));
-  return hs[0] || null;
+  const hs = (S.chats||[]).filter(c => c.host && c.host.status !== 'closed' && !c.host.idle);
+  hs.sort((a,b) => String(b.host.lastActive||b.lastActivity||'').localeCompare(String(a.host.lastActive||a.lastActivity||'')));
+  const latest = hs[0];
+  return latest && (Number(latest.host.hostPid) > 0 || latest.host.hostChain?.length) ? latest : null;
 }
 function focusName() {
   const c = activeChat(); if (!c) return null;
@@ -216,7 +218,7 @@ function render() {
   B.classList.toggle('infoff', !!S.influenceOff);
   B.classList.toggle('nosess', nosess);
   B.classList.toggle('attn', !!(ts || S.updateAvailable || nosess) && !S.influenceOff);
-  const fgb = $("fg-session"); if (fgb) fgb.hidden = !currentSession(); // M401: show only when a live host session has reported its pid
+  const fgb = $("fg-session"); if (fgb) fgb.hidden = !currentSession(); // Show when the newest attached session has a PID or chain.
   const f = (S.filings || {});
   // Ghost (2026-10-04, Jacob perceived-speed): echo the in-flight turn immediately so the companion feels live at ~1s.
   // M503: a button's result line holds for 8 s — the 5 s poll used to wipe it before it could be read (Mark).
