@@ -161,6 +161,21 @@ fn start_server() -> Result<String, String> {
     }
 }
 
+/// M503 (Mark, Windows): Windows lets only the foreground process change the foreground window. The map server runs in
+/// the background, so its SetForegroundWindow was refused and the taskbar button merely flashed. The user's click makes
+/// THIS window foreground, so right here, before asking the server, we grant the right to any process for this one
+/// change (ASFW_ANY). Elsewhere there is nothing to grant.
+#[tauri::command]
+fn allow_foreground() -> bool {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{AllowSetForegroundWindow, ASFW_ANY};
+        return unsafe { AllowSetForegroundWindow(ASFW_ANY) } != 0;
+    }
+    #[allow(unreachable_code)]
+    false
+}
+
 /// The companion's two settings, in ~/.harnessmap/companion.json. launchAtLogin is mirrored into the OS login item by the
 /// autostart plugin; startMapOnOpen is read once at launch (below).
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -245,7 +260,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api, start_server, get_settings, set_settings])
+        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api, start_server, get_settings, set_settings, allow_foreground])
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open_map" => open_map(app.clone(), None),
             "toggle" => toggle_window(app),
