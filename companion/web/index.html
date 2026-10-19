@@ -79,9 +79,26 @@ body.infoff .infnote{max-height:40px;opacity:1}
 .talk input{flex:1;border:0;background:transparent;font:inherit;font-size:12.5px;color:var(--ink);outline:none}
 .talk input::placeholder{color:var(--faint)}
 .talk .snd{color:var(--accent);font-weight:700;font-size:12.5px;cursor:pointer;background:0;border:0;font-family:inherit}
-.offline{position:absolute;right:0;bottom:0;background:var(--panel);border:1px solid var(--hair);border-radius:999px;padding:8px 14px;font-size:12.5px;color:var(--muted);box-shadow:0 10px 30px rgba(10,15,25,.28);display:none}
-body.offline .offline{display:inline-flex;align-items:center;gap:8px}
+/* M502 (Mark): the three states. OFF = a card you cannot miss, with the power button; the server being down used to be a
+   small grey pill while every session went silently unrecorded. NOSESS = map up but nothing attached: amber dot + the one
+   thing to do. Attached = the quiet state. */
+.offcard{position:absolute;right:0;bottom:0;width:288px;background:var(--panel);border:1px solid var(--hair);border-radius:16px;box-shadow:0 22px 60px rgba(10,15,25,.34);padding:14px;display:none;flex-direction:column;gap:9px}
+body.offline .offcard{display:flex}
 body.offline .chip,body.offline .panel{display:none}
+.offcard .t{font-weight:800;font-size:15px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
+.offcard .odot{width:10px;height:10px;border-radius:50%;background:#c0392b;box-shadow:0 0 0 3px rgba(192,57,43,.2);flex:0 0 auto}
+.offcard .why{font-size:12px;color:var(--muted);line-height:1.45}
+.offcard .icobtn{margin-left:auto;color:var(--faint);font-size:14px;cursor:pointer;line-height:1;padding:2px 4px;border-radius:6px}
+.pwr{display:flex;align-items:center;justify-content:center;gap:10px;padding:13px;border-radius:12px;background:var(--accent);color:#fff;font-weight:700;font-size:14px;cursor:pointer;border:0;font-family:inherit;width:100%}
+.pwr:disabled{opacity:.6;cursor:default}
+.pwr[hidden]{display:none}
+.offcard .res{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint);line-height:1.5;min-height:14px;word-break:break-word}
+body.nosess .dot{background:var(--warn);box-shadow:0 0 0 3px rgba(181,126,34,.22)}
+.hint{margin:-4px 14px 10px;font-size:12px;color:var(--warn);line-height:1.45;display:none}
+body.nosess .hint{display:block}
+.set{display:flex;align-items:center;gap:8px;margin:0 14px 6px;padding:8px 12px;border:1px solid var(--hair);border-radius:11px;background:var(--panel2);font-size:12px;font-weight:600;cursor:pointer}
+.set .sw{background:#c3ccc0}.set .sw .knob{left:2px}.set.on .sw{background:var(--accent)}.set.on .sw .knob{left:18px}
+.set[hidden]{display:none}
 
 </style></head>
 <body>
@@ -112,6 +129,7 @@ body.offline .chip,body.offline .panel{display:none}
     <div class="focus" id="p-focus" title="current focus"><svg class="focusico" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" style="flex:0 0 auto;margin-right:5px;opacity:.72;vertical-align:-1px"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span id="p-focus-name">the map</span></div>
     <div class="status"><span class="dot" style="width:7px;height:7px"></span><span class="mapnm" id="p-mapname" style="font-weight:600">the map</span> <span id="p-state" style="opacity:.82">map current</span></div>
     <div class="last" id="p-last"></div>
+    <div class="hint" id="p-hint">no session attached — say “open map” in your Codex or Claude Code session</div>
     <div class="open-b" id="open-map">open map</div>
     <div class="open-b alt" id="fg-session" hidden title="bring this session's terminal window to the front (only when you click)">⤒ bring session to front</div>
     <div class="inf" id="inf-toggle"><span>map influence</span><span class="sw"><span class="knob"></span></span></div>
@@ -120,13 +138,20 @@ body.offline .chip,body.offline .panel{display:none}
       <div class="mclog" id="mclog"></div>
       <div class="row"><input id="ask" placeholder="talk to the map…" autocomplete="off"><button class="snd" id="send">send</button></div>
     </div>
+    <div class="set" id="set-login" hidden title="open the companion when you sign in"><span>launch at login</span><span class="sw"><span class="knob"></span></span></div>
+    <div class="set" id="set-autostart" hidden title="when the companion opens and the map is off, start it (once, at launch — never behind your back later)"><span>start the map when the companion opens</span><span class="sw"><span class="knob"></span></span></div>
     <div class="ver" id="ver"></div>
   </div>
-  <div class="offline"><svg width="18" height="18" style="color:var(--muted)"><use href="#mk" transform="scale(0.25)"/></svg> <span id="offmsg">map not running</span></div>
+  <div class="offcard" id="offcard">
+    <div class="t"><span class="odot"></span><span id="offmsg">the map is off</span><span class="icobtn" id="off-menu" title="Companion menu">⋯</span></div>
+    <div class="why" id="offwhy">your Codex and Claude Code sessions are not being recorded while it is off</div>
+    <button class="pwr" id="pwr" type="button"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:0 0 auto"><path d="M12 3v9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M7.2 6.6a7 7 0 1 0 9.6 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span id="pwr-l">start the map</span></button>
+    <div class="res" id="offres"></div>
+  </div>
 </div>
 
 <script>
-const COMPANION_VER = '0.9.133'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.321'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
@@ -179,11 +204,16 @@ function render() {
   $('p-mapname').textContent = mn;
   const bits = [];
   if (S.updateAvailable) bits.push('update available');
+  // M502: attached = the truth across all projects (M375's rule), not the stale 'live' column. An older server has no
+  // hostSessions field: say nothing rather than guess.
+  const hs = S.hostSessions; const nosess = !!hs && hs.attached === 0;
+  if (hs) bits.push(hs.attached ? `${hs.attached} session${hs.attached > 1 ? 's' : ''} attached` : 'no session attached');
   bits.push(S.influenceOff ? 'influence closed' : 'map current');
   if (ts) bits.push(`${ts} to sort`);
   $('p-state').textContent = bits.join(' · ');
   B.classList.toggle('infoff', !!S.influenceOff);
-  B.classList.toggle('attn', !!(ts || S.updateAvailable) && !S.influenceOff);
+  B.classList.toggle('nosess', nosess);
+  B.classList.toggle('attn', !!(ts || S.updateAvailable || nosess) && !S.influenceOff);
   const fgb = $("fg-session"); if (fgb) fgb.hidden = !currentSession(); // M401: show only when a live host session has reported its pid
   const f = (S.filings || {});
   // Ghost (2026-10-04, Jacob perceived-speed): echo the in-flight turn immediately so the companion feels live at ~1s.
@@ -193,15 +223,19 @@ function render() {
   $('ver').textContent = `companion v${COMPANION_VER}` + (S.build ? ` · server ${String(S.build).slice(0,7)}` : '');
 }
 
-function offline(msg) { const m = $('offmsg'); if (m) m.textContent = msg; B.classList.add('offline'); }
+function offline(msg, why, canStart = true) {
+  $('offmsg').textContent = msg; $('offwhy').textContent = why || '';
+  $('pwr').hidden = !canStart || !core; // the power button needs the native layer; the browser copy just says so
+  B.classList.add('offline');
+}
 async function loadState() {
   try {
     const r = await apiFetch('/api/state', { cache: 'no-store' });
     // 403 = the server is up but on an old build that blocks the app's origin.
-    if (r.status === 403) { offline("map out of date — run “update map”"); return; }
+    if (r.status === 403) { offline('the map is out of date', 'say “update map” in a session, then it answers the companion again', false); return; }
     if (!r.ok) throw 0;
     S = await r.json(); render();
-  } catch { offline('map not running'); }
+  } catch { offline('the map is off', 'your Codex and Claude Code sessions are not being recorded while it is off'); }
 }
 function flashFiling() {
   B.classList.add('filing');
@@ -268,6 +302,32 @@ $('fg-session').onclick = async () => {
   catch { $('p-last').textContent = 'could not reach the session'; }
   setTimeout(() => { b.textContent = old; }, 1600);
 };
+// M502 (Mark): the power button — the ONLY way, besides the launch-time setting, that the companion starts the server.
+// Never automatic while it runs: "stop the map" must mean stopped.
+$('pwr').onclick = async () => {
+  const b = $('pwr'); b.disabled = true; $('pwr-l').textContent = 'starting…'; $('offres').textContent = 'this can take a few seconds';
+  try { $('offres').textContent = String(await invoke('start_server') || 'started'); }
+  catch (e) { $('offres').textContent = 'could not start: ' + ((e && e.message) || e); }
+  b.disabled = false; $('pwr-l').textContent = 'start the map';
+  loadState();
+};
+$('off-menu').onclick = showCompanionMenu;
+// M502: the two settings — launch at login, start the map when the companion opens. Stored natively (~/.harnessmap/companion.json).
+let SET = { launchAtLogin: false, startMapOnOpen: true };
+function renderSettings() {
+  for (const el of [$('set-login'), $('set-autostart')]) el.hidden = !core;
+  $('set-login').classList.toggle('on', !!SET.launchAtLogin);
+  $('set-autostart').classList.toggle('on', !!SET.startMapOnOpen);
+}
+async function loadSettings() { try { Object.assign(SET, await invoke('get_settings')); } catch {} renderSettings(); }
+async function saveSetting(k, v) {
+  SET[k] = v; renderSettings();
+  try { Object.assign(SET, await invoke('set_settings', { settings: SET })); }
+  catch (e) { $('p-last').textContent = 'setting not saved: ' + ((e && e.message) || e); }
+  renderSettings();
+}
+$('set-login').onclick = () => saveSetting('launchAtLogin', !SET.launchAtLogin);
+$('set-autostart').onclick = () => saveSetting('startMapOnOpen', !SET.startMapOnOpen);
 $('inf-toggle').onclick = async () => {
   B.classList.toggle('infoff'); // optimistic
   try { await apiFetch('/api/influence/toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); } catch {}
@@ -356,6 +416,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel
   API = `http://127.0.0.1:${PORT}`; WSB = `ws://127.0.0.1:${PORT}`;
   document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'stylesheet', href: `${API}/fonts/fonts.css` })); // M477: self-hosted fonts
   announce(); // play the appear animation on launch so it's easy to spot
+  loadSettings();
   await loadState();
   loadHistory(); // shared guide history (one conversation across app + browser)
   connect();

@@ -62,6 +62,14 @@ if (!authEnabled && !LOOPBACK.has(REQUESTED_HOST)) {
 
 if (process.env.HARNESSMAP_HOME) {
   try { mkdirSync(process.env.HARNESSMAP_HOME, { recursive: true }); writeFileSync(join(process.env.HARNESSMAP_HOME, 'port'), String(PORT)); } catch {}
+  // M502 (Mark, 2026-10-19): the desktop companion needs more than the port to START a stopped server — where this
+  // code lives (a Claude Code install keeps it in the plugin cache, not ~/.harnessmap/app) and which bun ran it (a GUI
+  // app's PATH may carry none). Written on every start, local only; the companion reads it for its power button.
+  try {
+    writeFileSync(join(process.env.HARNESSMAP_HOME, 'server.json'), JSON.stringify({
+      port: PORT, pid: process.pid, version: VERSION, build: BUILD, appRoot: join(here, '..'), bun: process.execPath, startedAt: new Date().toISOString(),
+    }, null, 2));
+  } catch {}
 }
 
 // M238: every block handed to a host agent says what it is and what it is not.
@@ -2199,7 +2207,26 @@ function state() {
     nudges: { ...nudges, focusName: nudgeFocusTarget?.name ?? null },
     favorites: store.getFavorites(),
     health: { ...health, now: Date.now() },
+    hostSessions: hostSessionsSummary(), // M502: the companion's three states need this across ALL projects
   };
+}
+// M502 (Mark, 2026-10-19): the companion shows three states — map off / up but nothing attached / attached and filing —
+// and "attached" must be the truth, not the status='live' column a dead harness leaves behind forever (M375). This counts,
+// across every project, the sessions that are attached NOW by M375's rule (a hook within the idle window, or an embedded
+// terminal we own) and the ones gone idle, plus when anything last filed.
+function hostSessionsSummary(): { attached: number; idle: number; newestActive: string | null; lastFiledAt: number } {
+  let rows: any[] = [];
+  try { rows = (store as any).db.prepare("SELECT session_id, status, last_active, chat_id FROM harness_sessions WHERE status IS NULL OR status != 'closed'").all() as any[]; } catch {}
+  const idleMin = Math.max(1, Number(process.env.HARNESSMAP_SESSION_IDLE_MIN ?? 30));
+  const now = Date.now();
+  let attached = 0, idle = 0, newest: string | null = null;
+  for (const r of rows) {
+    const embedded = r.chat_id ? !!listTerms().find((t) => (getTerm(t.id) as any)?.chatId === r.chat_id) : false;
+    if (sessionIsIdle(r.status ?? 'live', embedded, r.last_active, now, idleMin)) idle++;
+    else if (r.last_active || embedded) attached++;
+    if (r.last_active && (!newest || String(r.last_active) > newest)) newest = String(r.last_active);
+  }
+  return { attached, idle, newestActive: newest, lastFiledAt: health.filedAt };
 }
 
 function json(data: unknown, status = 200): Response {
@@ -4224,6 +4251,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
     if (path === '/api/harness/prompt' && req.method === 'POST') {
       const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string; forked_from?: string | null; map?: string | null; host_pid?: number | null };
       ensureSessionBound(body.session_id, body.cwd, body.harness, body.forked_from ?? null, body.map ?? null);
+      if (body.session_id) touchSession(store, body.session_id); // M502: a prompt IS hook activity — M375's liveness rule counts it (before, only session-start and the stop hook bumped last_active)
       if (body.session_id && Number.isInteger(body.host_pid) && (body.host_pid as number) > 0) setHostPid(body.session_id, body.host_pid as number); // M401: the host CLI's pid, for the foreground button
       if (body.session_id && body.text) { const clean = stripHostScaffold(body.text); if (clean) pendingPrompts.set(body.session_id, clean.slice(0, 20_000)); } // M259: never the host's preamble
       return json({ ok: true });

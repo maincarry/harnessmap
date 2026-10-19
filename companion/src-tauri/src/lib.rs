@@ -7,6 +7,7 @@
 // window, and a few window commands (drag, reset). Minimize is handled in the web layer.
 
 use std::fs;
+use std::path::PathBuf;
 use tauri::{
     menu::{Menu, MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -100,6 +101,101 @@ fn api(method: String, path: String, body: Option<String>) -> Result<String, Str
     }
 }
 
+// ---- M502 (Mark, 2026-10-19): the companion as the map's status light and power button ----
+// The hooks fail silently when the server is down (by design: a dead map must never break a session), and only an attached
+// session's start hook revives it. So a server that died mid-day leaves every session unrecorded with no sign anywhere.
+// The companion is the one piece that can see it. It shows "the map is off" loudly and starts the server on a CLICK, or
+// once at its own launch when the setting says so. It never starts the server on its own after launch: "stop the map"
+// must mean stopped. (Honest-result rule, M401: say what happened, never claim a start that did not.)
+
+fn hm_home() -> PathBuf {
+    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_default();
+    std::path::Path::new(&home).join(".harnessmap")
+}
+
+/// What the server wrote about itself on its last start (server.json beside the port file): where its code lives and
+/// which bun ran it. A fresh Codex install that never started has none; fall back to ~/.harnessmap/app and a bun on PATH.
+fn server_info() -> (Option<PathBuf>, Option<PathBuf>) {
+    let p = hm_home().join("server.json");
+    let v: Option<serde_json::Value> = fs::read_to_string(&p).ok().and_then(|s| serde_json::from_str(&s).ok());
+    let app = v.as_ref().and_then(|j| j.get("appRoot")).and_then(|x| x.as_str()).map(PathBuf::from).filter(|d| d.join("hooks").join("start-server.ts").exists());
+    let bun = v.as_ref().and_then(|j| j.get("bun")).and_then(|x| x.as_str()).map(PathBuf::from).filter(|b| b.exists());
+    (app, bun)
+}
+
+fn find_bun() -> Option<PathBuf> {
+    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).unwrap_or_default();
+    let exe = if cfg!(windows) { "bun.exe" } else { "bun" };
+    let candidates = [std::path::Path::new(&home).join(".bun").join("bin").join(exe)];
+    for c in candidates.iter() { if c.exists() { return Some(c.clone()); } }
+    // PATH as the GUI app sees it (may carry no bun at all — M235)
+    if let Ok(path) = std::env::var("PATH") {
+        for dir in std::env::split_paths(&path) { let c = dir.join(exe); if c.exists() { return Some(c); } }
+    }
+    None
+}
+
+/// Start the map server the way every hook, installer and the doctor do: `bun run hooks/start-server.ts` in the app folder.
+/// That script spawns the server detached, waits for it to answer, and prints one honest line — which we return.
+#[tauri::command]
+fn start_server() -> Result<String, String> {
+    use std::process::{Command, Stdio};
+    let (app_from_json, bun_from_json) = server_info();
+    let app = app_from_json.or_else(|| { let d = hm_home().join("app"); if d.join("hooks").join("start-server.ts").exists() { Some(d) } else { None } })
+        .ok_or_else(|| "cannot find the map's code: ~/.harnessmap/server.json names no app folder and ~/.harnessmap/app has none — say “install map” or “update map” in a session".to_string())?;
+    let bun = bun_from_json.or_else(find_bun)
+        .ok_or_else(|| "cannot find bun (the map's runtime) — say “update map” in a session; it installs what is missing".to_string())?;
+    let mut cmd = Command::new(&bun);
+    cmd.arg("run").arg("hooks/start-server.ts").current_dir(&app)
+        .env("HARNESSMAP_HOME", hm_home())
+        .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    #[cfg(windows)]
+    { use std::os::windows::process::CommandExt; cmd.creation_flags(0x0800_0000); } // CREATE_NO_WINDOW: no console flash
+    let out = cmd.output().map_err(|e| format!("could not run {}: {}", bun.display(), e))?;
+    let line = String::from_utf8_lossy(&out.stdout).lines().last().map(|s| s.trim().to_string()).unwrap_or_default();
+    if out.status.success() {
+        Ok(if line.is_empty() { "map server up".to_string() } else { line })
+    } else {
+        let err = String::from_utf8_lossy(&out.stderr).lines().last().map(|s| s.trim().to_string()).unwrap_or_default();
+        Err(if !line.is_empty() { line } else if !err.is_empty() { err } else { format!("the start script exited with {} — see ~/.harnessmap/server.log", out.status) })
+    }
+}
+
+/// The companion's two settings, in ~/.harnessmap/companion.json. launchAtLogin is mirrored into the OS login item by the
+/// autostart plugin; startMapOnOpen is read once at launch (below).
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Settings { launch_at_login: bool, start_map_on_open: bool }
+impl Default for Settings { fn default() -> Self { Settings { launch_at_login: false, start_map_on_open: true } } }
+
+fn settings_path() -> PathBuf { hm_home().join("companion.json") }
+fn read_settings() -> Settings {
+    fs::read_to_string(settings_path()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+}
+fn write_settings(s: &Settings) -> Result<(), String> {
+    let _ = fs::create_dir_all(hm_home());
+    fs::write(settings_path(), serde_json::to_string_pretty(s).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_settings(app: tauri::AppHandle) -> Settings {
+    use tauri_plugin_autostart::ManagerExt;
+    let mut s = read_settings();
+    // the OS login item is the truth for launchAtLogin (the user may have changed it in system settings)
+    if let Ok(on) = app.autolaunch().is_enabled() { s.launch_at_login = on; }
+    s
+}
+
+#[tauri::command]
+fn set_settings(app: tauri::AppHandle, settings: Settings) -> Result<Settings, String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let al = app.autolaunch();
+    let r = if settings.launch_at_login { al.enable() } else { al.disable() };
+    r.map_err(|e| format!("could not change the login item: {e}"))?;
+    write_settings(&settings)?;
+    Ok(get_settings(app))
+}
+
 /// Rest the window in the bottom-right of the primary screen (its home position).
 fn place_bottom_right(win: &tauri::WebviewWindow) {
     if let Ok(Some(mon)) = win.primary_monitor() {
@@ -148,7 +244,8 @@ fn toggles_companion(event: &TrayIconEvent) -> bool {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api])
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
+        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api, start_server, get_settings, set_settings])
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open_map" => open_map(app.clone(), None),
             "toggle" => toggle_window(app),
@@ -168,6 +265,12 @@ pub fn run() {
             // Rest in the bottom-right corner (not the OS default, dead centre).
             place_bottom_right(&win);
             let _ = win.show();
+
+            // M502: start the map ONCE at launch when the setting says so and it is down. Off the UI thread — the start
+            // script waits up to several seconds for the server to answer. Never again after launch.
+            if read_settings().start_map_on_open && !map_ready() {
+                std::thread::spawn(|| { let _ = start_server(); });
+            }
 
             // Tray icon + menu.
             let open = MenuItemBuilder::with_id("open_map", "Open map").build(app)?;
