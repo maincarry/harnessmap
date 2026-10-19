@@ -455,6 +455,7 @@ export class Translator {
       alterations = this.guardAgentSolidStatus(alterations, params); // M442a/M442b (TWIN #426): an agent-authored row is never born accepted/decided
       alterations = this.guardAgentQuestionAnswered(alterations, map, params); // M447 (PANEL #429): the agent's question, answered by the next short reply, closes
       alterations = this.guardCorrectionAuthor(alterations, params, map); // M456 + M471c (RECORD TEST #1): a figure the person corrects is the person's (LONG #436 zh): the correction is the person's catch
+      alterations = this.guardAskerAuthor(alterations, params); // M498 (python-concurrency-zh, 2026-10-19): a bare question files no evidence under the asker's name
       alterations = this.guardDraftOverwrite(alterations, map, params); // M442f (PANEL #454b): a drafting turn gets its own draft row, never pasted over an older done row
       alterations = this.guardSendLater(alterations, map, params); // M451f (PANEL #454b): "an update I can send the PM tomorrow" is a todo of hers
       alterations = this.guardDraftAuthor(alterations, params); // M442e (TWIN #449): the reply the person asked for, filed as the agent's proposal → the person's row
@@ -792,6 +793,25 @@ export class Translator {
   // was filed as the AGENT's). When the person's turn objects (REJECTS / REJECTS_ZH) and this round files a row that records a
   // correction or retraction — status retracted/superseded/rejected/corrected, or a statement saying so — the catch is the person's:
   // author user. The agent's own words stay in the statement; only who caught it changes. Audit guard_correction_author.
+  // M498 (python-concurrency-zh p1 round 3, 2026-10-19: she asked "可以用子进程执行某个函数吗" — thirteen characters — and the agent's five
+  // how-to steps (import multiprocessing, target function, start, join, separate memory) were filed as HER evidence): when the person's
+  // turn is a bare question — short, no figure, no code, no URL, ending in a question mark or 吗/呢 — any evidence / claim / option this
+  // round files under her name is the agent's answer, not her statement. Her question, task, constraint and decision rows stay hers.
+  // Sixth who-said-what instance of the day; the first with no correction involved. Audit guard_asker_author.
+  private guardAskerAuthor(alterations: any[], params: { userText?: string }): any[] {
+    const ut = String(params.userText ?? '').trim();
+    if (!ut || ut.length > 80) return alterations;
+    if (/\d|`|https?:\/\/|\n/.test(ut)) return alterations;
+    if (!/[?？]\s*$|[吗呢]\s*[?？。]?\s*$/.test(ut)) return alterations;
+    for (const a of alterations) {
+      if (a?.op !== 'create_node' || a.author !== 'user') continue;
+      if (!/^(?:evidence|claim|option)$/.test(String(a.type ?? ''))) continue;
+      this.store.audit('guard_asker_author', { id: String(a.id ?? '').slice(0, 8), type: a.type, title: String(a.title ?? a.content ?? '').slice(0, 40), asked: ut.slice(0, 40) });
+      a.author = 'agent';
+    }
+    return alterations;
+  }
+
   private guardCorrectionAuthor(alterations: any[], params: { userText?: string }, map?: { nodes: MapNode[] }): any[] {
     const ut = String(params.userText ?? '');
     // M471c (RECORD TEST #1, Amir round 19: "No—the forced-mode conversion time with x2 temperature, x16 pressure, and x1 humidity is
