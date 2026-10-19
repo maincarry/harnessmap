@@ -153,7 +153,7 @@ body.nosess .hint{display:block}
 </div>
 
 <script>
-const COMPANION_VER = '0.9.325'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.326'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
@@ -194,11 +194,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function goSession() {
   const latest = latestSession(); if (!latest) return null;
   const h = latest.host;
-  const win = !!(h.hostWindow || Number(h.hostPid) > 0 || (h.hostChain && h.hostChain.length));
   const app = !!(core && h.harness === 'codex' && typeof h.sessionId === 'string' && h.sessionId.length === 36 && UUID.test(h.sessionId));
-  if (!win && !app) return null;
-  const label = (h.hostWindow && h.hostWindow.label) || (!win && app ? 'Codex app' : '');
-  return { chat: latest, win, app, label };
+  // M507 (Mark): a Codex session goes to the Codex app, ALWAYS — the app lists CLI threads too, the deep link lands on the
+  // exact thread, and no window heuristic runs for Codex at all. A Claude Code session goes to its page on claude.ai when
+  // Remote Control gave it one (the same live session, in the browser). The window route serves what is left: a Claude
+  // Code session without Remote Control.
+  const web = !!(core && h.harness === 'claude' && typeof h.webId === 'string' && /^session_[A-Za-z0-9]{10,40}$/.test(h.webId));
+  const win = h.harness !== 'codex' && !!(h.hostWindow || Number(h.hostPid) > 0 || (h.hostChain && h.hostChain.length));
+  if (!win && !app && !web) return null;
+  const label = app ? 'Codex app' : web ? 'claude.ai' : ((h.hostWindow && h.hostWindow.label) || '');
+  return { chat: latest, win, app, web, label };
 }
 function currentSession() { const g = goSession(); return g && g.win ? g.chat : null; }   // kept for the older tests' shape
 function desktopSession() { const g = goSession(); return g && g.app ? g.chat : null; }
@@ -325,7 +330,12 @@ $('go-session').onclick = async () => {
   // a taskbar flash. No-op elsewhere; harmless on an older shell without the command.
   try { await invoke('allow_foreground'); } catch {}
   let done = false, detail = '';
-  if (g.win) {
+  if (g.web) {
+    // M507: the session's own page on claude.ai (Remote Control) — the same running session, in the browser.
+    try { await invoke('open_claude_session', { webId: g.chat.host.webId }); done = true; detail = 'opened the session on claude.ai'; }
+    catch { detail = 'could not open the session on claude.ai'; }
+  }
+  if (!done && g.win) {
     try { const r = await apiFetch(`/api/chats/${g.chat.id}/foreground`, { method:'POST', headers:{'content-type':'application/json'}, body:'{}' }); const j = await r.json().catch(() => ({})); done = !!j.ok; detail = j.detail || (j.ok ? 'brought to front' : 'could not bring it forward'); }
     catch { detail = 'could not reach the map'; }
   }

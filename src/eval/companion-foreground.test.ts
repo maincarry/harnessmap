@@ -92,12 +92,12 @@ test('a Codex session with no window record yet goes straight to the desktop app
   expect(last()).toBe('opened the session in the desktop app');
 });
 
-test('when the window cannot be brought forward, a Codex session falls back to the desktop app and says both', async () => {
-  const { calls, click, last } = await boot([chat('c', '2026-10-19 05:01:00', { harness: 'codex', sessionId: threadId, hostWindow: { hwnd: 5, pid: 8, name: 'ChatGPT', label: 'Codex app' } })],
-    { fg: { ok: false, detail: "that session's processes are gone — type one message in it, then try again" } });
+test('a Codex session goes to the app even when a window or pid is known — no window heuristic for Codex (M507)', async () => {
+  const { button, calls, click, last } = await boot([chat('c', '2026-10-19 05:01:00', { harness: 'codex', sessionId: threadId, hostPid: 77, hostWindow: { hwnd: 5, pid: 8, name: 'WindowsTerminal', label: 'Windows Terminal' } })]);
+  expect(button.textContent).toBe('go to session · Codex app');
   await click();
-  expect(calls.map((c) => c.command)).toEqual(['allow_foreground', 'api', 'open_desktop_session']);
-  expect(last()).toMatch(/^its window was not found \(.*\) — opened the session in the desktop app$/);
+  expect(calls.map((c) => c.command)).toEqual(['allow_foreground', 'open_desktop_session']);
+  expect(last()).toBe('opened the session in the desktop app');
 });
 
 test('a Claude Code session with a dead window reports the failure plainly, with no app fallback', async () => {
@@ -127,4 +127,23 @@ test('opaque ids, a non-Codex harness and the browser copy get no app route', as
     await click();
     expect(calls).toHaveLength(0);
   }
+});
+
+test('a Claude Code session with a Remote Control id goes to claude.ai, labelled so; without one it uses the window (M507)', async () => {
+  const web = await boot([chat('cc', '2026-10-19 05:01:00', { webId: 'session_01KrDXwmPDvypgLaGgRUH4dW', hostWindow: { hwnd: 1, pid: 9, name: 'WindowsTerminal', label: 'Windows Terminal' } })]);
+  expect(web.button.textContent).toBe('go to session · claude.ai');
+  await web.click();
+  expect(web.calls.map((c) => c.command)).toEqual(['allow_foreground', 'open_claude_session']);
+  expect(web.last()).toBe('opened the session on claude.ai');
+  const local = await boot([chat('cc2', '2026-10-19 05:01:00', { webId: null, hostWindow: { hwnd: 1, pid: 9, name: 'WindowsTerminal', label: 'Windows Terminal' } })]);
+  expect(local.button.textContent).toBe('go to session · Windows Terminal');
+  await local.click();
+  expect(local.calls.map((c) => c.command)).toEqual(['allow_foreground', 'api']);
+});
+
+test('a malformed web id is ignored, and the browser copy never opens claude.ai itself', async () => {
+  const bad = await boot([chat('cc', '2026-10-19 05:01:00', { webId: 'javascript:alert(1)', hostPid: null })]);
+  expect(bad.button.hidden).toBe(true);
+  const browser = await boot([chat('cc', '2026-10-19 05:01:00', { webId: 'session_01KrDXwmPDvypgLaGgRUH4dW', hostPid: null })], { native: false });
+  expect(browser.button.hidden).toBe(true);
 });

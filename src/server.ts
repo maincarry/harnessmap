@@ -673,6 +673,22 @@ function resolveMapChoice(choice: string, cwd: string): string | null {
 // M401 (Jacob): remember the host CLI's process id for a session (the hook runs as a child of
 // the CLI, so its process.ppid IS the CLI). Lets a user-pressed button bring that session's OS
 // window to the foreground. Stored locally only; never sent anywhere.
+// M507 (Mark): a Claude Code session's page on claude.ai. The CLI exports CLAUDE_CODE_BRIDGE_SESSION_ID (session_01…) to its
+// children, so the prompt hook reports it; the same id sits in ~/.claude/sessions/<pid>.json as bridgeSessionId, which is
+// the fallback for a session whose hook predates this. Local only; the companion opens https://claude.ai/code/<id> on a click.
+function setHostWebId(sessionId: string, webId: string): void {
+  try { (store as any).db.prepare('UPDATE harness_sessions SET host_web_id = ? WHERE session_id = ? AND (host_web_id IS NULL OR host_web_id != ?)').run(webId, sessionId, webId); } catch {}
+}
+function webIdFromRegistry(sessionId: string): string | null {
+  try {
+    const dir = join(process.env.HARNESSMAP_CLAUDE_HOME ?? join(homedir(), '.claude'), 'sessions');
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith('.json')) continue;
+      try { const j = JSON.parse(readFileSync(join(dir, f), 'utf8')); if (j?.sessionId === sessionId && typeof j.bridgeSessionId === 'string' && /^session_[A-Za-z0-9]{10,40}$/.test(j.bridgeSessionId)) return j.bridgeSessionId; } catch {}
+    }
+  } catch {}
+  return null;
+}
 function setHostPid(sessionId: string, hostPid: number): void {
   try { (store as any).db.prepare("UPDATE harness_sessions SET host_pid = ?, host_pid_at = datetime('now') WHERE session_id = ?").run(hostPid, sessionId); } catch {}
 }
@@ -807,7 +823,11 @@ function hostWindowOf(row: any): HostWindow | null { try { return row?.host_wind
 function needsHostWindow(sessionId: string | null | undefined): boolean {
   if (!sessionId) return false;
   const row = hostRow(sessionId);
-  return !!row && !hostWindowOf(row);
+  if (!row || hostWindowOf(row)) return false;
+  // M507 (Mark): a Codex session is reached through the Codex app (its deep link lands on the exact thread, CLI threads
+  // included), so no window is recorded for it — the window heuristic runs only for harnesses without an app route.
+  const harness = row.harness ?? store.getSetting(`harness:session:${sessionId}`) ?? null;
+  return harness !== 'codex';
 }
 // M503: does this session still need its ancestor chain captured? Once per session; again after the button found every
 // pid in it dead (the chain is cleared then). Never per prompt — on Windows the hook's parent pid changes every prompt.
@@ -819,7 +839,7 @@ function needsHostChain(sessionId: string | null | undefined): boolean {
   return !!row && !hostChainOf(row);
 }
 function hostRow(sessionId: string): any | null {
-  return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active, host_pid, host_pid_at, host_chain, host_window FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
+  return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active, host_pid, host_pid_at, host_chain, host_window, host_web_id FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
 }
 function ensureHostChat(sessionId: string, pid: string, harness: string | null, opts: { follow?: boolean; forkedFrom?: string | null } = {}): string {
   const db = (store as any).db;
@@ -899,6 +919,12 @@ function hostSessionOf(chat: { id: string; hostSessionId?: string | null }): Rec
     hostPid: row.host_pid ?? null, hostPidAt: row.host_pid_at ?? null, // M401: for the bring-to-foreground button (local only)
     hostChain: hostChainOf(row), // M503: the ancestor chain above that pid, [{pid,name}] nearest first (local only)
     hostWindow: (() => { const w = hostWindowOf(row); return w ? { ...w, label: hostAppLabel(w.name) } : null; })(), // M506: the window the person typed in (local only)
+    ...((): { webId: string | null; webUrl: string | null } => { // M507: a Claude Code session's page on claude.ai (Remote Control), when the session has one
+      if (harness !== 'claude') return { webId: null, webUrl: null };
+      const id = row.host_web_id ?? webIdFromRegistry(chat.hostSessionId);
+      if (id && !row.host_web_id) setHostWebId(chat.hostSessionId, id);
+      return id ? { webId: id, webUrl: `https://claude.ai/code/${id}` } : { webId: null, webUrl: null };
+    })(),
     forkedFrom: store.getSetting(`fork:${chat.hostSessionId}`) ?? null, // M255
   };
 }
@@ -4308,8 +4334,9 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       return json({ ok: true });
     }
     if (path === '/api/harness/prompt' && req.method === 'POST') {
-      const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string; forked_from?: string | null; map?: string | null; host_pid?: number | null };
+      const body = await req.json() as { session_id?: string; text?: string; cwd?: string; harness?: string; forked_from?: string | null; map?: string | null; host_pid?: number | null; web_id?: string | null };
       ensureSessionBound(body.session_id, body.cwd, body.harness, body.forked_from ?? null, body.map ?? null);
+      if (body.session_id && typeof body.web_id === 'string' && /^session_[A-Za-z0-9]{10,40}$/.test(body.web_id)) setHostWebId(body.session_id, body.web_id); // M507
       if (body.session_id) touchSession(store, body.session_id); // M502: a prompt IS hook activity — M375's liveness rule counts it (before, only session-start and the stop hook bumped last_active)
       if (body.session_id && Number.isInteger(body.host_pid) && (body.host_pid as number) > 0) setHostPid(body.session_id, body.host_pid as number); // M401: the host CLI's pid, for the foreground button
       if (body.session_id && body.text) { const clean = stripHostScaffold(body.text); if (clean) pendingPrompts.set(body.session_id, clean.slice(0, 20_000)); } // M259: never the host's preamble

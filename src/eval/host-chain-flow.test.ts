@@ -23,7 +23,7 @@ afterAll(async () => {
 });
 const get = async (p: string) => fetch(BASE + p);
 const post = async (p: string, body: unknown) => fetch(BASE + p, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-const ctx = async (sid: string) => (await get(`/api/harness/context?session_id=${sid}&cwd=${encodeURIComponent(cwd)}&harness=codex&prompt=hi`)).json() as Promise<any>;
+const ctx = async (sid: string, h = 'codex') => (await get(`/api/harness/context?session_id=${sid}&cwd=${encodeURIComponent(cwd)}&harness=${h}&prompt=hi`)).json() as Promise<any>;
 const hostOf = async (sid: string) => { const s = await (await get('/api/state')).json() as any; return (s.chats as any[]).map((c) => c.host).find((h) => h && h.sessionId === sid); };
 let up = false;
 for (let i = 0; i < 60 && !up; i++) { try { up = (await get('/api/state')).ok; } catch { await Bun.sleep(250); } }
@@ -80,15 +80,15 @@ test('the button walks the chain and answers honestly when nothing can be activa
 // M506: the window the person typed in — asked for once per session, refused when it is plainly not a host, tried first.
 test('the typed-in window is asked for once, a browser window is refused, a terminal window is kept and labelled', async () => {
   const sid = 'win-s1';
-  expect((await post('/api/harness/session-start', { session_id: sid, cwd, harness: 'codex' })).status).toBe(200);
-  expect((await ctx(sid)).wantHostWindow).toBe(true);
+  expect((await post('/api/harness/session-start', { session_id: sid, cwd, harness: 'claude' })).status).toBe(200);
+  expect((await ctx(sid, 'claude')).wantHostWindow).toBe(true);
   // the person had already switched to the browser → refused, and asked again next time
   const refused = await (await post('/api/harness/host-window', { session_id: sid, window: { hwnd: 1234, pid: 2000000011, name: 'msedge', title: 'news' } })).json() as any;
   expect(refused.ok).toBe(false);
-  expect((await ctx(sid)).wantHostWindow).toBe(true);
+  expect((await ctx(sid, 'claude')).wantHostWindow).toBe(true);
   // the terminal they typed in → kept
   expect((await post('/api/harness/host-window', { session_id: sid, window: { hwnd: 66052, pid: 2000000012, name: 'WindowsTerminal', title: 'pwsh in llm' } })).status).toBe(200);
-  expect((await ctx(sid)).wantHostWindow).toBeUndefined();
+  expect((await ctx(sid, 'claude')).wantHostWindow).toBeUndefined();
   const h = await hostOf(sid);
   expect(h.hostWindow).toEqual({ hwnd: 66052, pid: 2000000012, name: 'WindowsTerminal', title: 'pwsh in llm', label: 'Windows Terminal' });
   // a window alone is enough for the button to try (no pid, no chain yet)
@@ -98,4 +98,11 @@ test('the typed-in window is asked for once, a browser window is refused, a term
   expect(r.ok).toBe(false);                         // nothing can be activated on this headless box
   expect(r.detail).not.toMatch(/has not reported its process/); // but it TRIED, rather than asking for a message
   expect((await post('/api/harness/host-window', { session_id: sid, window: { pid: 0 } })).status).toBe(400);
+});
+
+test('a Codex session is never asked for a window (M507: it goes to the Codex app)', async () => {
+  const sid = 'win-codex';
+  expect((await post('/api/harness/session-start', { session_id: sid, cwd, harness: 'codex' })).status).toBe(200);
+  const a = await ctx(sid);
+  expect(a.wantHostWindow).toBeUndefined();
 });

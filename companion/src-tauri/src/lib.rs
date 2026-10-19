@@ -74,6 +74,24 @@ fn open_desktop_session(app: tauri::AppHandle, thread_id: String) -> Result<(), 
     app.shell().open(url, None).map_err(|error| error.to_string())
 }
 
+/// M507 (Mark): a Claude Code session's page on claude.ai (Remote Control). The id comes from the session itself
+/// (CLAUDE_CODE_BRIDGE_SESSION_ID, documented for hook subprocesses) and is validated again here: only `session_<base32-ish>`,
+/// never an arbitrary URL. The page shows the same running session in the browser.
+fn claude_session_url(web_id: &str) -> Result<String, String> {
+    let ok = web_id.len() >= 18 && web_id.len() <= 48 && web_id.starts_with("session_")
+        && web_id["session_".len()..].bytes().all(|b| b.is_ascii_alphanumeric());
+    if !ok { return Err("invalid claude.ai session id".to_string()); }
+    Ok(format!("https://claude.ai/code/{web_id}"))
+}
+
+#[tauri::command]
+fn open_claude_session(app: tauri::AppHandle, web_id: String) -> Result<(), String> {
+    use tauri_plugin_shell::ShellExt;
+    let url = claude_session_url(&web_id)?;
+    allow_foreground(); // the person clicked; let the browser come forward
+    app.shell().open(url, None).map_err(|error| error.to_string())
+}
+
 /// Minimal percent-encoding for the ask query value (kept dependency-free).
 fn urlencode(s: &str) -> String {
     let mut out = String::with_capacity(s.len() * 3);
@@ -281,7 +299,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![open_map, open_desktop_session, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api, start_server, get_settings, set_settings, allow_foreground])
+        .invoke_handler(tauri::generate_handler![open_map, open_desktop_session, open_claude_session, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api, start_server, get_settings, set_settings, allow_foreground])
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open_map" => open_map(app.clone(), None),
             "toggle" => toggle_window(app),
@@ -337,6 +355,14 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn claude_session_links_accept_only_a_session_id() {
+        assert_eq!(claude_session_url("session_01KrDXwmPDvypgLaGgRUH4dW").unwrap(), "https://claude.ai/code/session_01KrDXwmPDvypgLaGgRUH4dW");
+        for bad in ["", "session_", "session_01K?x=1", "https://claude.ai/code/session_01K", "session_01K/../x", "01KrDXwmPDvypgLaGgRUH4dW"] {
+            assert!(claude_session_url(bad).is_err(), "accepted {bad}");
+        }
+    }
 
     #[test]
     fn desktop_links_address_only_the_requested_local_thread() {
