@@ -68,3 +68,13 @@ test('a residue ending in "only if" still leaves the title alone (M421b lesson)'
   const r = run('Rebuild tasks only if changed?', 'Rebuild the tasks when the inputs differ from the last run.');
   expect(r.title).toBe('Rebuild tasks only if changed?');
 });
+
+// M497: a "please note…" tail is the filer addressing the reader, not part of the name.
+test('"Gson 输出 JSON 而非 YAML 请注意格式契约" loses the reader-addressing tail', () => {
+  const r = run('Gson 输出 JSON 而非 YAML 请注意格式契约', '示例使用 Gson 将修改后的 Java 对象序列化输出，而不是 YAML 文本。'); // the content avoids the word JSON: the self-leak guard (M354) reads content and would drop the fixture for an unrelated reason
+  expect(r.title).toBe('Gson 输出 JSON 而非 YAML');
+});
+test('a name that merely contains 注意 as a word stays', () => {
+  const r = run('线程安全注意事项', '多线程访问共享配置时需要加锁。');
+  expect(r.title).toBe('线程安全注意事项');
+});

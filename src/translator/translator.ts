@@ -1732,6 +1732,13 @@ export class Translator {
         const to = anyA.title.replace(/\s*[(（][^()（）\n]{1,40}[?？][)）]\s*$/, '').trim();
         if (to.length >= 2) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(to.length).trim().slice(0, 40) }); anyA.title = to; }
       }
+      // M497 (nacos-yaml-zh 2026-10-19, title "Gson 输出 JSON 而非 YAML 请注意格式契约"): a tail in which the filer addresses the reader —
+      // "请注意…", "注意：…", "please note …", "note that …" — is the filer's voice, not a name. One instance across every kept map. The
+      // tail goes when a name of two or more characters is left.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /.\S.*?(?:[\s，,：:;；—-]+)(?:请注意|请留意|注意[：:]|须知[：:]|[Pp]lease note\b|[Nn]ote that\b)/.test(anyA.title)) {
+        const to = anyA.title.replace(/[\s，,：:;；—-]+(?:请注意|请留意|注意[：:]|须知[：:]|[Pp]lease note\b|[Nn]ote that\b)[^\n]*$/, '').trim();
+        if (to.length >= 2 && to !== anyA.title.trim()) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(to.length).trim().slice(0, 40) }); anyA.title = to; }
+      }
       // M402b (sqlsugar-nested-zh title "本轮回滚结论"): the same round-talk lead on a NAME goes; the name keeps its subject.
       // M491 (nfconntrack-zh 2026-10-18, title "IPv6 模块支持检视者核心观点的直接落实：本轮不涉及结构重组建议"): the same round-talk
       // as a TAIL after a separator is the filer talking about its round, not a name — the tail goes; so does a head that is only the
