@@ -1470,7 +1470,11 @@ export class Translator {
           // M493: a smart-quoted dict key, a keyword-argument call, a dotted call continuation, a lone bracket, a code comment
           || /^\s*[“"'][\w-]+[”"']\s*[:：]/.test(sn) || /^\s*(?:[A-Za-z_][\w.]*\s*=\s*)?[A-Za-z_][\w.]*\([^()\n]*\b\w+=/.test(sn) || /^\s*\.\w+\(/.test(sn) || /^\s*[{}\[\]()]+,?\s*$/.test(sn) || /^\s*#\s/.test(sn)));
       const leadIn = (sn: string) => LEAD_IN.test(sn.trim()) && /[:：]/.test(sn); // M489: "Here is my assignment description if that helps: …" is a handle, not a statement
-      const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && !leadIn(sn) && missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
+      // M500 (pattern-puzzle 2026-10-19: her pasted "Input: 2, 6, 6, 0 / Result: 13" lines were split into "sentences" and three of them joined into
+      // the node "Result: 13 Result: 263 Result: 94"): a line that is only a short label and numbers is a data line, never the sentence filed —
+      // the figures stay on the record through the dataset row the filer makes, not as a fragment under her name.
+      const dataLine = (sn: string) => /^\s*[\p{L}\p{N} _#().-]{1,24}[:：]\s*[-+\d.,\s/%]+\s*$/u.test(sn) || /^\s*[-+\d.,\s/%]+\s*$/.test(sn);
+      const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && !leadIn(sn) && !dataLine(sn) && missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
       if (!sents.length) return;
       const content = sents.join(' ').slice(0, 400);
       const parentId = params.focusContainerId ?? out.find((a) => a?.op === 'create_node' && a.parentId)?.parentId ?? null;

@@ -132,3 +132,15 @@ test('prose that names a keyword-argument call still files its own specifics', (
   expect(kept).toHaveLength(1);
   expect(kept[0].content).toMatch(/matching-plot loop/);
 });
+
+// M500: pasted "Label: numbers" data lines are never the sentence filed; a prose sentence with a figure still is.
+test('pasted Input/Result data lines file no fragment under her name', () => {
+  const paste = 'Here are the pairs of (input, result)\n\nInput: 1, 6, 2, 2\nResult: 6\n\nInput: 2, 6, 6, 0\nResult: 13\n\nInput: 2, 6, 4, 4\nResult: 263\n\nInput: 3, 4, 4, 4\nResult: 302\n';
+  const r = specifics([root], paste);
+  const creates = r.out.filter((a) => a.op === 'create_node');
+  for (const c of creates) expect(c.content).not.toMatch(/^(?:Input|Result):/);
+  const prose = specifics([root], 'The teacher said the expected result for the last pair is 302, not 263.');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/302/);
+});
