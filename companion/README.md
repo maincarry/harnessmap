@@ -56,8 +56,18 @@ Windows `WINDOWS_CERTIFICATE(_PASSWORD)`; and for auto-update,
 `TAURI_SIGNING_PRIVATE_KEY(_PASSWORD)` (public key in `tauri.conf.json`). The local-build
 path needs none of this and is the default.
 
+## Status light and power button (M502)
+The companion shows three states: **the map is off** (a card with a start button — the
+hooks are silent when the server is down, so this is the one place a user sees it),
+**no session attached** (the map is up; say *open map* in a session), and the quiet
+attached state. The start button runs `hooks/start-server.ts` in the app folder named by
+`~/.harnessmap/server.json` (written by the server on every start). Two settings live in
+`~/.harnessmap/companion.json`: **launch at login** (an OS login item via
+tauri-plugin-autostart) and **start the map when the companion opens** (once, at launch;
+the companion never starts the server on its own later — "stop the map" means stopped).
+
 ## Follow-ups
 - Edge-hide as a native behavior (drag + snap to the screen edge; the web widget already
   has the collapsed/edge visual — wire window position to it).
-- Launch-at-login (a LaunchAgent on macOS) + single-instance.
+- Single-instance.
 - Bundle the widget offline as a fallback if we ever want it usable with the map stopped.
