@@ -101,6 +101,15 @@ body.nosess .hint{display:block}
 .set{display:flex;align-items:center;gap:8px;margin:0 14px 6px;padding:8px 12px;border:1px solid var(--hair);border-radius:11px;background:var(--panel2);font-size:12px;font-weight:600;cursor:pointer}
 .set .sw{background:#c3ccc0}.set .sw .knob{left:2px}.set.on .sw{background:var(--accent)}.set.on .sw .knob{left:18px}
 .set[hidden]{display:none}
+/* M509 (Mark): the main surface shows state and the two actions; preferences live in their own view behind the gear */
+.settings{display:none;padding-bottom:6px}
+body.prefs .settings{display:block}
+body.prefs .main{display:none}
+.settings .sh{display:flex;align-items:center;gap:8px;padding:2px 14px 10px;font-size:13px;font-weight:700;color:var(--ink)}
+.settings .sh .back{color:var(--accent);cursor:pointer;font-weight:600;font-size:12.5px;margin-left:auto}
+.settings .lbl{padding:4px 14px 6px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.act{margin:0 14px 6px;padding:8px 12px;border:1px solid var(--hair);border-radius:11px;font-size:12px;font-weight:600;color:var(--accent);cursor:pointer}
+.act[hidden]{display:none}
 
 </style></head>
 <body>
@@ -125,24 +134,33 @@ body.nosess .hint{display:block}
   <div class="panel" id="panel">
     <div class="hd">
       <span class="draghandle" id="draghandle"><svg width="18" height="18" style="color:var(--muted);pointer-events:none"><use href="#mk" transform="scale(0.25)"/></svg><span class="brand">harness<span class="b">map</span></span></span>
+      <button class="icobtn" id="settings-btn" type="button" title="Settings" aria-label="Settings"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-2px"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
       <button class="icobtn" id="companion-menu" type="button" title="Companion menu" aria-label="Companion menu">⋯</button>
       <span class="icobtn" id="x" title="close">✕</span>
     </div>
+    <div class="main" id="main">
     <div class="focus" id="p-focus" title="current focus"><svg class="focusico" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" style="flex:0 0 auto;margin-right:5px;opacity:.72;vertical-align:-1px"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="2.4" fill="currentColor"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span id="p-focus-name">the map</span></div>
     <div class="status"><span class="dot" style="width:7px;height:7px"></span><span class="mapnm" id="p-mapname" style="font-weight:600">the map</span> <span id="p-state" style="opacity:.82">map current</span></div>
     <div class="last" id="p-last"></div>
     <div class="hint" id="p-hint">no session attached — say “open map” in your Codex or Claude Code session</div>
     <div class="open-b" id="open-map">open map</div>
     <button class="open-b alt" id="go-session" type="button" hidden title="bring the window you are working in to the front — the terminal, VS Code or the Codex app (only when you click)">go to session</button>
-    <div class="inf" id="inf-toggle"><span>map influence</span><span class="sw"><span class="knob"></span></span></div>
-    <div class="infnote">your sessions won't see the map · it keeps filing quietly</div>
     <div class="talk">
       <div class="mclog" id="mclog"></div>
       <div class="row"><input id="ask" placeholder="talk to the map…" autocomplete="off"><button class="snd" id="send">send</button></div>
     </div>
-    <div class="set" id="set-login" hidden title="open the companion when you sign in"><span>launch at login</span><span class="sw"><span class="knob"></span></span></div>
-    <div class="set" id="set-autostart" hidden title="when the companion opens and the map is off, start it (once, at launch — never behind your back later)"><span>start the map when the companion opens</span><span class="sw"><span class="knob"></span></span></div>
-    <div class="ver" id="ver"></div>
+    </div>
+    <div class="settings" id="settings">
+      <div class="sh"><span>settings</span><span class="back" id="settings-back">← back</span></div>
+      <div class="lbl">the map</div>
+      <div class="inf" id="inf-toggle"><span>map influence</span><span class="sw"><span class="knob"></span></span></div>
+      <div class="infnote">your sessions won't see the map · it keeps filing quietly</div>
+      <div class="lbl">the companion</div>
+      <div class="set" id="set-login" hidden title="open the companion when you sign in"><span>launch at login</span><span class="sw"><span class="knob"></span></span></div>
+      <div class="set" id="set-autostart" hidden title="when the companion opens and the map is off, start it (once, at launch — never behind your back later)"><span>start the map when the companion opens</span><span class="sw"><span class="knob"></span></span></div>
+      <div class="act" id="reset-pos" hidden title="put the companion back in the bottom-right corner">reset position</div>
+      <div class="ver" id="ver"></div>
+    </div>
   </div>
   <div class="offcard" id="offcard">
     <div class="t"><span class="odot"></span><span id="offmsg">the map is off</span><span class="icobtn" id="off-menu" title="Companion menu">⋯</span></div>
@@ -153,7 +171,7 @@ body.nosess .hint{display:block}
 </div>
 
 <script>
-const COMPANION_VER = '0.9.327'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.328'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
@@ -330,7 +348,11 @@ document.addEventListener('contextmenu', (e) => {
   showCompanionMenu();
 });
 function openPanel(){ B.classList.add('open'); }
-function closePanel(){ B.classList.remove('open'); }
+function closePanel(){ B.classList.remove('open'); B.classList.remove('prefs'); }
+// M509: the settings view lives inside the panel; the main surface keeps only state and actions
+$('settings-btn').onclick = () => { B.classList.toggle('prefs'); }; // body.prefs — not 'settings', which is the view's own class
+$('settings-back').onclick = () => { B.classList.remove('prefs'); };
+$('reset-pos').onclick = () => { invoke('reset_position').catch(() => {}); };
 armDrag($('chip'), openPanel);
 armDrag($('draghandle'));
 armDrag($('p-focus'));
@@ -383,7 +405,7 @@ $('off-menu').onclick = showCompanionMenu;
 // M502: the two settings — launch at login, start the map when the companion opens. Stored natively (~/.harnessmap/companion.json).
 let SET = { launchAtLogin: false, startMapOnOpen: true };
 function renderSettings() {
-  for (const el of [$('set-login'), $('set-autostart')]) el.hidden = !core;
+  for (const el of [$('set-login'), $('set-autostart'), $('reset-pos')]) el.hidden = !core;
   $('set-login').classList.toggle('on', !!SET.launchAtLogin);
   $('set-autostart').classList.toggle('on', !!SET.startMapOnOpen);
 }
