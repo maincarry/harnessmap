@@ -53,6 +53,27 @@ fn open_map(app: tauri::AppHandle, ask: Option<String>) {
     let _ = app.shell().open(url, None);
 }
 
+/// The ChatGPT desktop app retains the codex:// scheme for local chats:
+/// https://learn.chatgpt.com/docs/reference/commands#deep-links
+/// Accept only a technical UUID, never an arbitrary URL, command, or opaque MCP correlation ID.
+fn desktop_session_url(thread_id: &str) -> Result<String, String> {
+    if thread_id.len() != 36 || !thread_id.bytes().enumerate().all(|(i, b)| {
+        if matches!(i, 8 | 13 | 18 | 23) { b == b'-' } else { b.is_ascii_hexdigit() }
+    }) {
+        return Err("invalid local desktop thread ID".to_string());
+    }
+    Ok(format!("codex://threads/{thread_id}"))
+}
+
+#[tauri::command]
+fn open_desktop_session(app: tauri::AppHandle, thread_id: String) -> Result<(), String> {
+    use tauri_plugin_shell::ShellExt;
+    let url = desktop_session_url(&thread_id)?;
+    // The user clicked the companion; allow the protocol handler to foreground its own window.
+    allow_foreground();
+    app.shell().open(url, None).map_err(|error| error.to_string())
+}
+
 /// Minimal percent-encoding for the ask query value (kept dependency-free).
 fn urlencode(s: &str) -> String {
     let mut out = String::with_capacity(s.len() * 3);
@@ -260,7 +281,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![open_map, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api, start_server, get_settings, set_settings, allow_foreground])
+        .invoke_handler(tauri::generate_handler![open_map, open_desktop_session, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api, start_server, get_settings, set_settings, allow_foreground])
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open_map" => open_map(app.clone(), None),
             "toggle" => toggle_window(app),
@@ -316,6 +337,23 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn desktop_links_address_only_the_requested_local_thread() {
+        let id = "01234567-89ab-7cde-8fab-0123456789ab";
+        assert_eq!(desktop_session_url(id).unwrap(), format!("codex://threads/{id}"));
+        assert!(desktop_session_url(&id.to_uppercase()).is_ok());
+    }
+
+    #[test]
+    fn desktop_links_reject_routes_queries_commands_and_opaque_ids() {
+        for id in ["", "new", "session-correlation-id", "codex://settings", "../settings",
+            "01234567-89ab-7cde-8fab-0123456789ab?prompt=hello",
+            "01234567-89ab-7cde-8fab-0123456789ab/extra", "$(whoami)",
+            "01234567-89ab-7cde-8fab-0123456789ag", "0123456789ab7cde8fab0123456789ab"] {
+            assert!(desktop_session_url(id).is_err(), "accepted {id}");
+        }
+    }
 
     fn click(button: MouseButton, button_state: MouseButtonState) -> TrayIconEvent {
         TrayIconEvent::Click {
