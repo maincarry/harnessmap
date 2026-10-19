@@ -78,3 +78,20 @@ test('a name that merely contains 注意 as a word stays', () => {
   const r = run('线程安全注意事项', '多线程访问共享配置时需要加锁。');
   expect(r.title).toBe('线程安全注意事项');
 });
+
+// M499: three title slips from one map — an ideographic-space run with spilled content, a glued eight-character id prefix,
+// and a comma tail in which the filer talks about the record itself.
+test('an ideographic-space run cuts the title to its head', () => {
+  const r = run('threading模块简介　　　　时，`func1` 和 `func2` 分别代表不同任务', '可以导入 Python 的 threading 模块来创建和管理线程。');
+  expect(r.title).toBe('threading模块简介');
+});
+test('an eight-character hex id glued to a Chinese name goes; a hex word after a space stays', () => {
+  const r = run('overlapped跨端使用说明25f2a1b6', 'overlapped 依赖 Windows 的 IOCP，只能用于 Windows 异步 I/O。');
+  expect(r.title).toBe('overlapped跨端使用说明');
+  const keep = run('回滚到提交 deadbeef', '回滚到提交 deadbeef 以恢复旧行为。');
+  expect(keep.title).toBe('回滚到提交 deadbeef');
+});
+test('a comma tail about keeping the question open goes', () => {
+  const r = run('父子进程退出关系，让问题保持开放以反映当前回答未形成可靠结论', '创建的子进程没有结束时，父进程是否会结束？还需要明确父进程退出后子进程的状态。');
+  expect(r.title).toBe('父子进程退出关系');
+});

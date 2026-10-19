@@ -1759,6 +1759,19 @@ export class Translator {
         const to = anyA.title.replace(/[\s，,：:;；—-]+(?:请注意|请留意|注意[：:]|须知[：:]|[Pp]lease note\b|[Nn]ote that\b)[^\n]*$/, '').trim();
         if (to.length >= 2 && to !== anyA.title.trim()) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(to.length).trim().slice(0, 40) }); anyA.title = to; }
       }
+      // M499 (python-concurrency-zh 2026-10-19, three slips on one map, each one instance across every kept map):
+      //   (a) "threading模块简介　　　　时，`func1` 和 `func2` 分别代表不同任务" — a run of ideographic spaces (U+3000) then spilled content: the name is the head;
+      //   (b) "overlapped跨端使用说明25f2a1b6" — the filer's own eight-character node-id prefix glued to a name (M398 strips full UUIDs);
+      //   (c) "父子进程退出关系，让问题保持开放以反映当前回答未形成可靠结论" — a comma tail in which the filer talks about the record itself.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
+        const t0 = anyA.title;
+        let t1 = t0.replace(/\u3000{2,}[\s\S]*$/u, '').trim();
+        if (t1 !== t0.trim() && t1.length >= 2) { this.store.audit('guard_title_space_run', { id: String(anyA.id ?? '').slice(0, 8), dropped: t0.slice(t1.length).trim().slice(0, 40) }); anyA.title = t1; }
+        const t2 = anyA.title.replace(/(?<=\p{Script=Han})[0-9a-f]{8}$/u, '').trim();
+        if (t2 !== anyA.title.trim() && t2.length >= 2) { this.store.audit('guard_title_uuid', { id: String(anyA.id ?? '').slice(0, 8), how: 'hex8-glued', dropped: anyA.title.slice(t2.length) }); anyA.title = t2; }
+        const t3 = anyA.title.replace(/[，,]\s*(?:让(?:该|此)?问题|以反映|保持开放|未形成可靠|以体现当前)[^\n]*$/u, '').trim();
+        if (t3 !== anyA.title.trim() && t3.length >= 2) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t3.length).trim().slice(0, 40) }); anyA.title = t3; }
+      }
       // M402b (sqlsugar-nested-zh title "本轮回滚结论"): the same round-talk lead on a NAME goes; the name keeps its subject.
       // M491 (nfconntrack-zh 2026-10-18, title "IPv6 模块支持检视者核心观点的直接落实：本轮不涉及结构重组建议"): the same round-talk
       // as a TAIL after a separator is the filer talking about its round, not a name — the tail goes; so does a head that is only the
