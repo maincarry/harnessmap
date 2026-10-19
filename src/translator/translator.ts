@@ -1474,7 +1474,20 @@ export class Translator {
       // the node "Result: 13 Result: 263 Result: 94"): a line that is only a short label and numbers is a data line, never the sentence filed —
       // the figures stay on the record through the dataset row the filer makes, not as a fragment under her name.
       const dataLine = (sn: string) => /^\s*[\p{L}\p{N} _#().-]{1,24}[:：]\s*[-+\d.,\s/%]+\s*$/u.test(sn) || /^\s*[-+\d.,\s/%]+\s*$/.test(sn);
-      const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && !leadIn(sn) && !dataLine(sn) && missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')))).slice(0, 3);
+      const carries = (sn: string) => missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')));
+      const dataAll = sentencesOf(text).filter(dataLine); // the whole block is the record, not only the lines whose figures were counted
+      const dataSkipped = dataAll.filter(carries);
+      const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && !leadIn(sn) && !dataLine(sn) && carries(sn)).slice(0, 3);
+      // M501 (pattern519 2026-10-19: the filer filed no dataset row for her twenty-one pasted Input/Result pairs, and after M500 the guard filed
+      // nothing either — the block was on no node): when three or more data lines carried missed figures and no sentence was filed, the block
+      // goes on the record ONCE, as one "Pasted data" row in the person's name, instead of as fragments or not at all.
+      if (!sents.length && who === 'user' && dataSkipped.length >= 2 && dataAll.length >= 3) {
+        const content = `Pasted data (${dataAll.length} lines): ${dataAll.map((l) => l.trim()).join('; ')}`.slice(0, 400);
+        const parentId = params.focusContainerId ?? out.find((a) => a?.op === 'create_node' && a.parentId)?.parentId ?? null;
+        this.store.audit('guard_specifics_kept', { who, how: 'data-block', lines: dataAll.length, missed: missed.slice(0, 6).map((m) => m.slice(0, 30)) });
+        out.push({ op: 'create_node', id: randomUUID(), parentId, content, title: 'Pasted data', author: who, status: 'live', type: 'evidence' });
+        return;
+      }
       if (!sents.length) return;
       const content = sents.join(' ').slice(0, 400);
       const parentId = params.focusContainerId ?? out.find((a) => a?.op === 'create_node' && a.parentId)?.parentId ?? null;

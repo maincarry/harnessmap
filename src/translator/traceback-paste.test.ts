@@ -139,6 +139,11 @@ test('pasted Input/Result data lines file no fragment under her name', () => {
   const r = specifics([root], paste);
   const creates = r.out.filter((a) => a.op === 'create_node');
   for (const c of creates) expect(c.content).not.toMatch(/^(?:Input|Result):/);
+  // M501: the block is on the record once, as one "Pasted data" row in her name — not as fragments, not nowhere
+  expect(creates).toHaveLength(1);
+  expect(creates[0].content).toMatch(/^Pasted data \(8 lines\): Input: 1, 6, 2, 2; Result: 6; /);
+  expect(creates[0].author).toBe('user');
+  expect(r.audits.some((a) => a.kind === 'guard_specifics_kept' && a.d.how === 'data-block')).toBe(true);
   const prose = specifics([root], 'The teacher said the expected result for the last pair is 302, not 263.');
   const kept = prose.out.filter((a) => a.op === 'create_node');
   expect(kept).toHaveLength(1);
