@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { walkChain, parseChain, listProcesses, captureHostChain } from './host-chain.js';
+import { walkChain, parseChain, listProcesses, captureHostChain, parseWindow, isPlausibleHostWindow, hostAppLabel } from './host-chain.js';
 
 const rows = [
   { pid: 900, ppid: 800, name: 'bun' },           // the hook
@@ -30,5 +30,31 @@ describe('walkChain (M503)', () => {
     const chain = await captureHostChain(process.pid);
     expect(chain[0]?.pid).toBe(process.pid);
     expect(chain.length).toBeGreaterThan(1);
+  });
+});
+
+describe('host window (M506)', () => {
+  test('parseWindow keeps pid, name, title and a positive hwnd only', () => {
+    expect(parseWindow({ hwnd: 66052, pid: 4321, name: 'WindowsTerminal', title: 'pwsh' })).toEqual({ hwnd: 66052, pid: 4321, name: 'WindowsTerminal', title: 'pwsh' });
+    expect(parseWindow({ hwnd: 0, pid: 7, name: 'Terminal' })).toEqual({ pid: 7, name: 'Terminal', title: '' });
+    expect(parseWindow({ pid: 0 })).toBeNull();
+    expect(parseWindow('x')).toBeNull();
+  });
+  test('a browser, the shell or the companion itself is never a session window', () => {
+    expect(isPlausibleHostWindow({ pid: 1, name: 'msedge' })).toBe(false);
+    expect(isPlausibleHostWindow({ pid: 1, name: 'explorer.exe' })).toBe(false);
+    expect(isPlausibleHostWindow({ pid: 1, name: 'harnessmap-companion' })).toBe(false);
+    expect(isPlausibleHostWindow({ pid: 1, name: 'Code', title: 'llm - harnessmap companion' })).toBe(false);
+    expect(isPlausibleHostWindow({ pid: 1, name: 'WindowsTerminal', title: 'pwsh' })).toBe(true);
+    expect(isPlausibleHostWindow({ pid: 1, name: 'ChatGPT' })).toBe(true);
+    expect(isPlausibleHostWindow(null)).toBe(false);
+  });
+  test('hostAppLabel names the app in plain words', () => {
+    expect(hostAppLabel('WindowsTerminal.exe')).toBe('Windows Terminal');
+    expect(hostAppLabel('Code')).toBe('VS Code');
+    expect(hostAppLabel('ChatGPT')).toBe('Codex app');
+    expect(hostAppLabel('iTerm2')).toBe('iTerm');
+    expect(hostAppLabel('WezTerm')).toBe('WezTerm');
+    expect(hostAppLabel('')).toBe('');
   });
 });

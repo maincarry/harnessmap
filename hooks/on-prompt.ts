@@ -21,7 +21,7 @@ try {
   // can PROMOTE topics the question names — minimal → full for this turn.
   const promptQ = encodeURIComponent(String(input.prompt ?? '').slice(0, 2000));
   const r = await fetch(`${BASE}/api/harness/context?session_id=${encodeURIComponent(input.session_id ?? '')}&prompt=${promptQ}&cwd=${encodeURIComponent(String(input.cwd ?? ''))}&harness=${hostHarness(input)}`, { signal: AbortSignal.timeout(4000) });
-  const { context, kind, wantHostChain } = await r.json();
+  const { context, kind, wantHostChain, wantHostWindow } = await r.json();
   if (context) {
     const header = kind === 'delta' ? '' : '[harnessmap — the live map of this project; it is your durable memory across sessions]\n';
     console.log(JSON.stringify({
@@ -31,11 +31,14 @@ try {
   // M503 (Mark, Windows): the server asks ONCE per session for this hook's ancestor chain — captured here, while the hook
   // and Codex's PowerShell wrapper above it are still alive (the parent pid alone is dead a second later). The context
   // was already printed above; this costs one process listing, once. Local only.
-  if (wantHostChain && process.ppid) {
+  // M506 (Mark): and the window the person just typed in — the foreground window right now — because on Windows the chain
+  // of a Codex session ends at a daemon with no window. One capture each, once per session.
+  if ((wantHostChain || wantHostWindow) && process.ppid) {
     try {
-      const { captureHostChain } = await import('../src/host-chain.js');
-      const chain = await captureHostChain(process.ppid, 5000);
-      if (chain.length) await fetch(`${BASE}/api/harness/host-chain`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ session_id: input.session_id, chain }), signal: AbortSignal.timeout(2000) });
-    } catch { /* fine — the button says "type one message" until a chain lands */ }
+      const { captureHostChain, captureHostWindow } = await import('../src/host-chain.js');
+      const hdr = { method: 'POST', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(2000) } as const;
+      if (wantHostWindow) { const w = await captureHostWindow(5000); if (w) await fetch(`${BASE}/api/harness/host-window`, { ...hdr, body: JSON.stringify({ session_id: input.session_id, window: w }) }); }
+      if (wantHostChain) { const chain = await captureHostChain(process.ppid, 5000); if (chain.length) await fetch(`${BASE}/api/harness/host-chain`, { ...hdr, body: JSON.stringify({ session_id: input.session_id, chain }) }); }
+    } catch { /* fine — the button says "type one message" until a record lands */ }
   }
 } catch { /* map server down → inject nothing */ }

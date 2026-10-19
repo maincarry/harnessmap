@@ -76,3 +76,26 @@ test('the button walks the chain and answers honestly when nothing can be activa
   expect(r.detail.length).toBeGreaterThan(10);   // a reason in words (no wmctrl / processes gone / no window), never a crash
   expect(h.hostChain.length).toBe(3);
 });
+
+// M506: the window the person typed in — asked for once per session, refused when it is plainly not a host, tried first.
+test('the typed-in window is asked for once, a browser window is refused, a terminal window is kept and labelled', async () => {
+  const sid = 'win-s1';
+  expect((await post('/api/harness/session-start', { session_id: sid, cwd, harness: 'codex' })).status).toBe(200);
+  expect((await ctx(sid)).wantHostWindow).toBe(true);
+  // the person had already switched to the browser → refused, and asked again next time
+  const refused = await (await post('/api/harness/host-window', { session_id: sid, window: { hwnd: 1234, pid: 2000000011, name: 'msedge', title: 'news' } })).json() as any;
+  expect(refused.ok).toBe(false);
+  expect((await ctx(sid)).wantHostWindow).toBe(true);
+  // the terminal they typed in → kept
+  expect((await post('/api/harness/host-window', { session_id: sid, window: { hwnd: 66052, pid: 2000000012, name: 'WindowsTerminal', title: 'pwsh in llm' } })).status).toBe(200);
+  expect((await ctx(sid)).wantHostWindow).toBeUndefined();
+  const h = await hostOf(sid);
+  expect(h.hostWindow).toEqual({ hwnd: 66052, pid: 2000000012, name: 'WindowsTerminal', title: 'pwsh in llm', label: 'Windows Terminal' });
+  // a window alone is enough for the button to try (no pid, no chain yet)
+  const s = await (await get('/api/state')).json() as any;
+  const chat = (s.chats as any[]).find((c) => c.host && c.host.sessionId === sid);
+  const r = await (await post(`/api/chats/${chat.id}/foreground`, {})).json() as any;
+  expect(r.ok).toBe(false);                         // nothing can be activated on this headless box
+  expect(r.detail).not.toMatch(/has not reported its process/); // but it TRIED, rather than asking for a message
+  expect((await post('/api/harness/host-window', { session_id: sid, window: { pid: 0 } })).status).toBe(400);
+});

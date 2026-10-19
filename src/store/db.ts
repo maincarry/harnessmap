@@ -50,7 +50,7 @@ export class Store {
     if (hcols.length && !hcols.includes('chat_id')) this.db.exec('ALTER TABLE harness_sessions ADD COLUMN chat_id TEXT');
     // M251: a host session is mirrored, never forked — the page needs its harness, title and live/closed state.
     // M401 (Jacob): the host CLI's process id (hook's process.ppid) + when seen — so a button can bring that session's OS window to the foreground. Local only; never leaves the machine.
-    for (const [col, typ] of [['harness', 'TEXT'], ['title', 'TEXT'], ['status', 'TEXT'], ['ended_at', 'TEXT'], ['end_reason', 'TEXT'], ['host_pid', 'INTEGER'], ['host_pid_at', 'TEXT'], ['host_chain', 'TEXT']] as const) { // M503: host_chain = the ancestor chain above that pid, JSON [{pid,name}], captured once per session
+    for (const [col, typ] of [['harness', 'TEXT'], ['title', 'TEXT'], ['status', 'TEXT'], ['ended_at', 'TEXT'], ['end_reason', 'TEXT'], ['host_pid', 'INTEGER'], ['host_pid_at', 'TEXT'], ['host_chain', 'TEXT'], ['host_window', 'TEXT']] as const) { // M506: host_window = the foreground window at prompt time, JSON {hwnd,pid,name,title} // M503: host_chain = the ancestor chain above that pid, JSON [{pid,name}], captured once per session
       if (hcols.length && !hcols.includes(col)) this.db.exec(`ALTER TABLE harness_sessions ADD COLUMN ${col} ${typ}`);
     }
     // M263 (Jacob's auto mode): who lit a node — the person by hand ('user') or the map ('map'/null). Auto mode never dims a hand-lit node.

@@ -33,7 +33,7 @@ import { setTraceSink, setMetricsSink, callHealth, call, modelFor, ROLES, ROLE_G
 import { foldTurns, getConversationSummary } from './agent/rolling-summary.js';
 import { sliceRound, codexSessionMeta, stripHostScaffold, looksLikeScaffold, recordSessionStart, getSession, advanceSession, recordProvenance, getInjectionAnchor, setInjectionAnchor, resetInjectionAnchor, currentSeq, renderDelta, activeCwds, getFullAnchor, setFullAnchor, type RoundSlice, touchSession } from './agent/harness-adapter.js';
 import { sessionIsIdle } from './host-liveness.js';
-import { parseChain, type ChainEntry } from './host-chain.js';
+import { parseChain, parseWindow, isPlausibleHostWindow, hostAppLabel, type ChainEntry, type HostWindow } from './host-chain.js';
 import { mkdirSync, writeFileSync, readFileSync, statSync, readdirSync, existsSync, openSync, readSync, closeSync } from 'node:fs';
 import { basename } from 'node:path';
 import { authUser, authEnabled, unauthorized } from './auth.js';
@@ -683,9 +683,10 @@ function setHostPid(sessionId: string, hostPid: number): void {
 // M503: it takes the session's CANDIDATE pids (the captured ancestor chain, nearest first; or just the hook's parent when no
 // chain was captured) and activates the first one that owns a window. `gone` = none of them is alive any more — the caller
 // clears the chain so the next prompt recaptures it.
-async function foregroundWindow(candidates: number[], names: string[] = []): Promise<{ ok: boolean; detail: string; gone?: boolean }> {
+// M506: `win` = the window the person typed in (recorded at prompt time) — tried FIRST; the chain is the fallback.
+async function foregroundWindow(candidates: number[], names: string[] = [], win: HostWindow | null = null): Promise<{ ok: boolean; detail: string; gone?: boolean }> {
   const hostPid = candidates[0] ?? 0;
-  const nameOf = (pid: number) => { const i = candidates.indexOf(pid); const n = i >= 0 ? names[i] : ''; return (n || '').replace(/\.exe$/i, ''); };
+  const nameOf = (pid: number) => { if (win && pid === win.pid) return hostAppLabel(win.name) || 'the session window'; const i = candidates.indexOf(pid); const n = i >= 0 ? names[i] : ''; return hostAppLabel(n); };
   const { spawn } = await import('node:child_process');
   const run = (cmd: string, args: string[]) => new Promise<{ code: number; out: string; err: string }>((res) => {
     try {
@@ -701,9 +702,11 @@ async function foregroundWindow(candidates: number[], names: string[] = []): Pro
       "$ErrorActionPreference='SilentlyContinue'",
       'Add-Type @"',
       'using System; using System.Runtime.InteropServices;',
-      'public class FG { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h); [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int n); }',
+      'public class FG { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h); [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int n); [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h); [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h); }',
       '"@',
       `$ids=@(${candidates.join(',')}); $h=[IntPtr]::Zero; $alive=0; $w=0`,
+      // M506: the window the person typed in, if it still exists (its handle outlives nothing — a closed tab/window is gone)
+      `$wh=[IntPtr]${win?.hwnd ?? 0}; if($wh -ne [IntPtr]::Zero -and [FG]::IsWindow($wh)){ $h=$wh; $w=${win?.pid ?? 0}; $alive++ }`,
       // M503: the captured chain first — the first ancestor that owns a window (Windows Terminal, VS Code, the Codex app)
       'foreach($id in $ids){ $p=Get-Process -Id $id -ErrorAction SilentlyContinue; if($p){ $alive++; if($p.MainWindowHandle -ne 0){ $h=$p.MainWindowHandle; $w=$id; break } } }',
       // then, as before, walk parents above the last known pid (an older row without a chain)
@@ -713,7 +716,7 @@ async function foregroundWindow(candidates: number[], names: string[] = []): Pro
       '  if($p -and $p.MainWindowHandle -ne 0){ $h=$p.MainWindowHandle; $w=$id; break }',
       '  $id=(Get-CimInstance Win32_Process -Filter "ProcessId=$id").ParentProcessId',
       '}',
-      "if($h -ne [IntPtr]::Zero){ [FG]::ShowWindow($h,9) | Out-Null; if([FG]::SetForegroundWindow($h)){ \"OK $w\" } else { \"DENIED $w\" } } elseif($alive -eq 0){ 'GONE' } else { 'NOWIN' }",
+      "if($h -ne [IntPtr]::Zero){ if([FG]::IsIconic($h)){ [FG]::ShowWindow($h,9) | Out-Null } else { [FG]::ShowWindow($h,5) | Out-Null }; if([FG]::SetForegroundWindow($h)){ \"OK $w\" } else { \"DENIED $w\" } } elseif($alive -eq 0){ 'GONE' } else { 'NOWIN' }",
     ].join("\n");
     const r = await run('powershell', ['-NoProfile', '-NonInteractive', '-Command', psScript]);
     const o = (r.out || '').trim();
@@ -729,7 +732,7 @@ async function foregroundWindow(candidates: number[], names: string[] = []): Pro
     // M503: the stored pid is `codex` or `node`, which is no GUI process — System Events only knows apps. Try each
     // candidate up the chain; the first that System Events can make frontmost (Terminal, iTerm2, VS Code, the Codex app) wins.
     let alive = 0, lastErr = '';
-    for (const pid of candidates) {
+    for (const pid of [...(win ? [win.pid] : []), ...candidates]) { // M506: the typed-in app first
       const ps = await run('ps', ['-p', String(pid), '-o', 'pid=']); if (ps.code !== 0 || !ps.out.trim()) continue; alive++;
       const r = await run('osascript', ['-e', `tell application "System Events" to set frontmost of (first process whose unix id is ${pid}) to true`]);
       if (r.code === 0) return { ok: true, detail: `brought ${nameOf(pid) || 'the session window'} to the front` };
@@ -743,7 +746,11 @@ async function foregroundWindow(candidates: number[], names: string[] = []): Pro
   const list = await run('wmctrl', ['-l', '-p']);
   if (list.code !== 0) return { ok: false, detail: 'wmctrl is not installed (apt install wmctrl) — it is needed to activate windows on Linux' };
   const lines = (list.out || '').split('\n');
-  for (const pid of candidates) { // M503: nearest ancestor that owns a window
+  if (win?.hwnd) { // M506: the typed-in X window, if it still exists
+    const id = '0x' + win.hwnd.toString(16).padStart(8, '0');
+    if (lines.some((l) => l.trim().toLowerCase().startsWith(id))) { const a = await run('wmctrl', ['-ia', id]); if (a.code === 0) return { ok: true, detail: `brought ${nameOf(win.pid) || 'the session window'} to the front` }; }
+  }
+  for (const pid of [...(win ? [win.pid] : []), ...candidates]) { // M503: nearest ancestor that owns a window
     const line = lines.find((l) => l.trim().split(/\s+/)[2] === String(pid));
     if (!line) continue;
     const a = await run('wmctrl', ['-ia', line.trim().split(/\s+/)[0]]);
@@ -795,6 +802,13 @@ function recordHarness(sessionId: string, claimed: string | null | undefined, tr
   else if (weak) { db.prepare('UPDATE harness_sessions SET harness = COALESCE(harness, ?) WHERE session_id = ?').run(weak, sessionId); if (!store.getSetting(`harness:session:${sessionId}`)) store.setSetting(`harness:session:${sessionId}`, weak); }
 }
 function hostChainOf(row: any): ChainEntry[] | null { try { return row?.host_chain ? parseChain(JSON.parse(row.host_chain)) : null; } catch { return null; } }
+function hostWindowOf(row: any): HostWindow | null { try { return row?.host_window ? parseWindow(JSON.parse(row.host_window)) : null; } catch { return null; } }
+// M506: does this session still need the window it was typed in? Once per session; again after the button found it gone.
+function needsHostWindow(sessionId: string | null | undefined): boolean {
+  if (!sessionId) return false;
+  const row = hostRow(sessionId);
+  return !!row && !hostWindowOf(row);
+}
 // M503: does this session still need its ancestor chain captured? Once per session; again after the button found every
 // pid in it dead (the chain is cleared then). Never per prompt — on Windows the hook's parent pid changes every prompt.
 function needsHostChain(sessionId: string | null | undefined): boolean {
@@ -805,7 +819,7 @@ function needsHostChain(sessionId: string | null | undefined): boolean {
   return !!row && !hostChainOf(row);
 }
 function hostRow(sessionId: string): any | null {
-  return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active, host_pid, host_pid_at, host_chain FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
+  return ((store as any).db.prepare('SELECT session_id, chat_id, cwd, harness, title, status, ended_at, end_reason, transcript_path, last_active, host_pid, host_pid_at, host_chain, host_window FROM harness_sessions WHERE session_id = ?').get(sessionId) as any) ?? null;
 }
 function ensureHostChat(sessionId: string, pid: string, harness: string | null, opts: { follow?: boolean; forkedFrom?: string | null } = {}): string {
   const db = (store as any).db;
@@ -884,6 +898,7 @@ function hostSessionOf(chat: { id: string; hostSessionId?: string | null }): Rec
     embedded,
     hostPid: row.host_pid ?? null, hostPidAt: row.host_pid_at ?? null, // M401: for the bring-to-foreground button (local only)
     hostChain: hostChainOf(row), // M503: the ancestor chain above that pid, [{pid,name}] nearest first (local only)
+    hostWindow: (() => { const w = hostWindowOf(row); return w ? { ...w, label: hostAppLabel(w.name) } : null; })(), // M506: the window the person typed in (local only)
     forkedFrom: store.getSetting(`fork:${chat.hostSessionId}`) ?? null, // M255
   };
 }
@@ -2806,11 +2821,12 @@ const server = Bun.serve({
       const host = hostSessionOf({ id: c.id, hostSessionId: (c as any).hostSessionId });
       const pid = host && Number((host as any).hostPid) > 0 ? Number((host as any).hostPid) : 0;
       const chain = host?.hostChain as ChainEntry[] | null; // M503: nearest first; sufficient without the separate PID report
+      const win = (host?.hostWindow as HostWindow | null) ?? null; // M506: the window the person typed in — first choice
       const candidates = chain && chain.length ? chain.map((e) => e.pid) : pid ? [pid] : [];
-      if (!candidates.length) return json({ ok: false, detail: 'that session has not reported its process yet — type one message in it, then try again' });
-      const r = await foregroundWindow(candidates, chain ? chain.map((e) => e.name) : []);
-      if (r.gone && (c as any).hostSessionId) (store as any).db.prepare('UPDATE harness_sessions SET host_chain = NULL WHERE session_id = ?').run((c as any).hostSessionId); // recapture on the next prompt
-      store.audit('session_foreground', { chat: c.id.slice(0, 8), pid, chain: candidates.length, ok: r.ok, gone: !!r.gone });
+      if (!candidates.length && !win) return json({ ok: false, detail: 'that session has not reported its process yet — type one message in it, then try again' });
+      const r = await foregroundWindow(candidates, chain ? chain.map((e) => e.name) : [], win);
+      if (r.gone && (c as any).hostSessionId) (store as any).db.prepare('UPDATE harness_sessions SET host_chain = NULL, host_window = NULL WHERE session_id = ?').run((c as any).hostSessionId); // recapture on the next prompt
+      store.audit('session_foreground', { chat: c.id.slice(0, 8), pid, chain: candidates.length, window: !!win, ok: r.ok, gone: !!r.gone });
       return json({ ok: r.ok, detail: r.detail });
     }
     const chatActMatch = path.match(/^\/api\/chats\/([\w-]+)\/activate$/);
@@ -4310,6 +4326,17 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       store.audit('host_chain_recorded', { session: body.session_id.slice(0, 8), depth: chain.length, names: chain.map((e) => e.name.replace(/\.exe$/i, '')).slice(0, 6) });
       return json({ ok: true });
     }
+    if (path === '/api/harness/host-window' && req.method === 'POST') {
+      // M506: the foreground window at prompt time — the window the person typed in. A browser/shell/companion window is
+      // refused (the person had already switched away); the next prompt tries again. Local only.
+      const body = await req.json() as { session_id?: string; window?: unknown };
+      const w = parseWindow(body.window);
+      if (!body.session_id || !w || !hostRow(body.session_id)) return json({ ok: false }, 400);
+      if (!isPlausibleHostWindow(w)) { store.audit('host_window_rejected', { session: body.session_id.slice(0, 8), name: w.name.slice(0, 30) }); return json({ ok: false, reason: 'not a host window' }); }
+      (store as any).db.prepare('UPDATE harness_sessions SET host_window = ? WHERE session_id = ?').run(JSON.stringify(w), body.session_id);
+      store.audit('host_window_recorded', { session: body.session_id.slice(0, 8), app: hostAppLabel(w.name) || w.name, hwnd: !!w.hwnd });
+      return json({ ok: true });
+    }
     if (path === '/api/harness/observe' && req.method === 'POST') {
       const body = await req.json() as { session_id?: string; transcript_path?: string; last_assistant_message?: string; user_text?: string; assistant_text?: string; cwd?: string };
       ensureSessionBound(body.session_id, body.cwd, (body as any).harness, (body as any).forked_from ?? null, (body as any).map ?? null);
@@ -4396,7 +4423,7 @@ Return: summary (one sentence saying what was deepened) + alterations.`,
       if (sessionId) { health.promptAt = Date.now(); broadcast({ type: 'host_prompt' }); }
       ensureSessionBound(sessionId, url.searchParams.get('cwd'), url.searchParams.get('harness'));
       const { pid: ctxPid, chatId: ctxChatId } = sessionPair(sessionId);
-      const chainAsk = needsHostChain(sessionId) ? { wantHostChain: true } : {}; // M503: the hook captures its ancestor chain once, while it is alive
+      const chainAsk = { ...(needsHostChain(sessionId) ? { wantHostChain: true } : {}), ...(needsHostWindow(sessionId) ? { wantHostWindow: true } : {}) }; // M503/M506: the hook captures its ancestor chain and the typed-in window once
       if (influenceOff(ctxPid)) {
         // One final directive only for sessions that already carry map
         // context (they were anchored before the switch); silence otherwise.
