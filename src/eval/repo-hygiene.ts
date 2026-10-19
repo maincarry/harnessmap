@@ -18,7 +18,9 @@ for (const f of files) {
 for (const f of files) {
   if (!/^(hooks\/|src\/)/.test(f) || !f.endsWith('.ts') || f.startsWith('src/eval/')) continue;
   const text = await Bun.file(f).text().catch(() => '');
-  for (const m of text.matchAll(/Bun\.spawn(Sync)?\s*\(/g)) {
+  // Include unqualified Node child_process spawn/spawnSync calls too. The foreground helper
+  // used one and escaped the Bun-only check, flashing a console on every Windows click.
+  for (const m of text.matchAll(/(?:\bBun\.|(?<![\w.]))spawn(Sync)?\s*\(/g)) {
     const start = m.index ?? 0;
     const win = text.slice(start, start + 700); // options object follows within this window
     if (/\bterminal\s*:/.test(win)) continue; // ConPTY / embedded terminal — intentionally visible

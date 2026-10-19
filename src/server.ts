@@ -689,7 +689,7 @@ async function foregroundWindow(candidates: number[], names: string[] = []): Pro
   const { spawn } = await import('node:child_process');
   const run = (cmd: string, args: string[]) => new Promise<{ code: number; out: string; err: string }>((res) => {
     try {
-      const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
       let out = '', err = ''; p.stdout?.on('data', (d) => (out += d)); p.stderr?.on('data', (d) => (err += d));
       const t = setTimeout(() => { try { p.kill(); } catch {} }, 8000);
       p.on('error', () => { clearTimeout(t); res({ code: -1, out, err: 'spawn failed' }); });
