@@ -154,7 +154,7 @@ body.nosess .hint{display:block}
 </div>
 
 <script>
-const COMPANION_VER = '0.9.323'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.324'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
