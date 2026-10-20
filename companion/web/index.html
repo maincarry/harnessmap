@@ -105,6 +105,12 @@ body.nosess .hint{display:block}
 .settings{display:none;padding-bottom:6px}
 body.prefs .settings{display:block}
 body.prefs .main{display:none}
+/* M510: settings open from the off card too — the panel shows its settings view, the card steps aside */
+body.offline.prefs .panel{display:block;opacity:1;transform:none;pointer-events:auto}
+body.offline.prefs .offcard{display:none}
+body.offline.prefs .main{display:none}
+.offcard button.icobtn{border:0;background:transparent;font-family:inherit}
+.act.quit{color:var(--muted)}
 .settings .sh{display:flex;align-items:center;gap:8px;padding:2px 14px 10px;font-size:13px;font-weight:700;color:var(--ink)}
 .settings .sh .back{color:var(--accent);cursor:pointer;font-weight:600;font-size:12.5px;margin-left:auto}
 .settings .lbl{padding:4px 14px 6px;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
@@ -135,7 +141,6 @@ body.prefs .main{display:none}
     <div class="hd">
       <span class="draghandle" id="draghandle"><svg width="18" height="18" style="color:var(--muted);pointer-events:none"><use href="#mk" transform="scale(0.25)"/></svg><span class="brand">harness<span class="b">map</span></span></span>
       <button class="icobtn" id="settings-btn" type="button" title="Settings" aria-label="Settings"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-2px"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button>
-      <button class="icobtn" id="companion-menu" type="button" title="Companion menu" aria-label="Companion menu">⋯</button>
       <span class="icobtn" id="x" title="close">✕</span>
     </div>
     <div class="main" id="main">
@@ -159,11 +164,12 @@ body.prefs .main{display:none}
       <div class="set" id="set-login" hidden title="open the companion when you sign in"><span>launch at login</span><span class="sw"><span class="knob"></span></span></div>
       <div class="set" id="set-autostart" hidden title="when the companion opens and the map is off, start it (once, at launch — never behind your back later)"><span>start the map when the companion opens</span><span class="sw"><span class="knob"></span></span></div>
       <div class="act" id="reset-pos" hidden title="put the companion back in the bottom-right corner">reset position</div>
+      <div class="act quit" id="quit-app" hidden title="close the companion — the map keeps running">exit the companion</div>
       <div class="ver" id="ver"></div>
     </div>
   </div>
   <div class="offcard" id="offcard">
-    <div class="t"><span class="odot"></span><span id="offmsg">the map is off</span><span class="icobtn" id="off-menu" title="Companion menu">⋯</span></div>
+    <div class="t"><span class="odot"></span><span id="offmsg">the map is off</span><button class="icobtn" id="off-settings" type="button" title="Settings" aria-label="Settings"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-2px"><path fill="currentColor" d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg></button></div>
     <div class="why" id="offwhy">your Codex and Claude Code sessions are not being recorded while it is off</div>
     <button class="pwr" id="pwr" type="button"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="flex:0 0 auto"><path d="M12 3v9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M7.2 6.6a7 7 0 1 0 9.6 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span id="pwr-l">start the map</span></button>
     <div class="res" id="offres"></div>
@@ -171,7 +177,7 @@ body.prefs .main{display:none}
 </div>
 
 <script>
-const COMPANION_VER = '0.9.329'; // bump on each companion ship — shown in the panel so a stale build is obvious
+const COMPANION_VER = '0.9.330'; // bump on each companion ship — shown in the panel so a stale build is obvious
 const B = document.body, $ = (id) => document.getElementById(id);
 const core = window.__TAURI__ && window.__TAURI__.core;
 const invoke = (cmd, args) => core ? core.invoke(cmd, args) : Promise.reject(new Error('no tauri'));
@@ -338,9 +344,8 @@ function armDrag(el, onClick) {
 }
 
 // interactions
+// M510 (Mark): one control in the header — the gear. The native ⋯ menu stays on the tray icon and on right-click.
 function showCompanionMenu() { invoke('show_companion_menu').catch(console.error); }
-$('companion-menu').hidden = !core;
-$('companion-menu').onclick = showCompanionMenu;
 document.addEventListener('contextmenu', (e) => {
   // Keep editing menus in the text field, and normal browser behavior outside Tauri.
   if (!core || e.target.closest('input, textarea, [contenteditable]')) return;
@@ -353,6 +358,8 @@ function closePanel(){ B.classList.remove('open'); B.classList.remove('prefs'); 
 $('settings-btn').onclick = () => { B.classList.toggle('prefs'); }; // body.prefs — not 'settings', which is the view's own class
 $('settings-back').onclick = () => { B.classList.remove('prefs'); };
 $('reset-pos').onclick = () => { invoke('reset_position').catch(() => {}); };
+$('quit-app').onclick = () => { invoke('quit_app').catch(() => {}); };
+$('off-settings').onclick = () => { B.classList.toggle('prefs'); };
 armDrag($('chip'), openPanel);
 armDrag($('draghandle'));
 armDrag($('p-focus'));
@@ -401,11 +408,10 @@ $('pwr').onclick = async () => {
   b.disabled = false; $('pwr-l').textContent = 'start the map';
   loadState();
 };
-$('off-menu').onclick = showCompanionMenu;
 // M502: the two settings — launch at login, start the map when the companion opens. Stored natively (~/.harnessmap/companion.json).
 let SET = { launchAtLogin: false, startMapOnOpen: true };
 function renderSettings() {
-  for (const el of [$('set-login'), $('set-autostart'), $('reset-pos')]) el.hidden = !core;
+  for (const el of [$('set-login'), $('set-autostart'), $('reset-pos'), $('quit-app'), $('off-settings')]) el.hidden = !core;
   $('set-login').classList.toggle('on', !!SET.launchAtLogin);
   $('set-autostart').classList.toggle('on', !!SET.startMapOnOpen);
 }

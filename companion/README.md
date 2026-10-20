@@ -25,7 +25,8 @@ installer, if we ever add that funnel — see below.)
   the map server, then redirects to the live `http://127.0.0.1:<port>/widget`. Shows
   "map not running" + retries when it's down.
 - `src-tauri/` — the Rust shell: reads `~/.harnessmap/port`, tray menu (show/hide, open
-  map, quit), always-on-top frameless transparent window.
+  map, reset position, exit — on the tray icon and on right-click of the widget), always-on-top
+  frameless transparent window.
 - `app-icon-source.png` — 1024² icon source; `cargo tauri icon` expands it into
   `src-tauri/icons/*` at build time (icons are generated, not committed).
 - `../.github/workflows/companion-release.yml` — **CI compile-check**: builds the macOS
@@ -65,6 +66,16 @@ attached state. The start button runs `hooks/start-server.ts` in the app folder 
 `~/.harnessmap/companion.json`: **launch at login** (an OS login item via
 tauri-plugin-autostart) and **start the map when the companion opens** (once, at launch;
 the companion never starts the server on its own later — "stop the map" means stopped).
+
+## One gear (M509, M510)
+The main surface is the state and the two actions: focus, map name with the status light,
+the last filing, *open map*, *go to session*, the talk box. Everything else sits behind the
+gear in the header, in a settings view inside the same panel (*← back* returns): **the map**
+(map influence) and **the companion** (launch at login, start the map when the companion
+opens, reset position, exit the companion, version). The off card has the same gear. There
+is no second menu button in the header: two overflow controls side by side made the user open
+both to learn which held what. The native ⋯ menu still exists on the tray icon and on
+right-click, for show/hide and exit when the panel is hidden.
 
 ## Follow-ups
 - Edge-hide as a native behavior (drag + snap to the screen edge; the web widget already

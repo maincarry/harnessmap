@@ -52,3 +52,21 @@ test('reset position is a native-only row that calls the shell', async () => {
   expect(browser.$('reset-pos').hidden).toBe(true);
   expect(browser.$('set-login').hidden).toBe(true);
 });
+
+// M510 (Mark): the ⋯ folded into the gear. Exit lives at the bottom of the settings view; the off card opens the same view.
+test('exit the companion is a native-only row that quits the shell; the off card reaches settings too', async () => {
+  const native = await boot();
+  expect(native.$('quit-app').hidden).toBe(false);
+  expect(native.$('settings').contains(native.$('quit-app'))).toBe(true);
+  (native.$('quit-app') as any).onclick();
+  expect(native.calls).toContain('quit_app');
+  expect(native.window.document.getElementById('companion-menu')).toBeNull();
+  native.body.classList.add('offline');
+  (native.$('off-settings') as any).onclick();
+  expect(native.body.classList.contains('prefs')).toBe(true);
+  (native.$('settings-back') as any).onclick();
+  expect(native.body.classList.contains('prefs')).toBe(false);
+  const browser = await boot(false);
+  expect(browser.$('quit-app').hidden).toBe(true);
+  expect(browser.$('off-settings').hidden).toBe(true);
+});

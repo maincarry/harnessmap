@@ -38,12 +38,11 @@ test('right-clicking the widget requests the native companion menu', async () =>
   expect(menuCalls()).toHaveLength(1);
 });
 
-test('the visible menu button opens the same native menu', async () => {
+test('the header has no menu button — the gear is the one control (M510)', async () => {
   const { window, menuCalls } = await boot();
-  const button = window.document.getElementById('companion-menu')!;
-  expect(button.hidden).toBe(false);
-  button.click();
-  expect(menuCalls()).toHaveLength(1);
+  expect(window.document.getElementById('companion-menu')).toBeNull();
+  expect(window.document.getElementById('settings-btn')).not.toBeNull();
+  expect(menuCalls()).toHaveLength(0);
 });
 
 test('right-clicking the text field retains its editing menu', async () => {
@@ -54,11 +53,11 @@ test('right-clicking the text field retains its editing menu', async () => {
   expect(menuCalls()).toHaveLength(0);
 });
 
-test('browser preview retains normal context menus and hides native menu control', async () => {
+test('browser preview retains normal context menus and hides the native-only rows', async () => {
   const { window, menuCalls } = await boot(false);
   const event = new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 });
   window.document.getElementById('chip')!.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(false);
-  expect(window.document.getElementById('companion-menu')!.hidden).toBe(true);
+  expect(window.document.getElementById('quit-app')!.hidden).toBe(true);
   expect(menuCalls()).toHaveLength(0);
 });

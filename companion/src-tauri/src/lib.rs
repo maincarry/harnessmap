@@ -286,6 +286,12 @@ fn show_companion_menu(window: tauri::WebviewWindow, menu: tauri::State<'_, Comp
     window.popup_menu(&menu.0).map_err(|error| error.to_string())
 }
 
+/// M510: "exit the companion" in the settings view. Same effect as the tray menu's Exit — the map server keeps running.
+#[tauri::command]
+fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 fn toggles_companion(event: &TrayIconEvent) -> bool {
     matches!(event, TrayIconEvent::Click {
         button: MouseButton::Left,
@@ -299,7 +305,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![open_map, open_desktop_session, open_claude_session, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api, start_server, get_settings, set_settings, allow_foreground])
+        .invoke_handler(tauri::generate_handler![open_map, open_desktop_session, open_claude_session, map_port_cmd, map_ready, start_drag, reset_position, show_companion_menu, api, start_server, get_settings, set_settings, allow_foreground, quit_app])
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open_map" => open_map(app.clone(), None),
             "toggle" => toggle_window(app),
