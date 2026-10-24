@@ -31,7 +31,8 @@ const LOWER: Record<number, string> = {
 };
 
 const b = await chromium.launch();
-const ctx = await b.newContext({ viewport: { width: 1440, height: 960 }, deviceScaleFactor: 2, colorScheme: 'dark', recordVideo: { dir: recDir, size: { width: 2880, height: 1920 } } });
+// Playwright records the viewport at CSS size (no device-pixel upscaling), so the stage is rendered at 2x CSS zoom in a 2880x1920 viewport.
+const ctx = await b.newContext({ viewport: { width: 2880, height: 1920 }, deviceScaleFactor: 1, colorScheme: 'dark', recordVideo: { dir: recDir, size: { width: 2880, height: 1920 } } });
 await ctx.exposeFunction('__hmapi', async (method: string, path: string, body: string | null) => { const r = await fetch(base + path, { method, headers: { 'content-type': 'application/json' }, body: body ?? undefined }); return await r.text(); });
 await ctx.addInitScript(({ port }) => {
   if (!location.href.includes('companion/web/index.html')) return;
@@ -53,6 +54,7 @@ const cf = (): Frame | undefined => pg.frames().find((f) => f.url().startsWith(c
 
 for (let i = 0; i < 120; i++) { try { await (await fetch(base + '/api/state')).json(); break; } catch {} await sleep(1000); }
 await pg.goto(stageUrl);
+await pg.evaluate(() => { document.documentElement.style.width = document.body.style.width = '2880px'; document.documentElement.style.height = document.body.style.height = '1920px'; const st = document.getElementById('stage')!; st.style.transformOrigin = '0 0'; st.style.transform = 'scale(2)'; });
 for (let i = 0; i < 60; i++) { try { if (mf() && (await mf().locator('#tree').count())) break; } catch {} await sleep(500); }
 await mf().evaluate(() => { (window as any).tourStop?.(); localStorage.setItem('hm.tour.done', '1'); document.body.style.setProperty('--split', '50%'); });
 await sleep(800);
@@ -138,20 +140,22 @@ await sleep(600);
 await S(`compShow(false)`); await S(`lower('')`); await S(`camReset(1000)`);
 keep(t, 'companion');
 
-// 4 — talk to the map: the question typed, the answer from the map's own record
+// 4 — talk to the map: the question typed, the answer from the map's own record. The map guide shares the inference
+// queue with the memory passes that follow the last turns, so wait until the server has been quiet for a moment.
+{ let lastN = -1, stable = 0; for (let i = 0; i < 150 && stable < 8; i++) { let n = -2; try { n = ((await (await fetch(base + '/api/audit?limit=500&kind=inference')).json()) as any[]).length; } catch {} if (n === lastN) stable++; else { stable = 0; lastN = n; } await sleep(1000); } cue('quiet', { inference: lastN }); }
 t = now();
 await mf().locator('#map-chat').click(); await sleep(700);
 const dlg = await rectOf('.overlay .modal');
 if (dlg) await S(`cam(${dlg.x + dlg.w / 2}, ${dlg.y + dlg.h / 2}, 1.3, 1200)`);
 await S(`lower(${JSON.stringify('Ask the map. It answers from its own record.')})`);
 await mf().locator('#mc-input').pressSequentially('what did we decide about email?', { delay: 42 });
-await sleep(500);
+await pg.evaluate(() => window.scrollTo(0, 0)); await sleep(500);
 const before = await mf().locator('#mc-log .msg.assistant').count().catch(() => 0);
 await mf().locator('#mc-send').click(); cue('mc-sent');
-for (let i = 0; i < 120; i++) { await sleep(1000); const n = await mf().locator('#mc-log .msg.assistant').count().catch(() => 0); const txt = await mf().locator('#mc-log').innerText().catch(() => ''); if (n > before && !/thinking/i.test(txt)) { cue('mc-answered', { after: i + 1 }); break; } }
+for (let i = 0; i < 180; i++) { await sleep(1000); const n = await mf().locator('#mc-log .msg.assistant').count().catch(() => 0); const txt = await mf().locator('#mc-log').innerText().catch(() => ''); if (n > before && !/thinking/i.test(txt)) { cue('mc-answered', { after: i + 1 }); break; } }
 const tAns = now() - 0.8;
 await sleep(6500);
-await mf().locator('#mc-close').click().catch(() => {}); await S(`lower('')`); await S(`camReset(1000)`);
+await mf().locator('#mc-close').click({ timeout: 3000, force: true }).catch(() => mf().evaluate(() => document.querySelectorAll('.overlay').forEach((o) => o.remove()))); await S(`lower('')`); await S(`camReset(1000)`);
 keep(t, 'ask'); cues.push({ at: now(), k: 'answer-from', from: tAns });
 
 // 5 — the galaxy
