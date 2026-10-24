@@ -1,0 +1,33 @@
+[
+  {
+    "id": "card1",
+    "title": "Every coding session forgets."
+  },
+  {
+    "id": "card1b",
+    "title": "You spend an afternoon deciding things with your agent.<br>Then the session compacts.",
+    "sub": "Tomorrow you start blank. So does it."
+  },
+  {
+    "id": "card2",
+    "title": "HarnessMap keeps what was discussed."
+  },
+  {
+    "id": "card3",
+    "title": "Three days later."
+  },
+  {
+    "id": "card4",
+    "title": "Why now."
+  },
+  {
+    "id": "card4b",
+    "title": "<span style=\"font-family:'IBM Plex Mono',monospace;font-size:34px;font-weight:500;line-height:1.7;letter-spacing:0\">/plugin marketplace add maincarry/harnessmap<br>/plugin install map@harnessmap</span>",
+    "sub": "Then, in a session: open map. Nothing else changes."
+  },
+  {
+    "id": "card5",
+    "title": "The memory layer for agent work.",
+    "logo": true
+  }
+]

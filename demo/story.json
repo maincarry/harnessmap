@@ -1,0 +1,130 @@
+{
+  "name": "demo story — the microscope booking page: a small Flask app over two sessions three days apart; a decision (SQLite), a detail that compaction would lose (first slot 8:10 for warm-up), a correction (no email from the lab network), a deploy decision (Raspberry Pi + nginx, no Docker), an open question (two slots a day?) that the second session settles, and the next step (admin page)",
+  "seed": [
+    {
+      "key": "proj",
+      "content": "Microscope booking page"
+    }
+  ],
+  "focus": "proj",
+  "auto": {
+    "on": true
+  },
+  "settleMs": 5000,
+  "rounds": [
+    {
+      "session": "demo-day1",
+      "user": "We're building the booking page for the lab's confocal microscope. Flask backend, one page of front end. Bookings are 30-minute slots from 8am to 8pm, one person per slot.",
+      "assistant": "Plan: a Flask app with one `bookings` table (slot_start, user, created_at), a `/` page that renders the day as a grid of 24 half-hour slots, and a POST `/book` that takes a slot and a name and refuses a slot that is already taken. I'll keep the front end to one template and a little fetch call, no framework.",
+      "then": [
+        {
+          "nodeMatching": "booking|microscope|slot"
+        }
+      ]
+    },
+    {
+      "session": "demo-day1",
+      "user": "Let's store bookings in SQLite, not Postgres. It's one instrument and one lab, we don't need a server for it.",
+      "assistant": "Agreed. SQLite in a single file `bookings.db` next to the app, opened with `sqlite3` from the standard library. One table, one index on slot_start. If the lab ever shares the page with other instruments we can move to Postgres then; the queries stay the same.",
+      "then": [
+        {
+          "nodeMatching": "SQLite"
+        }
+      ]
+    },
+    {
+      "session": "demo-day1",
+      "user": "One thing that's easy to forget: the microscope needs ten minutes of warm-up after power on, so the first slot of the day starts at 8:10, not 8:00. Everything after that is on the half hour as usual.",
+      "assistant": "Noted, that is the kind of rule that gets lost. The slot generator will produce 8:10–8:40 as the first slot, then 8:30... no, correction: 8:10–8:40, then 8:40–9:10 would drift the grid. I'll do it the simple way: slots are on the half hour from 8:30, and a single short first slot 8:10–8:30 is shown as 'warm-up slot' and bookable. Is that what you want?",
+      "then": [
+        {
+          "nodeMatching": "8:10|warm-up|warm up"
+        }
+      ]
+    },
+    {
+      "session": "demo-day1",
+      "user": "Yes, exactly that. And no, don't add email. I saw you sketch a cancellation email through SendGrid in the template — the lab network can't send mail at all. Cancellations just show on the page.",
+      "assistant": "Removed the SendGrid sketch and the email field. Cancelling a booking now frees the slot and shows a small 'cancelled by <name> at <time>' line under it for the rest of the day, nothing leaves the network.",
+      "then": [
+        {
+          "nodeMatching": "email|SendGrid|mail"
+        }
+      ]
+    },
+    {
+      "session": "demo-day1",
+      "user": "For deployment: it runs on the lab's Raspberry Pi behind nginx on port 80. No Docker, it's too slow on the Pi and nobody there knows it.",
+      "assistant": "Deploy plan: a systemd unit running gunicorn with two workers on 127.0.0.1:8000, nginx on port 80 proxying to it, the SQLite file under /var/lib/booking with the service user owning it. No Docker. I'll write the unit file and the nginx server block into deploy/.",
+      "then": [
+        {
+          "nodeMatching": "Raspberry|nginx|systemd|Docker"
+        }
+      ]
+    },
+    {
+      "session": "demo-day1",
+      "user": "Open question I can't answer alone: should a student be able to book more than two slots a day? I'll ask Priya, she runs the lab schedule. Leave it unlimited for now.",
+      "assistant": "Left unlimited. I put a single constant MAX_SLOTS_PER_DAY = None at the top of booking rules so the answer is a one-line change when Priya decides.",
+      "then": [
+        {
+          "nodeMatching": "Priya|two slots|per day"
+        }
+      ]
+    },
+    {
+      "session": "demo-day1",
+      "user": "Good for today. Next time: the admin page, so lab staff can block a range of slots for maintenance with a reason students can see.",
+      "assistant": "Noted as the next step: an admin page to block slot ranges for maintenance with a visible reason. The booking page, SQLite storage, the 8:10 warm-up slot, on-page cancellations and the Pi deploy plan are in place.",
+      "then": [
+        {
+          "nodeMatching": "admin|maintenance|block"
+        },
+        {
+          "do": "context",
+          "session": "demo-day4",
+          "prompt": "Picking up the microscope booking page after a few days. Where did we leave it?"
+        },
+        {
+          "contextHas": "8:10|warm-up"
+        },
+        {
+          "contextHas": "Priya|two slots"
+        },
+        {
+          "contextHas": "SQLite"
+        }
+      ]
+    },
+    {
+      "session": "demo-day4",
+      "user": "Picking up the microscope booking page after a few days. Where did we leave it?",
+      "assistant": "From the map: the booking page is a Flask app on SQLite (your call, one lab, one instrument). The first slot of the day is a short warm-up slot 8:10–8:30, then half-hour slots to 8pm. No email anywhere, the lab network can't send it, cancellations show on the page. Deployment is the lab's Raspberry Pi, gunicorn under systemd behind nginx on port 80, no Docker. One question was open: whether a student can book more than two slots a day, you were going to ask Priya. The next step you named was the admin page for blocking slots for maintenance with a visible reason.",
+      "then": [
+        {
+          "nodeMatching": "left it|where we|status|recap|picking up|booking page"
+        }
+      ]
+    },
+    {
+      "session": "demo-day4",
+      "user": "Priya says two slots per student per day, hard limit. Add that rule.",
+      "assistant": "Set MAX_SLOTS_PER_DAY = 2. The POST /book handler now counts the student's bookings for that day and refuses the third with the message 'two slots a day per person, ask lab staff for more'. Added a test for the boundary.",
+      "then": [
+        {
+          "nodeMatching": "two slots|MAX_SLOTS|per day"
+        }
+      ]
+    },
+    {
+      "session": "demo-day4",
+      "user": "Now the admin page we planned: lab staff pick a date and a range of slots, block them for maintenance, and type a reason that students see in the grid.",
+      "assistant": "Added /admin with a date picker and a start/end slot selector. Blocking writes rows to a `blocks` table (slot_start, slot_end, reason); the day grid renders blocked slots greyed with the reason inline and refuses bookings inside a block. Admin access is behind a shared lab password in the environment for now, as discussed for the Pi setup.",
+      "then": [
+        {
+          "nodeMatching": "admin|blocks?|maintenance"
+        }
+      ]
+    }
+  ]
+}
