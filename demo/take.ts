@@ -157,7 +157,7 @@ await mf().evaluate(() => (document.getElementById('galaxy-btn') as any)?.click(
 await S(`lower(${JSON.stringify('The same map, as a sky.')})`);
 await sleep(1500);
 // the galaxy's first-run tip ("drag to wander… got it!") is dismissed the way a user would, so the sky is clean
-for (let i = 0; i < 3; i++) { const hit = await mf().evaluate(() => { const b = Array.from(document.querySelectorAll('#galaxy-overlay button, #galaxy-overlay [role=button]')).find((el) => /got it|next|done|ok/i.test((el as HTMLElement).innerText || '')) as HTMLElement | undefined; if (b) { b.click(); return true; } return false; }).catch(() => false); if (!hit) break; await sleep(500); }
+for (let i = 0; i < 4; i++) { const hit = await mf().evaluate(() => { const all = Array.from(document.querySelectorAll('#galaxy-overlay *')) as HTMLElement[]; const b = all.filter((el) => el.children.length === 0 && /^\s*(got it!?|next|done|ok)\s*$/i.test(el.textContent || '')).pop(); if (b) { b.click(); return true; } return false; }).catch(() => false); if (!hit) break; await sleep(600); }
 await sleep(6000);
 await mf().evaluate(() => (document.getElementById('galaxy-close') as any)?.click());
 await S(`lower('')`); await sleep(400);
