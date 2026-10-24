@@ -198,6 +198,9 @@ await pump();
 // (the ROOT's content is also 'untitled' — pick the child under trip, not the first match)
 const untitledNode = S()?.nodes.find((n: any) => n.content === 'untitled' && n.parentId === trip);
 check('untitled node created UNDER trip', !!untitledNode);
+// M511 (Jacob 2026-10-24): a row the map just added arrives with motion; rows painted before do not re-animate.
+check('the new row carries the arrive class', !!(untitledNode && rowFor(untitledNode.id)?.classList.contains('arrive')), untitledNode ? String(rowFor(untitledNode.id)?.className) : 'no node');
+check('the parent row (painted before) does not', !rowFor(trip)?.classList.contains('arrive'));
 check('new node is the focus (M114)', !!untitledNode && S()?.chats?.find((c: any) => c.id === S()?.mainChatId)?.focusContainerId === untitledNode.id);
 
 // delete with a focused session → warning modal (M123), then cancel

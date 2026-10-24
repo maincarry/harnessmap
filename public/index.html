@@ -399,6 +399,11 @@
   .rec-0 { background: var(--new0); border-radius: 4px; }
   /* same chip vocabulary as the category chips (.ntype): hairline, quiet.
      Persist until clicked/cleared, so they stay SMALL. */
+  /* M511 (Jacob 2026-10-24, from the demo: "the node generation animation is not smooth"): a row the filer just added
+     fades and slides in with a highlight that fades, instead of popping. Only rows new since the last paint animate. */
+  .nrow.arrive { animation: nrow-arrive .55s cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes nrow-arrive { from { opacity: 0; transform: translateY(-6px); box-shadow: inset 4px 0 0 0 var(--accent); } 60% { opacity: 1; transform: none; box-shadow: inset 4px 0 0 0 var(--accent); } to { opacity: 1; transform: none; box-shadow: inset 0 0 0 0 transparent; } }
+  @media (prefers-reduced-motion: reduce) { .nrow.arrive { animation: none; } }
   .chip-new { flex: none; align-self: center; font-size: 9px; padding: 0 4px; border-radius: 3px;
               border: 1px solid var(--accent); background: var(--panel); color: var(--accent); }
   .chip-new.changed { border-color: var(--hair); color: var(--muted); }
@@ -1011,6 +1016,7 @@ function placeRowExt() {
     if (over > 0) el.style.left = `${-Math.min(over, Math.max(0, r.left - pr.left - 10))}px`;
   }
 }
+const SEEN_ROWS = new Set(); let TREE_PAINTED = false; // M511: rows painted before — a row not in here arrives with motion
 function renderTree() {
   const tree = $('tree');
   const lit = new Set(chat()?.lit ?? []);
@@ -1037,6 +1043,7 @@ function renderTree() {
       detailId === n.id ? 'selected' : '',
       DEAD.includes(n.status) ? 'dead' : '',
       n.status === 'exploratory' ? 'exploratory' : '',
+      (TREE_PAINTED && !SEEN_ROWS.has(n.id)) ? 'arrive' : '', // M511
     ].filter(Boolean).join(' ');
     return `
     <div class="${cls}${recCls(n.id)}" tabindex="0" title="${esc(n.title && n.title !== n.content ? n.content + ' — ' : '')}recorded: ${esc(n.status)}">
@@ -1131,6 +1138,7 @@ function renderTree() {
   // (2026-10-04, Mark: "+ add node" removed — users don't hand-file nodes. The filer files new topics as they
   // arise, and the focus picker's "name a new topic" creates, lights and focuses one when you mean to switch.)
   tree.innerHTML = html || '<div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status). The map files your conversation as you go.</div>';
+  for (const n of (S.nodes || [])) SEEN_ROWS.add(n.id); TREE_PAINTED = true; // M511: next paint animates only what is new from here
   if (detailId && !node(detailId)) closeDetailPane(); // the node the pane shows was removed
   placeRowExt(); // Mark 2026-10-09: the ⋯ popover opens under its button; when that would run past the pane's right edge it shifts left to fit
   const f = node(focus);
