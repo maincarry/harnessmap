@@ -59,6 +59,22 @@ const common = [...inputs, '-filter_complex_script', join(OUT, 'graph.txt'), '-m
 const run = async (args: string[], label: string) => { const p = Bun.spawn([FF, '-hide_banner', '-loglevel', 'error', '-y', ...args], { stdout: 'inherit', stderr: 'inherit' }); const code = await p.exited; console.log(label, code === 0 ? 'ok' : `exit ${code}`); return code; };
 await run([...common, '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', join(OUT, 'harnessmap-demo.mp4')], 'mp4');
 await run([...common, '-c:v', 'libvpx-vp9', '-b:v', '900k', '-deadline', 'good', '-cpu-used', '2', '-row-mt', '1', '-c:a', 'libopus', '-b:a', '96k', join(OUT, 'harnessmap-demo.webm')], 'webm');
-// captions as a sidecar too (what the frame burned in), one line per segment
-const srt = segs.map((s) => s.label).join('\n');
-writeFileSync(join(OUT, 'segments.txt'), srt);
+// captions as a sidecar .srt too (the same lines the frame burned in), timed by the segment list
+const CAP: Record<string, string> = {
+  'round 1': 'She talks to Claude Code as always. Beside her, the map files the turn. Nobody typed into the map.',
+  'round 2': 'Her words, her name on them.', 'round 3': 'The 8:10 rule is the kind of thing that gets lost.',
+  'round 4': 'A correction is recorded as a correction. Not overwritten.', 'round 5': 'The deploy decision lands next to the rest.',
+  'round 6': 'One question left open.', 'round 7': 'One next step named. That is the afternoon, kept.',
+  'round 8': 'Three days later. The new session starts with the map in its context.', 'chat agent view': 'The new session starts with the map in its context. It picks up where she left off.',
+  'round 9': 'The open question becomes a rule. The map shows what changed.', 'round 10': 'The next step begins where the last session ended.',
+  'companion': 'A small companion on the desktop. One light: the map is up. The focus. One click to the map.',
+  'ask': 'Ask the map. It answers from its own record and says where.', 'answer': 'Ask the map. It answers from its own record and says where.', 'ask+answer': 'Ask the map. It answers from its own record and says where.',
+  'galaxy': 'The same map, as a sky.',
+  card1: 'Every coding session forgets.', card1b: 'You spend an afternoon deciding things with your agent. Then the session compacts.', card2: 'HarnessMap keeps what was discussed.',
+  card3: 'Three days later.', card4: 'Why now.', card4b: 'Two lines to install. Then say: open map.', card5: 'HarnessMap. The memory layer for agent work.',
+};
+const ts = (t: number) => { const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = Math.floor(t % 60), ms = Math.round((t - Math.floor(t)) * 1000); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(ms).padStart(3, '0')}`; };
+let t = 0, n = 0; const srt: string[] = [];
+for (const s of segs) { const d = s.kind === 'v' ? s.to - s.from : s.dur; const text = CAP[s.label]; if (text) srt.push(`${++n}\n${ts(t)} --> ${ts(t + d)}\n${text}\n`); t += d; }
+writeFileSync(join(OUT, 'harnessmap-demo.srt'), srt.join('\n'));
+writeFileSync(join(OUT, 'segments.txt'), segs.map((s) => s.label).join('\n'));

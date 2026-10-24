@@ -41,6 +41,8 @@ if (phase === 'A' || phase === 'B') {
   await pg.goto(wrapper);
   for (let i = 0; i < 60; i++) { const f = await mapFrame(); if (f) { try { if (await f.locator('#tree').count()) break; } catch {} } await sleep(500); }
   try { const f = await mapFrame(); await f?.evaluate(() => { (window as any).tourStop?.(); localStorage.setItem('hm.tour.done', '1'); }); } catch {}
+  // a wider tree pane and a touch of zoom so the nodes read at video size (the page's own --split variable, dragged by the splitter)
+  try { const f = await mapFrame(); await f?.evaluate(() => { document.body.style.setProperty('--split', '52%'); (document.documentElement.style as any).zoom = '1.1'; }); } catch {}
   cue('map-loaded');
 }
 const caption = async (text: string) => { await pg.evaluate((t) => (window as any).setCaption(t), text); cue('caption', { text }); };
