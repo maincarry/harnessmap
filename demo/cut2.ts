@@ -25,8 +25,9 @@ writeFileSync(join(cutDir, 'edl.txt'), segs.map((s, i) => `${String(i).padStart(
 console.log(readFileSync(join(cutDir, 'edl.txt'), 'utf8'));
 const run = async (args: string[], label: string) => { const p = Bun.spawn([FF, '-hide_banner', '-loglevel', 'error', '-y', '-threads', '2', ...args], { stdout: 'inherit', stderr: 'inherit' }); const code = await p.exited; if (code !== 0) console.log(label, `exit ${code}`); return code; };
 // pass 1 — a range the take did not reach (a crash mid-take) or a failed extraction is dropped, not left as a hole
-const probe = Bun.spawnSync([FF.replace(/ffmpeg$/, 'ffprobe'), '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', src]);
-const srcDur = Number(String(probe.stdout || '').trim()) || Infinity;
+// no ffprobe on the box: read the duration from ffmpeg's own banner (a take that crashed has none → unknown)
+let srcDur = Infinity;
+try { const pr = Bun.spawnSync([FF, '-hide_banner', '-i', src]); const m = String(pr.stderr || '').match(/Duration: (\d+):(\d+):(\d+\.\d+)/); if (m) srcDur = +m[1] * 3600 + +m[2] * 60 + +m[3]; } catch {}
 const parts: string[] = []; const kept: typeof segs = [];
 for (let i = 0; i < segs.length; i++) {
   const s = segs[i]; if (s.from >= srcDur - 0.5) { console.log(`seg ${i} ${s.label}: beyond the take (${srcDur.toFixed(1)}s), dropped`); continue; }
