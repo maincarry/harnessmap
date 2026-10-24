@@ -3,7 +3,7 @@
 //   bun run demo/record.ts A <port> <outdir>
 // Output: <outdir>/*.webm (one continuous take, 1440x960: the map at 1440x900 + a 60 px caption strip) and <outdir>/cues.json.
 import { chromium } from 'playwright';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const [phase, portS, outdir] = process.argv.slice(2);
@@ -37,6 +37,7 @@ const cue = (k: string, x: Record<string, unknown> = {}) => { const c = { at: +(
 pg.on('pageerror', (e) => cue('pageerror', { e: String(e).slice(0, 200) }));
 const mapFrame = async () => pg.frames().find((f) => f.url().startsWith(base));
 if (phase === 'A' || phase === 'B') {
+  for (let i = 0; i < 120; i++) { try { await (await fetch(base + '/api/state')).json(); break; } catch {} await sleep(1000); } // the server may still be starting
   if (phase === 'B') { for (let i = 0; i < 120; i++) { try { const f: any = await (await fetch(base + '/api/filings')).json(); if ((f.pending ?? 0) === 0 && (f.failed ?? 0) === 0) break; } catch {} await sleep(1000); } } // nothing half-filed on screen
   await pg.goto(wrapper);
   for (let i = 0; i < 60; i++) { const f = await mapFrame(); if (f) { try { if (await f.locator('#tree').count()) break; } catch {} } await sleep(500); }
@@ -44,6 +45,7 @@ if (phase === 'A' || phase === 'B') {
   // a wider tree pane and a touch of zoom so the nodes read at video size (the page's own --split variable, dragged by the splitter)
   try { const f = await mapFrame(); await f?.evaluate(() => { document.body.style.setProperty('--split', '52%'); (document.documentElement.style as any).zoom = '1.1'; }); } catch {}
   cue('map-loaded');
+  if (phase === 'A') writeFileSync(`${out}/ready`, '1'); // the seeder waits for this before the first turn
 }
 const caption = async (text: string) => { await pg.evaluate((t) => (window as any).setCaption(t), text); cue('caption', { text }); };
 
@@ -57,6 +59,7 @@ if (phase === 'A') {
   const started = Date.now();
   while (Date.now() - started < 25 * 60 * 1000) {
     let st: any = null;
+    if (existsSync(`${out}/stop`)) { await sleep(2500); cue('stop-file'); break; }
     try { st = await (await fetch(base + '/api/state')).json(); downFor = 0; } catch { downFor++; if (downFor > 6) { cue('server-gone'); break; } await sleep(3000); continue; }
     const n = (st.nodes || []).length;
     const items: any[] = st.filings?.items || [];
