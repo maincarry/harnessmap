@@ -1,6 +1,6 @@
 # HarnessMap — the three-minute demo. Storyboard, draft 1
 
-Date: 2026-10-24. For Jacob's yes before anything is recorded.
+Date: 2026-10-24. Cut 1 (2:42) was posted to Jacob at 20:37Z Oct 24 from the second pipeline rehearsal (take0b), at his word "I am not checking storyboard until I see product". The table below is the storyboard for the final cut with a terminal; the box cut follows it without the terminal beats, so it runs 2:42: cards 0:00–0:18, the map filing 0:18–1:11, "three days later" + the context block + the rule 1:11–1:48, the companion 1:48–2:00, talk to the map 2:00–2:14, the galaxy 2:14–2:22, why now + install + logo 2:22–2:42.
 
 ## The story
 
