@@ -43,7 +43,8 @@ const f: string[] = [];
 parts.forEach((_, i) => f.push(`[${i}:v]setpts=PTS-STARTPTS[v${i}]`));
 let last = 'v0', off = 0;
 for (let i = 1; i < parts.length; i++) { off += lens[i - 1] - D; const o = `x${i}`; f.push(`[${last}][v${i}]xfade=transition=fade:duration=${D}:offset=${off.toFixed(3)}[${o}]`); last = o; }
-f.push(`[${last}]fade=t=in:st=0:d=0.8,fade=t=out:st=${(total2 - 1.2).toFixed(2)}:d=1.2[vout]`);
+const OW = Number(process.env.OUT_W || 0); // a smaller delivery size (Discord) without re-cutting the segments
+f.push(`[${last}]${OW ? `scale=${OW}:${Math.round(OW * 2 / 3)}:flags=lanczos,` : ''}fade=t=in:st=0:d=0.8,fade=t=out:st=${(total2 - 1.2).toFixed(2)}:d=1.2[vout]`);
 f.push(`[${parts.length}:a]atrim=0:${total2.toFixed(2)},afade=t=in:st=0:d=2,afade=t=out:st=${(total2 - 6).toFixed(2)}:d=6,volume=0.9[aout]`);
 writeFileSync(join(cutDir, 'graph.txt'), f.join(';\n'));
 // the score, rendered to this cut: the groove enters with the window, breathes at "three days later", builds at "why now", settles on the logo
