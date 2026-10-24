@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>HarnessMap demo stage</title>
+<style>
+@font-face{font-family:'Sora';src:url('../public/fonts/sora-400-800-latin.woff2') format('woff2');font-weight:400 800;font-display:block}
+@font-face{font-family:'IBM Plex Mono';src:url('../public/fonts/plex-400-latin.woff2') format('woff2');font-weight:400;font-display:block}
+@font-face{font-family:'IBM Plex Mono';src:url('../public/fonts/plex-500-latin.woff2') format('woff2');font-weight:500;font-display:block}
+:root{--bg:#0b1118;--bg2:#121b26;--ink:#e3e9ef;--muted:#8fa0b0;--hair:#243140;--accent:#7cacf2}
+html,body{margin:0;width:1440px;height:960px;overflow:hidden;background:var(--bg);color:var(--ink);font-family:'Sora',ui-sans-serif,system-ui,sans-serif}
+#stage{position:relative;width:1440px;height:960px;background:radial-gradient(1400px 900px at 50% 38%, var(--bg2) 0%, var(--bg) 62%)}
+#stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(1200px 820px at 50% 50%, transparent 55%, rgba(4,8,12,.55) 100%)}
+/* the product window: real page in an iframe, rounded, shadowed, moved by the camera */
+#win{position:absolute;left:80px;top:80px;width:1280px;height:800px;border-radius:14px;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.06);transform-origin:0 0;transition:transform 1.1s cubic-bezier(.2,.7,.2,1),opacity .8s ease,filter .8s ease;background:#0f161f;opacity:0}
+#win.on{opacity:1}
+#win.dim{filter:brightness(.3) blur(5px)}
+#map{width:1280px;height:800px;border:0;display:block;background:#0f161f}
+/* the companion: a second real page, slides in bottom-right like a desktop widget */
+#compwrap{position:absolute;right:-560px;bottom:70px;width:360px;height:420px;transform:scale(1.55);transform-origin:100% 100%;transition:right 1s cubic-bezier(.2,.7,.2,1),opacity .6s ease;opacity:0;filter:drop-shadow(0 30px 60px rgba(0,0,0,.6))}
+#compwrap.on{right:110px;opacity:1}
+#comp{width:360px;height:420px;border:0;background:transparent}
+/* statements */
+#stm{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;pointer-events:none;z-index:5}
+#stm .t{font-size:66px;font-weight:700;letter-spacing:-.035em;line-height:1.06;text-align:center;max-width:1120px;text-wrap:balance;opacity:0;transform:translateY(26px);transition:opacity .75s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
+#stm .s{font-size:23px;color:var(--muted);letter-spacing:0;opacity:0;transform:translateY(18px);transition:opacity .7s ease .25s,transform .8s cubic-bezier(.2,.7,.2,1) .25s}
+#stm.on .t,#stm.on .s{opacity:1;transform:none}
+#stm .t b{color:var(--accent);font-weight:700}
+#stm .t code{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:34px;letter-spacing:0;line-height:1.8}
+/* lower third */
+#lower{position:absolute;left:80px;bottom:34px;max-width:1000px;padding:12px 18px;border-radius:10px;background:rgba(11,17,24,.72);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.07);font-size:21px;font-weight:500;letter-spacing:-.01em;line-height:1.25;opacity:0;transform:translateY(10px);transition:opacity .5s ease,transform .6s cubic-bezier(.2,.7,.2,1);z-index:4}
+#lower.on{opacity:1;transform:none}
+#lower i{font-style:normal;color:var(--accent);margin-right:10px}
+/* terminal (the install beat): typed, real commands */
+#term{position:absolute;left:240px;top:250px;width:960px;border-radius:14px;background:#0a0f15;border:1px solid rgba(255,255,255,.08);box-shadow:0 40px 120px rgba(0,0,0,.6);padding:26px 30px;font-family:'IBM Plex Mono',monospace;font-size:24px;line-height:1.75;color:#d6dee8;opacity:0;transform:translateY(16px) scale(.985);transition:opacity .6s ease,transform .8s cubic-bezier(.2,.7,.2,1);z-index:5;white-space:pre-wrap;min-height:230px}
+#term.on{opacity:1;transform:none}
+#term .p{color:#7cacf2}
+#term .c{display:inline-block;width:12px;height:26px;background:#d6dee8;vertical-align:-4px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+/* logo */
+#logo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;opacity:0;transition:opacity 1s ease;z-index:6;pointer-events:none}
+#logo.on{opacity:1}
+#logo .mark{width:96px;height:96px;color:var(--accent);animation:breathe 4s ease-in-out infinite}
+#logo .brand{font-size:46px;font-weight:700;letter-spacing:-.025em}
+#logo .brand b{color:var(--accent)}
+#logo .line{font-size:22px;color:var(--muted)}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+#veil{position:absolute;inset:0;background:var(--bg);opacity:0;transition:opacity .6s ease;z-index:7;pointer-events:none}
+#veil.on{opacity:1}
+</style></head>
+<body><div id="stage">
+<div id="win"><iframe id="map" title="HarnessMap"></iframe></div>
+<div id="compwrap"><iframe id="comp" title="HarnessMap companion"></iframe></div>
+<div id="lower"><i>▍</i><span id="lower-t"></span></div>
+<div id="stm"><div class="t" id="stm-t"></div><div class="s" id="stm-s"></div></div>
+<div id="term"></div>
+<div id="logo"><svg class="mark" viewBox="0 0 72 72" fill="none" aria-hidden="true"><path d="M36 13 C52 13 59 25 57 38 C55 52 41 57 30 55 C18 53 13 41 15 29 C17 19 25 13 36 13Z" stroke="currentColor" stroke-width="2.6"/><circle cx="21" cy="44" r="3.8" fill="currentColor"/><circle cx="52" cy="35" r="3.4" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="40" cy="23" r="4.6" fill="currentColor"/><circle cx="40" cy="23" r="8.6" fill="none" stroke="currentColor" stroke-width="1.9"/></svg><div class="brand">harness<b>map</b></div><div class="line" id="logo-line"></div></div>
+<div id="veil"></div>
+</div>
+<script>
+const q = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+if (q.get('map')) $('map').src = q.get('map');
+if (q.get('comp')) $('comp').src = q.get('comp');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// camera: centre the window point (px,py) at scale s. Window rests at (80,80); stage centre (720,480).
+window.cam = (px, py, s, ms = 1100) => { const w = $('win'); w.style.transitionDuration = `${ms}ms, .8s, .8s`; w.style.transform = `translate(${640 - px * s}px, ${400 - py * s}px) scale(${s})`; return sleep(ms + 40); };
+window.camReset = (ms = 1100) => window.cam(640, 400, 1, ms);
+window.winShow = (on) => { $('win').classList.toggle('on', !!on); return sleep(800); };
+window.winDim = (on) => { $('win').classList.toggle('dim', !!on); return sleep(800); };
+window.statement = async (title, sub = '', hold = 3000) => { $('stm-t').innerHTML = title; $('stm-s').textContent = sub; $('stm').classList.add('on'); await sleep(hold); $('stm').classList.remove('on'); await sleep(800); };
+window.lower = async (text) => { const el = $('lower'); if (!text) { el.classList.remove('on'); return sleep(500); } if (el.classList.contains('on')) { el.classList.remove('on'); await sleep(420); } $('lower-t').textContent = text; el.classList.add('on'); return sleep(600); };
+window.compShow = (on) => { $('compwrap').classList.toggle('on', !!on); return sleep(1100); };
+window.terminal = async (lines, cps = 28) => { const t = $('term'); t.innerHTML = ''; t.classList.add('on'); await sleep(700); for (const line of lines) { const row = document.createElement('div'); const p = document.createElement('span'); p.className = 'p'; p.textContent = line.prompt ?? '> '; const txt = document.createElement('span'); const c = document.createElement('span'); c.className = 'c'; row.append(p, txt, c); t.appendChild(row); for (const ch of line.text) { txt.textContent += ch; await sleep(1000 / cps + (ch === ' ' ? 40 : 0)); } await sleep(line.after ?? 700); if (line.reply) { c.remove(); const r = document.createElement('div'); r.style.color = '#8fa0b0'; r.textContent = line.reply; t.appendChild(r); await sleep(line.replyAfter ?? 900); } else c.remove(); } };
+window.terminalHide = () => { $('term').classList.remove('on'); return sleep(700); };
+window.logo = (line) => { $('logo-line').textContent = line || ''; $('logo').classList.add('on'); return sleep(1000); };
+window.veil = (on) => { $('veil').classList.toggle('on', !!on); return sleep(650); };
+</script></body></html>
