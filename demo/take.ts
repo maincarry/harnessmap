@@ -16,8 +16,6 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const compUrl = 'file://' + resolve('companion/web/index.html');
 const stageUrl = 'file://' + resolve('demo/stage.html') + `?map=${encodeURIComponent(base + '/')}&comp=${encodeURIComponent(compUrl)}`;
 const story = JSON.parse(await Bun.file(resolve('demo/story.json')).text());
-const heads: string[] = story.rounds.map((r: any) => String(r.user).slice(0, 60));
-const roundOf = (head: string) => heads.findIndex((h) => head.startsWith(h.slice(0, 40)) || h.startsWith(head.slice(0, 40)));
 const LOWER: Record<number, string> = {
   1: 'She talks to Claude Code as always. The map files the turn on its own.',
   2: 'Her words, her name on them.',
@@ -86,43 +84,36 @@ const newRect = async () => { const rows = (await rowsNow()).filter((r) => r.id 
 const rectOf = async (sel: string) => mf().evaluate((sel) => { const el = document.querySelector(sel) as HTMLElement | null; if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }, sel);
 const closeUp = async (r: { x: number; y: number; w: number; h: number }, pad = 1.0, maxS = 1.9) => { const s = Math.max(1.15, Math.min(maxS, 1180 / Math.max(r.w, 380) / pad, 700 / Math.max(r.h, 120) / pad)); await S(`cam(${r.x + r.w / 2}, ${r.y + Math.min(r.h / 2, 300)}, ${s.toFixed(3)}, 1300)`); return s; };
 
-let lastPending = '', inFlight: number[] = [], landed = 0;
+let landed = 0, seen = 0;
 const started = Date.now();
+const seedLog = join(OUT, 'seed.log');
 while (Date.now() - started < 30 * 60 * 1000) {
   if (existsSync(join(readyDir, 'stop')) && landed >= 10) break;
-  let st: any = null; try { st = await (await fetch(base + '/api/state')).json(); } catch { await sleep(1500); continue; }
-  const items: any[] = st.filings?.items || []; const pend = items.map((i) => i.userHead).join('|');
-  if (pend !== lastPending) {
-    const rounds = items.map((i) => roundOf(String(i.userHead || ''))).filter((r) => r >= 0).map((r) => r + 1);
-    for (const r of rounds) if (!inFlight.includes(r)) inFlight.push(r);
-    if (!items.length && inFlight.length) {
-      const done = inFlight.splice(0); const k = Math.max(...done); landed = Math.max(landed, k); cue('landed', { rounds: done });
-      await sleep(1400); // let the rows paint
-      const tk = now() - 1.6;
-      if (k === 8) {
-        const msg = await rectOf('#chat-pane .msg.assistant:last-of-type');
-        await S(`lower(${JSON.stringify('A new session. It starts with the map in its context.')})`);
-        if (msg) await closeUp(msg, 1.05, 1.5); await sleep(4200);
-        await mf().evaluate(() => { const b = document.getElementById('ctx-btn') as any; b.hidden = false; b.onclick(); }); await sleep(900);
-        const modal = await rectOf('.overlay .modal');
-        await S(`lower(${JSON.stringify('The exact block the agent receives: the decisions, the rule, the open question.')})`);
-        if (modal) await S(`cam(${modal.x + modal.w / 2}, ${modal.y + 260}, 1.35, 1300)`); await sleep(6500);
-        await mf().evaluate(() => document.querySelectorAll('.overlay').forEach((o) => o.remove()));
-        await S(`camReset(1200)`); await S(`lower('')`); await sleep(300);
-        keep(tk, 'round 8 + context');
-      } else {
-        const r = await newRect();
-        if (LOWER[k]) await S(`lower(${JSON.stringify(LOWER[k])})`);
-        if (r) await closeUp(r); else await S(`cam(400, 420, 1.3, 1300)`);
-        await sleep(3600);
-        await S(`camReset(1200)`); await sleep(250);
-        keep(tk, `round ${k}`);
-        if (k === 7) { const t7 = now(); await S(`lower('')`); await S(`winDim(true)`); await S(`statement('Three days later.', '', 3000)`); await S(`winDim(false)`); keep(t7, 'three days later'); }
-      }
-    }
-    lastPending = pend;
+  let lines: string[] = []; try { lines = (await Bun.file(seedLog).text()).split('\n').filter((l) => /round \d+ (landed|grew)/.test(l)); } catch {}
+  if (lines.length <= seen) { await sleep(500); continue; }
+  const k = Number(lines[seen].match(/round (\d+)/)![1]); seen++; landed = Math.max(landed, k); cue('landed', { rounds: [k] });
+  await sleep(1400); // let the rows paint
+  const tk = now() - 1.6;
+  if (k === 8) {
+    const msg = await rectOf('#chat-pane .msg.assistant:last-of-type');
+    await S(`lower(${JSON.stringify('A new session. It starts with the map in its context.')})`);
+    if (msg) await closeUp(msg, 1.05, 1.5); await sleep(4200);
+    await mf().evaluate(() => { const b = document.getElementById('ctx-btn') as any; b.hidden = false; b.onclick(); }); await sleep(900);
+    const modal = await rectOf('.overlay .modal');
+    await S(`lower(${JSON.stringify('The exact block the agent receives: the decisions, the rule, the open question.')})`);
+    if (modal) await S(`cam(${modal.x + modal.w / 2}, ${modal.y + 260}, 1.35, 1300)`); await sleep(6500);
+    await mf().evaluate(() => document.querySelectorAll('.overlay').forEach((o) => o.remove()));
+    await S(`camReset(1200)`); await S(`lower('')`); await sleep(300);
+    keep(tk, 'round 8 + context');
+  } else {
+    const r = await newRect();
+    if (LOWER[k]) await S(`lower(${JSON.stringify(LOWER[k])})`);
+    if (r) await closeUp(r); else await S(`cam(400, 420, 1.3, 1300)`);
+    await sleep(3600);
+    await S(`camReset(1200)`); await sleep(250);
+    keep(tk, `round ${k}`);
+    if (k === 7) { const t7 = now(); await S(`lower('')`); await S(`winDim(true)`); await S(`statement('Three days later.', '', 3000)`); await S(`winDim(false)`); keep(t7, 'three days later'); }
   }
-  await sleep(600);
 }
 await S(`lower('')`);
 
@@ -164,7 +155,10 @@ keep(t, 'ask'); cues.push({ at: now(), k: 'answer-from', from: tAns });
 t = now();
 await mf().evaluate(() => (document.getElementById('galaxy-btn') as any)?.click());
 await S(`lower(${JSON.stringify('The same map, as a sky.')})`);
-await sleep(8000);
+await sleep(1500);
+// the galaxy's first-run tip ("drag to wander… got it!") is dismissed the way a user would, so the sky is clean
+for (let i = 0; i < 3; i++) { const hit = await mf().evaluate(() => { const b = Array.from(document.querySelectorAll('#galaxy-overlay button, #galaxy-overlay [role=button]')).find((el) => /got it|next|done|ok/i.test((el as HTMLElement).innerText || '')) as HTMLElement | undefined; if (b) { b.click(); return true; } return false; }).catch(() => false); if (!hit) break; await sleep(500); }
+await sleep(6000);
 await mf().evaluate(() => (document.getElementById('galaxy-close') as any)?.click());
 await S(`lower('')`); await sleep(400);
 keep(t, 'galaxy');
