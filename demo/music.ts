@@ -11,7 +11,9 @@ const N = Math.floor(DUR * SR);
 const L = new Float32Array(N), R = new Float32Array(N);
 const sec = (t: number) => t;
 // sections in seconds
-const S = { intro: [0, 20], groove1: [20, 70], breath1: [70, 76], groove2: [76, 140], breath2: [140, 146], build: [146, 165], outro: [165, 180] } as const;
+// sections in seconds; the edit passes its own boundaries (MUSIC_SECTIONS, JSON) so the score lands on the cuts
+const DEFAULT_S = { intro: [0, 20], groove1: [20, 70], breath1: [70, 76], groove2: [76, 140], breath2: [140, 146], build: [146, 165], outro: [165, 180] };
+const S: Record<keyof typeof DEFAULT_S, readonly [number, number]> = { ...DEFAULT_S, ...(process.env.MUSIC_SECTIONS ? JSON.parse(process.env.MUSIC_SECTIONS) : {}) } as any;
 const inRange = (t: number, r: readonly [number, number]) => t >= r[0] && t < r[1];
 const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 // chords (midi roots in the bass octave) D A Bm G  → D2=38, A2=45(→A1=33), B2=47(→B1=35), G2=43(→G1=31)
