@@ -19,25 +19,31 @@ for (const k of keeps) {
   } else segs.push(k);
 }
 const D = 0.5, W = Number(process.env.CUT_W || 1920), H = Math.round(W * 2 / 3);
-const lens = segs.map((s) => s.to - s.from);
+const lens: number[] = segs.map((s) => s.to - s.from);
 const total = lens.reduce((a, b) => a + b, 0) - D * (segs.length - 1);
 writeFileSync(join(cutDir, 'edl.txt'), segs.map((s, i) => `${String(i).padStart(2, '0')} ${s.label.padEnd(20)} ${s.from.toFixed(2)}–${s.to.toFixed(2)} (${lens[i].toFixed(1)}s)`).join('\n') + `\n\ntotal ${total.toFixed(1)}s\n`);
 console.log(readFileSync(join(cutDir, 'edl.txt'), 'utf8'));
 const run = async (args: string[], label: string) => { const p = Bun.spawn([FF, '-hide_banner', '-loglevel', 'error', '-y', '-threads', '2', ...args], { stdout: 'inherit', stderr: 'inherit' }); const code = await p.exited; if (code !== 0) console.log(label, `exit ${code}`); return code; };
-// pass 1
-const parts: string[] = [];
+// pass 1 — a range the take did not reach (a crash mid-take) or a failed extraction is dropped, not left as a hole
+const probe = Bun.spawnSync([FF.replace(/ffmpeg$/, 'ffprobe'), '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', src]);
+const srcDur = Number(String(probe.stdout || '').trim()) || Infinity;
+const parts: string[] = []; const kept: typeof segs = [];
 for (let i = 0; i < segs.length; i++) {
-  const s = segs[i]; const part = join(cutDir, `seg${String(i).padStart(2, '0')}.mp4`); parts.push(part);
-  if (existsSync(part) && process.env.REUSE) continue;
-  await run(['-ss', s.from.toFixed(3), '-to', s.to.toFixed(3), '-i', src, '-vf', `fps=30,scale=${W}:${H}:flags=lanczos,format=yuv420p`, '-an', '-c:v', 'libx264', '-preset', 'fast', '-crf', '17', part], `seg ${i}`);
+  const s = segs[i]; if (s.from >= srcDur - 0.5) { console.log(`seg ${i} ${s.label}: beyond the take (${srcDur.toFixed(1)}s), dropped`); continue; }
+  const part = join(cutDir, `seg${String(i).padStart(2, '0')}.mp4`);
+  if (!(existsSync(part) && process.env.REUSE)) { const code = await run(['-ss', s.from.toFixed(3), '-to', Math.min(s.to, srcDur - 0.1).toFixed(3), '-i', src, '-vf', `fps=30,scale=${W}:${H}:flags=lanczos,format=yuv420p`, '-an', '-c:v', 'libx264', '-preset', 'fast', '-crf', '17', part], `seg ${i}`); if (code !== 0) continue; }
+  if (!existsSync(part) || Bun.file(part).size < 20000) { console.log(`seg ${i} ${s.label}: empty (the take ended before it), dropped`); continue; }
+  parts.push(part); kept.push({ ...s, to: Math.min(s.to, srcDur - 0.1) });
 }
+segs.length = 0; segs.push(...kept); lens.length = 0; lens.push(...segs.map((s) => s.to - s.from));
+const total2 = lens.reduce((a, b) => a + b, 0) - D * (segs.length - 1);
 // pass 2
 const f: string[] = [];
 parts.forEach((_, i) => f.push(`[${i}:v]setpts=PTS-STARTPTS[v${i}]`));
 let last = 'v0', off = 0;
 for (let i = 1; i < parts.length; i++) { off += lens[i - 1] - D; const o = `x${i}`; f.push(`[${last}][v${i}]xfade=transition=fade:duration=${D}:offset=${off.toFixed(3)}[${o}]`); last = o; }
-f.push(`[${last}]fade=t=in:st=0:d=0.8,fade=t=out:st=${(total - 1.2).toFixed(2)}:d=1.2[vout]`);
-f.push(`[${parts.length}:a]atrim=0:${total.toFixed(2)},afade=t=in:st=0:d=2,afade=t=out:st=${(total - 6).toFixed(2)}:d=6,volume=0.9[aout]`);
+f.push(`[${last}]fade=t=in:st=0:d=0.8,fade=t=out:st=${(total2 - 1.2).toFixed(2)}:d=1.2[vout]`);
+f.push(`[${parts.length}:a]atrim=0:${total2.toFixed(2)},afade=t=in:st=0:d=2,afade=t=out:st=${(total2 - 6).toFixed(2)}:d=6,volume=0.9[aout]`);
 writeFileSync(join(cutDir, 'graph.txt'), f.join(';\n'));
 const inputs = parts.flatMap((p) => ['-i', p]); inputs.push('-i', join(OUT, 'music.wav'));
 const common = [...inputs, '-filter_complex_script', join(cutDir, 'graph.txt'), '-map', '[vout]', '-map', '[aout]', '-shortest'];

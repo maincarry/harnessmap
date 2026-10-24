@@ -60,8 +60,9 @@ await mf().evaluate(() => { (window as any).tourStop?.(); localStorage.setItem('
 await sleep(800);
 cue('stage-ready');
 
-// 0 — the opening statements over an empty stage
 let t = now();
+try {
+// 0 — the opening statements over an empty stage
 await S(`statement('Every coding session forgets.', '', 3200)`);
 await S(`statement('You spend an afternoon deciding things with your agent.<br>Then the session compacts.', 'Tomorrow you start blank. So does it.', 5200)`);
 await S(`statement('Harness<b>Map</b> keeps what was discussed.', '', 3400)`);
@@ -144,18 +145,19 @@ keep(t, 'companion');
 // queue with the memory passes that follow the last turns, so wait until the server has been quiet for a moment.
 { let lastN = -1, stable = 0; for (let i = 0; i < 150 && stable < 8; i++) { let n = -2; try { n = ((await (await fetch(base + '/api/audit?limit=500&kind=inference')).json()) as any[]).length; } catch {} if (n === lastN) stable++; else { stable = 0; lastN = n; } await sleep(1000); } cue('quiet', { inference: lastN }); }
 t = now();
-await mf().locator('#map-chat').click(); await sleep(700);
+await mf().evaluate(() => (document.getElementById('map-chat') as HTMLElement).click()); await sleep(900);
 const dlg = await rectOf('.overlay .modal');
 if (dlg) await S(`cam(${dlg.x + dlg.w / 2}, ${dlg.y + dlg.h / 2}, 1.3, 1200)`);
 await S(`lower(${JSON.stringify('Ask the map. It answers from its own record.')})`);
-await mf().locator('#mc-input').pressSequentially('what did we decide about email?', { delay: 42 });
+const QUESTION = 'what did we decide about email?';
+for (let i = 1; i <= QUESTION.length; i++) { await mf().evaluate((v) => { const el = document.getElementById('mc-input') as HTMLInputElement; if (el) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); } }, QUESTION.slice(0, i)); await sleep(42); }
 await pg.evaluate(() => window.scrollTo(0, 0)); await sleep(500);
 const before = await mf().locator('#mc-log .msg.assistant').count().catch(() => 0);
-await mf().locator('#mc-send').click(); cue('mc-sent');
+await mf().evaluate(() => (document.getElementById('mc-send') as HTMLElement).click()); cue('mc-sent');
 for (let i = 0; i < 180; i++) { await sleep(1000); const n = await mf().locator('#mc-log .msg.assistant').count().catch(() => 0); const txt = await mf().locator('#mc-log').innerText().catch(() => ''); if (n > before && !/thinking/i.test(txt)) { cue('mc-answered', { after: i + 1 }); break; } }
 const tAns = now() - 0.8;
 await sleep(6500);
-await mf().locator('#mc-close').click({ timeout: 3000, force: true }).catch(() => mf().evaluate(() => document.querySelectorAll('.overlay').forEach((o) => o.remove()))); await S(`lower('')`); await S(`camReset(1000)`);
+await mf().evaluate(() => { (document.getElementById('mc-close') as HTMLElement)?.click(); document.querySelectorAll('.overlay').forEach((o) => o.remove()); }); await S(`lower('')`); await S(`camReset(1000)`);
 keep(t, 'ask'); cues.push({ at: now(), k: 'answer-from', from: tAns });
 
 // 5 — the galaxy
@@ -184,6 +186,7 @@ await S(`logo('The memory layer for agent work.')`);
 await sleep(7000);
 keep(t, 'logo');
 cue('end');
+} catch (e) { cue('crash', { e: String(e).slice(0, 300) }); console.error(e); }
 const vpath = pg.video()?.path();
 await ctx.close(); await b.close();
 console.log('video', await vpath);

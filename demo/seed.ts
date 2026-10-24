@@ -35,10 +35,13 @@ for (const r of story.rounds) {
   for (const a of (k > 1 ? story.rounds[k - 2].then ?? [] : [])) {
     if (a.do === 'context') { const q = `/api/harness/context?session_id=${encodeURIComponent(a.session)}&cwd=${encodeURIComponent(cwd)}${a.prompt ? `&prompt=${encodeURIComponent(a.prompt)}` : ''}`; const c: any = await (await fetch(base + q)).json(); const t = String(c?.context ?? c?.additionalContext ?? c?.text ?? ''); log(`context for ${a.session}: ${t.length} chars; has 8:10=${/8:10|warm-up/i.test(t)} Priya=${/Priya|two slots/i.test(t)} SQLite=${/SQLite/.test(t)}`); writeFileSync(join(out, 'context-day4.txt'), t); }
   }
+  const nodesBefore = ((await get('/api/state')).nodes ?? []).length;
   const ob = await post('/api/harness/observe', { session_id: r.session ?? 'demo', cwd, user_text: r.user, assistant_text: r.assistant });
   log(`round ${k} posted (${ob.status}) ${String(r.user).slice(0, 50)}`);
-  const ok = await drained(4000, 240000);
-  log(`round ${k} ${ok ? 'landed' : 'NOT drained in time'}`);
+  // landed = the map grew (or the filer gave up) and nothing is pending any more — one turn at a time, so each gets its close-up
+  let grew = false; for (let i = 0; i < 120 && !grew; i++) { await sleep(1500); try { const st = await get('/api/state'); grew = (st.nodes ?? []).length > nodesBefore || ((st.filings?.failed ?? 0) + (st.filings?.abandoned ?? 0)) > 0; } catch {} }
+  const ok = await drained(1500, 120000);
+  log(`round ${k} ${grew && ok ? 'landed' : grew ? 'grew, filer still busy' : 'NOT grown in time'}`);
   await sleep(story.settleMs ?? 5000);
 }
 await sleep(4000);
