@@ -1017,8 +1017,39 @@ function placeRowExt() {
   }
 }
 const SEEN_ROWS = new Set(); let TREE_PAINTED = false; // M511: rows painted before — a row not in here arrives with motion
+let arriveN = 0; // M512: the arriving rows of one paint, counted for the stagger
+// M512 (Jacob 2026-10-24, from the demo: "the generation of nodes in the app… not smooth"): the tree used to be
+// rebuilt from scratch (innerHTML) on every update, so every change flashed the whole pane, reset hover and the
+// focus ring, and restarted animations. Now the new HTML is reconciled into the live tree by node id: a row that
+// exists keeps its element (its attributes and contents refreshed only when they changed), a new row is inserted
+// where it belongs and arrives with motion, a gone row is removed, and anything without an id is replaced in place.
+function morphTree(tree, html) {
+  const tmp = document.createElement('div'); tmp.innerHTML = html;
+  const keyOf = (el) => el && el.nodeType === 1 ? (el.querySelector(':scope > .caret[data-fold]')?.dataset.fold || null) : null;
+  const old = new Map();
+  for (const el of Array.from(tree.children)) { const k = keyOf(el); if (k && !old.has(k)) old.set(k, el); }
+  const want = Array.from(tmp.children);
+  let i = 0;
+  for (const nel of want) {
+    const k = keyOf(nel); const cur = k ? old.get(k) : null; let el;
+    if (cur) {
+      old.delete(k);
+      if (cur.outerHTML !== nel.outerHTML) {
+        for (const a of Array.from(cur.attributes)) if (!nel.hasAttribute(a.name)) cur.removeAttribute(a.name);
+        for (const a of Array.from(nel.attributes)) if (cur.getAttribute(a.name) !== a.value) cur.setAttribute(a.name, a.value);
+        if (cur.innerHTML !== nel.innerHTML) cur.innerHTML = nel.innerHTML;
+      }
+      el = cur;
+    } else el = nel;
+    const at = tree.children[i];
+    if (at !== el) tree.insertBefore(el, at || null);
+    i++;
+  }
+  while (tree.children.length > i) tree.lastElementChild.remove();
+}
 function renderTree() {
   const tree = $('tree');
+  arriveN = 0;
   const lit = new Set(chat()?.lit ?? []);
   const focus = chat()?.focusContainerId;
   const rec = S.recency || {};
@@ -1045,8 +1076,10 @@ function renderTree() {
       n.status === 'exploratory' ? 'exploratory' : '',
       (TREE_PAINTED && !SEEN_ROWS.has(n.id)) ? 'arrive' : '', // M511
     ].filter(Boolean).join(' ');
+    const arriving = TREE_PAINTED && !SEEN_ROWS.has(n.id);
+    const stagger = arriving ? ` style="animation-delay:${Math.min(arriveN++, 8) * 90}ms"` : ''; // M512: one after another, a beat apart
     return `
-    <div class="${cls}${recCls(n.id)}" tabindex="0" title="${esc(n.title && n.title !== n.content ? n.content + ' — ' : '')}recorded: ${esc(n.status)}">
+    <div class="${cls}${recCls(n.id)}"${stagger} tabindex="0" title="${esc(n.title && n.title !== n.content ? n.content + ' — ' : '')}recorded: ${esc(n.status)}">
       ${'<span class="tguide"></span>'.repeat(depth)}
       <span class="caret" data-fold="${n.id}" title="${kids.length ? (folded.has(n.id) ? 'expand: show its immediate children' : 'collapse this branch') : 'nothing nested under this node yet — + adds a sub-node'}">${kids.length ? (folded.has(n.id) ? '▸' : '▾') : '·'}</span>
       ${lit.has(n.id) ? '<span class="badge lit" title="in the chat agent’s background">☀</span>' : ''}
@@ -1137,7 +1170,7 @@ function renderTree() {
   }
   // (2026-10-04, Mark: "+ add node" removed — users don't hand-file nodes. The filer files new topics as they
   // arise, and the focus picker's "name a new topic" creates, lights and focuses one when you mean to switch.)
-  tree.innerHTML = html || '<div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status). The map files your conversation as you go.</div>';
+  if (!html) tree.innerHTML = '<div class="empty">no map yet — in your Codex or Claude Code session say <b>open map</b> to attach this map to it (the words your agent knows: open map · close map · map doctor · update map · map status). The map files your conversation as you go.</div>'; else morphTree(tree, html); // M512
   for (const n of (S.nodes || [])) SEEN_ROWS.add(n.id); TREE_PAINTED = true; // M511: next paint animates only what is new from here
   if (detailId && !node(detailId)) closeDetailPane(); // the node the pane shows was removed
   placeRowExt(); // Mark 2026-10-09: the ⋯ popover opens under its button; when that would run past the pane's right edge it shifts left to fit

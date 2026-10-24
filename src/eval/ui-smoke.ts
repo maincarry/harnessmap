@@ -193,6 +193,7 @@ await click($('zoom-out'), 'zoom out from home');
 // hand-file nodes); adding now lives in a row's ⋯ more-actions popover as "Add a sub-node" (M478b: check replaced).
 await click(rowFor(trip)?.querySelector('[data-rowmore]'), '⋯ row more-actions opens', 200);
 check('row popover shows the add control', !!rowFor(trip)?.querySelector('[data-add]') && rowFor(trip)?.classList.contains('ops-open'));
+(rowFor(trip) as any).__smokeMark = 'kept'; // M512: must survive the update
 await click(rowFor(trip)?.querySelector('[data-add]'), '+ add a sub-node under trip (unnamed + focused)', 500);
 await pump();
 // (the ROOT's content is also 'untitled' — pick the child under trip, not the first match)
@@ -201,6 +202,8 @@ check('untitled node created UNDER trip', !!untitledNode);
 // M511 (Jacob 2026-10-24): a row the map just added arrives with motion; rows painted before do not re-animate.
 check('the new row carries the arrive class', !!(untitledNode && rowFor(untitledNode.id)?.classList.contains('arrive')), untitledNode ? String(rowFor(untitledNode.id)?.className) : 'no node');
 check('the parent row (painted before) does not', !rowFor(trip)?.classList.contains('arrive'));
+// M512: the tree updates in place — the parent's row is the SAME element after the child was added (no full redraw).
+check('the parent row kept its element across the update', (rowFor(trip) as any)?.__smokeMark === 'kept' || (() => { return false; })(), 'row element was replaced');
 check('new node is the focus (M114)', !!untitledNode && S()?.chats?.find((c: any) => c.id === S()?.mainChatId)?.focusContainerId === untitledNode.id);
 
 // delete with a focused session → warning modal (M123), then cancel
