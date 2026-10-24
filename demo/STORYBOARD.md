@@ -1,6 +1,8 @@
-# HarnessMap — the three-minute demo. Storyboard, draft 1
+# HarnessMap — the three-minute demo. Storyboard
 
-Date: 2026-10-24. Cut 1 (2:42) was posted to Jacob at 20:37Z Oct 24 from the second pipeline rehearsal (take0b), at his word "I am not checking storyboard until I see product". The table below is the storyboard for the final cut with a terminal; the box cut follows it without the terminal beats, so it runs 2:42: cards 0:00–0:18, the map filing 0:18–1:11, "three days later" + the context block + the rule 1:11–1:48, the companion 1:48–2:00, talk to the map 2:00–2:14, the galaxy 2:14–2:22, why now + install + logo 2:22–2:42.
+Date: 2026-10-24. Cut 1 (2:42, a slideshow of screens) went to Jacob 20:37Z; his notes: "This is static… a serious, refined, commercial demo… extremely fancy and polished." Cut 2 (2:54, 21:46Z) is the rebuild: the product in a window on a dark stage, a scripted camera that pushes in on the rows each turn adds, statements between beats, lower-thirds, crossfades, a 2x capture, the score cut to the beats, one continuous take over the real page (demo/stage.html + demo/take.ts + demo/cut2.ts; `bash demo/make.sh <take>`). Cut 3 adds the "chat agent's view" beat that dropped out of cut 2.
+
+Timing of the stage cut (cut 3, 3:11): statements 0:00–0:14 · the window comes in 0:14–0:18 · seven landings with close-ups 0:18–1:25 · "Three days later." 1:25–1:31 · the new session's recap, then the chat agent's view block 1:31–1:51 · the rule lands, the next step 1:51–2:09 · the companion slides in 2:09–2:26 · talk to the map, the answer 2:26–2:42 · the galaxy 2:42–2:51 · why now, the typed install, "two lines to install" 2:51–3:03 · the logo 3:03–3:11.
 
 ## The story
 
