@@ -29,14 +29,14 @@
           "ms": 500
         },
         {
-          "nodeMatching": "only changes|changes only|mistaken|not all files"
+          "nodeMatching": "only changes|changes only|mistaken|not all files|modified code|not the complete files"
         },
         {
           "countUnder": "proj",
           "max": 21
         },
         {
-          "statusOf": "only changes|only the changes|changes.*not all|send.*changes",
+          "statusOf": "only changes|only the changes|changes.*not all|send.*changes|modified code|not the complete files",
           "is": "active|accepted|decided|noted|live"
         },
         {
