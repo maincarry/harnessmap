@@ -111,8 +111,8 @@
           "max": 12
         },
         {
-          "mentions": "ffmpeg-scene-change-detector|scene-change-detector",
-          "must": "不存在|无效|失效|404|无法|待核实|open"
+          "statusOf": "ffmpeg-scene-change-detector|scene-change-detector",
+          "is": "open|rejected|retracted|superseded|dropped|withdrawn"
         },
         {
           "notStatus": "项目地址|检测器网址|变化检测网址|github\\.com/EnriqueMoraga",
