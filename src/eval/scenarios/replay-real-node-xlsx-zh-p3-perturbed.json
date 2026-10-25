@@ -90,10 +90,7 @@
           "countUnder": "proj",
           "max": 26
         },
-        {
-          "atMostTitles": "日期格式",
-          "max": 3
-        },
+        {"atMostTitles": "日期格式", "max": 3, "type": "option"},
         {
           "noCodeNodes": true
         }
