@@ -85,7 +85,7 @@
           "focus": false
         },
         {
-          "nodeMatching": "b语句异常|c语句|只回滚a|规则"
+          "nodeMatching": "b\\s?语句异常|c\\s?语句|只回滚\\s?a|规则"
         },
         {
           "countUnder": "proj",
