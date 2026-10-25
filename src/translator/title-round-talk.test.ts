@@ -117,6 +117,10 @@ test('a status phrase glued to the tail of a name goes', () => {
   expect(run('等待子线程完成答案未完备', '在 Tkinter 场景中等待子线程完成的方式尚无定论。').title).toBe('等待子线程完成');
   expect(run('GUI线程等待方式未定论', '等待方式必须同时保证界面不卡顿。').title).toBe('GUI线程等待方式');
   expect(run('网络变化与 ICE 重启原因待核验或', '网络变化后 ICE 状态未变。').title).toBe('网络变化与 ICE 重启原因');
+  // M518: a resolved state glued to the tail goes the same way; the status field carries it
+  expect(run('Redis requirepass 用途已回答', 'Redis 配置中的 `requirepass` 用于设置密码。').title).toBe('Redis requirepass 用途');
+  expect(run('依赖安装已完成', '依赖已安装。').title).toBe('依赖安装');
+  expect(run('已解决问题的归档', '归档已解决的问题。').title).toBe('已解决问题的归档');
 });
 test('a name that contains a status word in its middle, or is only the word, is untouched', () => {
   expect(run('待定事项清单', '待定事项。').title).toBe('待定事项清单');

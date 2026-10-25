@@ -1817,7 +1817,7 @@ export class Translator {
         //       Latin word ("… Win+X", "… devmgmt.msc") is untouched.
         const t8 = anyA.title.replace(/(?<=[\u0370-\u03FF\u0400-\u04FF])[A-Za-z]{1,3}$/u, '').trim();
         if (t8 !== anyA.title.trim() && t8.length >= 3) { this.store.audit('guard_title_script_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t8.length), how: 'latin-on-cyrillic' }); anyA.title = t8; }
-        const t6 = anyA.title.replace(/(?:[\s，,：:；;—\-]*(?:答案|结论|方案|问题)?(?:未完备|未定论|未定|未决|待核验|待确认|待验证|尚未解决|未解决|待定)(?:或|和|与|及)?)+$/u, '').trim();
+        const t6 = anyA.title.replace(/(?:[\s，,：:；;—\-]*(?:答案|结论|方案|问题)?(?:未完备|未定论|未定|未决|待核验|待确认|待验证|尚未解决|未解决|待定|已回答|已解决|已确认|已完成|已决定|已采纳)(?:或|和|与|及)?)+$/u, '').trim(); // M518 (django-cache-zh 2026-10-25, "Redis requirepass 用途已回答"): the resolved states are states of the record too
         if (t6 !== anyA.title.trim() && t6.length >= 2) { this.store.audit('guard_title_status_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t6.length).trim().slice(0, 40) }); anyA.title = t6; }
       }
       // M402b (sqlsugar-nested-zh title "本轮回滚结论"): the same round-talk lead on a NAME goes; the name keeps its subject.
