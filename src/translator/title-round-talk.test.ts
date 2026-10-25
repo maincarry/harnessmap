@@ -118,3 +118,13 @@ test('a name that contains a status word in its middle, or is only the word, is 
   expect(run('待定事项清单', '待定事项。').title).toBe('待定事项清单');
   expect(run('未解决问题的排查顺序', '先查权限再查 SELinux。').title).toBe('未解决问题的排查顺序');
 });
+
+// M514 (grammar-quiz 2026-10-25): a repr/kwargs leak in a title goes whole; another script glued onto a Latin tail goes.
+test("a title carrying **kwargs or content=' is dropped for the healer to name", () => {
+  expect(run("New York grammar question's title'**kwargs' content='New York", 'He has never been to New York.').title ?? '').toBe('');
+});
+test('a Cyrillic fragment glued onto an English title tail goes', () => {
+  expect(run('Healthy diet grammar questionутры', 'Choose the grammatically correct sentence.').title).toBe('Healthy diet grammar question');
+  // (a spaced Russian run inside an English title is the older guard_title_script's business — it drops such a title for the healer)
+  // (an all-Cyrillic title in an English round is likewise guard_title_script's call, not this rule's)
+});

@@ -1801,6 +1801,10 @@ export class Translator {
         // M513b (tk-threads-zh rerun 2026-10-25: "等待子线程完成答案未完备", "GUI线程等待方式未定论"; media-protocols-zh 2026-10-24: "…待核验或"):
         //   (f) a state of the record glued to the tail of a name — "answer incomplete", "undecided", "to be verified" — is the filer's
         //       note about the talk, not a name (the status field holds that). The tail goes when a name of two or more characters is left.
+        //   (g) "Healthy diet grammar questionутры" (grammar-quiz 2026-10-25): letters of another script glued straight onto a Latin word at the
+        //       tail, no space — a fragment the filer dragged in, not a name. Cyrillic or Greek after a Latin letter at the end goes.
+        const t7 = anyA.title.replace(/(?<=[A-Za-z])[\u0370-\u03FF\u0400-\u04FF]+$/u, '').trim();
+        if (t7 !== anyA.title.trim() && t7.length >= 3) { this.store.audit('guard_title_script_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t7.length) }); anyA.title = t7; }
         const t6 = anyA.title.replace(/(?:[\s，,：:；;—\-]*(?:答案|结论|方案|问题)?(?:未完备|未定论|未定|未决|待核验|待确认|待验证|尚未解决|未解决|待定)(?:或|和|与|及)?)+$/u, '').trim();
         if (t6 !== anyA.title.trim() && t6.length >= 2) { this.store.audit('guard_title_status_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t6.length).trim().slice(0, 40) }); anyA.title = t6; }
       }
@@ -1816,6 +1820,12 @@ export class Translator {
       // M394 (data-platform-zh #301, codex/luna): the filer glued its own OP NAME to a title — "字段展开超限处理者::create_node" — and it
       // reached the map (the M354 leak guard reads content only). Sweep 2026-10-05: 1 title / 115 kept maps, 0 false positives, 0 in
       // content. Strip the op names and the "::" seams from a title; drop the title when nothing meaningful is left (the healer names it).
+      // M514 (grammar-quiz 2026-10-25, title "New York grammar question's title'**kwargs' content='New York…"): a Python-repr / keyword-argument
+      // leak — `**kwargs`, `content='`, `title='`, `parentId=` — is the filer's own call text, never a name. The title goes whole; the healer names the node.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\*\*kwargs|\b(?:content|title|parentId|nodeId|status)=['"]/.test(anyA.title)) {
+        this.store.audit('guard_title_schema_token', { id: String(anyA.id ?? '').slice(0, 8), how: 'repr-leak', from: anyA.title.slice(0, 60) });
+        anyA.title = '';
+      }
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\b(create_node|update_node|move_node|create_link|remove_node|suggest_restructure|focus_request)\b|::/.test(anyA.title)) {
         const from = anyA.title;
         const cleaned = anyA.title.replace(/\s*::\s*/g, ' ').replace(/\b(create_node|update_node|move_node|create_link|remove_node|suggest_restructure|focus_request)\b/g, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s.:：;；,，\-–—]+|[\s.:：;；,，\-–—]+$/g, '').trim();
