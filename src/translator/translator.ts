@@ -1798,6 +1798,11 @@ export class Translator {
         { const t = anyA.title.trim(); let cut = -1;
           for (let len = Math.floor(t.length / 2); len >= 4 && cut < 0; len--) { const head = t.slice(0, len); const at = t.indexOf(head, len); if (at >= 4) cut = at; }
           if (cut > 0) { const t5 = t.slice(0, cut).replace(/[\s，,：:；;—\-]+$/u, '').trim(); if (t5.length >= 4) { this.store.audit('guard_title_repeat', { id: String(anyA.id ?? '').slice(0, 8), from: t.slice(0, 60), to: t5.slice(0, 40) }); anyA.title = t5; } } }
+        // M513b (tk-threads-zh rerun 2026-10-25: "等待子线程完成答案未完备", "GUI线程等待方式未定论"; media-protocols-zh 2026-10-24: "…待核验或"):
+        //   (f) a state of the record glued to the tail of a name — "answer incomplete", "undecided", "to be verified" — is the filer's
+        //       note about the talk, not a name (the status field holds that). The tail goes when a name of two or more characters is left.
+        const t6 = anyA.title.replace(/(?:[\s，,：:；;—\-]*(?:答案|结论|方案|问题)?(?:未完备|未定论|未定|未决|待核验|待确认|待验证|尚未解决|未解决|待定)(?:或|和|与|及)?)+$/u, '').trim();
+        if (t6 !== anyA.title.trim() && t6.length >= 2) { this.store.audit('guard_title_status_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t6.length).trim().slice(0, 40) }); anyA.title = t6; }
       }
       // M402b (sqlsugar-nested-zh title "本轮回滚结论"): the same round-talk lead on a NAME goes; the name keeps its subject.
       // M491 (nfconntrack-zh 2026-10-18, title "IPv6 模块支持检视者核心观点的直接落实：本轮不涉及结构重组建议"): the same round-talk
@@ -1855,23 +1860,10 @@ export class Translator {
           }
         }
       }
-      // M513 (media524 2026-10-24 "(untitled) :: 媒体服务器" under "媒体服务器问题"; tk-threads-zh 2026-10-25 "(untitled) :: tkinter 工具" under
-      // "Tkinter 工具开发" — the second time): a new node with NO name whose whole content is a shorter copy of its parent's name or
-      // content is a stub, not a record — nothing was said that the parent does not already hold. It is dropped; its references fold
-      // into the parent. A node with a name of its own, or with content the parent lacks, is never touched.
-      if (a.op === 'create_node' && typeof anyA.content === 'string' && !(typeof anyA.title === 'string' && anyA.title.trim()) && anyA.parentId) {
-        const norm = (x: unknown) => String(x ?? '').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '');
-        const parent = map.nodes.find((n) => n.id === anyA.parentId) ?? (alterations.find((x: any) => x?.op === 'create_node' && String(x.id) === String(anyA.parentId)) as any);
-        const c = norm(anyA.content);
-        if (parent && c.length >= 2 && c.length <= 40) {
-          const pt = norm(parent.title), pc = norm(parent.content);
-          if ((pt && pt.includes(c) && pt.length > c.length) || (pc && pc.includes(c) && pc.length > c.length)) {
-            this.store.audit('guard_stub_child', { id: String(anyA.id ?? '').slice(0, 8), parent: String(anyA.parentId).slice(0, 8), content: anyA.content.slice(0, 60) });
-            dropSurvivor.set(String(anyA.id), String(anyA.parentId)); // references to the stub follow the parent
-            continue;
-          }
-        }
-      }
+      // (M513's guard_stub_child lived here for one build: an untitled create whose content was a shorter copy of its parent's was
+      // dropped. WITHDRAWN in M513b: the two "(untitled)" stubs that prompted it were the test harness's own seed node under the
+      // auto-named root, not filer output — and a titleless record whose words happen to sit inside its parent's ("no Docker" under
+      // a deploy decision) would have been a sentence lost. No drop without a proof.)
       // M347 (codex-native board-game replay): the codex filer wrote the STATUS into the title — "Wins and complexity bonus ─ chosen?".
       // A trailing separator + status word (+ a stray "?") is a field leaking into a name; it goes, and the status is kept if the op has none.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {

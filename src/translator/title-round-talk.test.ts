@@ -108,23 +108,13 @@ test('a title that repeats its own head is cut at the seam; a real repeat of a s
   expect(run('导入导出与导入', '导入导出。').title).toBe('导入导出与导入');
   expect(run('nginx 反向代理登录接口设定', '前端不得直接请求 7002。').title).toBe('nginx 反向代理登录接口设定');
 });
-function runRaw(alt: any, parentTitle = 'Tkinter 工具开发', parentContent = 'Tkinter 工具开发相关的 Python 实现与问题。') {
-  const audits: { kind: string; d: any }[] = [];
-  const store: any = new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string, d: any) => audits.push({ kind, d }); if (k === 'getSetting') return () => undefined; return () => undefined; } });
-  const t = new Translator(store);
-  const parent = { id: 'p1', parentId: null, content: parentContent, title: parentTitle, status: 'live', author: 'user', type: null, createdAt: '2026-10-25T00:00:00Z', updatedAt: '2026-10-25T00:00:00Z' };
-  const map: any = { nodes: [parent], links: [], projectId: 'proj' };
-  const out = (t as any).guardScope([{ op: 'create_node', id: 'x1', parentId: 'p1', status: 'live', author: 'user', ...alt }], new Set(['p1']), map, { chatId: 'c', focusContainerId: 'p1', userText: '', assistantText: '' });
-  return { kept: out.some((a: any) => a.op === 'create_node' && a.id === 'x1'), stub: audits.filter((a) => a.kind === 'guard_stub_child') };
-}
-test('an untitled child whose content is a shorter copy of its parent is dropped as a stub', () => {
-  const r = runRaw({ content: 'tkinter 工具' });
-  expect(r.kept).toBe(false); expect(r.stub).toHaveLength(1);
-  const r2 = runRaw({ content: '媒体服务器' }, '媒体服务器问题', '媒体服务器相关问题与网络变化、ICE 状态更新及重启机制有关。');
-  expect(r2.kept).toBe(false);
+// M513b: a state of the record glued to a name's tail goes; a name that merely contains such a word is untouched.
+test('a status phrase glued to the tail of a name goes', () => {
+  expect(run('等待子线程完成答案未完备', '在 Tkinter 场景中等待子线程完成的方式尚无定论。').title).toBe('等待子线程完成');
+  expect(run('GUI线程等待方式未定论', '等待方式必须同时保证界面不卡顿。').title).toBe('GUI线程等待方式');
+  expect(run('网络变化与 ICE 重启原因待核验或', '网络变化后 ICE 状态未变。').title).toBe('网络变化与 ICE 重启原因');
 });
-test('a child with its own name, or with words the parent lacks, is kept', () => {
-  expect(runRaw({ content: 'tkinter 工具', title: 'Tkinter 工具' }).kept).toBe(true);
-  expect(runRaw({ content: 'tkinter 工具需要在子线程运行时保持界面响应' }).kept).toBe(true);
-  expect(runRaw({ content: '界面保持响应' }).kept).toBe(true);
+test('a name that contains a status word in its middle, or is only the word, is untouched', () => {
+  expect(run('待定事项清单', '待定事项。').title).toBe('待定事项清单');
+  expect(run('未解决问题的排查顺序', '先查权限再查 SELinux。').title).toBe('未解决问题的排查顺序');
 });
