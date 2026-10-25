@@ -200,6 +200,13 @@ test('a pasted Go block files no row; the problem statement line with the limits
   expect(kept[0].content).toMatch(/10\^5/);
 });
 
+// M530 (keras-cnn 2026-10-25): a tuple written "(128,128)" by her and "(128, 128)" by the filer is one figure — no second row for her question.
+test('a shape the map writes with spaces after the commas counts as present', () => {
+  const q = { id: 'q1', parentId: 'p1', title: 'Reshaping NumPy arrays', content: 'How can a NumPy 2D array with shape `(128, 128)` be converted to a 3D array with shape `(128, 128, 1)`?', status: 'open', author: 'user', type: 'question', createdAt: '2026-10-25T14:42:40Z', updatedAt: '2026-10-25T14:42:40Z' } as any;
+  const r = specifics([root, q], 'how would I convert a numpy (128,128) 2d array into a (128,128,1) 3d array? What if I didnt know the dimensions of the orignal 2d array?');
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+});
+
 // M519 (data-platform-zh 2026-10-25): a segment of a dotted package path is not a file name; a real file in prose still is, even before a full stop.
 test('a dotted package path yields no file-name specific; a file named in prose is kept', () => {
   const r = specifics([root], 'User class threw exception: org.apache.spark.sql.streaming.StreamingQueryException: Unable to close file because the last block does not have enough number of replicas.');

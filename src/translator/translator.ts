@@ -1478,7 +1478,9 @@ export class Translator {
     const strip = (t: string) => cutTraceback(String(t ?? '').replace(/```[\s\S]*?```/g, ' '));
     const ut = strip(params.userText ?? ''), at = strip(params.assistantText ?? '');
     if (ut.trim().length < 8 && at.trim().length < 8) return alterations;
-    const norm = (x: string) => x.toLowerCase().replace(/[,，]/g, '').replace(/\s+/g, ' ').trim();
+    // M530 (keras-cnn 2026-10-25: her "(128,128)" against the filer's "(128, 128)" — the comma went, the space stayed, and her question was
+    // kept a second time as a specifics row): a comma takes the spaces after it with it, so "128,128" and "128, 128" are one figure.
+    const norm = (x: string) => x.toLowerCase().replace(/[,，]\s*/g, '').replace(/\s+/g, ' ').trim();
     const presentText = norm([...alterations.map((a) => `${a?.title ?? ''} ${a?.content ?? ''}`), ...map.nodes.filter((n) => n.status !== 'removed').map((n) => `${n.title ?? ''} ${n.content ?? ''}`)].join(' \n '));
     // M524 (save-image-path 2026-10-25: the filer wrote "two weeks", her turn said "2 weeks", and the guard kept her whole venting sentence as a row
     // for a figure that was on the map in words): a small count spelled out is the same figure as its digits.
