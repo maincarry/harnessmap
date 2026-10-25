@@ -123,7 +123,7 @@
         {
           "do": "bind",
           "key": "n3"
-        },
+        }, {"statusOf": "homography|website reference", "is": "open|rejected|retracted|parked|superseded"},
         {
           "do": "statement",
           "key": "n3",
@@ -139,10 +139,6 @@
         {
           "countUnder": "proj",
           "max": 14
-        },
-        {
-          "mentions": "homography|link",
-          "must": "dead|not work|broken|invalid|open|alternative|unverified"
         },
         {
           "noCodeNodes": true

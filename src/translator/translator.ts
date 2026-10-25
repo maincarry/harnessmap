@@ -1310,20 +1310,35 @@ export class Translator {
   private guardUserRejection(alterations: any[], map: { nodes: MapNode[] }, params: { userText?: string }): any[] {
     const ut = (params.userText ?? '').trim();
     if (!ut || ut.length > 500) return alterations;
-    const NEG = /不存在|无效|失效|打不开|访问不了|无法访问|没有这个|没有该|没有此|不是真的|404|does not exist|doesn'?t exist|no such|not found|dead link|doesn'?t work|does not work|is invalid|isn'?t valid|is broken|is fake|made (that )?up|hallucinat/iu;
+    const NEG = /不存在|无效|失效|打不开|访问不了|无法访问|没有这个|没有该|没有此|不是真的|404|does not exist|doesn'?t exist|no such|not found|dead link|doesn'?t work|does not work|is invalid|isn'?t valid|is broken|is fake|made (that )?up|hallucinat|\b(?:is|are|'s|seems?|looks?) (?:dead|down|gone)\b|链接(?:失效|挂了|不能用)|网址(?:失效|挂了|不能用)/iu; // M536: "the link is dead" — the list knew "dead link" only
     if (!NEG.test(ut)) return alterations;
     const tokens = new Set<string>();
     for (const m of ut.matchAll(/https?:\/\/[^\s"'）)>]+/g)) tokens.add(m[0].replace(/[.,;:!?。，；：！？]+$/, ''));
     for (const m of ut.matchAll(/[A-Za-z][A-Za-z0-9]*(?:[-_.][A-Za-z0-9]+)+|[A-Z][A-Za-z0-9]{5,}|[a-z]+[A-Z][A-Za-z0-9]{3,}/g)) if (m[0].length >= 6) tokens.add(m[0]);
     for (const t of [...tokens]) if (/^[a-z0-9-]+\.(com|org|net|io|cn|dev)$/i.test(t) || /^(github|gitlab|google|twitter|stackoverflow)\b/i.test(t)) tokens.delete(t); // a bare domain names nothing
-    if (!tokens.size) return alterations;
+    const byId = new Map<string, any[]>();
+    for (const a of alterations) if (typeof a?.id === 'string') (byId.get(a.id) ?? byId.set(a.id, []).get(a.id)!).push(a);
+    // M536 (latex-references p1 round 5, known red since 2026-10-03): "can you give me other the link is dead" — no URL, no identifier,
+    // THE link: the one website reference the round before had filed. With nothing named the guard returned, and the dead reference
+    // stayed a noted fact until the next round. A short, definite, unnamed rejection of a link / URL / website / address targets exactly
+    // one node: the newest live node whose text carries an http(s) URL — its parent instead when the parent carries one too and was
+    // filed at the same moment (the reference card over its detail row) — and never a node the filer is swapping a new address into
+    // this round (that is the replacement). Narrow by design (M358c): one node, a URL in it, nothing created this round.
+    let definite: MapNode | null = null;
+    if (!tokens.size && ut.length <= 200 && /\b(?:the|that|this|your|its?)\s+(?:\w+\s+)?(?:links?|urls?|website|site|page|address|references?)\b|(?:这个|那个|你给的|上面的|这条|那条)(?:链接|网址|地址)/i.test(ut)) {
+      const at = (n: any) => Date.parse(String(n.updatedAt ?? n.createdAt ?? '').replace(' ', 'T').replace(/Z?$/, 'Z')) || 0;
+      const swapped = (n: MapNode) => (byId.get(n.id) ?? []).some((a) => typeof a?.content === 'string' && [...a.content.matchAll(/https?:\/\/[^\s"'）)>]+/g)].some((m) => !String(n.content ?? '').includes(m[0])));
+      const cands = map.nodes.filter((n) => n.status !== 'removed' && !/^(open|rejected|retracted|parked|superseded|removed)$/.test(n.status) && /https?:\/\/\S+/i.test(`${n.title ?? ''}\n${n.content}`) && !swapped(n));
+      cands.sort((a, b) => at(b) - at(a));
+      definite = cands[0] ?? null;
+      while (definite) { const up = cands.find((c) => c.id === definite!.parentId && Math.abs(at(c) - at(definite!)) <= 2000); if (!up) break; definite = up; }
+    }
+    if (!tokens.size && !definite) return alterations;
     // M358b (scene-detect re-run): the filer had TOUCHED the URL nodes that round — re-asserting the dead address as fact,
     // following the assistant — so a "skip what the filer touched" rule skipped exactly the nodes the user was rejecting.
     // Now: a touched node is left alone only when the filer's own alteration already carries the rejection (status open /
     // rejected / …, or a negation in its new statement); otherwise its status is overridden to open. A node the filer creates
     // this round that carries the rejected token without the negation is born open.
-    const byId = new Map<string, any[]>();
-    for (const a of alterations) if (typeof a?.id === 'string') (byId.get(a.id) ?? byId.set(a.id, []).get(a.id)!).push(a);
     const settled = (a: any) => /^(open|rejected|retracted|parked|superseded|removed)$/.test(String(a?.status ?? '')) || (typeof a?.content === 'string' && NEG.test(a.content));
     // M358c (third and last attempt, Jacob's rule: narrow, not wider): when the user's words say it is the ADDRESS that is wrong
     // (网址 / 链接 / 地址 / URL / link / address), only nodes that carry a URL containing the token are targets — a node that merely
@@ -1337,15 +1352,16 @@ export class Translator {
       if (n >= 3) break;
       if (node.status === 'removed' || /^(open|rejected|retracted|parked|superseded|removed)$/.test(node.status)) continue;
       const own = byId.get(node.id) ?? [];
-      const hit = carries(`${node.title ?? ''}\n${node.content}\n${own.map((a) => `${a.title ?? ''}\n${a.content ?? ''}`).join('\n')}`);
+      const hit = definite ? (node.id === definite.id ? 'the link' : null) : carries(`${node.title ?? ''}\n${node.content}\n${own.map((a) => `${a.title ?? ''}\n${a.content ?? ''}`).join('\n')}`);
       if (!hit) continue;
       if (own.some(settled)) continue;
       const upd = own.find((a) => a.op === 'update_node');
       if (upd) upd.status = 'open'; else out.push({ op: 'update_node', id: node.id, status: 'open' });
-      this.store.audit('guard_user_rejection', { id: node.id.slice(0, 8), token: hit.slice(0, 60), was: node.status, title: (node.title || node.content).slice(0, 40), overrode: !!upd });
+      this.store.audit('guard_user_rejection', { id: node.id.slice(0, 8), token: hit.slice(0, 60), was: node.status, title: (node.title || node.content).slice(0, 40), overrode: !!upd, ...(definite ? { how: 'definite' } : {}) });
       n++;
     }
     for (const a of out) { // what the filer creates this round with the rejected thing in it, and no rejection of its own
+      if (definite) break; // M536: what this round creates is the replacement she asked for
       if (n >= 3) break;
       if (a?.op !== 'create_node' || typeof a.content !== 'string' || settled(a)) continue;
       const hit = carries(`${a.title ?? ''}\n${a.content}`);
