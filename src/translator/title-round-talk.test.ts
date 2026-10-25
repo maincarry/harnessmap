@@ -166,3 +166,11 @@ test('a glitch run glued onto a Han word goes; a glued name the content carries 
   expect(run('安装feh', 'Debian / Ubuntu 可执行 `sudo apt-get install feh` 安装 feh。').title).toBe('安装feh');
   expect(run('Oboe 回调kotlin', '在 Android Oboe 项目中，需要从 C++ 的 `onAudioReady` 回调通过 JNI 调用 Kotlin 层的方法。').title).toBe('Oboe 回调kotlin');
 });
+
+// M532 (go-failing-test-ru 2026-10-25): a variation selector glued after a letter is a seam — the title ends there; a selector on an emoji at the tail is M360's.
+test('a title is cut at a variation selector that follows a letter; an emoji with a selector at the tail still goes whole', () => {
+  expect(run('Проверка вычислений и тесты\uFE0Fжло?', 'Проверить правильность вычисления `Ri*Ai` в Go-решении с помощью переменных `minProduct` и `maxProduct`.').title).toBe('Проверка вычислений и тесты');
+  expect(run('Graph range issue \u26A0\uFE0F', 'The graph range is wrong for the weekly view.').title).toBe('Graph range issue');
+  expect(run('Проверка вычислений и тесты', 'Проверить правильность вычисления.').title).toBe('Проверка вычислений и тесты');
+});
+

@@ -1955,6 +1955,13 @@ export class Translator {
         }
         // M360b (minimal-linux replay): "核对 root 标识代码>???" — the symbol strip ran before the "???" strip, so the ">" that became
         // trailing afterwards survived. The three strips now repeat until the title stops changing.
+        // M532 (go-failing-test-ru 2026-10-25: "Проверка вычислений и тесты️жло?" — U+FE0F glued straight after a letter, then a glitch run):
+        // a variation selector or ZWJ follows an emoji or a symbol, never a letter; after a letter it is the model's decoding seam and what
+        // follows it is the glitch. The title ends at the seam (three characters must remain). A trailing selector is M360's business below.
+        {
+          const seam = anyA.title.replace(/(?<=\p{L})[\uFE0E\uFE0F\u200D]+[\s\S]*$/u, '').trim();
+          if (seam !== anyA.title.trim() && seam.length >= 3) { this.store.audit('guard_title_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-12), how: 'selector-seam' }); anyA.title = seam; }
+        }
         let t0 = anyA.title;
         for (let pass = 0; pass < 4; pass++) {
           const before = t0;
