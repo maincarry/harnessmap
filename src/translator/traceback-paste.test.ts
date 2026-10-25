@@ -310,3 +310,11 @@ test('string literals broken out of an unfenced code paste are never her sentenc
   expect(r.out.filter((a) => a.op === 'create_node').some((a) => /Could not connect|Make sure the server/.test(String(a.content)))).toBe(false);
 });
 
+// M545 (tcp-gui-zh 2026-10-25, on both runs): the filer wrote 十六进制 and the guard counted the 16 of her "16进制" as a missed figure, filing the
+// head of her paste as a row. A radix word (N进制) is not a figure; a real figure in the same sentence still files.
+test('the N of N进制 is not a figure; a real figure still files her sentence', () => {
+  const hex = { id: 'p1', parentId: null, content: 'GUI 程序需要提供十六进制报文输入框。', title: '十六进制输入框', status: 'live', author: 'user', type: null, createdAt: '2026-10-25T00:00:00Z', updatedAt: '2026-10-25T00:00:00Z' };
+  expect(specifics([hex], '写一个TCP客户端程序，可以将输入的16进制报文发出去，具有GUI图形化界面，有报文输入框。').out.filter((a) => a.op === 'create_node').length).toBe(0);
+  expect(specifics([hex], '写一个TCP客户端程序，缓冲区设为 4096 字节，有报文输入框。').out.filter((a) => a.op === 'create_node').length).toBe(1);
+});
+

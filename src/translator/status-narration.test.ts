@@ -104,3 +104,10 @@ test('"The user gave up on …" is her act, not a narration lead; "The user gave
   expect(b.content).toBe('The full stack trace from the second run of the macro.');
 });
 
+// M546 (tcp-gui-zh 2026-10-25): "智能体提出使用 PyQt5 实现 TCP 客户端 GUI，…" — 智能体 ("the agent") joins 代理/助手/模型/机器人 in the M411 Chinese lead.
+test('"智能体提出…" lead goes, the proposal stays', () => {
+  const r = harness()('智能体提出使用 PyQt5 实现 TCP 客户端 GUI，包含十六进制报文输入框、发送与接收报文显示框。');
+  expect(r.content).toBe('使用 PyQt5 实现 TCP 客户端 GUI，包含十六进制报文输入框、发送与接收报文显示框。');
+  expect(r.trims).toBe(1);
+});
+

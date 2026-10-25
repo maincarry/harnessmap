@@ -204,3 +204,10 @@ test('a long Han clause after a digit token is not a glitch word; a short glitch
   expect(run('Float target shape values te4a1b6c', 'The float target shape values must match the image.').title).toBe('Float target shape values');
 });
 
+// M544 (tcp-gui-zh 2026-10-25): "TCP客户端GUI程序操作界面 quoi?" — an invented Latin word before "?" on a Han title; the M419 rule wanted three
+// space-delimited words and a Han title has one or two. A real word the statement carries still stays.
+test('an invented Latin tail before "?" goes from a two-word Han title; a word the statement carries stays', () => {
+  expect(run('TCP客户端GUI程序操作界面 quoi?', '编写一个带 GUI 图形界面的 TCP 客户端程序，用于输入并发送十六进制报文，建立或中断 TCP 连接。').title).toBe('TCP客户端GUI程序操作界面');
+  expect(run('接口 layout?', 'The layout of the 接口 is still open.').title).toBe('接口 layout?');
+});
+
