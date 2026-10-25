@@ -303,3 +303,10 @@ test('a bracket-opening continuation line is code; her request sentence after a 
   expect(rows.some((a) => /zoom to 90%/.test(String(a.content)))).toBe(true);
 });
 
+// M542b (tcp-gui-zh 2026-10-25): her unfenced code paste; the sentence split broke `"Could not connect to the server. "` out of a messagebox call
+// and the guard filed the string literals as her row. In a code-heavy text a quote-opened unclosed / closer-only sentence is a literal.
+test('string literals broken out of an unfenced code paste are never her sentence', () => {
+  const r = specifics([root], 'import socket\nimport tkinter as tk\nport = 10000\nbuffer = 4096\ntry:\n    self.client_socket.connect(server_address)\nexcept ConnectionRefusedError:\n    messagebox.showwarning("Connection Error",\n                            "Could not connect to the server. "\n                            "Make sure the server is running and try again.")\n    return');
+  expect(r.out.filter((a) => a.op === 'create_node').some((a) => /Could not connect|Make sure the server/.test(String(a.content)))).toBe(false);
+});
+

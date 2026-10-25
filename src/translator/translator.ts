@@ -1537,7 +1537,13 @@ export class Translator {
       const carries = (sn: string) => missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')));
       const dataAll = sentencesOf(text).filter(dataLine); // the whole block is the record, not only the lines whose figures were counted
       const dataSkipped = dataAll.filter(carries);
-      const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && !leadIn(sn) && !dataLine(sn) && carries(sn)).slice(0, 3);
+      // M542b (tcp-gui-zh 2026-10-25: her unfenced 3,769-character code paste; the sentence split broke `"Could not connect to the server. "` and
+      // `"The message is not valid hexadecimal."` out of messagebox calls and filed the two string literals as her row): in a text that is code
+      // (three or more code lines), a sentence that opens with a straight quote and is unclosed, or is closed and followed only by closers, is a
+      // string literal, not her sentence. `"Hello," she said.` keeps its words after the quote and stays hers.
+      const codey = sentencesOf(text).filter(codeLine).length >= 3;
+      const strLit = (sn: string) => codey && /^\s*(["'])(?:[^"'\n]*)(?:\1\s*[,)\]]*\s*)?$/.test(sn.trim());
+      const sents = sentencesOf(text).filter((sn) => !codeLine(sn) && !leadIn(sn) && !dataLine(sn) && !strLit(sn) && carries(sn)).slice(0, 3);
       // M501 (pattern519 2026-10-19: the filer filed no dataset row for her twenty-one pasted Input/Result pairs, and after M500 the guard filed
       // nothing either — the block was on no node): when three or more data lines carried missed figures and no sentence was filed, the block
       // goes on the record ONCE, as one "Pasted data" row in the person's name, instead of as fragments or not at all.
@@ -2033,7 +2039,7 @@ export class Translator {
           const run = last.replace(/^\p{Script=Han}+/u, '');
           const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
           if (!hay.includes(run)) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: last, how: 'han-glued' }); anyA.title = [...words.slice(0, -1), last.slice(0, last.length - run.length)].join(' '); }
-        } else if (words.length >= 2 && last.length >= 6 && ((/\d/.test(last) && /[a-z]/i.test(last)) || camel)) {
+        } else if (words.length >= 2 && last.length >= 6 && last.length <= 24 && !/[；，、。：！？]/u.test(last) && ((/\d/.test(last) && /[a-z]/i.test(last)) || camel)) { // M542a (tcp-gui-zh 2026-10-25): "…代码采用 PyQt5；界面包含十六进制报文输入框、…按钮" — a sixty-character Han clause after one digit token is a sentence tail, not a glitch token; the rule cut it and left the title dangling at 采用
           const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
           const chunks = last.replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2').toLowerCase().split(/[^\p{L}\p{N}]+/u).flatMap((c: string) => c.match(/\p{Script=Han}+|[^\p{Script=Han}]+/gu) ?? []).filter((c: string) => c.length >= 3); // camel-case split first: "ProductOrderDao" → product, order, dao (kept when the identifier is in the statement) // "100/min" → 100, min; "te4a1b6c" → itself; M349b: "2.0.0-p648吧w" → p648 (kept — the version is in the statement)
           if (chunks.length && !chunks.some((c: string) => hay.includes(c))) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: last }); anyA.title = words.slice(0, -1).join(' '); }

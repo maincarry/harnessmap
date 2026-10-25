@@ -196,3 +196,11 @@ test('a one- or two-letter fragment glued onto a stripped UUID goes with it; a w
   expect(run('Rollback plan 0c4d07f5-2e6f-4d7f-92f4-5ad2e7f4a3e8', 'The rollback plan for the batch.').title).toBe('Rollback plan');
 });
 
+// M542a (tcp-gui-zh 2026-10-25): "TCP客户端GUI界面设计与实现基础功能已完成，代码采用 PyQt5；界面包含…按钮" — a sixty-character Han clause after one digit token
+// is a sentence tail, not a glitch token; M349 cut it and left the title dangling at 采用. A short glitch token still goes.
+test('a long Han clause after a digit token is not a glitch word; a short glitch token still goes', () => {
+  const long = 'TCP客户端GUI界面设计与实现基础功能已完成，代码采用 PyQt5；界面包含十六进制报文输入框、统一收发报文打印框，以及建立连接、中断连接和发送报文按钮';
+  expect(run(long, '制作一个带 GUI 的 TCP 客户端程序：提供十六进制报文输入框，在同一个打印框中显示发送报文和接收报文，并提供“建立 TCP 连接”“中断 TCP 连接”和“发送报文”按钮。').title).toBe(long);
+  expect(run('Float target shape values te4a1b6c', 'The float target shape values must match the image.').title).toBe('Float target shape values');
+});
+
