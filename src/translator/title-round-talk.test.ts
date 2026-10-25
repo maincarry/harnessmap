@@ -150,3 +150,10 @@ test('a node whose content is only a placement note is dropped', () => {
   expect(run('Shelving', 'The R book belongs under statistics on our shelf, next to the Bayesian texts.').title).toBe('Shelving');
 });
 
+// M522 (mssql-zh 2026-10-25): "as follows" glued to a title's tail goes; the noun it introduced stays; a name that begins with it is untouched.
+test('an "as follows" tail goes from a title', () => {
+  expect(run('数据库文件压缩方案如下', '如何有效压缩 SQL Server 数据库文件的大小？').title).toBe('数据库文件压缩方案');
+  expect(run('部署步骤如下所示', '部署分三步。').title).toBe('部署步骤');
+  expect(run('如下所示的配置', '配置示例。').title).toBe('如下所示的配置');
+});
+

@@ -1829,6 +1829,10 @@ export class Translator {
         //       Latin word ("… Win+X", "… devmgmt.msc") is untouched.
         const t8 = anyA.title.replace(/(?<=[\u0370-\u03FF\u0400-\u04FF])[A-Za-z]{1,3}$/u, '').trim();
         if (t8 !== anyA.title.trim() && t8.length >= 3) { this.store.audit('guard_title_script_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t8.length), how: 'latin-on-cyrillic' }); anyA.title = t8; }
+        // M522 (mssql-zh 2026-10-25, "数据库文件压缩方案如下"): "as follows" is the filer's lead-in to a list, not part of a name. The tail goes;
+        //   the noun before it (方案, 步骤…) stays, since it is the thing named.
+        const t9 = anyA.title.replace(/[\s，,：:；;]*(?:如下所示|如下|见下|详见下文|如下所述)$/u, '').trim();
+        if (t9 !== anyA.title.trim() && t9.length >= 2) { this.store.audit('guard_title_status_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t9.length).trim(), how: 'as-follows' }); anyA.title = t9; }
         const t6 = anyA.title.replace(/(?:[\s，,：:；;—\-]*(?:答案|结论|方案|问题)?(?:未完备|未定论|未定|未决|待核验|待确认|待验证|尚未解决|未解决|待定|已回答|已解决|已确认|已完成|已决定|已采纳)(?:或|和|与|及)?)+$/u, '').trim(); // M518 (django-cache-zh 2026-10-25, "Redis requirepass 用途已回答"): the resolved states are states of the record too
         if (t6 !== anyA.title.trim() && t6.length >= 2) { this.store.audit('guard_title_status_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t6.length).trim().slice(0, 40) }); anyA.title = t6; }
       }
