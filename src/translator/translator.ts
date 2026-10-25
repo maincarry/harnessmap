@@ -1318,28 +1318,12 @@ export class Translator {
     for (const t of [...tokens]) if (/^[a-z0-9-]+\.(com|org|net|io|cn|dev)$/i.test(t) || /^(github|gitlab|google|twitter|stackoverflow)\b/i.test(t)) tokens.delete(t); // a bare domain names nothing
     const byId = new Map<string, any[]>();
     for (const a of alterations) if (typeof a?.id === 'string') (byId.get(a.id) ?? byId.set(a.id, []).get(a.id)!).push(a);
-    // M536 (latex-references p1 round 5, known red since 2026-10-03): "can you give me other the link is dead" — no URL, no identifier,
-    // THE link: the one website reference the round before had filed. With nothing named the guard returned, and the dead reference
-    // stayed a noted fact until the next round. A short, definite, unnamed rejection of a link / URL / website / address targets exactly
-    // one node: the newest live node whose text carries an http(s) URL — its parent instead when the parent carries one too and was
-    // filed at the same moment (the reference card over its detail row) — and never a node the filer is swapping a new address into
-    // this round (that is the replacement). Narrow by design (M358c): one node, a URL in it, nothing created this round.
-    let definite: MapNode | null = null;
-    if (!tokens.size && ut.length <= 200 && /\b(?:the|that|this|your|its?)\s+(?:\w+\s+)?(?:links?|urls?|website|site|page|address|references?)\b|(?:这个|那个|你给的|上面的|这条|那条)(?:链接|网址|地址)/i.test(ut)) {
-      const at = (n: any) => Date.parse(String(n.updatedAt ?? n.createdAt ?? '').replace(' ', 'T').replace(/Z?$/, 'Z')) || 0;
-      const swapped = (n: MapNode) => (byId.get(n.id) ?? []).some((a) => typeof a?.content === 'string' && [...a.content.matchAll(/https?:\/\/[^\s"'）)>]+/g)].some((m) => !String(n.content ?? '').includes(m[0])));
-      const cands = map.nodes.filter((n) => n.status !== 'removed' && !/^(open|rejected|retracted|parked|superseded|removed)$/.test(n.status) && /https?:\/\/\S+/i.test(`${n.title ?? ''}\n${n.content}`));
-      cands.sort((a, b) => at(b) - at(a));
-      // M536b (the proof rerun): the filer had swapped the new address INTO the dead link's own node — the prompt's overturn rule,
-      // the old wording gone — and the first cut skipped that node and fell back to the NEXT URL node on the map: the Wikipedia
-      // reference, which nobody had called dead. Only the newest URL node can be "the link"; when the filer is already replacing
-      // it, the rejection is honoured by the replacement and the guard does nothing. No fallback, ever.
-      let pick: MapNode | null = cands[0] ?? null;
-      while (pick) { const up = cands.find((c) => c.id === pick!.parentId && Math.abs(at(c) - at(pick!)) <= 2000); if (!up) break; pick = up; }
-      definite = pick && !swapped(pick) ? pick : null;
-    }
-    const definiteUrl = definite ? (`${definite.title ?? ''}\n${definite.content}`.match(/https?:\/\/\S+/i)?.[0] ?? 'the link') : '';
-    if (!tokens.size && !definite) return alterations;
+    // M536 → M536c (2026-10-25, latex-references p1 round 5, three runs): "can you give me other the link is dead" names nothing.
+    // Two cuts tried to resolve "the link" from the map (the newest URL node; then the newest unless the filer was replacing it)
+    // and both reopened the WRONG node on the proof reruns — the Wikipedia reference, which nobody had called dead — because the
+    // newest URL node on the map is not the link of the previous turn. The guard has no previous turn to anchor on, so an unnamed
+    // rejection does nothing here (OQ B 43: whose job is the unnamed "the link is dead"?). The word list keeps "is dead|down|gone".
+    if (!tokens.size) return alterations;
     // M358b (scene-detect re-run): the filer had TOUCHED the URL nodes that round — re-asserting the dead address as fact,
     // following the assistant — so a "skip what the filer touched" rule skipped exactly the nodes the user was rejecting.
     // Now: a touched node is left alone only when the filer's own alteration already carries the rejection (status open /
@@ -1358,16 +1342,15 @@ export class Translator {
       if (n >= 3) break;
       if (node.status === 'removed' || /^(open|rejected|retracted|parked|superseded|removed)$/.test(node.status)) continue;
       const own = byId.get(node.id) ?? [];
-      const hit = definite ? (node.id === definite.id ? definiteUrl : null) : carries(`${node.title ?? ''}\n${node.content}\n${own.map((a) => `${a.title ?? ''}\n${a.content ?? ''}`).join('\n')}`);
+      const hit = carries(`${node.title ?? ''}\n${node.content}\n${own.map((a) => `${a.title ?? ''}\n${a.content ?? ''}`).join('\n')}`);
       if (!hit) continue;
       if (own.some(settled)) continue;
       const upd = own.find((a) => a.op === 'update_node');
       if (upd) upd.status = 'open'; else out.push({ op: 'update_node', id: node.id, status: 'open' });
-      this.store.audit('guard_user_rejection', { id: node.id.slice(0, 8), token: hit.slice(0, 60), was: node.status, title: (node.title || node.content).slice(0, 40), overrode: !!upd, ...(definite ? { how: 'definite' } : {}) });
+      this.store.audit('guard_user_rejection', { id: node.id.slice(0, 8), token: hit.slice(0, 60), was: node.status, title: (node.title || node.content).slice(0, 40), overrode: !!upd });
       n++;
     }
     for (const a of out) { // what the filer creates this round with the rejected thing in it, and no rejection of its own
-      if (definite) break; // M536: what this round creates is the replacement she asked for
       if (n >= 3) break;
       if (a?.op !== 'create_node' || typeof a.content !== 'string' || settled(a)) continue;
       const hit = carries(`${a.title ?? ''}\n${a.content}`);
