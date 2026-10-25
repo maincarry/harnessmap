@@ -247,7 +247,11 @@ export const isCodeLine = (sn: string): boolean => /^\s*\d{1,4}\s{2,}\S/.test(sn
           // M529 (go-failing-test-ru 2026-10-25: her row "1 ≤ q ≤ 10^5 … и "math" minVal" spliced a constraints line with an import-list string
           // and a `minVal := …` line): a Go short declaration (`a, _ := …`), a lone quoted import string (`"math"`), and a control header that
           // ends in `{` (`for key, value := range data {`, `if _, ok := m[k]; !ok {`, `func main() {`) are code too.
-          || /^\s*[A-Za-z_][\w.\[\]]*(?:\s*,\s*[A-Za-z_][\w.\[\]]*)*\s*:=\s*\S/.test(sn) || /^\s*"[\w./@:-]+"\s*,?\s*$/.test(sn) || /^\s*(?:for|if|else|switch|select|func|while|try|catch|do)\b.*\{\s*$/.test(sn)));
+          || /^\s*[A-Za-z_][\w.\[\]]*(?:\s*,\s*[A-Za-z_][\w.\[\]]*)*\s*:=\s*\S/.test(sn) || /^\s*"[\w./@:-]+"\s*,?\s*$/.test(sn) || /^\s*(?:for|if|else|switch|select|func|while|try|catch|do)\b.*\{\s*$/.test(sn)
+          // M533 (matlab-face 2026-10-25: "Error in cov (line 155) II 100820x72 58072320 double …", "II\t100820x72\tdouble 50872320 % Reshape…" and two
+          // more stack dumps kept as her rows): a MATLAB error-trace line (`Error in <fn> (line N)` / `Error using <fn>`), a `whos` table line
+          // (`Name  RxC  Bytes  Class`), and a `%` comment line are code too — the M488 traceback rule knew only Python's shape.
+          || /^\s*Error (?:in|using) [\w.>@/-]+(?:\s*\(line \d+\))?/.test(sn) || /^\s*[A-Za-z_]\w*\s+\d+x\d+(?:x\d+)*\s+(?:\d+\s+)?(?:double|single|char|logical|cell|struct|string|u?int\d+|table)\b/.test(sn) || /^\s*%\s/.test(sn)));
 export const FIRST_PERSON = /\b(?:let'?s|I'?ll|I will|we'?ll|we will|I'?m (?:willing|going|happy) to|I want|I(?:'ve| have)? decided|we(?:'ve| have)? decided|go with|settle (?:at|on|for)|I'?d (?:rather|prefer)|say (?:we|I|that we)|tell (?:them|him|her|the customer)|make (?:it|that|a) |record (?:these|this|it|that) as (?:my )?(?:a )?commitments?|my commitments?|I (?:sent|promised|committed|agreed|told|confirmed))\b/i; // M442d (TWIN #443): "Record these as commitments", "I sent both replies"
 // M443 (TWIN LONG #426, Noor, step 29 "List every commitment I made today, grouped by who it is for"): the recap turn filed two new
 // containers ("Harbor commitments", "Team pricing commitments") with six mirrored task rows restating rows the map already held — and

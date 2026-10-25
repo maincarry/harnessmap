@@ -207,6 +207,16 @@ test('a shape the map writes with spaces after the commas counts as present', ()
   expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
 });
 
+// M533 (matlab-face 2026-10-25): MATLAB error-trace lines, whos table lines and % comments are code, never the person's row; her sentence beside them is.
+test('a pasted MATLAB error dump files no trace row; the prose sentence with the figures is kept', () => {
+  const r = specifics([root], 'Error in cov (line 155)\nError in project_4 (line 12)\nII        100820x72            58072320  double\nm         1x72                   576  double\n% Reshape the II matrix into a 72 x 1405 matrix');
+  for (const c of r.out.filter((a) => a.op === 'create_node')) { expect(c.content).not.toMatch(/Error in|100820x72|^% /); }
+  const prose = specifics([root], 'This dataset includes 12 images of 6 different subjects, two per emotion, so the split must take 36 for training.');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/12 images/);
+});
+
 // M519 (data-platform-zh 2026-10-25): a segment of a dotted package path is not a file name; a real file in prose still is, even before a full stop.
 test('a dotted package path yields no file-name specific; a file named in prose is kept', () => {
   const r = specifics([root], 'User class threw exception: org.apache.spark.sql.streaming.StreamingQueryException: Unable to close file because the last block does not have enough number of replicas.');
