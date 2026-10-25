@@ -59,10 +59,7 @@
           "countUnder": "proj",
           "max": 16
         },
-        {
-          "atMostTitles": "隔离|脱离|c方法|C 方法|C方法",
-          "max": 3
-        }
+        {"atMostTitles": "隔离|脱离|c方法|C 方法|C方法", "max": 2, "type": "question"}
       ]
     },
     {
