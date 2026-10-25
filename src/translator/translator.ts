@@ -1991,7 +1991,10 @@ export class Translator {
         // M360 (node-xlsx zh): the codex filer leaked its JSON closers into a name — "导出前清理空格（trim）}]}". Closers are Pe, not in the
         // class above, and a balanced ")" or "]" must stay ("[Draft]"), so only UNBALANCED trailing closers go, one at a time.
         const more = (o: string, c: string) => t0.split(c).length > t0.split(o).length;
-        while (/[\]\})）]$/u.test(t0) && ((t0.endsWith(']') && more('[', ']')) || (t0.endsWith('}') && more('{', '}')) || (t0.endsWith(')') && more('(', ')')) || (t0.endsWith('）') && more('（', '）')))) t0 = t0.slice(0, -1).replace(/[\s\p{S}\p{Pd}:;,·•|/\\~*^_+=<>#&@：；，、{\[(（]+$/u, '').trim();
+        // M537 (hash-table 2026-10-25: "Resulting hash table ❯"): the ornament and quotation closers (❯ » › 」 』 】 〉 》) are Pe/Pf too — not
+        // symbols to the class above, and a lone one is as unbalanced as a stray ")". Same rule, a longer table of pairs.
+        const CLOSERS: [string, string][] = [['[', ']'], ['{', '}'], ['(', ')'], ['（', '）'], ['❮', '❯'], ['«', '»'], ['‹', '›'], ['「', '」'], ['『', '』'], ['【', '】'], ['〈', '〉'], ['《', '》']];
+        for (let guardPass = 0; guardPass < 6; guardPass++) { const hit = CLOSERS.find(([o, c]) => t0.endsWith(c) && more(o, c)); if (!hit) break; t0 = t0.slice(0, -1).replace(/[\s\p{S}\p{Pd}:;,·•|/\\~*^_+=<>#&@：；，、{\[(（]+$/u, '').trim(); }
         // M348c: "Face classification task of" — a dangling preposition AFTER A STRIPPED TAIL goes too ("Log in" stays: two words).
         // 2026-10-05 fix (loop find, grammar-quiz #181): this ran unconditionally and turned the quiz option "Didn't have to" into
         // "Didn't have" — a title that legitimately ends in a preposition. It now fires only when THIS guard already stripped a tail

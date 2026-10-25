@@ -174,3 +174,11 @@ test('a title is cut at a variation selector that follows a letter; an emoji wit
   expect(run('Проверка вычислений и тесты', 'Проверить правильность вычисления.').title).toBe('Проверка вычислений и тесты');
 });
 
+// M537 (hash-table 2026-10-25): "Resulting hash table ❯" — a lone ornament/quotation closer at the tail is an unbalanced closer, like a stray ")".
+test('a lone ❯ or » at the end of a title goes; a balanced 「」 or 【】 pair stays', () => {
+  expect(run('Resulting hash table ❯', 'The resulting separate-chaining table is: index 2 a; index 3 b → e → f.').title).toBe('Resulting hash table');
+  expect(run('Export cleanup »', 'Trim spaces before export.').title).toBe('Export cleanup');
+  expect(run('导出前清理空格「trim」', '导出前先 trim 空格。').title).toBe('导出前清理空格「trim」');
+  expect(run('【草稿】导出方案', '导出方案的草稿。').title).toBe('【草稿】导出方案');
+});
+
