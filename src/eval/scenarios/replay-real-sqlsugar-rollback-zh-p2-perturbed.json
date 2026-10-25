@@ -59,10 +59,7 @@
           "countUnder": "proj",
           "max": 17
         },
-        {
-          "statusOf": "顺序|按顺序|执行顺序",
-          "is": "active|accepted|decided|noted|live|answered"
-        }
+        {"statusOf": "顺序|按顺序|执行顺序", "is": "active|accepted|decided|noted|live|answered|hard"}
       ]
     },
     {

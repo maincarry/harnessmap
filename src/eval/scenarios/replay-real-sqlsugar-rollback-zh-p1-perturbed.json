@@ -110,10 +110,7 @@
           "countUnder": "proj",
           "max": 11
         },
-        {
-          "atMostTitles": "回滚|部分回滚|b语句",
-          "max": 3
-        }
+        {"atMostTitles": "回滚|部分回滚|b语句", "max": 2, "type": "question"}
       ]
     },
     {
