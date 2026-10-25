@@ -107,6 +107,10 @@ test('a title that repeats its own head is cut at the seam; a real repeat of a s
   expect(run('示例布局差异限制事项示例布局差异', '重新设计的示例仍未完全满足六行界面要求。').title).toBe('示例布局差异限制事项');
   expect(run('导入导出与导入', '导入导出。').title).toBe('导入导出与导入');
   expect(run('nginx 反向代理登录接口设定', '前端不得直接请求 7002。').title).toBe('nginx 反向代理登录接口设定');
+  // M517: a repeated short word in a word script is language, not a seam; a repeated multi-word head still is
+  expect(run('She Believed She Could', '“She Believed She Could: A Year of Affirmations to Encourage Women”').title).toBe('She Believed She Could');
+  expect(run('Step by Step Guide', 'A step by step guide to the setup.').title).toBe('Step by Step Guide');
+  expect(run('Nginx proxy login setup Nginx proxy login', 'The frontend must not call 7002 directly.').title).toBe('Nginx proxy login setup');
 });
 // M513b: a state of the record glued to a name's tail goes; a name that merely contains such a word is untouched.
 test('a status phrase glued to the tail of a name goes', () => {

@@ -1800,7 +1800,10 @@ export class Translator {
         //   (e) "示例布局差异限制事项示例布局差异" — a title that repeats its own head: the filer glued two drafts of a name. The longest head
         //       of four or more characters that occurs again later marks the seam; the title is cut there.
         { const t = anyA.title.trim(); let cut = -1;
-          for (let len = Math.floor(t.length / 2); len >= 4 && cut < 0; len--) { const head = t.slice(0, len); const at = t.indexOf(head, len); if (at >= 4) cut = at; }
+          // M517 (affirmation-book 2026-10-25: "She Believed She Could" → "She Believed" — the four-character head "She " recurs in plain English):
+          //   in a word script a repeated head counts only when it is two or more words and ten or more characters ("Nginx proxy login setup
+          //   Nginx proxy login"); a repeated short word — She, Step by Step, Day by Day — is language, not a seam. CJK heads keep the four-character rule.
+          for (let len = Math.floor(t.length / 2); len >= 4 && cut < 0; len--) { const head = t.slice(0, len); if (/[A-Za-z]/.test(head) && !(head.trim().length >= 10 && /\s/.test(head.trim()))) continue; const at = t.indexOf(head, len); if (at >= 4) cut = at; }
           if (cut > 0) { const t5 = t.slice(0, cut).replace(/[\s，,：:；;—\-]+$/u, '').trim(); if (t5.length >= 4) { this.store.audit('guard_title_repeat', { id: String(anyA.id ?? '').slice(0, 8), from: t.slice(0, 60), to: t5.slice(0, 40) }); anyA.title = t5; } } }
         // M513b (tk-threads-zh rerun 2026-10-25: "等待子线程完成答案未完备", "GUI线程等待方式未定论"; media-protocols-zh 2026-10-24: "…待核验或"):
         //   (f) a state of the record glued to the tail of a name — "answer incomplete", "undecided", "to be verified" — is the filer's
