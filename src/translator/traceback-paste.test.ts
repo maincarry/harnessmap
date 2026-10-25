@@ -217,6 +217,16 @@ test('a pasted MATLAB error dump files no trace row; the prose sentence with the
   expect(kept[0].content).toMatch(/12 images/);
 });
 
+// M534 (socket-gui-zh 2026-10-25): a comment line in any language and a tuple-unpack assignment are code, never the person's row.
+test('a Chinese # comment and a tuple-unpack line file no row; the Chinese prose sentence with the figure is kept', () => {
+  const r = specifics([root], '# 将报文内容转换为16进制并发送\nrlist, _, _ = select.select([self.sock], [], [], self.timeout / 1000)\ndata = self.sock.recv(1024)');
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+  const prose = specifics([root], '服务器监听 8001 端口，超时时间请保持 1000 毫秒，不要再改了。');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/8001/);
+});
+
 // M519 (data-platform-zh 2026-10-25): a segment of a dotted package path is not a file name; a real file in prose still is, even before a full stop.
 test('a dotted package path yields no file-name specific; a file named in prose is kept', () => {
   const r = specifics([root], 'User class threw exception: org.apache.spark.sql.streaming.StreamingQueryException: Unable to close file because the last block does not have enough number of replicas.');

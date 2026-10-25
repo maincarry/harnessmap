@@ -220,6 +220,10 @@ export const IMPERATIVE_DECISION = /(?:^|[.!?]\s+)(?:take|keep|use|never|always|
 // M528: the code-line rule (M488/M490/M493/M516/M523/M526/M527/M528), at module scope so every guard can ask "is this line code?".
 export const isProseLine = (sn: string): boolean => /\b(?:[A-Za-z]+\s+){4,}[A-Za-z]+[.!?](?:\s|$)/.test(sn) || /[\u4e00-\u9fff]{6,}/.test(sn);
 export const isCodeLine = (sn: string): boolean => /^\s*\d{1,4}\s{2,}\S/.test(sn) || /(?:^|\s)-{2,}>\s*\d{1,5}\s/.test(sn) // M488: a source line is never the sentence filed
+  // M534 (socket-gui-zh 2026-10-25: "# 将报文内容转换为16进制并发送" kept as the head of her row — six Han characters made the comment "prose",
+  // and the M493 `#` rule sat behind the prose gate): a line that OPENS with a comment marker is code whatever its words say; and a
+  // tuple-unpack assignment (`rlist, _, _ = select.select(…)`) is an assignment too, which the M490 branch (identifier straight before `=`) missed.
+  || /^\s*(?:#\s|\/\/|\/\*|%\s)/.test(sn) || /^\s*[A-Za-z_][\w.\[\]]*(?:\s*,\s*[A-Za-z_][\w.\[\]]*)+\s*=(?!=)\s*\S/.test(sn)
         || (!isProseLine(sn) && (/^\s*(?:def |class |import |from \w[\w.]* import |return\b|print\(|(?:if|for|while|elif|else|with|try|except|finally)\b.*:\s*$)/.test(sn) // M490: nor a pasted statement
           || /^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=|-=)\s*\S/.test(sn) || /^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$/.test(sn)
           // M493: a smart-quoted dict key, a keyword-argument call, a dotted call continuation, a lone bracket, a code comment
