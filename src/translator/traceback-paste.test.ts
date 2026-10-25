@@ -149,3 +149,14 @@ test('pasted Input/Result data lines file no fragment under her name', () => {
   expect(kept).toHaveLength(1);
   expect(kept[0].content).toMatch(/302/);
 });
+
+// M516 (react-router-layout 2026-10-25): a pasted JSX/markup line is never the person's row; a figure with a unit in prose still is.
+test('a pasted JSX line with a px figure files no markup fragment; the same figure in prose is kept', () => {
+  const r = specifics([root], "Dont think have any Problem withit\n<Search style={{ maxWidth: '200px' }} placeholder=\"Search\" />\n</div>");
+  for (const c of r.out.filter((a) => a.op === 'create_node')) { expect(c.content).not.toMatch(/^<Search|^<\/div>/); expect(String(c.title ?? '')).not.toMatch(/^<Search/); }
+  const prose = specifics([root], 'Keep the search box at 200px wide, not the full row, so the grid view still fits.');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/200px/);
+});
+

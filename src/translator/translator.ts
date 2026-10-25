@@ -1468,7 +1468,11 @@ export class Translator {
         || (!prose(sn) && (/^\s*(?:def |class |import |from \w[\w.]* import |return\b|print\(|(?:if|for|while|elif|else|with|try|except|finally)\b.*:\s*$)/.test(sn) // M490: nor a pasted statement
           || /^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=|-=)\s*\S/.test(sn) || /^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$/.test(sn)
           // M493: a smart-quoted dict key, a keyword-argument call, a dotted call continuation, a lone bracket, a code comment
-          || /^\s*[“"'][\w-]+[”"']\s*[:：]/.test(sn) || /^\s*(?:[A-Za-z_][\w.]*\s*=\s*)?[A-Za-z_][\w.]*\([^()\n]*\b\w+=/.test(sn) || /^\s*\.\w+\(/.test(sn) || /^\s*[{}\[\]()]+,?\s*$/.test(sn) || /^\s*#\s/.test(sn)));
+          || /^\s*[“"'][\w-]+[”"']\s*[:：]/.test(sn) || /^\s*(?:[A-Za-z_][\w.]*\s*=\s*)?[A-Za-z_][\w.]*\([^()\n]*\b\w+=/.test(sn) || /^\s*\.\w+\(/.test(sn) || /^\s*[{}\[\]()]+,?\s*$/.test(sn) || /^\s*#\s/.test(sn)
+          // M516 (react-router-layout 2026-10-25: "<Search style={{ maxWidth: '200px' }}" filed as her row — px is a unit, so 200px was a missed figure
+          // and the JSX line was the only "sentence" carrying it): a markup line — a tag with an attribute, a lone open/close tag, a JSX
+          // attribute `name={`, or a line that ends in `/>` or `</tag>` — is code too. "<Routes> children must be <Route>" is prose and stays.
+          || /^\s*<\/?[A-Za-z][\w.:-]*(?:\s+[\w-]+=|\s*\/?>\s*$)/.test(sn) || /^\s*[A-Za-z_][\w-]*=\{/.test(sn) || /(?:<\/[A-Za-z][\w.:-]*>|\/>)\s*$/.test(sn)));
       const leadIn = (sn: string) => LEAD_IN.test(sn.trim()) && /[:：]/.test(sn); // M489: "Here is my assignment description if that helps: …" is a handle, not a statement
       // M500 (pattern-puzzle 2026-10-19: her pasted "Input: 2, 6, 6, 0 / Result: 13" lines were split into "sentences" and three of them joined into
       // the node "Result: 13 Result: 263 Result: 94"): a line that is only a short label and numbers is a data line, never the sentence filed —
