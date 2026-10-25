@@ -103,9 +103,7 @@
         {
           "chatName": "renamed mid-thread"
         },
-        {
-          "nodeMatching": "→|rightarrow|arrow"
-        },
+        {"nodeMatching": "→|->|rightarrow|arrow"},
         {
           "countUnder": "proj",
           "max": 16
