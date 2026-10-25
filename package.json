@@ -1,6 +1,6 @@
 {
   "name": "harnessmap",
-  "version": "0.9.349",
+  "version": "0.9.350",
   "type": "module",
   "description": "Take control of what your AI keeps in mind. A live, local map of everything you and your coding agent discuss. Works with Claude Code and Codex.",
   "license": "MIT",

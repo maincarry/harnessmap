@@ -190,6 +190,16 @@ test('pasted typed declarations and call statements file no row; the same figure
   expect(kept[0].content).toMatch(/0\.33/);
 });
 
+// M529 (go-failing-test-ru 2026-10-25): Go short declarations, import-list strings and `{`-ending control headers are code, never the person's row.
+test('a pasted Go block files no row; the problem statement line with the limits is still kept', () => {
+  const r = specifics([root], 'import (\n\t"bufio"\n\t"math"\n\t"os"\n)\n\tbuf, err := io.ReadAll(fIn)\n\tminValue := math.MaxInt\n\tfor key, value := range data {\n\t\tif _, ok := data[center]; !ok {\n\tdata, _ := os.Open("input.txt")');
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+  const prose = specifics([root], 'The first line holds n, m and q with 1 ≤ q ≤ 10^5 and 1 ≤ n·m ≤ 10^6, then q event lines follow in the file input.txt.');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/10\^5/);
+});
+
 // M519 (data-platform-zh 2026-10-25): a segment of a dotted package path is not a file name; a real file in prose still is, even before a full stop.
 test('a dotted package path yields no file-name specific; a file named in prose is kept', () => {
   const r = specifics([root], 'User class threw exception: org.apache.spark.sql.streaming.StreamingQueryException: Unable to close file because the last block does not have enough number of replicas.');

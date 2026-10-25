@@ -243,7 +243,11 @@ export const isCodeLine = (sn: string): boolean => /^\s*\d{1,4}\s{2,}\S/.test(sn
           // a call statement that ends in `;`, and a C-style `for (…) {` / `while (…)` / `if (…)` / `} else {` line are code too. The rule now lives at module
           // scope so the decision-author guard skips code sentences as well.
           || /^\s*(?:(?:const|static|unsigned|signed|final|public|private|protected|volatile|register)\s+)*(?:int|double|float|char|long|short|void|bool|boolean|auto|var|let|const|string|String|size_t|u?int\d+_t|byte)\s+\*?[A-Za-z_]\w*(?:\s*\[\w*\])*\s*(?:=|;|,|\(|\))/.test(sn)
-          || /^\s*[A-Za-z_][\w.>-]*\([^\n]*\)\s*;/.test(sn) || /^\s*\}?\s*(?:for|while|if|else if|switch)\s*\(.*\)\s*\{?\s*$/.test(sn) || /^\s*\}\s*else\s*\{?\s*$/.test(sn)));
+          || /^\s*[A-Za-z_][\w.>-]*\([^\n]*\)\s*;/.test(sn) || /^\s*\}?\s*(?:for|while|if|else if|switch)\s*\(.*\)\s*\{?\s*$/.test(sn) || /^\s*\}\s*else\s*\{?\s*$/.test(sn)
+          // M529 (go-failing-test-ru 2026-10-25: her row "1 ≤ q ≤ 10^5 … и "math" minVal" spliced a constraints line with an import-list string
+          // and a `minVal := …` line): a Go short declaration (`a, _ := …`), a lone quoted import string (`"math"`), and a control header that
+          // ends in `{` (`for key, value := range data {`, `if _, ok := m[k]; !ok {`, `func main() {`) are code too.
+          || /^\s*[A-Za-z_][\w.\[\]]*(?:\s*,\s*[A-Za-z_][\w.\[\]]*)*\s*:=\s*\S/.test(sn) || /^\s*"[\w./@:-]+"\s*,?\s*$/.test(sn) || /^\s*(?:for|if|else|switch|select|func|while|try|catch|do)\b.*\{\s*$/.test(sn)));
 export const FIRST_PERSON = /\b(?:let'?s|I'?ll|I will|we'?ll|we will|I'?m (?:willing|going|happy) to|I want|I(?:'ve| have)? decided|we(?:'ve| have)? decided|go with|settle (?:at|on|for)|I'?d (?:rather|prefer)|say (?:we|I|that we)|tell (?:them|him|her|the customer)|make (?:it|that|a) |record (?:these|this|it|that) as (?:my )?(?:a )?commitments?|my commitments?|I (?:sent|promised|committed|agreed|told|confirmed))\b/i; // M442d (TWIN #443): "Record these as commitments", "I sent both replies"
 // M443 (TWIN LONG #426, Noor, step 29 "List every commitment I made today, grouped by who it is for"): the recap turn filed two new
 // containers ("Harbor commitments", "Team pricing commitments") with six mirrored task rows restating rows the map already held — and
