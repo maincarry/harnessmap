@@ -1448,7 +1448,11 @@ export class Translator {
     if (ut.trim().length < 8 && at.trim().length < 8) return alterations;
     const norm = (x: string) => x.toLowerCase().replace(/[,，]/g, '').replace(/\s+/g, ' ').trim();
     const presentText = norm([...alterations.map((a) => `${a?.title ?? ''} ${a?.content ?? ''}`), ...map.nodes.filter((n) => n.status !== 'removed').map((n) => `${n.title ?? ''} ${n.content ?? ''}`)].join(' \n '));
-    const has = (sp: string) => { const k = norm(sp); if (!k) return true; if (presentText.includes(k)) return true; const bare = k.replace(/^[+-]/, '').replace(/\s?(?:ms|s|sec|seconds?|min|minutes?|h|hours?|days?|weeks?|%|kb|mb|gb|mah|ma|µa|ua|v|cores?|cpu|ram|px|words?|turns?)$/, ''); return bare.length >= 2 && new RegExp(`(?<![\\d.])${bare.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\d])`).test(presentText); };
+    // M524 (save-image-path 2026-10-25: the filer wrote "two weeks", her turn said "2 weeks", and the guard kept her whole venting sentence as a row
+    // for a figure that was on the map in words): a small count spelled out is the same figure as its digits.
+    const NUM_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+    const asWords = (k: string) => { const m = /^(\d{1,2})(?:\s?([a-zµ%]+))?$/.exec(k); if (!m || Number(m[1]) > 12) return false; const w = NUM_WORDS[Number(m[1])]; const unit = m[2] ? `\\s?${m[2].replace(/s$/, '')}s?` : ''; return new RegExp(`\\b${w}${unit}\\b`).test(presentText); };
+    const has = (sp: string) => { const k = norm(sp); if (!k) return true; if (presentText.includes(k)) return true; if (asWords(k)) return true; const bare = k.replace(/^[+-]/, '').replace(/\s?(?:ms|s|sec|seconds?|min|minutes?|h|hours?|days?|weeks?|%|kb|mb|gb|mah|ma|µa|ua|v|cores?|cpu|ram|px|words?|turns?)$/, ''); return bare.length >= 2 && new RegExp(`(?<![\\d.])${bare.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\d])`).test(presentText); };
     const UNIT = '(?:ms|s|sec|seconds?|min|minutes?|h|hours?|days?|weeks?|%|kb|mb|gb|mah|ma|µa|ua|v|cores?|cpu|ram|px|words?|turns?)';
     const figures = (t: string) => [...t.matchAll(new RegExp(`(?<![\\w.\\-])(?:0x[0-9a-fA-F]{3,}|[+-]?\\d(?:[\\d,]*\\d)?(?:\\.\\d+)?)(?:\\s?${UNIT})?(?!\\w)`, 'gi'))].map((m) => m[0].trim()).filter((f) => /^0x/i.test(f) || /\d{2,}/.test(f) || /[a-zµ%]$/i.test(f)).filter((f) => !/^(?:19|20)\d\d$/.test(f));
     // M519 (data-platform-zh 2026-10-25: "spark.sql" read out of "org.apache.spark.sql.streaming.StreamingQueryException" as a file, and her

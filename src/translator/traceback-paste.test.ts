@@ -199,3 +199,12 @@ test('a // comment line is never the row filed; the prose sentence after it is k
   expect(r2.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
 });
 
+// M524 (save-image-path 2026-10-25): a small count the filer wrote in words is the figure she said in digits — nothing is missed, no row is kept for it.
+test('a figure present on the map in words is not a missed specific', () => {
+  const onMap = [root, { id: 'd1', parentId: 'p1', content: 'The user spent two weeks completing the image-saving assignment and is now tired of it.', title: 'Assignment duration', status: 'noted', author: 'user', type: 'evidence', createdAt: at, updatedAt: at }];
+  const r = specifics(onMap, 'I am too tired of this assignment took me 2 weeks to complete and I still need to prepare report');
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+  const r2 = specifics([root], 'I am too tired of this assignment took me 2 weeks to complete and I still need to prepare report');
+  expect(r2.out.filter((a) => a.op === 'create_node')).toHaveLength(1);
+});
+
