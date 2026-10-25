@@ -95,3 +95,36 @@ test('a comma tail about keeping the question open goes', () => {
   const r = run('父子进程退出关系，让问题保持开放以反映当前回答未形成可靠结论', '创建的子进程没有结束时，父进程是否会结束？还需要明确父进程退出后子进程的状态。');
   expect(r.title).toBe('父子进程退出关系');
 });
+
+// M513 (tk-threads-zh 2026-10-25): two more title slips, and the untitled stub child seen twice (media524, tk-threads).
+test('a lone digit glued onto a Chinese tail goes; a digit after a space or a Latin word stays', () => {
+  expect(run('单线程 join 示例相关代码与行为说明2', '一个子线程的 join 示例。').title).toBe('单线程 join 示例相关代码与行为说明');
+  expect(run('Python 3 线程模型', 'Python 3 的线程。').title).toBe('Python 3 线程模型');
+  expect(run('RFC 3551', 'RTP 音视频配置。').title).toBe('RFC 3551');
+  expect(run('接口 v2', '第二版接口。').title).toBe('接口 v2');
+});
+test('a title that repeats its own head is cut at the seam; a real repeat of a short word is not', () => {
+  expect(run('示例布局差异限制事项示例布局差异', '重新设计的示例仍未完全满足六行界面要求。').title).toBe('示例布局差异限制事项');
+  expect(run('导入导出与导入', '导入导出。').title).toBe('导入导出与导入');
+  expect(run('nginx 反向代理登录接口设定', '前端不得直接请求 7002。').title).toBe('nginx 反向代理登录接口设定');
+});
+function runRaw(alt: any, parentTitle = 'Tkinter 工具开发', parentContent = 'Tkinter 工具开发相关的 Python 实现与问题。') {
+  const audits: { kind: string; d: any }[] = [];
+  const store: any = new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string, d: any) => audits.push({ kind, d }); if (k === 'getSetting') return () => undefined; return () => undefined; } });
+  const t = new Translator(store);
+  const parent = { id: 'p1', parentId: null, content: parentContent, title: parentTitle, status: 'live', author: 'user', type: null, createdAt: '2026-10-25T00:00:00Z', updatedAt: '2026-10-25T00:00:00Z' };
+  const map: any = { nodes: [parent], links: [], projectId: 'proj' };
+  const out = (t as any).guardScope([{ op: 'create_node', id: 'x1', parentId: 'p1', status: 'live', author: 'user', ...alt }], new Set(['p1']), map, { chatId: 'c', focusContainerId: 'p1', userText: '', assistantText: '' });
+  return { kept: out.some((a: any) => a.op === 'create_node' && a.id === 'x1'), stub: audits.filter((a) => a.kind === 'guard_stub_child') };
+}
+test('an untitled child whose content is a shorter copy of its parent is dropped as a stub', () => {
+  const r = runRaw({ content: 'tkinter 工具' });
+  expect(r.kept).toBe(false); expect(r.stub).toHaveLength(1);
+  const r2 = runRaw({ content: '媒体服务器' }, '媒体服务器问题', '媒体服务器相关问题与网络变化、ICE 状态更新及重启机制有关。');
+  expect(r2.kept).toBe(false);
+});
+test('a child with its own name, or with words the parent lacks, is kept', () => {
+  expect(runRaw({ content: 'tkinter 工具', title: 'Tkinter 工具' }).kept).toBe(true);
+  expect(runRaw({ content: 'tkinter 工具需要在子线程运行时保持界面响应' }).kept).toBe(true);
+  expect(runRaw({ content: '界面保持响应' }).kept).toBe(true);
+});

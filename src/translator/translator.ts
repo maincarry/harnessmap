@@ -1788,6 +1788,16 @@ export class Translator {
         if (t2 !== anyA.title.trim() && t2.length >= 2) { this.store.audit('guard_title_uuid', { id: String(anyA.id ?? '').slice(0, 8), how: 'hex8-glued', dropped: anyA.title.slice(t2.length) }); anyA.title = t2; }
         const t3 = anyA.title.replace(/[，,]\s*(?:让(?:该|此)?问题|以反映|保持开放|未形成可靠|以体现当前)[^\n]*$/u, '').trim();
         if (t3 !== anyA.title.trim() && t3.length >= 2) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t3.length).trim().slice(0, 40) }); anyA.title = t3; }
+        // M513 (tk-threads-zh 2026-10-25, two slips on one map, each one instance across every kept map):
+        //   (d) "单线程 join 示例相关代码与行为说明2" — a lone digit glued straight onto a Chinese character at the tail: a de-duplication
+        //       counter, not a name. Only a single digit right after a Han character goes ("Python 3", "RFC 3551", "v2" are untouched).
+        const t4 = anyA.title.replace(/(?<=\p{Script=Han})\d$/u, '').trim();
+        if (t4 !== anyA.title.trim() && t4.length >= 3) { this.store.audit('guard_title_tail_digit', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t4.length) }); anyA.title = t4; }
+        //   (e) "示例布局差异限制事项示例布局差异" — a title that repeats its own head: the filer glued two drafts of a name. The longest head
+        //       of four or more characters that occurs again later marks the seam; the title is cut there.
+        { const t = anyA.title.trim(); let cut = -1;
+          for (let len = Math.floor(t.length / 2); len >= 4 && cut < 0; len--) { const head = t.slice(0, len); const at = t.indexOf(head, len); if (at >= 4) cut = at; }
+          if (cut > 0) { const t5 = t.slice(0, cut).replace(/[\s，,：:；;—\-]+$/u, '').trim(); if (t5.length >= 4) { this.store.audit('guard_title_repeat', { id: String(anyA.id ?? '').slice(0, 8), from: t.slice(0, 60), to: t5.slice(0, 40) }); anyA.title = t5; } } }
       }
       // M402b (sqlsugar-nested-zh title "本轮回滚结论"): the same round-talk lead on a NAME goes; the name keeps its subject.
       // M491 (nfconntrack-zh 2026-10-18, title "IPv6 模块支持检视者核心观点的直接落实：本轮不涉及结构重组建议"): the same round-talk
@@ -1842,6 +1852,23 @@ export class Translator {
             this.store.audit('guard_self_leak', { id: String(anyA.id ?? '').slice(0, 8), word: m[1], content: anyA.content.slice(0, 80) });
             if (a.op === 'create_node') continue; // dropped: never pushed to out
             delete anyA.content; if (anyA.title === undefined && anyA.status === undefined) continue;
+          }
+        }
+      }
+      // M513 (media524 2026-10-24 "(untitled) :: 媒体服务器" under "媒体服务器问题"; tk-threads-zh 2026-10-25 "(untitled) :: tkinter 工具" under
+      // "Tkinter 工具开发" — the second time): a new node with NO name whose whole content is a shorter copy of its parent's name or
+      // content is a stub, not a record — nothing was said that the parent does not already hold. It is dropped; its references fold
+      // into the parent. A node with a name of its own, or with content the parent lacks, is never touched.
+      if (a.op === 'create_node' && typeof anyA.content === 'string' && !(typeof anyA.title === 'string' && anyA.title.trim()) && anyA.parentId) {
+        const norm = (x: unknown) => String(x ?? '').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '');
+        const parent = map.nodes.find((n) => n.id === anyA.parentId) ?? (alterations.find((x: any) => x?.op === 'create_node' && String(x.id) === String(anyA.parentId)) as any);
+        const c = norm(anyA.content);
+        if (parent && c.length >= 2 && c.length <= 40) {
+          const pt = norm(parent.title), pc = norm(parent.content);
+          if ((pt && pt.includes(c) && pt.length > c.length) || (pc && pc.includes(c) && pc.length > c.length)) {
+            this.store.audit('guard_stub_child', { id: String(anyA.id ?? '').slice(0, 8), parent: String(anyA.parentId).slice(0, 8), content: anyA.content.slice(0, 60) });
+            dropSurvivor.set(String(anyA.id), String(anyA.parentId)); // references to the stub follow the parent
+            continue;
           }
         }
       }
