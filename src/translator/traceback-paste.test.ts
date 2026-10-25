@@ -160,3 +160,17 @@ test('a pasted JSX line with a px figure files no markup fragment; the same figu
   expect(kept[0].content).toMatch(/200px/);
 });
 
+// M519 (data-platform-zh 2026-10-25): a segment of a dotted package path is not a file name; a real file in prose still is, even before a full stop.
+test('a dotted package path yields no file-name specific; a file named in prose is kept', () => {
+  const r = specifics([root], 'User class threw exception: org.apache.spark.sql.streaming.StreamingQueryException: Unable to close file because the last block does not have enough number of replicas.');
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+  const missed = r.audits.filter((a) => a.kind === 'guard_specifics_kept').flatMap((a) => a.d.missed as string[]);
+  expect(missed).not.toContain('spark.sql');
+  const prose = specifics([root], 'Please move the long query into reports.sql, not the notebook, so the grader can read it.');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/reports\.sql/);
+  const stop = specifics([root], 'Keep the limits in config.yaml.');
+  expect(stop.out.filter((a) => a.op === 'create_node').some((c) => /config\.yaml/.test(c.content))).toBe(true);
+});
+

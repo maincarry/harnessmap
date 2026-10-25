@@ -1443,7 +1443,9 @@ export class Translator {
     const has = (sp: string) => { const k = norm(sp); if (!k) return true; if (presentText.includes(k)) return true; const bare = k.replace(/^[+-]/, '').replace(/\s?(?:ms|s|sec|seconds?|min|minutes?|h|hours?|days?|weeks?|%|kb|mb|gb|mah|ma|µa|ua|v|cores?|cpu|ram|px|words?|turns?)$/, ''); return bare.length >= 2 && new RegExp(`(?<![\\d.])${bare.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\d])`).test(presentText); };
     const UNIT = '(?:ms|s|sec|seconds?|min|minutes?|h|hours?|days?|weeks?|%|kb|mb|gb|mah|ma|µa|ua|v|cores?|cpu|ram|px|words?|turns?)';
     const figures = (t: string) => [...t.matchAll(new RegExp(`(?<![\\w.\\-])(?:0x[0-9a-fA-F]{3,}|[+-]?\\d(?:[\\d,]*\\d)?(?:\\.\\d+)?)(?:\\s?${UNIT})?(?!\\w)`, 'gi'))].map((m) => m[0].trim()).filter((f) => /^0x/i.test(f) || /\d{2,}/.test(f) || /[a-zµ%]$/i.test(f)).filter((f) => !/^(?:19|20)\d\d$/.test(f));
-    const idents = (t: string) => [...t.matchAll(/`([^`\n]{2,60})`|(?<![\w/])([A-Za-z][\w-]*\.(?:c|h|ts|js|py|ld|json|md|txt|cpp|rs|go|yaml|yml|toml|sh|sql))(?![\w/])|(?<!\w)([a-z]+(?:-[a-z]+){2,})(?!\w)/g)].map((m) => (m[1] ?? m[2] ?? m[3]).trim()).filter((x) => x.length >= 3);
+    // M519 (data-platform-zh 2026-10-25: "spark.sql" read out of "org.apache.spark.sql.streaming.StreamingQueryException" as a file, and her
+    // pasted stack line filed as her row for it): a name with a word-and-dot on either side is a segment of a dotted path, not a file name.
+    const idents = (t: string) => [...t.matchAll(/`([^`\n]{2,60})`|(?<![\w/])(?<!\w\.)([A-Za-z][\w-]*\.(?:c|h|ts|js|py|ld|json|md|txt|cpp|rs|go|yaml|yml|toml|sh|sql))(?![\w/])(?!\.\w)|(?<!\w)([a-z]+(?:-[a-z]+){2,})(?!\w)/g)].map((m) => (m[1] ?? m[2] ?? m[3]).trim()).filter((x) => x.length >= 3);
     // M489 (panorama-homography p3, 2026-10-18): a quoted LEAD-IN inside a paste — "Here is the description of the dataset:" — counted as a
     // quoted phrase the filer missed, and the lead-in sentence ("Here is my assignment description if that helps: …") was filed verbatim
     // as her row under a title that had nothing to do with it. A quote that ends in a colon, or opens with here is / here's / this is /
