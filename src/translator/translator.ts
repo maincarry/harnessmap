@@ -224,7 +224,7 @@ export const isCodeLine = (sn: string): boolean => /^\s*\d{1,4}\s{2,}\S/.test(sn
   // and the M493 `#` rule sat behind the prose gate): a line that OPENS with a comment marker is code whatever its words say; and a
   // tuple-unpack assignment (`rlist, _, _ = select.select(…)`) is an assignment too, which the M490 branch (identifier straight before `=`) missed.
   || /^\s*(?:#\s|\/\/|\/\*|%\s)/.test(sn) || /^\s*[A-Za-z_][\w.\[\]]*(?:\s*,\s*[A-Za-z_][\w.\[\]]*)+\s*=(?!=)\s*\S/.test(sn)
-        || (!isProseLine(sn) && (/^\s*(?:def |class |import |from \w[\w.]* import |return\b|print\(|(?:if|for|while|elif|else|with|try|except|finally)\b.*:\s*$)/.test(sn) // M490: nor a pasted statement
+        || (!isProseLine(sn) && (/^\s*[A-Za-z_$][\w$-]*\s*:\s*(?:"[^"\n]*"|'[^'\n]*'|-?\d[\w.%]*|[A-Za-z_$][\w$.]*(?:\([^()\n]*\))?)\s*[,;](?:\s*[A-Za-z_$][\w$-]*\s*:\s*(?:"[^"\n]*"|'[^'\n]*'|-?\d[\w.%]*|[A-Za-z_$][\w$.]*(?:\([^()\n]*\))?)\s*[,;]?)*\s*$/.test(sn) /* M539 (react-eslint 2026-10-25: `width: "100%", borderBottom: "1px solid black",` kept as her sentence): an object-literal property line or a CSS declaration line — key: value pairs closed by , or ; */ || /^\s*[.#]?[A-Za-z_][\w-]*(?:\s*[,>+~ ]\s*[.#]?[A-Za-z_][\w-]*)*\s*\{[^{}\n]*\}\s*$/.test(sn) /* M539: a one-line CSS rule `selector { … }` */ || /^\s*(?:def |class |import |from \w[\w.]* import |return\b|print\(|(?:if|for|while|elif|else|with|try|except|finally)\b.*:\s*$)/.test(sn) // M490: nor a pasted statement
           || /^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=|-=)\s*\S/.test(sn) || /^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$/.test(sn)
           // M493: a smart-quoted dict key, a keyword-argument call, a dotted call continuation, a lone bracket, a code comment
           || /^\s*[“"'][\w-]+[”"']\s*[:：]/.test(sn) || /^\s*(?:[A-Za-z_][\w.]*\s*=\s*)?[A-Za-z_][\w.]*\([^()\n]*\b\w+=/.test(sn) || /^\s*\.\w+\(/.test(sn) || /^\s*[{}\[\]()]+,?\s*$/.test(sn) || /^\s*#\s/.test(sn)
@@ -1916,7 +1916,9 @@ export class Translator {
       // and it reached the map until the healer renamed it ~50 s later. An id is never part of a name: any 8-4(-4…) hex run with dashes goes.
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /[0-9a-f]{8}-[0-9a-f]{4}(?:-[0-9a-f]{4}){0,2}(?:-[0-9a-f]{12})?/i.test(anyA.title)) {
         const from = anyA.title;
-        const cleaned = anyA.title.replace(/\s*[0-9a-f]{8}-[0-9a-f]{4}(?:-[0-9a-f]{4}){0,2}(?:-[0-9a-f]{12})?/gi, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s.:：;；,，\-–—]+|[\s.:：;；,，\-–—]+$/g, '').trim();
+        // M540 (react-eslint 2026-10-25: "Avoid noninteractive handlers te3421c5e-23db-…" → "… handlers t"): a one- or two-letter
+        // fragment glued straight onto the id is the id's seam, not a word — it goes with the id.
+        const cleaned = anyA.title.replace(/\s*\b[A-Za-z]{1,2}(?=[0-9a-f]{8}-[0-9a-f]{4})/, ' ').replace(/\s*[0-9a-f]{8}-[0-9a-f]{4}(?:-[0-9a-f]{4}){0,2}(?:-[0-9a-f]{12})?/gi, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s.:：;；,，\-–—]+|[\s.:：;；,，\-–—]+$/g, '').trim();
         this.store.audit('guard_title_uuid', { id: String(anyA.id ?? '').slice(0, 8), from: from.slice(0, 60), to: cleaned.slice(0, 60) });
         anyA.title = cleaned.length >= 2 ? cleaned : '';
       }

@@ -282,3 +282,14 @@ test('a figure present on the map in words is not a missed specific', () => {
   expect(r2.out.filter((a) => a.op === 'create_node')).toHaveLength(1);
 });
 
+// M539 (react-eslint 2026-10-25): `width: "100%", borderBottom: "1px solid black",` — an object-literal property line from her pasted component kept as her sentence.
+test('an object-literal property line or a CSS declaration line is code to the specifics guard; a prose line with a colon and a comma is not', () => {
+  const root = { id: 'p1', parentId: null, content: 'TitleAndDivider component', title: 'TitleAndDivider component', status: 'live', author: 'user', type: null, createdAt: '2026-10-25T22:07:00Z', updatedAt: '2026-10-25T22:07:00Z' };
+  const code = specifics([root], 'const divider = {\nwidth: "100%", borderBottom: "1px solid black",\n};\nimprove the TitleAndDivider function following the guidelines.');
+  expect(code.out.filter((a) => a.op === 'create_node' && /borderBottom/.test(String(a.content)))).toHaveLength(0);
+  const css = specifics([root], '.rule { color: red; font-size: 12px; }\ncolor: red; font-size: 12px;');
+  expect(css.out.filter((a) => a.op === 'create_node' && /font-size/.test(String(a.content)))).toHaveLength(0);
+  const prose = specifics([root], 'Deadline: Friday 3pm, then the 200px banner review.');
+  expect(prose.out.filter((a) => a.op === 'create_node')).toHaveLength(1);
+});
+

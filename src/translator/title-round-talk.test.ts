@@ -189,3 +189,10 @@ test('a Latin-Extended seam inside an ASCII word and a leaked parser phrase cut 
   expect(run('Config loader Unexpected token', 'The config loader fails at startup on a stray comma in the settings file.').title).toBe('Config loader');
 });
 
+// M540 (react-eslint 2026-10-25): a glued UUID left a one-letter fragment behind — "Avoid noninteractive handlers t".
+test('a one- or two-letter fragment glued onto a stripped UUID goes with it; a whole word before the id stays', () => {
+  expect(run('Avoid noninteractive handlers te3421c5e-23db-4bf4-9216-915a5c0d1e2f', 'The rule discourages click handlers on non-interactive elements.').title).toBe('Avoid noninteractive handlers');
+  expect(run('b语句单独处理方案0c4d07f5-2e6f-4d7f-92f4-5ad2e7f4a3e8', 'b 语句单独处理。').title).toBe('b语句单独处理方案');
+  expect(run('Rollback plan 0c4d07f5-2e6f-4d7f-92f4-5ad2e7f4a3e8', 'The rollback plan for the batch.').title).toBe('Rollback plan');
+});
+
