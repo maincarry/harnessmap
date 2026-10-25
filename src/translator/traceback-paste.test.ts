@@ -227,6 +227,13 @@ test('a Chinese # comment and a tuple-unpack line file no row; the Chinese prose
   expect(kept[0].content).toMatch(/8001/);
 });
 
+// M535 (bar-anniversary-zh 2026-10-25): a brand written "九维Jumpwire" by her and "九维 Jumpwire" by the filer is one name — no row for the head of her post.
+test('a Han-Latin name the map writes with a space counts as present', () => {
+  const topic = { id: 'jw', parentId: 'p1', title: '九维 Jumpwire 一周年', content: '九维 Jumpwire 一周年庆典主题为“跳线成就更高维度”，回顾一年来的挑战、突破与活动。', status: 'live', author: 'user', type: null, createdAt: '2026-10-25T16:12:36Z', updatedAt: '2026-10-25T16:12:36Z' } as any;
+  const r = specifics([root, topic], '【九维Jumpwire一周年庆：跳线成就更高维度】 一年前，我们在海珠开了一家精酿吧，取名为“九维Jumpwire”。这一年里，我们经历了许多挑战和阻碍，但也因此看到了更多可能性。');
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+});
+
 // M519 (data-platform-zh 2026-10-25): a segment of a dotted package path is not a file name; a real file in prose still is, even before a full stop.
 test('a dotted package path yields no file-name specific; a file named in prose is kept', () => {
   const r = specifics([root], 'User class threw exception: org.apache.spark.sql.streaming.StreamingQueryException: Unable to close file because the last block does not have enough number of replicas.');

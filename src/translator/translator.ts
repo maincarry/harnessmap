@@ -1488,7 +1488,10 @@ export class Translator {
     if (ut.trim().length < 8 && at.trim().length < 8) return alterations;
     // M530 (keras-cnn 2026-10-25: her "(128,128)" against the filer's "(128, 128)" — the comma went, the space stayed, and her question was
     // kept a second time as a specifics row): a comma takes the spaces after it with it, so "128,128" and "128, 128" are one figure.
-    const norm = (x: string) => x.toLowerCase().replace(/[,，]\s*/g, '').replace(/\s+/g, ' ').trim();
+    // M535 (bar-anniversary-zh 2026-10-25: her "九维Jumpwire" against the filer's "九维 Jumpwire" — the brand read as a missed name and the head of
+    // her 675-character post was kept as a row, the seventh node of a round allowed six): a space between a Han character and a Latin letter or
+    // digit is typography, not a different name — it goes before the comparison, on both sides.
+    const norm = (x: string) => x.toLowerCase().replace(/[,，]\s*/g, '').replace(/(?<=\p{Script=Han})\s+(?=[a-z0-9])|(?<=[a-z0-9])\s+(?=\p{Script=Han})/gu, '').replace(/\s+/g, ' ').trim();
     const presentText = norm([...alterations.map((a) => `${a?.title ?? ''} ${a?.content ?? ''}`), ...map.nodes.filter((n) => n.status !== 'removed').map((n) => `${n.title ?? ''} ${n.content ?? ''}`)].join(' \n '));
     // M524 (save-image-path 2026-10-25: the filer wrote "two weeks", her turn said "2 weeks", and the guard kept her whole venting sentence as a row
     // for a figure that was on the map in words): a small count spelled out is the same figure as its digits.
