@@ -216,6 +216,34 @@ const CLIENT_VERBS = new Set('Revise Start Run Save Draft Fix Update Check Rewri
 // when the user's turn carries a first-person commitment and the node's statement shares the turn's words, the author is "user".
 // M472: a decision spoken as an order — a sentence that OPENS with a deciding verb (the person telling the agent what the rule or the choice is).
 export const IMPERATIVE_DECISION = /(?:^|[.!?]\s+)(?:take|keep|use|never|always|do not|don'?t|move|put|set|reserve|allocate|stick with|go with|drop|cut|merge|raise|lower|switch to|treat|leave|choose|pick|prefer|make|hold|cap|limit|require|forbid|allow)\b|[,;—–]\s*(?:but |and |then |just )?(?:do not|don'?t|never|not yet|hold off)\b/i; // M472c (Hannah t23 "…, but don’t switch the search endpoint yet"): a negated instruction after a comma or "but" is the person's order too
+
+// M528: the code-line rule (M488/M490/M493/M516/M523/M526/M527/M528), at module scope so every guard can ask "is this line code?".
+export const isProseLine = (sn: string): boolean => /\b(?:[A-Za-z]+\s+){4,}[A-Za-z]+[.!?](?:\s|$)/.test(sn) || /[\u4e00-\u9fff]{6,}/.test(sn);
+export const isCodeLine = (sn: string): boolean => /^\s*\d{1,4}\s{2,}\S/.test(sn) || /(?:^|\s)-{2,}>\s*\d{1,5}\s/.test(sn) // M488: a source line is never the sentence filed
+        || (!isProseLine(sn) && (/^\s*(?:def |class |import |from \w[\w.]* import |return\b|print\(|(?:if|for|while|elif|else|with|try|except|finally)\b.*:\s*$)/.test(sn) // M490: nor a pasted statement
+          || /^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=|-=)\s*\S/.test(sn) || /^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$/.test(sn)
+          // M493: a smart-quoted dict key, a keyword-argument call, a dotted call continuation, a lone bracket, a code comment
+          || /^\s*[“"'][\w-]+[”"']\s*[:：]/.test(sn) || /^\s*(?:[A-Za-z_][\w.]*\s*=\s*)?[A-Za-z_][\w.]*\([^()\n]*\b\w+=/.test(sn) || /^\s*\.\w+\(/.test(sn) || /^\s*[{}\[\]()]+,?\s*$/.test(sn) || /^\s*#\s/.test(sn)
+          // M523 (kotlin-graph 2026-10-25: "// Monthly: Showing 12 months in a year" filed as the head of her row, "// Weekly: Showing 4 weeks in a month
+          // endCalendar.add(Calendar.DATE, 4 * 7 - 1)" as a node): a C-style comment line — `//`, `/*`, a leading `*` of a block comment — is code too.
+          || /^\s*\/\/|^\s*\/\*|^\s*\*\s/.test(sn)
+          // M516 (react-router-layout 2026-10-25: "<Search style={{ maxWidth: '200px' }}" filed as her row — px is a unit, so 200px was a missed figure
+          // and the JSX line was the only "sentence" carrying it): a markup line — a tag with an attribute, a lone open/close tag, a JSX
+          // attribute `name={`, or a line that ends in `/>` or `</tag>` — is code too. "<Routes> children must be <Route>" is prose and stays.
+          || /^\s*<\/?[A-Za-z][\w.:-]*(?:\s+[\w-]+=|\s*\/?>\s*$)/.test(sn) || /^\s*[A-Za-z_][\w-]*=\{/.test(sn) || /(?:<\/[A-Za-z][\w.:-]*>|\/>)\s*$/.test(sn)
+          // M526 (android-photos 2026-10-25: `<?xml version="1.0" encoding="utf-8"?>` filed as her row, "encoding=" the missed token): an XML/PHP
+          // processing instruction `<?…`, and a bare attribute line of a multi-line tag (`xmlns:app="…"`, `android:id="@+id/x"`), are code too.
+          || /^\s*<\?[A-Za-z]/.test(sn) || /^\s*[A-Za-z_][\w:.-]*="[^"\n]*"\s*\/?>?\s*$/.test(sn)
+          // M527 (csim-cache 2026-10-25: "#include <stdio.h> #include <stdlib.h> #include <time.h>" and two "#define DB_SIZE 500 …" runs filed as
+          // her rows, the #define figures counted as missed): a C preprocessor directive — `#include`, `#define`, `#ifdef` … — is code too. The
+          // M493 comment rule wanted a space after `#`; a directive has none, and a chat hashtag ("#help") is not one of these keywords.
+          || /^\s*#\s*(?:include|define|undef|ifdef|ifndef|if|elif|else|endif|pragma|error|line)\b/.test(sn)
+          // M528 (csim-cache 2026-10-25 proof rerun: "double t_query_arr[] = {5, 10, 25, 50, 100}; …" filed as her row, and "hold(exponential(n->q_gen_time));
+          // hold(DATA_ITEM_SIZE * 8 / BANDWIDTH);" filed as her DECISION — `hold` read as an imperative): a typed declaration (`int|double|… name[] = …;`),
+          // a call statement that ends in `;`, and a C-style `for (…) {` / `while (…)` / `if (…)` / `} else {` line are code too. The rule now lives at module
+          // scope so the decision-author guard skips code sentences as well.
+          || /^\s*(?:(?:const|static|unsigned|signed|final|public|private|protected|volatile|register)\s+)*(?:int|double|float|char|long|short|void|bool|boolean|auto|var|let|const|string|String|size_t|u?int\d+_t|byte)\s+\*?[A-Za-z_]\w*(?:\s*\[\w*\])*\s*(?:=|;|,|\(|\))/.test(sn)
+          || /^\s*[A-Za-z_][\w.>-]*\([^\n]*\)\s*;/.test(sn) || /^\s*\}?\s*(?:for|while|if|else if|switch)\s*\(.*\)\s*\{?\s*$/.test(sn) || /^\s*\}\s*else\s*\{?\s*$/.test(sn)));
 export const FIRST_PERSON = /\b(?:let'?s|I'?ll|I will|we'?ll|we will|I'?m (?:willing|going|happy) to|I want|I(?:'ve| have)? decided|we(?:'ve| have)? decided|go with|settle (?:at|on|for)|I'?d (?:rather|prefer)|say (?:we|I|that we)|tell (?:them|him|her|the customer)|make (?:it|that|a) |record (?:these|this|it|that) as (?:my )?(?:a )?commitments?|my commitments?|I (?:sent|promised|committed|agreed|told|confirmed))\b/i; // M442d (TWIN #443): "Record these as commitments", "I sent both replies"
 // M443 (TWIN LONG #426, Noor, step 29 "List every commitment I made today, grouped by who it is for"): the recap turn filed two new
 // containers ("Harbor commitments", "Team pricing commitments") with six mirrored task rows restating rows the map already held — and
@@ -569,7 +597,7 @@ export class Translator {
     // agent noted the layout; nobody decided anything): an imperative decision of the person's that lands in no node of theirs becomes
     // their decision node, in their words, under the round's focus — the agent's evidence stays as it is.
     if (imperative && !alterations.some((a) => (a?.op === 'create_node' || a?.op === 'update_node') && a.author === 'user')) {
-      const sents = ut.split(/(?<=[.!?。！？])\s+|\n+/).map((x) => x.trim()).filter((x) => x && IMPERATIVE_DECISION.test(x)).slice(0, 3);
+      const sents = ut.split(/(?<=[.!?。！？])\s+|\n+/).map((x) => x.trim()).filter((x) => x && !isCodeLine(x) && IMPERATIVE_DECISION.test(x)).slice(0, 3); // M528: `hold(…);` is a C statement, not an order
       if (sents.length) {
         const content = sents.join(' ').slice(0, 400);
         // M521 (bitmap-repeat 2026-10-25: she repeated "Embed your output with markdown, do not give any explanations…" every turn and this
@@ -1477,26 +1505,8 @@ export class Translator {
     const file = (who: 'user' | 'agent', text: string, specifics: string[], type?: string) => {
       const missed = [...new Set(specifics)].filter((sp) => !has(sp));
       if (!missed.length) return;
-      const prose = (sn: string) => /\b(?:[A-Za-z]+\s+){4,}[A-Za-z]+[.!?](?:\s|$)/.test(sn) || /[\u4e00-\u9fff]{6,}/.test(sn);
-      const codeLine = (sn: string) => /^\s*\d{1,4}\s{2,}\S/.test(sn) || /(?:^|\s)-{2,}>\s*\d{1,5}\s/.test(sn) // M488: a source line is never the sentence filed
-        || (!prose(sn) && (/^\s*(?:def |class |import |from \w[\w.]* import |return\b|print\(|(?:if|for|while|elif|else|with|try|except|finally)\b.*:\s*$)/.test(sn) // M490: nor a pasted statement
-          || /^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=|-=)\s*\S/.test(sn) || /^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$/.test(sn)
-          // M493: a smart-quoted dict key, a keyword-argument call, a dotted call continuation, a lone bracket, a code comment
-          || /^\s*[“"'][\w-]+[”"']\s*[:：]/.test(sn) || /^\s*(?:[A-Za-z_][\w.]*\s*=\s*)?[A-Za-z_][\w.]*\([^()\n]*\b\w+=/.test(sn) || /^\s*\.\w+\(/.test(sn) || /^\s*[{}\[\]()]+,?\s*$/.test(sn) || /^\s*#\s/.test(sn)
-          // M523 (kotlin-graph 2026-10-25: "// Monthly: Showing 12 months in a year" filed as the head of her row, "// Weekly: Showing 4 weeks in a month
-          // endCalendar.add(Calendar.DATE, 4 * 7 - 1)" as a node): a C-style comment line — `//`, `/*`, a leading `*` of a block comment — is code too.
-          || /^\s*\/\/|^\s*\/\*|^\s*\*\s/.test(sn)
-          // M516 (react-router-layout 2026-10-25: "<Search style={{ maxWidth: '200px' }}" filed as her row — px is a unit, so 200px was a missed figure
-          // and the JSX line was the only "sentence" carrying it): a markup line — a tag with an attribute, a lone open/close tag, a JSX
-          // attribute `name={`, or a line that ends in `/>` or `</tag>` — is code too. "<Routes> children must be <Route>" is prose and stays.
-          || /^\s*<\/?[A-Za-z][\w.:-]*(?:\s+[\w-]+=|\s*\/?>\s*$)/.test(sn) || /^\s*[A-Za-z_][\w-]*=\{/.test(sn) || /(?:<\/[A-Za-z][\w.:-]*>|\/>)\s*$/.test(sn)
-          // M526 (android-photos 2026-10-25: `<?xml version="1.0" encoding="utf-8"?>` filed as her row, "encoding=" the missed token): an XML/PHP
-          // processing instruction `<?…`, and a bare attribute line of a multi-line tag (`xmlns:app="…"`, `android:id="@+id/x"`), are code too.
-          || /^\s*<\?[A-Za-z]/.test(sn) || /^\s*[A-Za-z_][\w:.-]*="[^"\n]*"\s*\/?>?\s*$/.test(sn)
-          // M527 (csim-cache 2026-10-25: "#include <stdio.h> #include <stdlib.h> #include <time.h>" and two "#define DB_SIZE 500 …" runs filed as
-          // her rows, the #define figures counted as missed): a C preprocessor directive — `#include`, `#define`, `#ifdef` … — is code too. The
-          // M493 comment rule wanted a space after `#`; a directive has none, and a chat hashtag ("#help") is not one of these keywords.
-          || /^\s*#\s*(?:include|define|undef|ifdef|ifndef|if|elif|else|endif|pragma|error|line)\b/.test(sn)));
+      const prose = isProseLine;
+      const codeLine = isCodeLine; // M528: hoisted to module scope (see isCodeLine), shared with the decision-author guard
       const leadIn = (sn: string) => LEAD_IN.test(sn.trim()) && /[:：]/.test(sn); // M489: "Here is my assignment description if that helps: …" is a handle, not a statement
       // M500 (pattern-puzzle 2026-10-19: her pasted "Input: 2, 6, 6, 0 / Result: 13" lines were split into "sentences" and three of them joined into
       // the node "Result: 13 Result: 263 Result: 94"): a line that is only a short label and numbers is a data line, never the sentence filed —

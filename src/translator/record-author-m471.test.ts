@@ -157,3 +157,14 @@ test('M521: a repeated imperative already on the map in her words adds no second
   expect(a2.map((a) => a.d.how)).toEqual(['imperative-new-row']);
 });
 
+// M528 (csim-cache 2026-10-25): "hold(exponential(n->q_gen_time)); hold(DATA_ITEM_SIZE * 8 / BANDWIDTH);" — a pasted C statement that opens with an
+// imperative-looking word is code, never the person's decision.
+test('M528: a pasted code statement that starts with an imperative word makes no decision row', () => {
+  const { t, audits } = harness();
+  const out = t.guardDecisionAuthor([{ op: 'create_node', id: 'ev', parentId: 'cs', type: 'evidence', status: 'noted', author: 'agent', content: 'The pull-based version holds for the data transfer time after each query and update.' }],
+    { nodes: [{ id: 'cs', title: 'CSIM cache simulation', content: 'x', author: 'user', type: 'container', status: 'live' }] } as any,
+    { userText: 'hold(exponential(n->q_gen_time));\nhold(DATA_ITEM_SIZE * 8 / BANDWIDTH);\nhold(DATA_ITEM_SIZE * 8 / BANDWIDTH);\nif (prob < hot_update_prob) {', focusContainerId: 'cs' });
+  expect(out.filter((a: any) => a.author === 'user')).toHaveLength(0);
+  expect(audits.filter((a) => a.kind === 'guard_decision_author')).toHaveLength(0);
+});
+

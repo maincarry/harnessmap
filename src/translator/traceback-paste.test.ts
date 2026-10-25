@@ -180,6 +180,16 @@ test('pasted #include/#define lines file no row; a prose sentence with a figure 
   expect(kept[0].content).toMatch(/10000/);
 });
 
+// M528 (csim-cache 2026-10-25): typed declarations and call statements are code, never the person's row; a prose sentence with the same figures is.
+test('pasted typed declarations and call statements file no row; the same figures in prose are kept', () => {
+  const r = specifics([root], 'double t_query_arr[] = {5, 10, 25, 50, 100};\ndouble t_update_arr[] = {5, 10, 20, 100, 200};\nfloat hot_update_prob = 0.33;\nfor (size_t q = 0; q < sizeof(t_query_arr) / sizeof(t_query_arr[0]); q++) {\nhold(exponential(n->q_gen_time));\nhold(DATA_ITEM_SIZE * 8 / BANDWIDTH);');
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+  const prose = specifics([root], 'Run the queries at 5, 10, 25, 50 and 100 seconds and keep the hot update probability at 0.33 for every run.');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/0\.33/);
+});
+
 // M519 (data-platform-zh 2026-10-25): a segment of a dotted package path is not a file name; a real file in prose still is, even before a full stop.
 test('a dotted package path yields no file-name specific; a file named in prose is kept', () => {
   const r = specifics([root], 'User class threw exception: org.apache.spark.sql.streaming.StreamingQueryException: Unable to close file because the last block does not have enough number of replicas.');
