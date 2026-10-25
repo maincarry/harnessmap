@@ -160,6 +160,16 @@ test('a pasted JSX line with a px figure files no markup fragment; the same figu
   expect(kept[0].content).toMatch(/200px/);
 });
 
+// M526 (android-photos 2026-10-25): an XML declaration and the bare attribute lines of a multi-line tag are code, never the person's row.
+test('a pasted XML declaration and attribute lines file no row; a sentence about the encoding still is kept', () => {
+  const r = specifics([root], 'Use an android development documentation. A sample blank xml file looks like\n<?xml version="1.0" encoding="utf-8"?>\n<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"\n    xmlns:app="http://schemas.android.com/apk/res-auto"\n    android:layout_width="match_parent">');
+  for (const c of r.out.filter((a) => a.op === 'create_node')) { expect(c.content).not.toMatch(/^<\?xml|^\s*xmlns:|^\s*android:/); expect(String(c.title ?? '')).not.toMatch(/^<\?xml/); }
+  const prose = specifics([root], 'Keep the header 200px tall with encoding="utf-8" declared at the top, the grader rejects anything else.');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/200px/);
+});
+
 // M519 (data-platform-zh 2026-10-25): a segment of a dotted package path is not a file name; a real file in prose still is, even before a full stop.
 test('a dotted package path yields no file-name specific; a file named in prose is kept', () => {
   const r = specifics([root], 'User class threw exception: org.apache.spark.sql.streaming.StreamingQueryException: Unable to close file because the last block does not have enough number of replicas.');
