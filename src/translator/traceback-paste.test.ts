@@ -188,3 +188,14 @@ test('a short kept row is titled with its whole content; a long one is cut at a 
   expect(k2[0].content.startsWith(k2[0].title)).toBe(true);
 });
 
+// M523 (kotlin-graph 2026-10-25): a C-style comment line is code; her prose question after it is still kept, alone.
+test('a // comment line is never the row filed; the prose sentence after it is kept without it', () => {
+  const r = specifics([root], '// Monthly: Showing 12 months in a year\nwhy do you think the date is March 14 and May 15, I want it to only show the 12 months of this year.');
+  const kept = r.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).not.toMatch(/^\/\//);
+  expect(kept[0].content).toMatch(/March 14 and May 15/);
+  const r2 = specifics([root], '// Weekly: Showing 4 weeks in a month\nendCalendar.add(Calendar.DATE, 4 * 7 - 1) // Move forward 4 weeks (minus 1 day)');
+  expect(r2.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+});
+

@@ -1479,6 +1479,9 @@ export class Translator {
           || /^\s*[A-Za-z_][\w.\[\]]*\s*(?:=(?!=)|\+=|-=)\s*\S/.test(sn) || /^\s*[A-Za-z_][\w.]*\([^\n]*\)\s*$/.test(sn)
           // M493: a smart-quoted dict key, a keyword-argument call, a dotted call continuation, a lone bracket, a code comment
           || /^\s*[“"'][\w-]+[”"']\s*[:：]/.test(sn) || /^\s*(?:[A-Za-z_][\w.]*\s*=\s*)?[A-Za-z_][\w.]*\([^()\n]*\b\w+=/.test(sn) || /^\s*\.\w+\(/.test(sn) || /^\s*[{}\[\]()]+,?\s*$/.test(sn) || /^\s*#\s/.test(sn)
+          // M523 (kotlin-graph 2026-10-25: "// Monthly: Showing 12 months in a year" filed as the head of her row, "// Weekly: Showing 4 weeks in a month
+          // endCalendar.add(Calendar.DATE, 4 * 7 - 1)" as a node): a C-style comment line — `//`, `/*`, a leading `*` of a block comment — is code too.
+          || /^\s*\/\/|^\s*\/\*|^\s*\*\s/.test(sn)
           // M516 (react-router-layout 2026-10-25: "<Search style={{ maxWidth: '200px' }}" filed as her row — px is a unit, so 200px was a missed figure
           // and the JSX line was the only "sentence" carrying it): a markup line — a tag with an attribute, a lone open/close tag, a JSX
           // attribute `name={`, or a line that ends in `/>` or `</tag>` — is code too. "<Routes> children must be <Route>" is prose and stays.
