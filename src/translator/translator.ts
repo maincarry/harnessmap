@@ -1492,7 +1492,11 @@ export class Translator {
           || /^\s*<\/?[A-Za-z][\w.:-]*(?:\s+[\w-]+=|\s*\/?>\s*$)/.test(sn) || /^\s*[A-Za-z_][\w-]*=\{/.test(sn) || /(?:<\/[A-Za-z][\w.:-]*>|\/>)\s*$/.test(sn)
           // M526 (android-photos 2026-10-25: `<?xml version="1.0" encoding="utf-8"?>` filed as her row, "encoding=" the missed token): an XML/PHP
           // processing instruction `<?…`, and a bare attribute line of a multi-line tag (`xmlns:app="…"`, `android:id="@+id/x"`), are code too.
-          || /^\s*<\?[A-Za-z]/.test(sn) || /^\s*[A-Za-z_][\w:.-]*="[^"\n]*"\s*\/?>?\s*$/.test(sn)));
+          || /^\s*<\?[A-Za-z]/.test(sn) || /^\s*[A-Za-z_][\w:.-]*="[^"\n]*"\s*\/?>?\s*$/.test(sn)
+          // M527 (csim-cache 2026-10-25: "#include <stdio.h> #include <stdlib.h> #include <time.h>" and two "#define DB_SIZE 500 …" runs filed as
+          // her rows, the #define figures counted as missed): a C preprocessor directive — `#include`, `#define`, `#ifdef` … — is code too. The
+          // M493 comment rule wanted a space after `#`; a directive has none, and a chat hashtag ("#help") is not one of these keywords.
+          || /^\s*#\s*(?:include|define|undef|ifdef|ifndef|if|elif|else|endif|pragma|error|line)\b/.test(sn)));
       const leadIn = (sn: string) => LEAD_IN.test(sn.trim()) && /[:：]/.test(sn); // M489: "Here is my assignment description if that helps: …" is a handle, not a statement
       // M500 (pattern-puzzle 2026-10-19: her pasted "Input: 2, 6, 6, 0 / Result: 13" lines were split into "sentences" and three of them joined into
       // the node "Result: 13 Result: 263 Result: 94"): a line that is only a short label and numbers is a data line, never the sentence filed —

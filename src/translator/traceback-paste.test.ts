@@ -170,6 +170,16 @@ test('a pasted XML declaration and attribute lines file no row; a sentence about
   expect(kept[0].content).toMatch(/200px/);
 });
 
+// M527 (csim-cache 2026-10-25): C preprocessor directives are code, never the person's row; a prose sentence with a figure still is.
+test('pasted #include/#define lines file no row; a prose sentence with a figure is kept', () => {
+  const r = specifics([root], '#include <stdio.h>\n#include <stdlib.h>\n#include <time.h>\n#include "csim.h"\n\n#define NUM_CLIENTS 5\n#define DB_SIZE 500\n#define DATA_ITEM_SIZE 1024\n#define BANDWIDTH 10000');
+  expect(r.out.filter((a) => a.op === 'create_node')).toHaveLength(0);
+  const prose = specifics([root], 'Keep the cache at 100 items and the bandwidth at 10000, the assignment sheet fixes both.');
+  const kept = prose.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].content).toMatch(/10000/);
+});
+
 // M519 (data-platform-zh 2026-10-25): a segment of a dotted package path is not a file name; a real file in prose still is, even before a full stop.
 test('a dotted package path yields no file-name specific; a file named in prose is kept', () => {
   const r = specifics([root], 'User class threw exception: org.apache.spark.sql.streaming.StreamingQueryException: Unable to close file because the last block does not have enough number of replicas.');
