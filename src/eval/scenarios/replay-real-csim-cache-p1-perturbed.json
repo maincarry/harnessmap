@@ -59,10 +59,7 @@
           "countUnder": "proj",
           "max": 8
         },
-        {
-          "atMostTitles": "LRU",
-          "max": 2
-        }
+        {"atMostTitles": "LRU", "max": 1, "type": "task"}
       ]
     },
     {
