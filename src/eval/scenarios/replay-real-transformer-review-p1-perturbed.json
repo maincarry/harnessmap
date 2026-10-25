@@ -83,9 +83,7 @@
           "key": "proj",
           "focus": false
         },
-        {
-          "nodeMatching": "useful|because|benefit|elaborat"
-        },
+        {"nodeMatching": "useful|because|benefit|elaborat|static method|instance|readab|efficien|overhead"},
         {
           "countUnder": "proj",
           "max": 12
