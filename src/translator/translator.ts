@@ -1805,6 +1805,11 @@ export class Translator {
         //       tail, no space — a fragment the filer dragged in, not a name. Cyrillic or Greek after a Latin letter at the end goes.
         const t7 = anyA.title.replace(/(?<=[A-Za-z])[\u0370-\u03FF\u0400-\u04FF]+$/u, '').trim();
         if (t7 !== anyA.title.trim() && t7.length >= 3) { this.store.audit('guard_title_script_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t7.length) }); anyA.title = t7; }
+        //   (h) "Класс устройств тачпада и мышиs" (autohotkey-ru 2026-10-25, model-made: the letter is in neither her text nor the content):
+        //       one to three Latin letters glued straight onto a Cyrillic/Greek word at the tail go too — the mirror of (g). A spaced
+        //       Latin word ("… Win+X", "… devmgmt.msc") is untouched.
+        const t8 = anyA.title.replace(/(?<=[\u0370-\u03FF\u0400-\u04FF])[A-Za-z]{1,3}$/u, '').trim();
+        if (t8 !== anyA.title.trim() && t8.length >= 3) { this.store.audit('guard_title_script_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t8.length), how: 'latin-on-cyrillic' }); anyA.title = t8; }
         const t6 = anyA.title.replace(/(?:[\s，,：:；;—\-]*(?:答案|结论|方案|问题)?(?:未完备|未定论|未定|未决|待核验|待确认|待验证|尚未解决|未解决|待定)(?:或|和|与|及)?)+$/u, '').trim();
         if (t6 !== anyA.title.trim() && t6.length >= 2) { this.store.audit('guard_title_status_tail', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t6.length).trim().slice(0, 40) }); anyA.title = t6; }
       }

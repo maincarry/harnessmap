@@ -128,3 +128,11 @@ test('a Cyrillic fragment glued onto an English title tail goes', () => {
   // (a spaced Russian run inside an English title is the older guard_title_script's business — it drops such a title for the healer)
   // (an all-Cyrillic title in an English round is likewise guard_title_script's call, not this rule's)
 });
+
+// M515 (autohotkey-ru 2026-10-25): Latin letters glued onto a Cyrillic tail go; a spaced Latin word stays.
+test('a Latin letter glued onto a Russian title tail goes; a spaced Latin word stays', () => {
+  expect(run('Класс устройств тачпада и мышиs', 'Как найти идентификаторы класса устройств тачпада и мыши в Windows?').title).toBe('Класс устройств тачпада и мыши');
+  expect(run('Открытие через Win+X', 'В Windows 10 «Управление устройствами» открывается через Win+X.').title).toBe('Открытие через Win+X');
+  expect(run('Команда devmgmt.msc', 'Команда devmgmt.msc открывает диспетчер устройств.').title).toBe('Команда devmgmt.msc');
+});
+
