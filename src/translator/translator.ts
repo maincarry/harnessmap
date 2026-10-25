@@ -572,9 +572,17 @@ export class Translator {
       const sents = ut.split(/(?<=[.!?。！？])\s+|\n+/).map((x) => x.trim()).filter((x) => x && IMPERATIVE_DECISION.test(x)).slice(0, 3);
       if (sents.length) {
         const content = sents.join(' ').slice(0, 400);
+        // M521 (bitmap-repeat 2026-10-25: she repeated "Embed your output with markdown, do not give any explanations…" every turn and this
+        // branch filed it five times — it runs after guardScope, so the no-twins rule never saw the rows): an order already on the map in
+        // her words (same first sixty characters, normalised) is not filed again.
+        const normC = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+        const mine = normC(content);
+        const twin = map.nodes.find((n) => n.status !== 'removed' && n.author !== 'system' && String(n.content ?? '').length >= 20 && normC(String(n.content)) === mine);
+        if (twin) { this.store.audit('guard_decision_author', { how: 'imperative-twin', twin: twin.id.slice(0, 8), content: content.slice(0, 60) }); return alterations; }
         const parentId = params.focusContainerId ?? alterations.find((a) => a?.op === 'update_node' && a.id)?.id ?? null;
         this.store.audit('guard_decision_author', { how: 'imperative-new-row', content: content.slice(0, 60) });
-        alterations.push({ op: 'create_node', id: randomUUID(), parentId, type: 'decision', status: 'decided', author: 'user', title: content.slice(0, 48).replace(/\s+\S*$/, ''), content });
+        // M520a's title rule: the last word goes only when the 48-character cut took part of it
+        alterations.push({ op: 'create_node', id: randomUUID(), parentId, type: 'decision', status: 'decided', author: 'user', title: content.length > 48 ? content.slice(0, 48).replace(/\s+\S*$/, '') : content, content });
       }
     }
     return alterations;

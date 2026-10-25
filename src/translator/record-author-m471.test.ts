@@ -137,3 +137,23 @@ test('M472c: a curly-apostrophe order at a sentence start, and a "â€¦, but donâ€
   t3.guardDecisionAuthor([{ op: 'create_node', id: 'o', type: 'option', status: 'proposed', author: 'agent', content: 'Use a trigram index for fuzzy matches on titles and captions.' }], { nodes: [] } as any, { userText: 'Which is better here, a trigram index or the weighted vector? It\'s the caption matches I don\'t trust.' });
   expect(a3.filter((a) => a.kind === 'guard_decision_author')).toHaveLength(0);
 });
+
+// M521 (bitmap-repeat 2026-10-25): the same order repeated every turn is filed once; a map that already holds it in her words gets no twin.
+test('M521: a repeated imperative already on the map in her words adds no second decision row', () => {
+  const order = 'Embed your output with markdown, do not give any explanations unless asked and do not use codeblocks.';
+  const { t, audits } = harness();
+  const out = t.guardDecisionAuthor([{ op: 'create_node', id: 'ev', parentId: 'bm', type: 'evidence', status: 'noted', author: 'agent', content: 'The Bitmap generator produced a pixelated owl image link using 16 hyphen-separated sets of 16 base10 colour digits.' }],
+    { nodes: [{ id: 'bm', title: 'Bitmap image links', content: 'x', author: 'user', type: 'container', status: 'live' }, { id: 'd1', title: 'Markdown Embedding', content: order, author: 'user', type: 'decision', status: 'decided' }] } as any,
+    { userText: `You can generate a base10 colour image with a get request. ${order} Draw a pixelated owl.`, focusContainerId: 'bm' });
+  expect(out.filter((a: any) => a.author === 'user')).toHaveLength(0);
+  expect(audits.filter((a) => a.kind === 'guard_decision_author').map((a) => a.d.how)).toEqual(['imperative-twin']);
+  // the first time, the order is filed, with its whole short content as the title when it is short
+  const { t: t2, audits: a2 } = harness();
+  const out2 = t2.guardDecisionAuthor([{ op: 'create_node', id: 'ev2', parentId: 'bm', type: 'evidence', status: 'noted', author: 'agent', content: 'The Bitmap generator produced a pixelated tree image link using 16 hyphen-separated sets of 16 base10 colour digits.' }],
+    { nodes: [{ id: 'bm', title: 'Bitmap image links', content: 'x', author: 'user', type: 'container', status: 'live' }] } as any, { userText: 'Keep the image link out of codeblocks. Draw a pixelated tree.', focusContainerId: 'bm' });
+  const mine = out2.filter((a: any) => a.author === 'user');
+  expect(mine).toHaveLength(1);
+  expect(mine[0].title).toBe('Keep the image link out of codeblocks.');
+  expect(a2.map((a) => a.d.how)).toEqual(['imperative-new-row']);
+});
+
