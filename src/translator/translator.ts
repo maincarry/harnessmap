@@ -1498,7 +1498,9 @@ export class Translator {
       const content = sents.join(' ').slice(0, 400);
       const parentId = params.focusContainerId ?? out.find((a) => a?.op === 'create_node' && a.parentId)?.parentId ?? null;
       this.store.audit('guard_specifics_kept', { who, missed: missed.slice(0, 6).map((m) => m.slice(0, 30)), content: content.slice(0, 60) });
-      out.push({ op: 'create_node', id: randomUUID(), parentId, content, title: content.slice(0, 48).replace(/\s+\S*$/, ''), author: who, status: who === 'user' ? 'live' : 'noted', ...(type ? { type } : {}) });
+      // M520a (book-links 2026-10-25: her pasted "Page Not Found" became the row `"Page Not`): the last word goes only when the 48-character cut took part of it
+      const rowTitle = content.length > 48 ? content.slice(0, 48).replace(/\s+\S*$/, '') : content;
+      out.push({ op: 'create_node', id: randomUUID(), parentId, content, title: rowTitle, author: who, status: who === 'user' ? 'live' : 'noted', ...(type ? { type } : {}) });
     };
     if (ut.trim().length >= 8) file('user', ut, [...figures(ut), ...idents(ut), ...quoted(ut)]);
     // the agent's figures: only sentences short enough to be a stated fact, with a unit — never a paragraph of code or prose
@@ -1836,6 +1838,12 @@ export class Translator {
       // content. Strip the op names and the "::" seams from a title; drop the title when nothing meaningful is left (the healer names it).
       // M514 (grammar-quiz 2026-10-25, title "New York grammar question's title'**kwargs' content='New York…"): a Python-repr / keyword-argument
       // leak — `**kwargs`, `content='`, `title='`, `parentId=` — is the filer's own call text, never a name. The title goes whole; the healer names the node.
+      // M520b (book-links 2026-10-25): a node at the root whose whole content was `belongs under "Learning R" [81868a59]` — the PLACEMENT NOTE the
+      // prompt asks for inside suggest_relight, written as a node instead. It is the filer talking to the map, not a record of anything said: dropped.
+      if (a.op === 'create_node' && typeof anyA.content === 'string' && /^\s*belongs under\s+["“][^"”\n]{1,80}["”]\s*\[[0-9a-f]{6,}\]\s*[.。]?\s*$/i.test(anyA.content)) {
+        this.store.audit('guard_placement_note_leak', { id: String(anyA.id ?? '').slice(0, 8), content: anyA.content.slice(0, 80) });
+        continue;
+      }
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /\*\*kwargs|\b(?:content|title|parentId|nodeId|status)=['"]/.test(anyA.title)) {
         this.store.audit('guard_title_schema_token', { id: String(anyA.id ?? '').slice(0, 8), how: 'repr-leak', from: anyA.title.slice(0, 60) });
         anyA.title = '';

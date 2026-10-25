@@ -174,3 +174,17 @@ test('a dotted package path yields no file-name specific; a file named in prose 
   expect(stop.out.filter((a) => a.op === 'create_node').some((c) => /config\.yaml/.test(c.content))).toBe(true);
 });
 
+// M520a (book-links 2026-10-25): a short specifics row keeps its whole content as the title; a long one is cut at a word.
+test('a short kept row is titled with its whole content; a long one is cut at a word boundary', () => {
+  const r = specifics([root], '"Page Not Found"');
+  const kept = r.out.filter((a) => a.op === 'create_node');
+  expect(kept).toHaveLength(1);
+  expect(kept[0].title).toBe('"Page Not Found"');
+  const long = specifics([root], 'The grader said the homographies.txt file must list every pair in order, and that the notebook is not read at all.');
+  const k2 = long.out.filter((a) => a.op === 'create_node');
+  expect(k2).toHaveLength(1);
+  expect(k2[0].title.length).toBeLessThanOrEqual(48);
+  expect(k2[0].title).not.toMatch(/\s$/);
+  expect(k2[0].content.startsWith(k2[0].title)).toBe(true);
+});
+

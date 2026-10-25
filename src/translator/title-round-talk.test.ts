@@ -144,3 +144,9 @@ test('a Latin letter glued onto a Russian title tail goes; a spaced Latin word s
   expect(run('Команда devmgmt.msc', 'Команда devmgmt.msc открывает диспетчер устройств.').title).toBe('Команда devmgmt.msc');
 });
 
+// M520b (book-links 2026-10-25): the filer's placement note, written as a node, is dropped; a sentence that merely says where something belongs stays.
+test('a node whose content is only a placement note is dropped', () => {
+  expect(run('Book existence', 'belongs under "Learning R" [81868a59]').title).toBeUndefined();
+  expect(run('Shelving', 'The R book belongs under statistics on our shelf, next to the Bayesian texts.').title).toBe('Shelving');
+});
+
