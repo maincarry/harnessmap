@@ -123,7 +123,7 @@
         {
           "do": "bind",
           "key": "n3"
-        }, {"statusOf": "homography|website reference", "is": "open|rejected|retracted|parked|superseded"},
+        }, {"notStatus": "Pollefeys|graphics\\.stanford", "statuses": "noted|live|decided|accepted|provisional|floated|cited"},
         {
           "do": "statement",
           "key": "n3",

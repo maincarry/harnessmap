@@ -1328,11 +1328,17 @@ export class Translator {
     if (!tokens.size && ut.length <= 200 && /\b(?:the|that|this|your|its?)\s+(?:\w+\s+)?(?:links?|urls?|website|site|page|address|references?)\b|(?:这个|那个|你给的|上面的|这条|那条)(?:链接|网址|地址)/i.test(ut)) {
       const at = (n: any) => Date.parse(String(n.updatedAt ?? n.createdAt ?? '').replace(' ', 'T').replace(/Z?$/, 'Z')) || 0;
       const swapped = (n: MapNode) => (byId.get(n.id) ?? []).some((a) => typeof a?.content === 'string' && [...a.content.matchAll(/https?:\/\/[^\s"'）)>]+/g)].some((m) => !String(n.content ?? '').includes(m[0])));
-      const cands = map.nodes.filter((n) => n.status !== 'removed' && !/^(open|rejected|retracted|parked|superseded|removed)$/.test(n.status) && /https?:\/\/\S+/i.test(`${n.title ?? ''}\n${n.content}`) && !swapped(n));
+      const cands = map.nodes.filter((n) => n.status !== 'removed' && !/^(open|rejected|retracted|parked|superseded|removed)$/.test(n.status) && /https?:\/\/\S+/i.test(`${n.title ?? ''}\n${n.content}`));
       cands.sort((a, b) => at(b) - at(a));
-      definite = cands[0] ?? null;
-      while (definite) { const up = cands.find((c) => c.id === definite!.parentId && Math.abs(at(c) - at(definite!)) <= 2000); if (!up) break; definite = up; }
+      // M536b (the proof rerun): the filer had swapped the new address INTO the dead link's own node — the prompt's overturn rule,
+      // the old wording gone — and the first cut skipped that node and fell back to the NEXT URL node on the map: the Wikipedia
+      // reference, which nobody had called dead. Only the newest URL node can be "the link"; when the filer is already replacing
+      // it, the rejection is honoured by the replacement and the guard does nothing. No fallback, ever.
+      let pick: MapNode | null = cands[0] ?? null;
+      while (pick) { const up = cands.find((c) => c.id === pick!.parentId && Math.abs(at(c) - at(pick!)) <= 2000); if (!up) break; pick = up; }
+      definite = pick && !swapped(pick) ? pick : null;
     }
+    const definiteUrl = definite ? (`${definite.title ?? ''}\n${definite.content}`.match(/https?:\/\/\S+/i)?.[0] ?? 'the link') : '';
     if (!tokens.size && !definite) return alterations;
     // M358b (scene-detect re-run): the filer had TOUCHED the URL nodes that round — re-asserting the dead address as fact,
     // following the assistant — so a "skip what the filer touched" rule skipped exactly the nodes the user was rejecting.
@@ -1352,7 +1358,7 @@ export class Translator {
       if (n >= 3) break;
       if (node.status === 'removed' || /^(open|rejected|retracted|parked|superseded|removed)$/.test(node.status)) continue;
       const own = byId.get(node.id) ?? [];
-      const hit = definite ? (node.id === definite.id ? 'the link' : null) : carries(`${node.title ?? ''}\n${node.content}\n${own.map((a) => `${a.title ?? ''}\n${a.content ?? ''}`).join('\n')}`);
+      const hit = definite ? (node.id === definite.id ? definiteUrl : null) : carries(`${node.title ?? ''}\n${node.content}\n${own.map((a) => `${a.title ?? ''}\n${a.content ?? ''}`).join('\n')}`);
       if (!hit) continue;
       if (own.some(settled)) continue;
       const upd = own.find((a) => a.op === 'update_node');

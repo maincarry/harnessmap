@@ -28,13 +28,20 @@ test('"the link is dead" with nothing named reopens the newest node carrying a U
   expect(row?.d.how).toBe('definite');
 });
 
-test('the reference card is chosen over its detail row filed at the same moment, and a node the filer swaps a new address into is not the dead one', () => {
+test('when the filer swaps the new address into the dead link\'s own node, the guard does nothing — no fallback to an older URL node (M536b)', () => {
   const swap: any = { op: 'update_node', id: 's1', content: '"Applications of homography matrices" is available at https://www.mathworks.com/content/dam/mathworks/moler/homography-saic.pdf.' };
   const older = { ...site, id: 's0', title: 'Older reference', content: 'See http://example.org/old.pdf for the derivation.', createdAt: '2026-10-25 17:10:00', updatedAt: '2026-10-25 17:10:00' };
-  const r = harness([root, older, site, detail])([swap], 'that link is dead');
-  // s1 is being swapped (a new address in its update) → not a candidate; s0 is the newest remaining URL node
-  expect(r.out.find((a) => a.op === 'update_node' && a.id === 's0')?.status).toBe('open');
+  const r = harness([root, wiki, older, site, detail])([swap], 'that link is dead');
+  expect(r.out).toHaveLength(1); // the swap itself, untouched
   expect(swap.status).toBeUndefined();
+  expect(r.audits.filter((a) => a.kind === 'guard_user_rejection')).toHaveLength(0);
+});
+
+test('the reference card is chosen over its detail row filed at the same moment; the audit names the URL', () => {
+  const r = harness([root, wiki, site, detail])([], 'the link is dead');
+  expect(r.out.find((a) => a.op === 'update_node' && a.id === 's1')?.status).toBe('open');
+  expect(r.out.find((a) => a.op === 'update_node' && a.id === 'd1')).toBeUndefined();
+  expect(r.audits.find((a) => a.kind === 'guard_user_rejection')?.d.token).toContain('graphics.stanford.edu');
 });
 
 test('a definite rejection with no URL node on the map, and a long turn, change nothing; the named shape still works', () => {
