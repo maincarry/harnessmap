@@ -293,3 +293,13 @@ test('an object-literal property line or a CSS declaration line is code to the s
   expect(prose.out.filter((a) => a.op === 'create_node')).toHaveLength(1);
 });
 
+// M541 (moviepy 2026-10-25): a continuation line "(size[0] - tools_resized.w - txt_clip.w, tools_resized.h)).set_fps(fps_size)" from the middle of her
+// paste was joined onto her request sentence as one kept row; a line opening with a bracket or comma that carries a call or an underscored identifier is code.
+test('a bracket-opening continuation line is code; her request sentence after a paste is kept alone', () => {
+  const root = { id: 'p1', parentId: null, content: 'TikTok video script', title: 'TikTok video script', status: 'live', author: 'user', type: null, createdAt: '2026-10-25T22:25:00Z', updatedAt: '2026-10-25T22:25:00Z' };
+  const r = specifics([root], 'gif = VideoFileClip(gif_path, has_mask=True).resize(\n    (size[0] - tools_resized.w - txt_clip.w, tools_resized.h)).set_fps(fps_size)\ngif = gif.loop(duration=main_video_length)\n\nI want "text image red" to zoom to 90% and back over 60 frames.');
+  const rows = r.out.filter((a) => a.op === 'create_node');
+  expect(rows.some((a) => /set_fps/.test(String(a.content)))).toBe(false);
+  expect(rows.some((a) => /zoom to 90%/.test(String(a.content)))).toBe(true);
+});
+
