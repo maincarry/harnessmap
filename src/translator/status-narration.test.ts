@@ -91,3 +91,16 @@ test('stative progress narration "X is under review; …" becomes a subject (tra
   expect(harness()('The bridge is under construction until spring.').content).toBe('The bridge is under construction until spring.');
   expect(harness()('Items under review must carry a ticket id.').content).toBe('Items under review must carry a ticket id.');
 });
+
+// M543 (excel-formulas 2026-10-25): "The user gave up on using VBA for the worksheet-splitting task…" became "Up on using VBA…" — `gave` sits in
+// the narration-verb list and the trim split the phrasal verb. "gave up / gave in / gave way / gave out" is not a narration lead; "The user gave the
+// stack trace" still is.
+test('"The user gave up on …" is her act, not a narration lead; "The user gave the stack trace" still trims', () => {
+  const h = harness();
+  const a = h('The user gave up on using VBA for the worksheet-splitting task after the existing macro continued to fail.');
+  expect(a.content).toBe('The user gave up on using VBA for the worksheet-splitting task after the existing macro continued to fail.');
+  expect(a.trims).toBe(0);
+  const b = h('The user gave the full stack trace from the second run of the macro.');
+  expect(b.content).toBe('The full stack trace from the second run of the macro.');
+});
+
