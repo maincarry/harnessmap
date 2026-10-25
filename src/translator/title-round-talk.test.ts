@@ -182,3 +182,10 @@ test('a lone ❯ or » at the end of a title goes; a balanced 「」 or 【】 p
   expect(run('【草稿】导出方案', '导出方案的草稿。').title).toBe('【草稿】导出方案');
 });
 
+// M538 (random-numbers 2026-10-25): "Variable name problemā not valid JSON?" — a Latin-Extended letter glued into an ASCII word plus a parser's phrase, neither in the statement.
+test('a Latin-Extended seam inside an ASCII word and a leaked parser phrase cut the title; a real macron word and a statement about JSON stay', () => {
+  expect(run('Variable name problemā not valid JSON?', 'The `number` variable also does not work in the Python random-number script; the cause of the variable-name problem remains unverified.').title).toBe('Variable name problem');
+  expect(run('Fix māori spelling', 'The māori name takes a macron on the a.').title).toBe('Fix māori spelling');
+  expect(run('Config loader Unexpected token', 'The config loader fails at startup on a stray comma in the settings file.').title).toBe('Config loader');
+});
+

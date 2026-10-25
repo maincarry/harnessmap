@@ -1978,6 +1978,20 @@ export class Translator {
           const seam = anyA.title.replace(/(?<=\p{L})[\uFE0E\uFE0F\u200D]+[\s\S]*$/u, '').trim();
           if (seam !== anyA.title.trim() && seam.length >= 3) { this.store.audit('guard_title_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-12), how: 'selector-seam' }); anyA.title = seam; }
         }
+        // M538 (random-numbers 2026-10-25: "Variable name problemā not valid JSON?"): the filer's own update carried a Latin-Extended letter
+        // glued into an ASCII word and a parser's phrase on the tail — neither in her words nor the statement. Two seams: (a) a lowercase
+        // ASCII letter followed straight by a Latin-Extended-A/B letter (ā ē ō ū …) is a decoding seam when the glued word is nowhere in
+        // the statement or her words ("māori" with māori in the statement stays); (b) a parser's own phrase ("not valid JSON", "invalid
+        // JSON", "Unexpected token", "JSON.parse") when "json" is in neither — the title ends before it. Three characters must remain.
+        {
+          const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
+          let t538 = anyA.title;
+          const sm = /(?<=[a-z])[\u0100-\u024F](?=\s|$|[^\p{L}])/u.exec(t538); // a run of letters after the glued one is LONG #418's glitch run, handled below
+          if (sm) { const glued = ((t538.slice(0, sm.index).match(/[A-Za-z]+$/)?.[0] ?? '') + (t538.slice(sm.index).match(/^\p{L}+/u)?.[0] ?? '')).toLowerCase(); if (glued && !hay.includes(glued)) t538 = t538.slice(0, sm.index).trim(); }
+          const pm = /\s*(?:not valid json|invalid json|unexpected token\b|json\.parse)[\s\S]*$/i.exec(t538);
+          if (pm && !hay.includes('json')) t538 = t538.slice(0, pm.index).trim();
+          if (t538 !== anyA.title && t538.length >= 3) { this.store.audit('guard_title_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-24), how: 'parse-leak' }); anyA.title = t538; }
+        }
         let t0 = anyA.title;
         for (let pass = 0; pass < 4; pass++) {
           const before = t0;
