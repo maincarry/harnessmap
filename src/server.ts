@@ -24,7 +24,7 @@ import { answerMapQuestion, suggestedQueries } from './translator/mapchat.js';
 import { recordUserWords, learnFromRename, parseGlossaryLine, addGlossary, removeGlossary, glossary, userWords } from './map/vocab.js';
 import { createTerm, getTerm, listTerms, killTerm, ptyBackend, HARNESSES, harnessAvailability } from './term.js';
 import { codexBin } from './harness-bins.js';
-import { suggestHomes, shouldPromoteStranded, sameTitleSibling, foldAlterations } from './translator/place.js';
+import { suggestHomes, shouldPromoteStranded, sameTitleSibling, foldAlterations, titleTakenBySibling } from './translator/place.js';
 import { describeRelations, suggestTitle } from './translator/relations.js';
 import { updateNodeMemory, updateTouchedMemories, getNodeMemory, setNodeMemory, clearNodeMemory, getNodeCard, convertMemories, nodeFull } from './translator/memory.js';
 import { mergeNodeText } from './translator/merge.js';
@@ -1635,6 +1635,9 @@ async function runAuto(pid: string, chatId: string, userText: string, assistantT
         if (overlap >= 0.5) continue; // the title still names the statement
         const tt = await shortTitleFor(node.id); // M301: never a title the healer would call broken
         if (tt && tt !== node.title) {
+          // M531 (keras-cnn 2026-10-25): a title a live sibling already carries is not given twice — "Max Pooling" beside "Max pooling".
+          const taken = node.parentId ? titleTakenBySibling(store, node.parentId, node.id, tt) : null;
+          if (taken) { store.audit('auto_rename_skipped', { id: node.id.slice(0, 8), title: tt.slice(0, 40), twin: taken.id.slice(0, 8) }); continue; }
           store.pushUndo(pid, `auto mode: renamed "${node.title}" → "${tt}"`, [{ op: 'update_node', id: node.id, title: node.title }], null);
           store.applyAlterations(pid, [{ op: 'update_node', id: node.id, title: tt } as any], { kind: 'system' });
           store.audit('auto_renamed', { id: node.id.slice(0, 8), title: tt });

@@ -68,6 +68,14 @@ export function sameTitleSibling(store: Store, homeId: string, nodeId: string): 
   const sib = store.childrenOf(homeId).find((k: any) => k.id !== nodeId && k.status !== 'removed' && normTitle(k.title) === mine);
   return sib ? { id: sib.id, title: String(sib.title ?? '') } : null;
 }
+// M531 (keras-cnn 2026-10-25: auto mode renamed "Max pooling operation" → "Max Pooling" and, a moment later, its sibling "Pooling benefits" →
+// "Max pooling" — two rows one letter's case apart under one parent, made by the healer itself): a fresh title that a LIVE sibling already
+// carries (normalised as above) is not given; the old title stays.
+export function titleTakenBySibling(store: Store, parentId: string, nodeId: string, title: string): { id: string; title: string } | null {
+  const want = normTitle(title); if (want.length < 4) return null;
+  const sib = store.childrenOf(parentId).find((k: any) => k.id !== nodeId && k.status !== 'removed' && normTitle(k.title) === want);
+  return sib ? { id: sib.id, title: String(sib.title ?? '') } : null;
+}
 export function foldAlterations(store: Store, nodeId: string, intoId: string): any[] {
   const me = store.getNode(nodeId); if (!me) return [];
   const kids = store.childrenOf(nodeId).filter((k: any) => k.status !== 'removed');

@@ -31,3 +31,19 @@ describe('M445 a placed item beside a live sibling with the same title is folded
     expect(alts.some((a) => a.op === 'update_node' && a.id === 'r1')).toBe(false);
   });
 });
+
+import { titleTakenBySibling } from './place.js';
+describe('M531 auto mode never gives a node a title a live sibling already carries', () => {
+  const st = new Store(':memory:'); const pid = st.createProject('t');
+  st.createNode({ id: 'cls', projectId: pid, parentId: null, content: 'CNN classification layers.', type: 'evidence', status: 'noted', author: 'agent', title: 'CNN classification layers' } as any);
+  st.createNode({ id: 'mp1', projectId: pid, parentId: 'cls', content: 'MaxPooling2D downsamples each feature map.', type: 'evidence', status: 'noted', author: 'agent', title: 'Max Pooling' } as any);
+  st.createNode({ id: 'mp2', projectId: pid, parentId: 'cls', content: 'MaxPooling2D reduces spatial resolution after convolution.', type: 'evidence', status: 'noted', author: 'agent', title: 'Pooling benefits' } as any);
+  st.createNode({ id: 'gone', projectId: pid, parentId: 'cls', content: 'Removed row.', type: 'evidence', status: 'removed', author: 'agent', title: 'Pooling shape' } as any);
+  test('a case-only twin of a sibling title is taken', () => { expect(titleTakenBySibling(st, 'cls', 'mp2', 'Max pooling')?.id).toBe('mp1'); });
+  test('a title no live sibling carries is free; a removed sibling does not count; the node itself does not count', () => {
+    expect(titleTakenBySibling(st, 'cls', 'mp2', 'Pooling shape')).toBeNull();
+    expect(titleTakenBySibling(st, 'cls', 'mp2', 'Pooling layer placement')).toBeNull();
+    expect(titleTakenBySibling(st, 'cls', 'mp1', 'Max Pooling')).toBeNull();
+  });
+});
+
