@@ -157,3 +157,12 @@ test('an "as follows" tail goes from a title', () => {
   expect(run('如下所示的配置', '配置示例。').title).toBe('如下所示的配置');
 });
 
+
+// M525 (android-jni zh 2026-10-25): a letters-only glitch run glued straight onto a Han word goes when it is in neither the statement nor
+// her words; a glued product name the content carries stays whole.
+test('a glitch run glued onto a Han word goes; a glued name the content carries stays', () => {
+  expect(run('回调 Kotlin 方法然后调用 JNI 回复rayele', 'Oboe 的 `onAudioReady` 是 C++ 音频回调方法；它可以通过当前线程的 `JNIEnv*` 调用 Kotlin 层方法。').title).toBe('回调 Kotlin 方法然后调用 JNI 回复');
+  expect(run('使用python打包', '可以使用 Python 的 PyInstaller 把程序打包成单个可执行文件。').title).toBe('使用python打包');
+  expect(run('安装feh', 'Debian / Ubuntu 可执行 `sudo apt-get install feh` 安装 feh。').title).toBe('安装feh');
+  expect(run('Oboe 回调kotlin', '在 Android Oboe 项目中，需要从 C++ 的 `onAudioReady` 回调通过 JNI 调用 Kotlin 层的方法。').title).toBe('Oboe 回调kotlin');
+});

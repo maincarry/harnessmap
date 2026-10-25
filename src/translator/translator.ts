@@ -1961,7 +1961,14 @@ export class Translator {
       if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
         const words = anyA.title.trim().split(/\s+/); const last = words[words.length - 1] ?? '';
         const camel = last.length >= 12 && /\p{Ll}\p{Lu}\p{Ll}/u.test(last) && !/[^\p{L}]/u.test(last); // M349c: "contractivityOops" — a glued camel-case word with no digit, no symbol
-        if (words.length >= 2 && last.length >= 6 && ((/\d/.test(last) && /[a-z]/i.test(last)) || camel)) {
+        // M525 (android-jni zh replay): "回调 Kotlin 方法然后调用 JNI 回复rayele" — a letters-only glitch run glued straight onto a Han word, in
+        // neither the statement nor her words. Only the Latin run goes; the Han part stays ("使用python" with Python in the content stays whole).
+        const hanGlued = /^\p{Script=Han}+[a-z]{4,}$/u.exec(last);
+        if (words.length >= 2 && hanGlued) {
+          const run = last.replace(/^\p{Script=Han}+/u, '');
+          const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
+          if (!hay.includes(run)) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: last, how: 'han-glued' }); anyA.title = [...words.slice(0, -1), last.slice(0, last.length - run.length)].join(' '); }
+        } else if (words.length >= 2 && last.length >= 6 && ((/\d/.test(last) && /[a-z]/i.test(last)) || camel)) {
           const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
           const chunks = last.replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2').toLowerCase().split(/[^\p{L}\p{N}]+/u).flatMap((c: string) => c.match(/\p{Script=Han}+|[^\p{Script=Han}]+/gu) ?? []).filter((c: string) => c.length >= 3); // camel-case split first: "ProductOrderDao" → product, order, dao (kept when the identifier is in the statement) // "100/min" → 100, min; "te4a1b6c" → itself; M349b: "2.0.0-p648吧w" → p648 (kept — the version is in the statement)
           if (chunks.length && !chunks.some((c: string) => hay.includes(c))) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: last }); anyA.title = words.slice(0, -1).join(' '); }
