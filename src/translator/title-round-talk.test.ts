@@ -218,3 +218,19 @@ test('a real last word whose stem the statement carries stays before "?"; an inv
   expect(run('Read link documentation explained?', 'The link documentation was read and nothing more was said.').title).toBe('Read link documentation');
 });
 
+
+// M561 (oracle-shortest 2026-10-26): her question row was titled "Worker per team query questionistaQuery" — "question" with glitch letters glued
+// on and a re-glued "Query"; M349c kept it because one camel chunk is in the statement. The statement never says "question", so the whole token
+// goes (M561b: the last camel chunk repeats a title word, the first is nowhere). With a known prefix the real word stays ("lifted"). Real compounds,
+// inflections and words the statement carries stay whole.
+test('a glitch glued onto a real word goes and the word stays; compounds and inflections stay whole', () => {
+  const stmt = 'Is this Oracle SQL query correct for selecting the worker who worked the shortest for every team using a subquery?';
+  expect(run('Worker per team query questionistaQuery', stmt).title).toBe('Worker per team query');
+  expect(run('Worker per team query WorkerQuery', stmt).title).toBe('Worker per team query WorkerQuery');
+  expect(run('Split-only constraint liftedemerging', 'The dataset split-only constraint is lifted for this run.').title).toBe('Split-only constraint lifted');
+  expect(run('Worker query questioned', 'The question was whether the worker query is right.').title).toBe('Worker query questioned');
+  expect(run('Team subqueries', stmt).title).toBe('Team subqueries');
+  expect(run('Build Dockerfile', 'The docker image is built from the project root.').title).toBe('Build Dockerfile');
+  expect(run('Query benchmarking', 'The benchmark runs the query ten times.').title).toBe('Query benchmarking');
+  expect(run('Shared database', 'The data lives in one shared store.').title).toBe('Shared database');
+});

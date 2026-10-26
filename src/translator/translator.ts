@@ -2053,6 +2053,42 @@ export class Translator {
           if (chunks.length && !chunks.some((c: string) => hay.includes(c))) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: last }); anyA.title = words.slice(0, -1).join(' '); }
         }
       }
+      // M561 (oracle-shortest 2026-10-26): "Worker per team query questionistaQuery" — a real word with glitch letters glued on ("question" + "ista"
+      // + a re-glued "Query"); M349c kept it because one camel chunk ("query") is in the statement. The same shape as "liftedemerging" and
+      // "explainen?" (MIND §10 2026-10-03). A last token of 8+ letters that is in neither the statement nor her words, whose longest whole-word
+      // prefix IS there (5+ letters), and whose remainder (2–8 letters, up to the next capital) is neither a word there, nor an ordinary English
+      // suffix, nor a compound tail (file, base, name, …), is a glued glitch: the real word stays, the rest goes. "Dockerfile" with docker in
+      // the statement, "Benchmarking" with benchmark, "Subqueries" with subquery all stay whole.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string') {
+        const words = anyA.title.trim().split(/\s+/); const raw = words[words.length - 1] ?? '';
+        const q = /\?$/.test(raw) ? '?' : ''; const last = raw.replace(/\?$/, '');
+        if (words.length >= 2 && last.length >= 8 && /^[A-Za-z]+$/.test(last)) {
+          const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
+          const low = last.toLowerCase();
+          const whole = (w: string) => new RegExp(`(^|[^a-z])${w}([^a-z]|$)`).test(hay);
+          if (!hay.includes(low)) {
+            let cut = 0;
+            for (let i = last.length - 2; i >= 5; i--) { if (whole(low.slice(0, i))) { cut = i; break; } }
+            const after = last.slice(cut); const rest = (/^[a-z]+/.exec(after)?.[0] ?? after).toLowerCase();
+            const suffix = /^(?:s|es|ed|en|er|ers|est|ing|ings|ly|al|als|ally|able|ible|ance|ances|ence|ences|ant|ants|ent|ents|ful|less|ness|ment|ments|ion|ions|tion|tions|ation|ations|ity|ities|ive|ives|ise|ised|ize|ized|ism|ist|ists|ish|ous|ure|ures|age|ages|an|ans|ian|ians|ic|ics|ical|y|ies|ier|iest|ern|ward|wards|like|ship|hood|dom|ee|ees|ette|let|lets|ling|lings|ry|ery|ory|ary|ual|ually|ify|ified|fy|fied|or|ors)$/;
+            const compound = /^(?:file|files|base|bases|name|names|page|pages|flow|flows|script|scripts|sql|book|books|work|works|load|loads|set|sets|list|lists|map|maps|box|boxes|bar|bars|line|lines|card|cards|port|ports|time|times|space|spaces|frame|frames|word|words|mark|marks|point|points|side|sides|ware|wise|shot|shots|board|boards|path|paths|type|types|code|codes|data|key|keys|lock|locks|up|down|back|out|over|under|in|off|on|way|ways|ground|land|light|lights|house|room|rooms|place|places|stream|streams|text|texts|print|prints|sheet|sheets|table|tables|form|forms|mail|mails|site|sites|link|links|log|logs|node|nodes|tree|trees|view|views|zone|zones|case|cases|store|stores|shop|shops|hub|hubs|kit|kits|stack|stacks|server|servers|client|clients|host|hosts|user|users|pass|phrase|hash|size|sizes|count|counts|rate|rates|level|levels|mode|modes|fold|folds|wall|walls|band|bands|width|height|length|style|styles|sheet|pack|packs|bit|bits|byte|bytes|char|chars|string|strings|array|arrays|less|free|proof|safe|able|ready|aware|bound|ship|man|men|hood|ful|head|heads|tail|tails|end|ends|self|cast|casts|guard|guards|chain|chains|cycle|cycles|grid|grids|graph|graphs|bus|buses|cache|caches|cam|cams|drive|drives|dump|dumps|ring|rings|wheel|wheels)$/;
+            if (cut && rest.length >= 2 && rest.length <= 8 && !whole(rest) && !suffix.test(rest) && !compound.test(rest)) {
+              this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: raw, how: 'glued-suffix', kept: last.slice(0, cut) });
+              anyA.title = [...words.slice(0, -1), last.slice(0, cut) + q].join(' ');
+            } else {
+              // M561b — the live shape: "questionistaQuery" — a camel token whose LAST chunk repeats a word the title already carries ("query")
+              // and whose FIRST chunk is in neither the statement nor her words: a glitch run with a title word re-glued onto it. The token goes.
+              const camelChunks = /\p{Ll}\p{Lu}/u.test(last) ? last.replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2').toLowerCase().split(' ').filter((c: string) => c.length >= 3) : [];
+              const earlier = new Set(words.slice(0, -1).map((w: string) => w.toLowerCase().replace(/[^a-z]/g, '')));
+              const tailChunk = camelChunks[camelChunks.length - 1] ?? '';
+              if (camelChunks.length >= 2 && tailChunk.length >= 4 && earlier.has(tailChunk) && !whole(camelChunks[0])) {
+                this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: raw, how: 'camel-repeat' });
+                const kept = words.slice(0, -1); anyA.title = (kept.join(' ') + q).trim();
+              }
+            }
+          }
+        }
+      }
       // M419 (TWIN LONG #397 — Nadia: "Marchetti billing noteaming base?" read as "garbled… corrupted", a SEVERE moment; the (U) class
       // the long runs kept logging: "3×4 board layout thingy?", "Read link documentation explained?", "Free VPS servers specified?"). A title
       // that ends in "?" whose last word — plain Latin letters, 2–10 long, not an ordinary short question word — is in neither the statement,
