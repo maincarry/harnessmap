@@ -139,3 +139,14 @@ test('"用户在寻找…" lead goes; "本轮补充称，" goes whole; a sentenc
   expect(h('用户名需要至少八个字符，并包含一个数字。').content).toBe('用户名需要至少八个字符，并包含一个数字。');
 });
 
+// M554 (flask-running-zh 2026-10-26): three residues — "本轮回答提出可通过…" left "提出可通过…" (提出/建议/推荐/给出 join the round-talk verbs);
+// "…；本轮内容聚焦其格式与 Python 读写方式。" is a round-talk tail clause and goes whole; "用户在 PyCharm 上运行 Flask 应用。" is the Chinese
+// "User is running X on Y" and loses its subject. Product talk about end users ("用户在登录页面需要输入验证码") stays.
+test('M554: round-talk verbs, a round-talk tail clause, and the "用户在…上运行" lead go; product talk about users stays', () => {
+  const h = harness();
+  expect(h('本轮回答提出可通过设置环境变量 `WERKZEUG_RUN_MAIN=true` 后运行 `python app.py` 来显示运行时信息。').content).toBe('可通过设置环境变量 `WERKZEUG_RUN_MAIN=true` 后运行 `python app.py` 来显示运行时信息。');
+  expect(h('INI 是一种常见的配置文件格式，适合存储程序配置；本轮内容聚焦其格式与 Python 读写方式。').content).toBe('INI 是一种常见的配置文件格式，适合存储程序配置。');
+  expect(h('用户在 PyCharm 上运行 Flask 应用。').content).toBe('在 PyCharm 上运行 Flask 应用。');
+  expect(h('用户在登录页面需要输入验证码。').content).toBe('用户在登录页面需要输入验证码。');
+});
+
