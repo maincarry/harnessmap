@@ -230,3 +230,15 @@ test('给出的 at a clause start and a positive 本轮 tail go; 用户给出的
     const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
   }
 });
+
+// M567 (imgui-docking-zh 2026-10-26): agent evidence rows narrating her report with a colon-less 用户反馈其 / 用户在其…中搜索不到 lead
+// (the phppcntl525 shape, third instance). Product nouns "用户反馈功能" / "用户反馈表单" and the M409 "用户需要…" stay.
+test('colon-less 用户反馈其 / 用户在其…中搜索不到 leads go; 用户反馈功能 / 用户反馈表单 stay (M567)', () => {
+  const h = harness();
+  expect(h('用户反馈其 ImGui 1.84 版本中找不到 `DockSpace` 方法，因此此前关于调用 `ImGui::DockSpace` 的说明不适用于其版本或构建。').content).toBe('其 ImGui 1.84 版本中找不到 `DockSpace` 方法，因此此前关于调用 `ImGui::DockSpace` 的说明不适用于其版本或构建。');
+  expect(h('用户在其 ImGui 1.84 代码中搜索不到 `IMGUI_ENABLE_DOCKING` 宏，因此该宏是否适用于其版本或构建尚未确认。').content).toBe('在其 ImGui 1.84 代码中搜索不到 `IMGUI_ENABLE_DOCKING` 宏，因此该宏是否适用于其版本或构建尚未确认。');
+  expect(h('用户表示其公司使用 Nacos 管理配置。').content).toBe('其公司使用 Nacos 管理配置。');
+  for (const keep of ['用户反馈功能需要登录后才能使用。', '用户反馈表单包含三个字段。', '用户需要在表单中回答三个问题后才能提交。', '用户发现页面闪烁后会自动刷新。', '用户表示同意该方案。']) {
+    const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
+  }
+});
