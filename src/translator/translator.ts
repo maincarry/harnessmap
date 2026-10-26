@@ -1883,6 +1883,11 @@ export class Translator {
         // a revision marker is record-talk, not a name. A trailing （更新）/（修订）/（补充）/(updated)/(revised) goes; the name stays.
         const t3b = anyA.title.replace(/\s*[（(]\s*(?:已?更新|修订|修正|补充|更新版|updated?|revised|revision)\s*[)）]$/iu, '').trim();
         if (t3b !== anyA.title.trim() && t3b.length >= 2) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), how: 'revision-marker', dropped: anyA.title.slice(t3b.length).trim().slice(0, 40) }); anyA.title = t3b; }
+        // M575 (data-platform-zh 2026-10-26): "ECharts CDN 引入问题 已更新标题" — the same revision marker in its BARE form, naming the title itself
+        // ("title updated"). Only the forms that say 标题/title go (已更新标题 / 标题已更新 / 标题更新 / title updated / updated title); a bare
+        // trailing 已更新 could be the record of the subject's own update and stays.
+        const t3c = anyA.title.replace(/[\s，,:：-]*(?:[（(]\s*)?(?:已?更新标题|标题(?:已)?更新|title updated|updated title)(?:\s*[)）])?$/iu, '').trim();
+        if (t3c !== anyA.title.trim() && t3c.length >= 2) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), how: 'revision-marker', form: 'bare', dropped: anyA.title.slice(t3c.length).trim().slice(0, 40) }); anyA.title = t3c; }
         // M513 (tk-threads-zh 2026-10-25, two slips on one map, each one instance across every kept map):
         //   (d) "单线程 join 示例相关代码与行为说明2" — a lone digit glued straight onto a Chinese character at the tail: a de-duplication
         //       counter, not a name. Only a single digit right after a Han character goes ("Python 3", "RFC 3551", "v2" are untouched).

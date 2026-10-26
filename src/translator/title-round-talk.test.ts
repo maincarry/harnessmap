@@ -243,6 +243,15 @@ test('a parenthetical revision marker on a title tail goes; a naming parenthetic
   expect(run('连接跟踪范围（IPv6）', '连接跟踪在 IPv6 上同样生效。').title).toBe('连接跟踪范围（IPv6）');
 });
 
+// M575 (data-platform-zh 2026-10-26): "ECharts CDN 引入问题 已更新标题" — the revision marker in its bare form, naming the title. It goes;
+// a bare trailing 已更新 that could be the subject's own update stays.
+test('a bare "title updated" marker on a title tail goes; a bare 已更新 stays', () => {
+  expect(run('ECharts CDN 引入问题 已更新标题', '原示例使用 cdn 引入 ECharts，但用户反馈该网址无法打开，因此该引入方式需要更换。').title).toBe('ECharts CDN 引入问题');
+  expect(run('Nginx 跨域配置（标题已更新）', '跨域配置需要在 location 块中加入 add_header。').title).toBe('Nginx 跨域配置');
+  expect(run('Merge plan - title updated', 'The merge plan now blends masks per image.').title).toBe('Merge plan');
+  expect(run('依赖清单已更新', '项目的依赖清单已经更新到最新版本。').title).toBe('依赖清单已更新');
+});
+
 // M563c (taqman-apoe-zh 2026-10-26): "魏军探针信息摘要" ×4 and "MGB标记探针来源摘要" — the filer labelling the node a summary. The word goes unless
 // the statement or her words carry it.
 test('a 摘要/概要 title tail goes; it stays when the statement carries the word', () => {
