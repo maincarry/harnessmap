@@ -1925,6 +1925,15 @@ export class Translator {
         if (/(?:检视者|审阅者|评审者)?(?:核心观点|要点)(?:的)?(?:直接)?(?:落实|体现)$/.test(t2)) t2 = t2.replace(/(?:检视者|审阅者|评审者)?(?:核心观点|要点)(?:的)?(?:直接)?(?:落实|体现)$/, '').replace(/(?:检视者|审阅者|评审者)$/, '').trim();
         if (t2 !== anyA.title.trim()) { this.store.audit('guard_title_round_talk', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(0, 40), to: t2.slice(0, 40) }); anyA.title = t2.length >= 2 ? t2 : ''; }
       }
+      // M566 (win-replace-zh 2026-10-26 14:26, loop): the filer glued its round talk straight onto a NAME with no separator —
+      // "替换命令示例本轮更正的命令仍未证明能将 `Hello` 替换为 `World`。" on an update — and M491 (keyed on a separator before 本轮) let it
+      // through; only the stop and a stray tail went. A 本轮/这一轮/此轮/上一轮 after a Han head, followed by a round verb (更正/修正/回答/
+      // 给出/确认/补充/讨论/提出/建议/说明/结论 or a 未/没有/仍/尚未 disclaimer), is the filer's voice: the title ends where the head ends.
+      // A domain 本轮 ("模型本轮训练结果") has no round verb after it and stays.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.title === 'string' && /^\p{Script=Han}{2,}[^，,：:；;—\-]*?(?:本轮|这一轮|此轮|上一轮)(?:的)?(?:更正|修正|回答|回复|给出|确认|补充|讨论|提出|建议|说明|结论|未|没有|仍|尚未)/u.test(anyA.title)) {
+        const t3 = anyA.title.replace(/(?:本轮|这一轮|此轮|上一轮)(?:的)?(?:更正|修正|回答|回复|给出|确认|补充|讨论|提出|建议|说明|结论|未|没有|仍|尚未)[\s\S]*$/u, '').trim();
+        if (t3 !== anyA.title.trim() && t3.length >= 2) { this.store.audit('guard_title_round_talk', { id: String(anyA.id ?? '').slice(0, 8), how: 'glued', from: anyA.title.slice(0, 40), to: t3.slice(0, 40) }); anyA.title = t3; }
+      }
       // M394 (data-platform-zh #301, codex/luna): the filer glued its own OP NAME to a title — "字段展开超限处理者::create_node" — and it
       // reached the map (the M354 leak guard reads content only). Sweep 2026-10-05: 1 title / 115 kept maps, 0 false positives, 0 in
       // content. Strip the op names and the "::" seams from a title; drop the title when nothing meaningful is left (the healer names it).

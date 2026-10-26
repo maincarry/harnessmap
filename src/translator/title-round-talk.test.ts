@@ -275,3 +275,13 @@ test('a word the node\'s prior statement carried is not an invented tail on an u
   expect(runUpdate('Choose data thingy?', answer, prior).title).toBe('Choose data');
   expect(run('Choose data structures?', answer).title).toBe('Choose data');
 });
+
+// M566 (win-replace-zh 2026-10-26): round talk glued straight onto a name with no separator goes from the 本轮 on; a domain 本轮
+// with no round verb after it stays.
+test('M566: glued round talk after a Han head is cut; a domain 本轮 stays', () => {
+  const r = run('替换命令示例本轮更正的命令仍未证明能将 Hello 替换为 World。', '新的示例命令为 copy /y NUL test.txt，示例确实出现了 World。');
+  expect(r.title).toBe('替换命令示例');
+  expect(r.hits.some((h) => h.d?.how === 'glued')).toBe(true);
+  expect(run('模型本轮训练结果', '模型在本轮训练中的损失下降到 0.2。').title).toBe('模型本轮训练结果');
+  expect(run('替换命令示例', '示例命令为 copy /y NUL test.txt。').title).toBe('替换命令示例');
+});
