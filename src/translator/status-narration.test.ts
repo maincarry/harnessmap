@@ -162,3 +162,12 @@ test('M555: 回答提出 / 当前回答提出 leads go, the fact stays; 回答�
   expect(r.content).toBe('回答提出的问题需要先确认 Flask 版本。');
   expect(r.trims).toBe(0);
 });
+
+// M556 (flask-running-zh 2026-10-26): "用户是在 PyCharm 上运行 Flask 应用的。" — the 是…的 frame of the M554c "用户在…上运行" lead.
+test('M556: 用户是在…上运行…的 goes to the plain clause; other 用户是 statements stay', () => {
+  const h = harness();
+  expect(h('用户是在 PyCharm 上运行 Flask 应用的。').content).toBe('在 PyCharm 上运行 Flask 应用。');
+  const r = h('用户是管理员时才能看到该按钮。');
+  expect(r.content).toBe('用户是管理员时才能看到该按钮。');
+  expect(r.trims).toBe(0);
+});
