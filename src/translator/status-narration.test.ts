@@ -171,3 +171,12 @@ test('M556: 用户是在…上运行…的 goes to the plain clause; other 用�
   expect(r.content).toBe('用户是管理员时才能看到该按钮。');
   expect(r.trims).toBe(0);
 });
+
+// M557 (ltp-report-zh 2026-10-26): "…，但本轮未自动获取或核验具体版本。" — a round-talk tail clause after a comma (M554b knew only "；本轮内容聚焦…").
+test('M557: a "，但本轮未…" tail clause goes, the statement keeps its full stop; a plain 但未 clause stays', () => {
+  const h = harness();
+  expect(h('LTP 官方仓库可用于查找最新源代码和官方说明文档，但本轮未自动获取或核验具体版本。').content).toBe('LTP 官方仓库可用于查找最新源代码和官方说明文档。');
+  const r = h('文件内容已追加，但未以换行符结尾。');
+  expect(r.content).toBe('文件内容已追加，但未以换行符结尾。');
+  expect(r.trims).toBe(0);
+});
