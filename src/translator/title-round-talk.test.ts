@@ -211,3 +211,10 @@ test('an invented Latin tail before "?" goes from a two-word Han title; a word t
   expect(run('接口 layout?', 'The layout of the 接口 is still open.').title).toBe('接口 layout?');
 });
 
+// M550 (py2cpp 2026-10-26): her question "Further time optimization?" lost its last word — the statement says "optimized", and the invented-tail
+// rule wanted the exact word. A word whose stem the statement carries is real and stays; an invented tail still goes.
+test('a real last word whose stem the statement carries stays before "?"; an invented one still goes', () => {
+  expect(run('Further time optimization?', 'Can the proposed C++ rewrite be optimized further for time? A dynamic-programming approach was proposed.').title).toBe('Further time optimization?');
+  expect(run('Read link documentation explained?', 'The link documentation was read and nothing more was said.').title).toBe('Read link documentation');
+});
+

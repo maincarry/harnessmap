@@ -2072,6 +2072,7 @@ export class Translator {
           if (!/^[a-z]{2,12}$/.test(x) || QOK.has(x)) break; // M421b (LONG #403 "Improve documentReady code uncertainty?"): 11-letter invented tails exist; the cap is 12
           if (dropped === 1 && x.length < 7) break; // a second word goes only when it is long and invented-looking ("noteaming"), not a real word the statement happens not to repeat ("layout")
           const rx = new RegExp(`\\b${x}\\b`); if (rx.test(hay) || rx.test(words.slice(0, -1).join(' ').toLowerCase())) break;
+          const stem = x.replace(/(?:ization|isation|ations?|ation|ments?|ness|ities|ity|ing|ed|ers?|es|s|ly)$/, ''); if (stem.length >= 5 && stem !== x && new RegExp(`\\b${stem}`).test(hay)) break; // M550 (py2cpp 2026-10-26: her question "Further time optimization?" lost its last word because the statement says "optimized"): a real word whose stem the statement carries is not invented
           words = words.slice(0, -1); dropped++;
         }
         // M495 (tk-translate 2026-10-18, task titled "Retranslate button and functionary?"): when the residue would end in a bare conjunction
