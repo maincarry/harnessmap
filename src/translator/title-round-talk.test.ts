@@ -250,3 +250,28 @@ test('a 摘要/概要 title tail goes; it stays when the statement carries the w
   expect(run('MGB标记探针来源摘要', '是否有用于rs7412基因分型的MGB标记TaqMan探针？已有报道包括Deka等人的方法。').title).toBe('MGB标记探针来源');
   expect(run('会议纪要摘要', '请为这份会议纪要写一段两百字的摘要。').title).toBe('会议纪要摘要');
 });
+
+// M564 (industry40 2026-10-26): the filer rewrote her question row into its answer in one update and titled it "Choose data structures?";
+// the invented-tail rule saw neither the new content nor that round's words carry "structure" and cut a real word. The node's prior
+// statement counts now. An invented tail on an update still goes; a create with no prior behaves as before.
+function runUpdate(title: string, newContent: string, prior: string) {
+  const audits: { kind: string; d: any }[] = [];
+  const store: any = new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string, d: any) => audits.push({ kind, d }); return () => undefined; } });
+  const t = new Translator(store);
+  const parent = { id: 'p1', parentId: null, content: 'Backend structure plan', title: 'Backend structure plan', status: 'live', author: 'user', type: null, createdAt: '2026-10-26T00:00:00Z', updatedAt: '2026-10-26T00:00:00Z' } as any;
+  const node = { id: 'x1', parentId: 'p1', content: prior, title: 'Data model question', status: 'open', author: 'user', type: 'question', createdAt: '2026-10-26T00:00:00Z', updatedAt: '2026-10-26T00:00:00Z' } as any;
+  const map: any = { nodes: [parent, node], links: [], projectId: 'proj' };
+  const alt: any = { op: 'update_node', id: 'x1', content: newContent, title, status: 'answered' };
+  const out = (t as any).guardScope([alt], new Set(['p1', 'x1']), map, { chatId: 'c', focusContainerId: 'p1', userText: '', assistantText: '' });
+  const got = out.find((a: any) => a.op === 'update_node' && a.id === 'x1');
+  return { title: got?.title, qtail: audits.filter((a) => a.kind === 'guard_title_qtail') };
+}
+test('a word the node\'s prior statement carried is not an invented tail on an update; an invented one still goes', () => {
+  const prior = 'Which Python data structures are most efficient for storing and accessing the product orders?';
+  const answer = 'For the in-memory data model, use lists for collections accessed sequentially and dictionaries for key-based lookups.';
+  const kept = runUpdate('Choose data structures?', answer, prior);
+  expect(kept.title).toBe('Choose data structures?');
+  expect(kept.qtail).toHaveLength(0);
+  expect(runUpdate('Choose data thingy?', answer, prior).title).toBe('Choose data');
+  expect(run('Choose data structures?', answer).title).toBe('Choose data');
+});
