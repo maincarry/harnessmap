@@ -204,3 +204,16 @@ test('M560: English user question-leads go; a user-interface statement and a pla
   expect(r.content).toBe('The user interface is rendered by Tkinter.');
   expect(r.trims).toBe(0);
 });
+
+// M562a/b (nfconntrack-zh 2026-10-26): her evidence row opened "用户观察到：在默认情况下，…" (the M326b frame with a verb the list lacked) and the
+// agent's row opened "现有回答提出通过 `lsmod …` 检查…" (the M412 subject list lacked 现有). Product talk without the colon and a bare noun phrase stay.
+test('用户观察到： and 现有回答提出 are narration leads; 用户发现… without a colon and 现有回答数量 stay', () => {
+  const h = harness();
+  expect(h('用户观察到：在默认情况下，Linux kernel 4.19 无法跟踪 IPv6 数据包。').content).toBe('在默认情况下，Linux kernel 4.19 无法跟踪 IPv6 数据包。');
+  expect(h('现有回答提出通过 `lsmod | grep nf_conntrack` 检查 `nf_conntrack`。').content).toBe('通过 `lsmod | grep nf_conntrack` 检查 `nf_conntrack`。');
+  expect(h('现有的说明指出模块已集成到内核。').content).toBe('模块已集成到内核。');
+  const r = h('用户发现页面闪烁后会自动刷新。');
+  expect(r.content).toBe('用户发现页面闪烁后会自动刷新。');
+  expect(r.trims).toBe(0);
+  expect(h('现有回答数量不足三条。').content).toBe('现有回答数量不足三条。');
+});

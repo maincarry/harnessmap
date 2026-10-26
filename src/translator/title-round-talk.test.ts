@@ -234,3 +234,11 @@ test('a glitch glued onto a real word goes and the word stays; compounds and inf
   expect(run('Query benchmarking', 'The benchmark runs the query ten times.').title).toBe('Query benchmarking');
   expect(run('Shared database', 'The data lives in one shared store.').title).toBe('Shared database');
 });
+
+// M562c (nfconntrack-zh 2026-10-26): "规则作用推测（更新）" — the filer's own revision marker on a title. It goes; a parenthetical that names
+// something ("（IPv6）") stays.
+test('a parenthetical revision marker on a title tail goes; a naming parenthetical stays', () => {
+  expect(run('规则作用推测（更新）', '候选解释是 ip6tables 在 FORWARD 链上使用 conntrack 匹配。').title).toBe('规则作用推测');
+  expect(run('Merge plan (updated)', 'The merge plan now blends masks per image.').title).toBe('Merge plan');
+  expect(run('连接跟踪范围（IPv6）', '连接跟踪在 IPv6 上同样生效。').title).toBe('连接跟踪范围（IPv6）');
+});
