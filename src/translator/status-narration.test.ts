@@ -253,3 +253,14 @@ test('，代理回答建议… mid-sentence loses the subject, the verb stays; p
     const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
   }
 });
+
+// M570 (dict-dataframe-zh 2026-10-26): "用户表示 `pd.DataFrame.from_dict()` 一直报错。" and php-pcntl-zh's "用户反馈 http://… 地址下没有…" —
+// M567's lead with a code token or a URL right after the verb. A plain word after the verb ("用户反馈 API 文档缺少示例") stays.
+test('用户表示 `code` … / 用户反馈 http://… leads go; a plain word after the verb stays (M570)', () => {
+  const h = harness();
+  expect(h('用户表示 `pd.DataFrame.from_dict()` 一直报错。').content).toBe('`pd.DataFrame.from_dict()` 一直报错。');
+  expect(h('用户反馈 http://example.com/api 地址下没有 pcntl 目录。').content).toBe('http://example.com/api 地址下没有 pcntl 目录。');
+  for (const keep of ['用户反馈 API 文档缺少示例。', '用户反馈功能需要登录后才能使用。', '用户表示同意该方案。']) {
+    const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
+  }
+});
