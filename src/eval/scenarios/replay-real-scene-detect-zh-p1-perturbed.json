@@ -104,9 +104,6 @@
           "chatName": "renamed mid-thread"
         },
         {
-          "nodeMatching": "不存在|404|失效|无效|网址"
-        },
-        {
           "countUnder": "proj",
           "max": 12
         },
@@ -115,7 +112,7 @@
           "is": "open|rejected|retracted|superseded|dropped|withdrawn"
         },
         {
-          "notStatus": "项目地址|检测器网址|变化检测网址|github\\.com/EnriqueMoraga",
+          "notStatus": "检测器网址|变化检测网址|github\\.com/EnriqueMoraga",
           "statuses": "noted|answered|accepted|live"
         },
         {
