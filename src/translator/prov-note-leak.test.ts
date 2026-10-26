@@ -60,3 +60,14 @@ test('M446: the provenance note paraphrased into a clause is stripped too (LONG 
   expect(out[0].content).toBe('Legitimate free VPS options are available, but they generally have limits on performance, resources, features, or usage.');
   expect(audits.some((a) => a.kind === 'guard_prov_note_leak' && a.d.kind === 'clause')).toBe(true);
 });
+
+// M565 (time-clock-zh 2026-10-26): the note rendered as a Chinese sentence — "；该主题在聚焦“X”时到达。" — goes to the end of its
+// sentence; a sentence that merely contains 聚焦 or 到达 without the record noun + 聚焦 frame stays.
+test('M565: a Chinese-sentence provenance note is stripped; look-alike sentences stay', () => {
+  const h = harness();
+  expect(h('Visual Studio 中出现“对象或库文件是使用与其他对象不同的编译器版本创建的”错误；该主题在聚焦“Python 工具脚本”时到达。').content)
+    .toBe('Visual Studio 中出现“对象或库文件是使用与其他对象不同的编译器版本创建的”错误。');
+  expect(h('Nginx 反向代理解决跨域请求错误。该问题是在聚焦 ECharts 甘特图期间提出。').content).toBe('Nginx 反向代理解决跨域请求错误。');
+  expect(h('货物在聚焦检查时到达仓库，需要签收。').content).toBe('货物在聚焦检查时到达仓库，需要签收。');
+  expect(h('该问题在编译时出现，与链接器版本有关。').content).toBe('该问题在编译时出现，与链接器版本有关。');
+});

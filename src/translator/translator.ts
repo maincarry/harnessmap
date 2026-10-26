@@ -1800,6 +1800,15 @@ export class Translator {
         const cleaned = anyA.content.replace(/[,，;；]?\s*(?:[（(]\s*)?(?:it\s+|this\s+|which\s+|and\s+)?arriv(?:ed|ing)\s+while\s+(?:the\s+)?focus\s+was\s*[:：][\s\S]*$/i, '').trim();
         if (cleaned.length >= 6) { this.store.audit('guard_prov_note_leak', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.content.slice(-60), form: 'bare' }); anyA.content = cleaned; }
       }
+      // M565 (replay-real-time-clock-zh 2026-10-26 12:30, loop): the filer rendered the harness's provenance note as a CHINESE
+      // sentence — "Visual Studio 中出现“…”错误；该主题在聚焦“Python 工具脚本”时到达。" — so none of the three strips above (all keyed on the
+      // English "focus was") saw it, and the node was promoted out of "to sort" with the note in its statement. "在聚焦…时到达"
+      // is the harness's phrase in translation, never a person's: from the joining punctuation to the end of that sentence goes.
+      // Controls: "货物在聚焦检查时到达仓库。" (no record noun) and "该问题在编译时出现。" (no 聚焦) stay.
+      if ((a.op === 'create_node' || a.op === 'update_node') && typeof anyA.content === 'string' && /(?:该|此|这个|本)?(?:主题|话题|问题|内容|请求|任务|事项|记录)(?:是)?在(?:当前)?聚焦[^。；;]{0,80}?(?:时|期间|的时候)(?:到达|出现|提出|被提出|浮现|抵达|产生)/u.test(anyA.content)) {
+        const cleaned = anyA.content.replace(/[；;，,。]?\s*(?:该|此|这个|本)?(?:主题|话题|问题|内容|请求|任务|事项|记录)(?:是)?在(?:当前)?聚焦[^。；;]{0,80}?(?:时|期间|的时候)(?:到达|出现|提出|被提出|浮现|抵达|产生)[^。；;]*[。]?/gu, '').replace(/\s{2,}/g, ' ').trim();
+        if (cleaned.length >= 6) { this.store.audit('guard_prov_note_leak', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.content.slice(-60), form: 'zh-sentence' }); anyA.content = /[。.!?！？]$/.test(cleaned) ? cleaned : cleaned + '。'; }
+      }
       // M311 (loop find, guard under M278/M77): a NEW node the filer parked in "to sort" without the provenance note and without
       // a dim branch it could belong to is a misfiled topic ("Chongqing attractions" went to to sort while the only dim branch was
       // the home network) — the top level is ordinary; it goes there.
