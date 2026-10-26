@@ -315,3 +315,11 @@ test('a colon + null/undefined tail that the statement does not carry goes; a st
   expect(run('返回值为 null 的处理', '函数在找不到元素时返回 null。').title).toBe('返回值为 null 的处理');
   expect(run('Default value: null', 'The field defaults to null when the form is empty.').title).toBe('Default value: null');
 });
+
+// M574 (affirmation-book 2026-10-26): "National trademark offices bilançons?" — an invented question tail with a ç (U+00E7) that the ASCII word class
+// of M419 did not see; the same title with an ASCII invented tail was already cut. A real accented word the statement carries stays.
+test('an invented accented question tail goes like an ASCII one; an accented word in the statement stays', () => {
+  expect(run('National trademark offices bilançons?', 'For trademark searches outside the U.S., check the official intellectual property office of each specific country.').title).toBe('National trademark offices');
+  expect(run('National trademark offices gloribles?', 'For trademark searches outside the U.S., check the official intellectual property office of each specific country.').title).toBe('National trademark offices');
+  expect(run('Café menu wording française?', 'The café menu is written in French; the française label is on the cover.').title).toBe('Café menu wording française?');
+});

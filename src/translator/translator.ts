@@ -2147,7 +2147,7 @@ export class Translator {
         const minWords = /\p{Script=Han}/u.test(anyA.title) ? 2 : 3; // M544 (tcp-gui-zh 2026-10-25: "TCP客户端GUI程序操作界面 quoi?"): a Han title is one or two space-delimited words, so the three-word floor let an invented Latin tail through
         while (dropped < 2 && words.length >= minWords) {
           const w = words[words.length - 1]; const x = w.toLowerCase();
-          if (!/^[a-z]{2,12}$/.test(x) || QOK.has(x)) break; // M421b (LONG #403 "Improve documentReady code uncertainty?"): 11-letter invented tails exist; the cap is 12
+          if (!/^[a-z\u00df-\u00f6\u00f8-\u00ff\u0100-\u024f]{2,12}$/.test(x) || QOK.has(x)) break; // M574 (affirmation-book 2026-10-26: "National trademark offices bilançons?" — an invented tail with a ç slipped past the ASCII class; Latin-1/Extended letters now count as letters; a real accented word in the statement still breaks below) // M421b (LONG #403 "Improve documentReady code uncertainty?"): 11-letter invented tails exist; the cap is 12
           if (dropped === 1 && x.length < 7) break; // a second word goes only when it is long and invented-looking ("noteaming"), not a real word the statement happens not to repeat ("layout")
           const rx = new RegExp(`\\b${x}\\b`); if (rx.test(hay) || rx.test(words.slice(0, -1).join(' ').toLowerCase())) break;
           const stem = x.replace(/(?:ization|isation|ations?|ation|ments?|ness|ities|ity|ing|ed|ers?|es|s|ly)$/, ''); if (stem.length >= 5 && stem !== x && new RegExp(`\\b${stem}`).test(hay)) break; // M550 (py2cpp 2026-10-26: her question "Further time optimization?" lost its last word because the statement says "optimized"): a real word whose stem the statement carries is not invented
