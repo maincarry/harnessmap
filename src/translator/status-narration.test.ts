@@ -192,3 +192,15 @@ test('M559: 此前的说明建议… / 此前的回答指出… leads go; 该说
   expect(r.trims).toBe(0);
   expect(h('此前关于 zip_stat 的回答不正确；它在条目不存在时返回 -1。').content).toBe('此前关于 zip_stat 的回答不正确；它在条目不存在时返回 -1。');
 });
+
+// M560 (panorama-memory 2026-10-26): "The user is unsure whether …" / "The user is looking for …" / "The user asked why …" — the English
+// twins of the 用户想知道 / 用户在寻找 leads. The lead goes, the question word stays, the remainder is capitalised.
+test('M560: English user question-leads go; a user-interface statement and a plain "The user" fact stay', () => {
+  const h = harness();
+  expect(h('The user is unsure whether matching every image directly to the first reference image is appropriate, because panorama construction is commonly done between adjacent pairs.').content).toBe('Whether matching every image directly to the first reference image is appropriate, because panorama construction is commonly done between adjacent pairs.');
+  expect(h('The user is looking for a C# video course site with rich content.').content).toBe('A C# video course site with rich content.');
+  expect(h('The user asked why the Running on line is missing.').content).toBe('Why the Running on line is missing.');
+  const r = h('The user interface is rendered by Tkinter.');
+  expect(r.content).toBe('The user interface is rendered by Tkinter.');
+  expect(r.trims).toBe(0);
+});
