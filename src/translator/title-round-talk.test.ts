@@ -285,3 +285,15 @@ test('M566: glued round talk after a Han head is cut; a domain 本轮 stays', ()
   expect(run('模型本轮训练结果', '模型在本轮训练中的损失下降到 0.2。').title).toBe('模型本轮训练结果');
   expect(run('替换命令示例', '示例命令为 copy /y NUL test.txt。').title).toBe('替换命令示例');
 });
+
+// M569 (nginx-cors-zh 2026-10-26): "代理配置示例材料证据一" and "删除软链接方法现行规则汇总" — the filer labelling the row's kind
+// (evidence one / a summary) on the title, the 摘要 family (M563c). 汇总/总结/证据(一…) go the same way; they stay when the statement carries the word.
+test('汇总 / 总结 / 材料证据一 title tails go; they stay when the statement carries the word (M569)', () => {
+  const a = run('代理配置示例材料证据一', '可在 nginx 的 server 块中监听 80 端口，并在 location /api/ 中转发请求。');
+  expect(a.title).toBe('代理配置示例');
+  const b = run('删除软链接方法现行规则汇总', '若 html 目录本身是指向前端目录的软链接，可使用 sudo rm 删除软链接本身。');
+  expect(b.title).toBe('删除软链接方法现行规则');
+  expect(run('查看 inotify 支持情况作证据', '运行 grep INOTIFY 可查看内核是否支持 inotify。').title).toBe('查看 inotify 支持情况作');
+  expect(run('报销凭证证据', '报销需要提供发票作为证据，证据不全会被退回。').title).toBe('报销凭证证据');
+  expect(run('月度销售汇总', '财务每月生成销售汇总表，汇总各门店的销售额。').title).toBe('月度销售汇总');
+});

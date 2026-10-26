@@ -1915,7 +1915,7 @@ export class Translator {
         // M563c (taqman-apoe-zh 2026-10-26): "魏军探针信息摘要", "MGB标记探针来源摘要" — five titles on one map ending in 摘要: the filer labelling the node as a
         // summary of the record. 摘要/概要 is the record's kind, not the name; it goes when neither the statement nor her words carry the word.
         const hay6 = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`;
-        const t6b = /(?:摘要|概要)$/u.test(anyA.title) && !/摘要|概要/u.test(hay6) ? anyA.title.replace(/(?:摘要|概要)$/u, '').trim() : anyA.title.trim();
+        const t6b = /(?:摘要|概要|汇总|总结|(?:材料)?证据[一二三四五六七八九十\d]*)$/u.test(anyA.title) && !/摘要|概要|汇总|总结|证据/u.test(hay6) ? anyA.title.replace(/(?:摘要|概要|汇总|总结|(?:材料)?证据[一二三四五六七八九十\d]*)$/u, '').trim() : anyA.title.trim(); // M569 (nginx-cors-zh 2026-10-26: "代理配置示例材料证据一", "删除软链接方法现行规则汇总"; ltp-ipv6-zh "查看 inotify 支持情况作证据" — 汇总/总结 are 摘要's siblings and 证据(一) is the filer numbering the row as evidence; the same hay test: the word stays when the statement or her words carry it)
         if (t6b !== anyA.title.trim() && t6b.length >= 2) { this.store.audit('guard_title_status_tail', { id: String(anyA.id ?? '').slice(0, 8), how: 'record-kind', dropped: anyA.title.slice(t6b.length).trim().slice(0, 40) }); anyA.title = t6b; }
       }
       // M402b (sqlsugar-nested-zh title "本轮回滚结论"): the same round-talk lead on a NAME goes; the name keeps its subject.
