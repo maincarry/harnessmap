@@ -118,3 +118,15 @@ test('"代理给出的…" lead goes with its 的; the example stays', () => {
   expect(r.trims).toBe(1);
 });
 
+// M549 (modbus-zh 2026-10-26): "agent指出，`-o` 参数…" — the Latin word agent glued to the Chinese narration verb; and the filer narrating the
+// correction of its own earlier record ("此前记录的 … 被用户指出不正确，正确的 …"). Both leads go; the statements stay.
+test('"agent指出，…" and "此前记录的…被用户指出不正确，" leads go', () => {
+  const h = harness();
+  const a = h("agent指出，`-o` 参数通过 `dest='filename'` 写入 `args.filename`，代码中使用 `args.o` 的对应关系需要检查。");
+  expect(a.content).toBe("`-o` 参数通过 `dest='filename'` 写入 `args.filename`，代码中使用 `args.o` 的对应关系需要检查。");
+  expect(a.trims).toBe(1);
+  const b = h('此前记录的 `setting()` 参数定义被用户指出不正确，正确的函数参数签名仍需根据实际代码重新核对。');
+  expect(b.content).toBe('正确的函数参数签名仍需根据实际代码重新核对。');
+  expect(b.trims).toBe(1);
+});
+
