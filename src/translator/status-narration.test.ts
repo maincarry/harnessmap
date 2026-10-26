@@ -111,3 +111,10 @@ test('"智能体提出…" lead goes, the proposal stays', () => {
   expect(r.trims).toBe(1);
 });
 
+// M547 (modbus-zh 2026-10-25): "代理给出的调用示例是 `python main.py -s`…" lost only "代理给出" and kept a dangling 的; the attributive 的 goes with the lead.
+test('"代理给出的…" lead goes with its 的; the example stays', () => {
+  const r = harness()('代理给出的调用示例是 `python main.py -s --current-ct=1`，并可继续传入 `--out-delay=10`。');
+  expect(r.content).toBe('调用示例是 `python main.py -s --current-ct=1`，并可继续传入 `--out-delay=10`。');
+  expect(r.trims).toBe(1);
+});
+
