@@ -2039,6 +2039,8 @@ export class Translator {
           if (sm) { const glued = ((t538.slice(0, sm.index).match(/[A-Za-z]+$/)?.[0] ?? '') + (t538.slice(sm.index).match(/^\p{L}+/u)?.[0] ?? '')).toLowerCase(); if (glued && !hay.includes(glued)) t538 = t538.slice(0, sm.index).trim(); }
           const pm = /\s*(?:not valid json|invalid json|unexpected token\b|json\.parse)[\s\S]*$/i.exec(t538);
           if (pm && !hay.includes('json')) t538 = t538.slice(0, pm.index).trim();
+          const nm = /\s*[：:]\s*(?:null|undefined|none|nil|nan|\[object object\])\s*$/i.exec(t538); // M573 (android-debug-zh 2026-10-26: "C++ 录制停止失败事宜：null" — a filer field value glued after a colon; nowhere in her words or the statement)
+          if (nm && !hay.includes(nm[0].replace(/^\s*[：:]\s*/, '').trim().toLowerCase())) t538 = t538.slice(0, nm.index).trim();
           if (t538 !== anyA.title && t538.length >= 3) { this.store.audit('guard_title_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-24), how: 'parse-leak' }); anyA.title = t538; }
         }
         let t0 = anyA.title;

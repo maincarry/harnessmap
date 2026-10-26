@@ -306,3 +306,12 @@ test('根因未确定 / 原因尚未确定 on a title tail go; 未确定 in the 
   expect(run('串口波特率未明确', '文档没有写波特率。').title).toBe('串口波特率');
   expect(run('未确定行为的排查顺序', '先查编译器警告再查越界访问。').title).toBe('未确定行为的排查顺序');
 });
+
+// M573 (android-debug-zh 2026-10-26): "C++ 录制停止失败事宜：null" — the filer glued a null field value after a colon onto the name; "null" is in neither
+// her words nor the statement. The same seam with undefined/None/nil/NaN; a null that the statement talks about stays.
+test('a colon + null/undefined tail that the statement does not carry goes; a statement about null keeps it', () => {
+  expect(run('C++ 录制停止失败事宜：null', 'Android Studio 报告“Recording C++Function failed to stop”，表明 C++ 函数录制或调试会话可能未能正常停止。').title).toBe('C++ 录制停止失败事宜');
+  expect(run('Recording failure: undefined', 'Android Studio reports that recording the C++ function failed to stop.').title).toBe('Recording failure');
+  expect(run('返回值为 null 的处理', '函数在找不到元素时返回 null。').title).toBe('返回值为 null 的处理');
+  expect(run('Default value: null', 'The field defaults to null when the form is empty.').title).toBe('Default value: null');
+});
