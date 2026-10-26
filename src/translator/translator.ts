@@ -2238,7 +2238,13 @@ export class Translator {
         const normC = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
         const mine = normC(anyA.content);
         const twin = map.nodes.find((n) => n.status !== 'removed' && n.author !== 'system' && n.content.length >= 40 && normC(n.content) === mine);
-        if (twin) { this.store.audit('guard_create_twin', { id: String(anyA.id ?? '').slice(0, 8), twin: twin.id.slice(0, 8), content: anyA.content.slice(0, 60) }); if (anyA.id) dropSurvivor.set(String(anyA.id), twin.id); continue; }
+        // M576 (book-links 2026-10-26, p1 round 2 "link to it please?"): the filer's create began with the same 60 characters as the round-1
+        // node ("The book “Mathematical Methods and Algorithms for Data Analysis Using R” …" — a long quoted title eats the window) but carried
+        // the Amazon link the map did not have; folding it as a twin lost the link record and the round. A create whose statement carries a URL
+        // the matched node lacks is a new record, not a twin — it stays (audited kept:'new-url').
+        const urlsOf = (t: string) => (t.match(/https?:\/\/[^\s"'<>()（）]+/g) ?? []).map((u) => u.replace(/[.,;:!?]+$/, ''));
+        if (twin && urlsOf(anyA.content).some((u) => !twin.content.includes(u))) { this.store.audit('guard_create_twin', { id: String(anyA.id ?? '').slice(0, 8), twin: twin.id.slice(0, 8), kept: 'new-url' }); }
+        else if (twin) { this.store.audit('guard_create_twin', { id: String(anyA.id ?? '').slice(0, 8), twin: twin.id.slice(0, 8), content: anyA.content.slice(0, 60) }); if (anyA.id) dropSurvivor.set(String(anyA.id), twin.id); continue; }
       }
       // M363 (sqlsugar-rollback zh replay): the user re-pasted the original ask and the filer created "手动事务控制" beside the
       // existing "手动控制事务" — the same characters in another order. A CREATE whose title, as a sorted character multiset

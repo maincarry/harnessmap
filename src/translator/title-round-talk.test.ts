@@ -332,3 +332,25 @@ test('an invented accented question tail goes like an ASCII one; an accented wor
   expect(run('National trademark offices gloribles?', 'For trademark searches outside the U.S., check the official intellectual property office of each specific country.').title).toBe('National trademark offices');
   expect(run('Café menu wording française?', 'The café menu is written in French; the française label is on the cover.').title).toBe('Café menu wording française?');
 });
+
+// M576 (book-links 2026-10-26): the M338 twin fold (same first 60 normalised characters as a live node) swallowed the round-2 create that
+// carried the book's Amazon link — a long quoted title filled the whole window. A create with a URL the matched node lacks is a new record.
+function runTwin(content: string) {
+  const audits: { kind: string; d: any }[] = [];
+  const store: any = new Proxy({}, { get(_t, k) { if (k === 'audit') return (kind: string, d: any) => audits.push({ kind, d }); if (k === 'getSetting') return () => undefined; return () => undefined; } });
+  const t = new Translator(store);
+  const parent = { id: 'p1', parentId: null, content: 'Learning R, including study resources such as books.', title: 'Learning R resources', status: 'live', author: 'user', type: null, createdAt: '2026-10-26T00:00:00Z', updatedAt: '2026-10-26T00:00:00Z' };
+  const book = { id: 'b1', parentId: 'p1', content: 'The book “Mathematical Methods and Algorithms for Data Analysis Using R” exists and was written by G. Jay Kerns.', title: 'R data analysis book', status: 'answered', author: 'agent', type: 'question', createdAt: '2026-10-26T00:00:01Z', updatedAt: '2026-10-26T00:00:01Z' };
+  const map: any = { nodes: [parent, book], links: [], projectId: 'proj' };
+  const alt: any = { op: 'create_node', id: 'x1', parentId: 'b1', content, status: 'noted', author: 'agent', type: 'evidence', title: 'Amazon book link' };
+  const out = (t as any).guardScope([alt], new Set(['p1', 'b1']), map, { chatId: 'c', focusContainerId: 'b1', userText: 'link to it please?', assistantText: '' });
+  return { kept: out.some((a: any) => a.op === 'create_node' && a.id === 'x1'), twin: audits.filter((a) => a.kind === 'guard_create_twin') };
+}
+test('a same-head create that carries a URL the twin lacks is kept; without the URL it is still folded', () => {
+  const withUrl = runTwin('The book “Mathematical Methods and Algorithms for Data Analysis Using R” by G. Jay Kerns is listed on Amazon at https://www.amazon.com/Mathematical-Methods-Algorithms-Analysis-Using/dp/1498764045.');
+  expect(withUrl.kept).toBe(true);
+  expect(withUrl.twin[0]?.d.kept).toBe('new-url');
+  const plain = runTwin('The book “Mathematical Methods and Algorithms for Data Analysis Using R” was written by G. Jay Kerns and exists.');
+  expect(plain.kept).toBe(false);
+  expect(plain.twin[0]?.d.kept).toBeUndefined();
+});
