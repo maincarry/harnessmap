@@ -150,3 +150,15 @@ test('M554: round-talk verbs, a round-talk tail clause, and the "用户在…上
   expect(h('用户在登录页面需要输入验证码。').content).toBe('用户在登录页面需要输入验证码。');
 });
 
+
+// M555 (flask-running-zh 2026-10-26): "当前回答提出将…" / "回答提出可以…" / "回答提出：若…" — the bare-回答 and 当前回答 leads with 提出,
+// which M412/M409 did not list; the lead goes, the fact stays. "回答提出的问题" is a verb phrase (answer the raised question) and stays.
+test('M555: 回答提出 / 当前回答提出 leads go, the fact stays; 回答提出的问题 stays', () => {
+  const h = harness();
+  expect(h('当前回答提出将 `app.config[\'DEBUG\']` 设置为 `False`，以避免 Flask 在终端返回状态码。').content).toBe('将 `app.config[\'DEBUG\']` 设置为 `False`，以避免 Flask 在终端返回状态码。');
+  expect(h('回答提出可以设置环境变量 `WERKZEUG_RUN_MAIN=true` 后运行 `python app.py`，以尝试显示运行时信息。').content).toBe('可以设置环境变量 `WERKZEUG_RUN_MAIN=true` 后运行 `python app.py`，以尝试显示运行时信息。');
+  expect(h('回答提出：若 WSGI 服务器配置中的 `WSGIScriptAlias` 指向 `wsgi.py`，可据此判断应用由 WSGI 服务器启动。').content).toBe('若 WSGI 服务器配置中的 `WSGIScriptAlias` 指向 `wsgi.py`，可据此判断应用由 WSGI 服务器启动。');
+  const r = h('回答提出的问题需要先确认 Flask 版本。');
+  expect(r.content).toBe('回答提出的问题需要先确认 Flask 版本。');
+  expect(r.trims).toBe(0);
+});
