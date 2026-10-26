@@ -297,3 +297,12 @@ test('汇总 / 总结 / 材料证据一 title tails go; they stay when the state
   expect(run('报销凭证证据', '报销需要提供发票作为证据，证据不全会被退回。').title).toBe('报销凭证证据');
   expect(run('月度销售汇总', '财务每月生成销售汇总表，汇总各门店的销售额。').title).toBe('月度销售汇总');
 });
+
+// M572b (minimal-linux-boot-zh 2026-10-26): "root 参数未切根到真实根文件系统根因未确定" — 根因未确定 is the record's state (the row is an open question), glued
+// to the name; M518 knew 未定/未决/待确认 but not 未确定/未明确. The 根因/原因 noun stays: it is part of the name (as 重启原因 stays in the M518 test above).
+test('根因未确定 / 原因尚未确定 on a title tail go; 未确定 in the middle stays', () => {
+  expect(run('root 参数未切根到真实根文件系统根因未确定', '即使引导时明确指定了 root=，Linux 启动后仍可能继续使用 initramfs；当前具体原因仍未确定。').title).toBe('root 参数未切根到真实根文件系统根因');
+  expect(run('内存泄漏原因尚未确定', '泄漏出现在长时间运行后。').title).toBe('内存泄漏原因');
+  expect(run('串口波特率未明确', '文档没有写波特率。').title).toBe('串口波特率');
+  expect(run('未确定行为的排查顺序', '先查编译器警告再查越界访问。').title).toBe('未确定行为的排查顺序');
+});

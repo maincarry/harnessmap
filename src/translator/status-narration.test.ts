@@ -264,3 +264,13 @@ test('用户表示 `code` … / 用户反馈 http://… leads go; a plain word a
     const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
   }
 });
+
+// M572a (minimal-linux-boot-zh 2026-10-26): "回答给出的代码片段中，`switch_root()` 通过 …" — the 回答 cut left "给出的代码片段中，"; 给出的X中， is the
+// same "the answer giving X" lead as M563a's 给出的X为, and it must still go after the 回答 lead is cut.
+test('给出的X中， goes, also after a 回答 lead; 用户给出的 and a bare 代码片段中 stay', () => {
+  const h = harness();
+  expect(h('回答给出的代码片段中，`switch_root()` 通过 `graft_tree(real_root_dev, "/")` 挂载真正根设备。').content).toBe('代码片段中，`switch_root()` 通过 `graft_tree(real_root_dev, "/")` 挂载真正根设备。');
+  expect(h('给出的代码片段中，变量未初始化。').content).toBe('代码片段中，变量未初始化。');
+  expect(h('回答给出的示例配置为 `root=/dev/sda1`。').content).toBe('示例配置为 `root=/dev/sda1`。');
+  for (const keep of ['用户给出的代码片段中有一个拼写错误。', '代码片段中，变量未初始化。', '给出的条件下结果恒成立。']) expect(h(keep).content).toBe(keep);
+});
