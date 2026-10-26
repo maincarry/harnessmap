@@ -242,3 +242,14 @@ test('colon-less 用户反馈其 / 用户在其…中搜索不到 leads go; 用�
     const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
   }
 });
+
+// M568 (media-protocols-zh 2026-10-26): the agent's-answer subject mid-sentence after a comma — "，代理回答建议引入RTP…" —
+// goes like M412b's 当前回答; the verb stays. A product noun phrase without the comma ("网关的代理回复建议栏位") stays.
+test('，代理回答建议… mid-sentence loses the subject, the verb stays; product phrasing stays (M568)', () => {
+  const h = harness();
+  expect(h('1078协议将压缩后的音视频数据封装为统一格式进行传输；由于网络存在丢包和抖动，代理回答建议引入RTP等协议以改善音视频数据传输的及时性和稳定性。').content).toBe('1078协议将压缩后的音视频数据封装为统一格式进行传输；由于网络存在丢包和抖动，建议引入RTP等协议以改善音视频数据传输的及时性和稳定性。');
+  expect(h('视频帧较大时，助手的回复建议分片发送。').content).toBe('视频帧较大时，建议分片发送。');
+  for (const keep of ['网关的代理回复建议栏位为空时返回 400。', '由于丢包，建议引入 RTP 协议。', '若超时，代理回复为空则重试。']) {
+    const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
+  }
+});
