@@ -1316,6 +1316,7 @@ export class Translator {
     for (const m of ut.matchAll(/https?:\/\/[^\s"'）)>]+/g)) tokens.add(m[0].replace(/[.,;:!?。，；：！？]+$/, ''));
     for (const m of ut.matchAll(/[A-Za-z][A-Za-z0-9]*(?:[-_.][A-Za-z0-9]+)+|[A-Z][A-Za-z0-9]{5,}|[a-z]+[A-Z][A-Za-z0-9]{3,}/g)) if (m[0].length >= 6) tokens.add(m[0]);
     for (const t of [...tokens]) if (/^[a-z0-9-]+\.(com|org|net|io|cn|dev)$/i.test(t) || /^(github|gitlab|google|twitter|stackoverflow)\b/i.test(t)) tokens.delete(t); // a bare domain names nothing
+    for (const t of [...tokens]) if (/^[A-Z][a-z]+$/.test(t) && new RegExp(`(?:^|[.!?:;\\n]\\s*)${t}\\b`).test(ut) && !new RegExp(`[^.!?:;\\n\\s][ \\t]+${t}\\b`).test(ut)) tokens.delete(t); // M553 (matlab-steps 2026-10-26: "Number of elements must not change" — the first word of MATLAB's error message read as a name she rejected, and two nodes quoting the error were reopened): a plain capitalised word that appears only at a sentence start is English, not a name; a word that also stands mid-sentence (Pollefeys) or carries a digit / inner capital is still a name
     const byId = new Map<string, any[]>();
     for (const a of alterations) if (typeof a?.id === 'string') (byId.get(a.id) ?? byId.set(a.id, []).get(a.id)!).push(a);
     // M536 → M536c (2026-10-25, latex-references p1 round 5, three runs): "can you give me other the link is dead" names nothing.

@@ -31,3 +31,16 @@ test('a named dead link is still reopened, and "is dead" now counts as the rejec
   expect(named.out.find((a) => a.op === 'update_node' && a.id === 'w0')).toBeUndefined();
   expect(named.audits.find((a) => a.kind === 'guard_user_rejection')?.d.id).toBe('s1');
 });
+
+// M553 (matlab-steps 2026-10-26): her pasted MATLAB error "Number of elements must not change" plus "it does not work" made the guard read
+// "Number" as a name she rejected, and two nodes quoting the error were reopened. A plain capitalised word that stands only at a sentence
+// start is English, not a name; a name that also stands mid-sentence still counts.
+test('a sentence-initial capitalised word in a pasted error is not a rejected name; a mid-sentence name still is', () => {
+  const split = { id: 'd1', parentId: 'p1', content: 'Implement the MATLAB split; the error was `Number of elements must not change.`', title: 'Split dataset', status: 'done', author: 'user', type: 'task', createdAt: '2026-10-26 01:35:51', updatedAt: '2026-10-26 01:35:51' };
+  const r = harness([root, split])([], 'Getting the following error: Error using reshape\nNumber of elements must not change. Use [] as one of the size inputs. It does not work.');
+  expect(r.out).toHaveLength(0);
+  expect(r.audits.filter((a) => a.kind === 'guard_user_rejection')).toHaveLength(0);
+  const named = harness([root, wiki, site])([], 'the Pollefeys pdf does not exist');
+  expect(named.out.find((a) => a.op === 'update_node' && a.id === 's1')?.status).toBe('open');
+});
+
