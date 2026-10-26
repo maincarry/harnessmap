@@ -180,3 +180,15 @@ test('M557: a "，但本轮未…" tail clause goes, the statement keeps its ful
   expect(r.content).toBe('文件内容已追加，但未以换行符结尾。');
   expect(r.trims).toBe(0);
 });
+
+// M559 (flask-running-zh 2026-10-26): "此前的说明建议通过设置 `WERKZEUG_RUN_MAIN=true` …" — the filer attributing the fact to "the earlier
+// explanation"; the 此前/先前/之前 forms of the M412 subject, with 说明/解释 as the noun. The subject goes; M412b keeps the verb 建议.
+test('M559: 此前的说明建议… / 此前的回答指出… leads go; 该说明指出 (documentation) and the 此前关于…不正确 correction record stay', () => {
+  const h = harness();
+  expect(h('此前的说明建议通过设置 `WERKZEUG_RUN_MAIN=true` 后运行 `python app.py` 来尝试显示运行时信息。').content).toBe('建议通过设置 `WERKZEUG_RUN_MAIN=true` 后运行 `python app.py` 来尝试显示运行时信息。');
+  expect(h('此前的回答指出，Gunicorn 启动时不会输出 Running on 信息。').content).toBe('Gunicorn 启动时不会输出 Running on 信息。');
+  const r = h('该说明指出 API 调用需要密钥。');
+  expect(r.content).toBe('该说明指出 API 调用需要密钥。');
+  expect(r.trims).toBe(0);
+  expect(h('此前关于 zip_stat 的回答不正确；它在条目不存在时返回 -1。').content).toBe('此前关于 zip_stat 的回答不正确；它在条目不存在时返回 -1。');
+});
