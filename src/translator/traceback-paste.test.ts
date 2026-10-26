@@ -318,3 +318,11 @@ test('the N of N进制 is not a figure; a real figure still files her sentence',
   expect(specifics([hex], '写一个TCP客户端程序，缓冲区设为 4096 字节，有报文输入框。').out.filter((a) => a.op === 'create_node').length).toBe(1);
 });
 
+
+// M571 (ecs-support 2026-10-26): her `top` paste was filed as her row with its figures "missed" — a stats header whose numbers each carry a
+// unit word (N total, N running, N sleeping …) is a data line like "Result: 13 Result: 263"; prose with figures still files.
+test('a top/free stats header is a data line, never her sentence; prose with figures still files (M571)', () => {
+  const top = 'Tasks: 1016 total,   1 running, 996 sleeping,   0 stopped,  19 zombie %Cpu(s):  3.5 us, 12.0 sy,  3.3 ni, 54.5 id, 25.0 wa,  0.0 hi,  1.8 si,  0.0 st KiB Mem:  19650788+total, 19091784+used,  5590044 free,   138304 buffers';
+  expect(specifics([root], top).out.filter((a) => a.op === 'create_node').length).toBe(0);
+  expect(specifics([root], 'The node has 1016 tasks running and 19 zombies, which is unusual for this host.').out.filter((a) => a.op === 'create_node').length).toBe(1);
+});

@@ -1535,7 +1535,8 @@ export class Translator {
       // M500 (pattern-puzzle 2026-10-19: her pasted "Input: 2, 6, 6, 0 / Result: 13" lines were split into "sentences" and three of them joined into
       // the node "Result: 13 Result: 263 Result: 94"): a line that is only a short label and numbers is a data line, never the sentence filed —
       // the figures stay on the record through the dataset row the filer makes, not as a fragment under her name.
-      const dataLine = (sn: string) => /^\s*[\p{L}\p{N} _#().-]{1,24}[:：]\s*[-+\d.,\s/%]+\s*$/u.test(sn) || /^\s*[-+\d.,\s/%]+\s*$/.test(sn);
+      const statsLine = (sn: string) => /^\s*(?:[A-Za-z%()\/ _-]{1,16}[:：]\s*)?(?:[-+]?\d[\d.,+]*\s*[A-Za-z%\/]{1,12}\s*[,，]?\s*(?:[A-Za-z%()\/ _-]{1,16}[:：]\s*)?){3,}$/.test(sn); // M571 (ecs-support 2026-10-26): her `top` paste "Tasks: 1016 total,   1 running, 996 sleeping,   0 stopped,  19 zombie %Cpu(s):  3.5 us, 12.0 sy, …" was filed as her row — a stats header whose figures each carry a unit word is a data line too
+      const dataLine = (sn: string) => /^\s*[\p{L}\p{N} _#().-]{1,24}[:：]\s*[-+\d.,\s/%]+\s*$/u.test(sn) || /^\s*[-+\d.,\s/%]+\s*$/.test(sn) || statsLine(sn);
       const carries = (sn: string) => missed.some((sp) => norm(sn).includes(norm(sp)) || norm(sn).includes(norm(sp).replace(/^[+-]/, '')));
       const dataAll = sentencesOf(text).filter(dataLine); // the whole block is the record, not only the lines whose figures were counted
       const dataSkipped = dataAll.filter(carries);
