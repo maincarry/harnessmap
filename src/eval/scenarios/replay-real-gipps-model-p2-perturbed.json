@@ -84,7 +84,7 @@
           "focus": false
         },
         {
-          "nodeMatching": "Krauss|Kraus|safe velocity|v_safe"
+          "nodeMatching": "Krauss|Kraus|Kruass|safe[- ]velocity|v_safe"
         },
         {
           "countUnder": "proj",
@@ -104,7 +104,7 @@
           "chatName": "renamed mid-thread"
         },
         {
-          "nodeMatching": "v_safe|safe velocity|τ|incorrect|correct equation"
+          "nodeMatching": "v_safe|safe[- ]velocity|τ|incorrect|correct equation"
         },
         {
           "countUnder": "proj",
@@ -130,7 +130,7 @@
           "ms": 300
         },
         {
-          "nodeMatching": "desired velocity|v_des|derive|safe velocity"
+          "nodeMatching": "desired velocity|v_des|derive|safe[- ]velocity"
         },
         {
           "countUnder": "proj",
