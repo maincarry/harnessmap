@@ -217,3 +217,16 @@ test('用户观察到： and 现有回答提出 are narration leads; 用户发�
   expect(r.trims).toBe(0);
   expect(h('现有回答数量不足三条。').content).toBe('现有回答数量不足三条。');
 });
+
+// M563a/b/d (taqman-apoe-zh 2026-10-26): "给出的TaqMan探针FAM荧光标记序列为…" (the answer giving it), "…；该来源已由本轮信息确认。" (the positive twin of
+// M557's tail), and the 本轮 lead rule cutting her own "本轮训练" (a domain noun, not round-talk).
+test('给出的 at a clause start and a positive 本轮 tail go; 用户给出的, 该函数给出的 and 本轮训练 stay', () => {
+  const h = harness();
+  expect(h('给出的TaqMan探针FAM荧光标记序列为5’- TTC CGC ATG GCA CGA -3’。').content).toBe('TaqMan探针FAM荧光标记序列为5’- TTC CGC ATG GCA CGA -3’。');
+  expect(h('针对rs7412位点，给出的TaqMan检测引物1序列为5’- CCT CAA AGG -3’。').content).toBe('针对rs7412位点，TaqMan检测引物1序列为5’- CCT CAA AGG -3’。');
+  expect(h('rs7412 TaqMan探针具体参考Kupstyte等人2011年的研究；该来源已由本轮信息确认。').content).toBe('rs7412 TaqMan探针具体参考Kupstyte等人2011年的研究。');
+  expect(h('本轮回答提到模块已集成到内核。').content).toBe('模块已集成到内核。');
+  for (const keep of ['用户给出的参数不足以复现问题。', '该函数给出的结果为空数组。', '本轮训练的损失下降到 0.3。', '模型在本轮比赛中排名第三，名次由本轮积分决定。']) {
+    const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
+  }
+});

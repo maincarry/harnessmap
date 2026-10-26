@@ -242,3 +242,11 @@ test('a parenthetical revision marker on a title tail goes; a naming parenthetic
   expect(run('Merge plan (updated)', 'The merge plan now blends masks per image.').title).toBe('Merge plan');
   expect(run('连接跟踪范围（IPv6）', '连接跟踪在 IPv6 上同样生效。').title).toBe('连接跟踪范围（IPv6）');
 });
+
+// M563c (taqman-apoe-zh 2026-10-26): "魏军探针信息摘要" ×4 and "MGB标记探针来源摘要" — the filer labelling the node a summary. The word goes unless
+// the statement or her words carry it.
+test('a 摘要/概要 title tail goes; it stays when the statement carries the word', () => {
+  expect(run('魏军探针信息摘要', '魏军等人2020年研究使用引物1和FAM探针序列。').title).toBe('魏军探针信息');
+  expect(run('MGB标记探针来源摘要', '是否有用于rs7412基因分型的MGB标记TaqMan探针？已有报道包括Deka等人的方法。').title).toBe('MGB标记探针来源');
+  expect(run('会议纪要摘要', '请为这份会议纪要写一段两百字的摘要。').title).toBe('会议纪要摘要');
+});
