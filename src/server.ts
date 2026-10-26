@@ -2,7 +2,7 @@
 // Two layers over HTTP: REST for state + actions, WS for live updates.
 // v0.4: the map is nodes all the way down — one kind of thing.
 
-import { sameStatement, PROV_TAIL } from './heal-stale.js';
+import { sameStatement, PROV_TAIL, needsName } from './heal-stale.js';
 import { randomUUID } from 'node:crypto';
 import { spawnHidden, spawnSyncHidden } from './proc.js';
 import { join, dirname } from 'node:path';
@@ -1767,7 +1767,7 @@ function brokenTitles(pid: string) {
     if (n.content.startsWith('to sort')) return false;
     if (n.title && store.getSetting(`titleBy:${n.id}`) === 'user') return false; // M282: hand titles are the person's
     if (n.author === 'system') return false; // M285 (loop find): the tutorial's sentences are meant to be read whole, not retitled
-    return longName(n.title || n.content);
+    return needsName(n.title, n.content) || longName(n.title || n.content); // M558: a titleless Han sentence is a name too long to read — see heal-stale.ts
   });
 }
 async function healTitles(cap = 5, pid = projectId): Promise<{ renamed: number; remaining: number }> {

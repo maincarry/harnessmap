@@ -332,7 +332,7 @@ try { const t0 = Date.now(); for (;;) { const f = await get('/api/filings'); con
 // what remains is title_heal_stale / an empty suggestion, which IS a product state and stays visible to the invariants).
 try {
   const longName = (shown: string) => { const w = shown.trim().split(/\s+/); return w.length > 6 || shown.length > 48 || w.some((x) => x.replace(/\p{Script=Han}/gu, '').length > 18); }; // M393: Han runs are not tokens
-  const broken = async () => { const s: any = await get('/api/state'); const ns: any[] = s?.nodes ?? s?.map?.nodes ?? []; return ns.filter((n) => n.status !== 'removed' && n.author !== 'system' && !String(n.content ?? '').startsWith('to sort') && longName(String(n.title || n.content || ''))).length; };
+  const broken = async () => { const s: any = await get('/api/state'); const ns: any[] = s?.nodes ?? s?.map?.nodes ?? []; return ns.filter((n) => n.status !== 'removed' && n.author !== 'system' && !String(n.content ?? '').startsWith('to sort') && (longName(String(n.title || n.content || '')) || (!n.title && ((String(n.content ?? '').match(/\p{Script=Han}/gu) ?? []).length >= 12)))).length; }; // M558: a titleless Han sentence needs a name (mirrors heal-stale.ts needsName)
   const t0 = Date.now(); let last = -1, same = 0, n = await broken();
   while (n > 0 && Date.now() - t0 < 40_000) { if (n === last) { if (++same >= 3) break; } else { same = 0; last = n; } await sleep(2000); n = await broken(); }
   const waited = Date.now() - t0; if (waited >= 2000 || n) { console.log(`healer settle ${(waited / 1000).toFixed(0)}s · ${n} broken name(s) left`); if (n) notes.push(`healer: ${n} broken name(s) left`); }
