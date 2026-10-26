@@ -2,6 +2,7 @@
 // Two layers over HTTP: REST for state + actions, WS for live updates.
 // v0.4: the map is nodes all the way down — one kind of thing.
 
+import { sameStatement, PROV_TAIL } from './heal-stale.js';
 import { randomUUID } from 'node:crypto';
 import { spawnHidden, spawnSyncHidden } from './proc.js';
 import { join, dirname } from 'node:path';
@@ -1777,7 +1778,6 @@ async function healTitles(cap = 5, pid = projectId): Promise<{ renamed: number; 
     // M421e (TWIN LONG #401 Priya: two nodes the filer moved out of "to sort" with its own move_node kept "(arrived while focus was: Refit
     // logistic baseline)"; the six path-specific cleanups never saw that path): the note belongs to "to sort" only — a node living anywhere
     // else that still carries one is cleaned by this sweep, whatever moved it.
-    const PROV_TAIL = /\s*[（(]arrived while focus was:(?:[^()（）]|\([^()（）]*\)|（[^()（）]*）)*[)）]\s*$/;
     const toSortIds = new Set(store.getNodes(pid).filter((n) => n.parentId === null && n.status !== 'removed' && n.content.startsWith('to sort')).map((n) => n.id));
     for (const n of store.getNodes(pid)) {
       if (n.status === 'removed' || !n.parentId || toSortIds.has(n.parentId) || !PROV_TAIL.test(n.content)) continue;
@@ -1791,7 +1791,7 @@ async function healTitles(cap = 5, pid = projectId): Promise<{ renamed: number; 
       // M306 (loop find, bug under M68): the healer judged the node before a round changed it and then wrote a title computed
       // from the OLD statement over the filer's fresh one ("Trellis beans east fence" over "…west fence"). Re-read before writing.
       const now = store.getNode(n.id);
-      if (!now || now.status === 'removed' || now.content !== n.content || (now.title ?? '') !== (n.title ?? '')) { store.audit('title_heal_stale', { id: n.id.slice(0, 8) }); continue; }
+      if (!now || now.status === 'removed' || !sameStatement(now.content, n.content) || (now.title ?? '') !== (n.title ?? '')) { store.audit('title_heal_stale', { id: n.id.slice(0, 8) }); continue; } // M552: a content that lost only its "(arrived while focus was: …)" note is the same statement — the placer strips that note in the same breath, and the title still fits
       // M415 (LONG #394): the title model names one node at a time and gave three sibling options the same "Coffee and Toast";
       // a healed title must not duplicate a live sibling's — fall back to the node's own opening words (title-dedupe.ts).
       const sibs = store.getNodes(pid).filter((s) => s.id !== now.id && s.parentId === now.parentId && s.status !== 'removed' && s.title).map((s) => ({ title: s.title as string, content: s.content }));

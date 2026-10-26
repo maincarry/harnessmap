@@ -130,3 +130,12 @@ test('"agent指出，…" and "此前记录的…被用户指出不正确，" le
   expect(b.trims).toBe(1);
 });
 
+// M551 (flutter-vue-zh 2026-10-26): her question rows read "用户在寻找C#学习视频比较丰富、质量较高的网站；…" — the Chinese form of "User is looking
+// for …"; the subject goes, what she is after stays. And "；本轮补充称，许多课程…" left "补充称" behind after the round word went; the whole lead goes.
+test('"用户在寻找…" lead goes; "本轮补充称，" goes whole; a sentence about 用户名 stays', () => {
+  const h = harness();
+  expect(h('用户在寻找C#学习视频比较丰富、质量较高的网站；推荐的平台包括Pluralsight。').content).toBe('寻找C#学习视频比较丰富、质量较高的网站；推荐的平台包括Pluralsight。');
+  expect(h('Udemy拥有许多带有五星评价的C#学习课程；本轮补充称，许多课程提供英文字幕或中文字幕。').content).toBe('Udemy拥有许多带有五星评价的C#学习课程；许多课程提供英文字幕或中文字幕。');
+  expect(h('用户名需要至少八个字符，并包含一个数字。').content).toBe('用户名需要至少八个字符，并包含一个数字。');
+});
+
