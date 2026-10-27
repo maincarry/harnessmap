@@ -297,3 +297,16 @@ test('回答中的 X / 回复里的 X at a sentence start go; 问卷回答中的
     const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
   }
 });
+
+// M582 (echarts-gantt-drift-zh 2026-10-27): "回答还建议使用 `git config …`" came out as "还建议使用 …" — M409b dropped the subject
+// but left the round-talk adverb (还 = "also"); M409 proper already consumes 还/也/则/亦 before its reporting verbs. M568 (after a comma) the same.
+test('回答还建议 / 回答也给出 / 回复中则推荐 lose the adverb with the subject; 系统还建议 and 文档中还列出 stay (M582)', () => {
+  const h = harness();
+  expect(h('回答还建议使用 `git config --global user.name` 配置用户名。').content).toBe('建议使用 `git config --global user.name` 配置用户名。');
+  expect(h('回答也给出了两种安装方式。').content).toBe('给出了两种安装方式。');
+  expect(h('回复中则推荐使用 SSH 协议。').content).toBe('推荐使用 SSH 协议。');
+  expect(h('先生成密钥，代理回答还建议将远程地址改为 SSH。').content).toBe('先生成密钥，建议将远程地址改为 SSH。');
+  for (const keep of ['系统还建议用户定期更新密码。', '文档中还列出了三个可选参数。']) {
+    const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
+  }
+});
