@@ -1876,7 +1876,7 @@ export class Translator {
         const t0 = anyA.title;
         let t1 = t0.replace(/\u3000{2,}[\s\S]*$/u, '').trim();
         if (t1 !== t0.trim() && t1.length >= 2) { this.store.audit('guard_title_space_run', { id: String(anyA.id ?? '').slice(0, 8), dropped: t0.slice(t1.length).trim().slice(0, 40) }); anyA.title = t1; }
-        const t2 = anyA.title.replace(/(?<=\p{Script=Han})[0-9a-f]{8}$/u, '').trim();
+        const t2 = anyA.title.replace(/(?<=\p{Script=Han})(?:[0-9a-f]{8}|(?=[0-9a-fA-F]{0,7}\d)[0-9a-fA-F]{8})$/u, '').trim(); // M580a (leftjoin-zh 2026-10-27: "A 表示例数据A7f3c921" — the glued id carried an uppercase letter, the lowercase-only form missed it, and the glitch-word rule below then took the whole last token and left the title "A"; mixed-case hex8 with at least one digit goes too)
         if (t2 !== anyA.title.trim() && t2.length >= 2) { this.store.audit('guard_title_uuid', { id: String(anyA.id ?? '').slice(0, 8), how: 'hex8-glued', dropped: anyA.title.slice(t2.length) }); anyA.title = t2; }
         const t3 = anyA.title.replace(/[，,]\s*(?:让(?:该|此)?问题|以反映|保持开放|未形成可靠|以体现当前)[^\n]*$/u, '').trim();
         if (t3 !== anyA.title.trim() && t3.length >= 2) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t3.length).trim().slice(0, 40) }); anyA.title = t3; }
@@ -2105,11 +2105,11 @@ export class Translator {
         const camel = last.length >= 12 && /\p{Ll}\p{Lu}\p{Ll}/u.test(last) && !/[^\p{L}]/u.test(last); // M349c: "contractivityOops" — a glued camel-case word with no digit, no symbol
         // M525 (android-jni zh replay): "回调 Kotlin 方法然后调用 JNI 回复rayele" — a letters-only glitch run glued straight onto a Han word, in
         // neither the statement nor her words. Only the Latin run goes; the Han part stays ("使用python" with Python in the content stays whole).
-        const hanGlued = /^\p{Script=Han}+[a-z]{4,}$/u.exec(last);
+        const hanGlued = /^\p{Script=Han}+(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{4,}$/u.exec(last); // M580b (leftjoin-zh 2026-10-27): a Han head glued to ANY ASCII run of 4+ with a letter — only the run goes, the Han head stays (before, a mixed run fell through to the whole-token drop)
         if (words.length >= 2 && hanGlued) {
           const run = last.replace(/^\p{Script=Han}+/u, '');
           const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
-          if (!hay.includes(run)) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: last, how: 'han-glued' }); anyA.title = [...words.slice(0, -1), last.slice(0, last.length - run.length)].join(' '); }
+          if (!hay.includes(run.toLowerCase())) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), word: last, how: 'han-glued' }); anyA.title = [...words.slice(0, -1), last.slice(0, last.length - run.length)].join(' '); }
         } else if (words.length >= 2 && last.length >= 6 && last.length <= 24 && !/[；，、。：！？]/u.test(last) && ((/\d/.test(last) && /[a-z]/i.test(last)) || camel)) { // M542a (tcp-gui-zh 2026-10-25): "…代码采用 PyQt5；界面包含十六进制报文输入框、…按钮" — a sixty-character Han clause after one digit token is a sentence tail, not a glitch token; the rule cut it and left the title dangling at 采用
           const hay = `${typeof anyA.content === 'string' ? anyA.content : (map.nodes.find((n) => n.id === anyA.id)?.content ?? '')}\n${params.userText ?? ''}`.toLowerCase();
           const chunks = last.replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2').toLowerCase().split(/[^\p{L}\p{N}]+/u).flatMap((c: string) => c.match(/\p{Script=Han}+|[^\p{Script=Han}]+/gu) ?? []).filter((c: string) => c.length >= 3); // camel-case split first: "ProductOrderDao" → product, order, dao (kept when the identifier is in the statement) // "100/min" → 100, min; "te4a1b6c" → itself; M349b: "2.0.0-p648吧w" → p648 (kept — the version is in the statement)

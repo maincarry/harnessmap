@@ -378,3 +378,12 @@ test('a greeting glued after a comma on a title goes; a head greeting stays (M57
   expect(r.title).toBe('Temperature 属性概览');
   expect(run('你好，世界 程序示例', '经典的入门程序会打印“你好，世界”。').title).toBe('你好，世界 程序示例');
 });
+
+// M580 (leftjoin-zh 2026-10-27): "A 表示例数据A7f3c921" — a glued hex id with an uppercase letter; t2 knew lowercase hex only, so the
+// glitch-word rule took the whole last token and left "A". (a) mixed-case hex8 with a digit goes; (b) a Han head glued to any ASCII run keeps its head.
+test('a mixed-case hex8 glued to a Han title goes; a Han+ASCII glitch token keeps its Han head (M580)', () => {
+  expect(run('A 表示例数据A7f3c921', '示例中的 A 表包含三条记录：`(1, Tom)`、`(2, Bob)`、`(3, Amy)`。').title).toBe('A 表示例数据');
+  expect(run('结果 示例数据Zk7qx', '示例中的结果有两条记录。').title).toBe('结果 示例数据');
+  expect(run('模型 对比GPT4o', '对比 GPT4o 与 GPT3 的输出。').title).toBe('模型 对比GPT4o');
+  expect(run('订单编号 2024ABCD', '订单编号 2024ABCD 的记录。').title).toBe('订单编号 2024ABCD');
+});
