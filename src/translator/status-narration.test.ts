@@ -286,3 +286,14 @@ test('代理回答认为，… at a sentence start goes whole; 代理回答建�
     const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
   }
 });
+
+// M581 (sqlsugar-isolate-zh 2026-10-27): "回答中的 C 方法通过新的数据库连接和 ADO.NET 事务执行 SQL：…" — the possessive form of the
+// M409 lead ("the answer's C method"); M409 knew 回答中提到/指出 only. Sentence-start only; a product noun before 回答 keeps it.
+test('回答中的 X / 回复里的 X at a sentence start go; 问卷回答中的 / 用户回答中的 stay; 回答中提到的方案 stays whole (M581)', () => {
+  const h = harness();
+  expect(h('回答中的 C 方法通过新的数据库连接和 ADO.NET 事务执行 SQL：打开连接、创建事务，成功时提交。').content).toBe('C 方法通过新的数据库连接和 ADO.NET 事务执行 SQL：打开连接、创建事务，成功时提交。');
+  expect(h('回复里的示例配置缺少超时设置。').content).toBe('示例配置缺少超时设置。');
+  for (const keep of ['问卷回答中的字段需要逐项校验。', '用户回答中的错误会被标红显示。', '回答中提到的方案使用保存点。']) {
+    const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
+  }
+});
