@@ -370,3 +370,11 @@ test('a same-head create that carries a URL the twin lacks is kept; without the 
   expect(plain.kept).toBe(false);
   expect(plain.twin[0]?.d.kept).toBeUndefined();
 });
+
+// M579b (mssql-zh 2026-10-27): "Temperature 属性概览，你好" — the filer glued a greeting after a comma; 你好 was in nobody's words.
+// A greeting at the head of a name ("你好，世界 程序示例") stays.
+test('a greeting glued after a comma on a title goes; a head greeting stays (M579b)', () => {
+  const r = run('Temperature 属性概览，你好', 'ChatGPT 的 Temperature 属性用于控制生成文本的随机程度。');
+  expect(r.title).toBe('Temperature 属性概览');
+  expect(run('你好，世界 程序示例', '经典的入门程序会打印“你好，世界”。').title).toBe('你好，世界 程序示例');
+});

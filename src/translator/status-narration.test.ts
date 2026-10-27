@@ -274,3 +274,15 @@ test('给出的X中， goes, also after a 回答 lead; 用户给出的 and a bar
   expect(h('回答给出的示例配置为 `root=/dev/sda1`。').content).toBe('示例配置为 `root=/dev/sda1`。');
   for (const keep of ['用户给出的代码片段中有一个拼写错误。', '代码片段中，变量未初始化。', '给出的条件下结果恒成立。']) expect(h(keep).content).toBe(keep);
 });
+
+// M579a (mssql-zh 2026-10-27): "代理回答认为，不使用 ASP.NET Web 应用程序框架时…" came out as "认为，不使用…" — M411 took 回答 as
+// the verb and left the reporting verb standing. The whole 代理回答 + verb + comma lead goes (the M409 shape); before 建议 the verb stays (M411).
+test('代理回答认为，… at a sentence start goes whole; 代理回答建议… keeps its verb; 代理商回答称 stays (M579a)', () => {
+  const h = harness();
+  expect(h('代理回答认为，不使用 ASP.NET Web 应用程序框架时，可以通过页面级别编译在运行时生成 DLL。').content).toBe('不使用 ASP.NET Web 应用程序框架时，可以通过页面级别编译在运行时生成 DLL。');
+  expect(h('助手回答指出，该配置项默认关闭。').content).toBe('该配置项默认关闭。');
+  expect(h('代理回答建议在每个页面添加该选项。').content).toBe('建议在每个页面添加该选项。');
+  for (const keep of ['代理商回答称货物已发出。', '我认为，该方案可行。']) {
+    const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
+  }
+});
