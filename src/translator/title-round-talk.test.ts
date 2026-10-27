@@ -387,3 +387,13 @@ test('a mixed-case hex8 glued to a Han title goes; a Han+ASCII glitch token keep
   expect(run('模型 对比GPT4o', '对比 GPT4o 与 GPT3 的输出。').title).toBe('模型 对比GPT4o');
   expect(run('订单编号 2024ABCD', '订单编号 2024ABCD 的记录。').title).toBe('订单编号 2024ABCD');
 });
+
+// M583a (tk-centred-zh 2026-10-27): "单行居中输出界面本轮要求；实现改用单行 `Entry` 文本框" — the filer renamed her task with its round talk
+// glued on; 要求 ("this round asked for") joins M566's round-verb list, and the ；clause after it falls with the rest. A domain 本轮 still stays.
+test('M583a: glued 本轮要求 + a ；clause is cut to the name; a domain 本轮 stays', () => {
+  const r = run('单行居中输出界面本轮要求；实现改用单行 Entry 文本框', '使用 tkinter 创建一个界面，包含单行 Entry 文本输出框和按钮；按下按钮后先清空输出框，再输出内容。');
+  expect(r.title).toBe('单行居中输出界面');
+  expect(r.hits.some((h) => h.d?.how === 'glued')).toBe(true);
+  expect(run('模型本轮训练结果', '模型在本轮训练中的损失下降到 0.2。').title).toBe('模型本轮训练结果');
+  expect(run('招标本轮要求清单', '招标方列出了本轮的十二项资质要求。').title).toBe('招标本轮要求清单');
+});

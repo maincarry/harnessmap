@@ -310,3 +310,13 @@ test('回答还建议 / 回答也给出 / 回复中则推荐 lose the adverb wit
     const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
   }
 });
+
+// M583b (tk-centred-zh 2026-10-27): "本轮要求输出框为单行文本并水平居中；回答提出使用 `Entry`…" — M421f took 回答提出 and left the
+// "本轮要求" lead standing; 要求 joins its verb list. Her own "本轮训练…" / "本轮比赛…" stay (M563d).
+test('本轮要求 X lead goes, the requirement stays; 本轮训练 / 本轮比赛 / 本轮的要求是 / 本轮要求清单 stay (M583b)', () => {
+  const h = harness();
+  expect(h('本轮要求输出框为单行文本并水平居中；回答提出使用 `Entry`，并尝试通过 `see("center")` 将显示位置移到中间。').content).toBe('输出框为单行文本并水平居中；使用 `Entry`，并尝试通过 `see("center")` 将显示位置移到中间。');
+  for (const keep of ['本轮训练的损失下降到 0.3。', '本轮比赛由主队获胜。', '本轮的要求是先清空再输出。', '本轮要求清单共有十二项。']) {
+    const r = h(keep); expect(r.content).toBe(keep); expect(r.trims).toBe(0);
+  }
+});
