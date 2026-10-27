@@ -235,6 +235,13 @@ test('a glitch glued onto a real word goes and the word stays; compounds and inf
   expect(run('Shared database', 'The data lives in one shared store.').title).toBe('Shared database');
 });
 
+// M577 (celery-moon-zh 2026-10-27): "美国登月真实性疑问，不是Python后端问题" — the filer's placement aside naming the map's other branch, glued onto
+// the title after a comma. It goes when the named X is another live node's title; her own "not a password problem" diagnosis stays.
+test('a "，不是X问题" tail naming another branch goes; the same shape naming nothing on the map stays', () => {
+  expect(run('美国登月真实性疑问，不是Linux网络运维问题', '美国登月是真实的；美国在1969年至1972年间完成了6次载人登月任务。').title).toBe('美国登月真实性疑问');
+  expect(run('登录失败，不是密码问题', '登录失败的原因是会话过期，并非密码错误。').title).toBe('登录失败，不是密码问题');
+});
+
 // M562c (nfconntrack-zh 2026-10-26): "规则作用推测（更新）" — the filer's own revision marker on a title. It goes; a parenthetical that names
 // something ("（IPv6）") stays.
 test('a parenthetical revision marker on a title tail goes; a naming parenthetical stays', () => {

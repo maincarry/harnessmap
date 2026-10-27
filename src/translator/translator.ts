@@ -1879,6 +1879,18 @@ export class Translator {
         if (t2 !== anyA.title.trim() && t2.length >= 2) { this.store.audit('guard_title_uuid', { id: String(anyA.id ?? '').slice(0, 8), how: 'hex8-glued', dropped: anyA.title.slice(t2.length) }); anyA.title = t2; }
         const t3 = anyA.title.replace(/[，,]\s*(?:让(?:该|此)?问题|以反映|保持开放|未形成可靠|以体现当前)[^\n]*$/u, '').trim();
         if (t3 !== anyA.title.trim() && t3.length >= 2) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), dropped: anyA.title.slice(t3.length).trim().slice(0, 40) }); anyA.title = t3; }
+        // M577 (celery-moon-zh 2026-10-27): "美国登月真实性疑问，不是Python后端问题" — her words were "美国登月是真的吗"; the "，不是Python后端问题" tail is the
+        // filer explaining that the new topic is not the map's other branch. A trailing "，不是/并非 X 问题/话题/内容" goes when X names another live node
+        // on the map (a placement aside); her own diagnosis "登录失败，不是密码问题" on a map with no 密码 node stays.
+        {
+          const mA = /[，,]\s*(?:不是|并非|非|不属于)\s*([^，,。；]{2,16}?)\s*(?:问题|话题|内容|范畴|相关)$/u.exec(anyA.title);
+          if (mA) {
+            const x = mA[1].replace(/\s+/g, '').toLowerCase();
+            const other = map.nodes.some((n) => n.status !== 'removed' && n.author !== 'system' && n.id !== anyA.id && typeof n.title === 'string' && n.title.replace(/\s+/g, '').toLowerCase().includes(x));
+            const t3x = anyA.title.slice(0, mA.index).trim();
+            if (other && t3x.length >= 2) { this.store.audit('guard_title_aside', { id: String(anyA.id ?? '').slice(0, 8), how: 'other-branch', dropped: anyA.title.slice(mA.index).trim().slice(0, 40) }); anyA.title = t3x; }
+          }
+        }
         // M562c (nfconntrack-zh 2026-10-26): "规则作用推测（更新）" — the filer marked its own revision of a title with a parenthetical "(updated)";
         // a revision marker is record-talk, not a name. A trailing （更新）/（修订）/（补充）/(updated)/(revised) goes; the name stays.
         const t3b = anyA.title.replace(/\s*[（(]\s*(?:已?更新|修订|修正|补充|更新版|updated?|revised|revision)\s*[)）]$/iu, '').trim();
