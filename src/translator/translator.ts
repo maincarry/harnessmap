@@ -2058,7 +2058,14 @@ export class Translator {
           if (pm && !hay.includes('json')) t538 = t538.slice(0, pm.index).trim();
           const nm = /\s*[：:]\s*(?:null|undefined|none|nil|nan|\[object object\])\s*$/i.exec(t538); // M573 (android-debug-zh 2026-10-26: "C++ 录制停止失败事宜：null" — a filer field value glued after a colon; nowhere in her words or the statement)
           if (nm && !hay.includes(nm[0].replace(/^\s*[：:]\s*/, '').trim().toLowerCase())) t538 = t538.slice(0, nm.index).trim();
+          // M578a (thirteen-questions-zh 2026-10-27: "自由光保养归零周期査询?replace"): a Latin token glued straight after the question mark of a Han
+          // title — the filer's own op word leaking onto the name; it goes when the token is in neither the statement nor her words (the ? stays).
+          const qg = /([?？])([A-Za-z_]{3,20})$/.exec(t538);
+          if (qg && /\p{Script=Han}/u.test(t538) && !hay.includes(qg[2].toLowerCase())) t538 = t538.slice(0, qg.index + 1);
           if (t538 !== anyA.title && t538.length >= 3) { this.store.audit('guard_title_tail', { id: String(anyA.id ?? '').slice(0, 8), from: anyA.title.slice(-24), how: 'parse-leak' }); anyA.title = t538; }
+          // M578b (the same title; nacos-yaml-zh 2026-10-26 was the first): 査 (U+67FB, the Japanese form of 查) on a title whose statement and
+          // her words carry no kana and no 査 is a glyph slip for 查. One known pair, no wider table.
+          if (/査/.test(anyA.title) && !/[\u3040-\u30ff]/.test(anyA.title + hay) && !hay.includes('査')) { this.store.audit('guard_title_glitch_word', { id: String(anyA.id ?? '').slice(0, 8), how: 'variant-glyph', word: '査' }); anyA.title = anyA.title.replace(/査/g, '查'); }
         }
         let t0 = anyA.title;
         for (let pass = 0; pass < 4; pass++) {

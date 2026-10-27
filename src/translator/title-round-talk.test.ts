@@ -323,6 +323,15 @@ test('根因未确定 / 原因尚未确定 on a title tail go; 未确定 in the 
   expect(run('未确定行为的排查顺序', '先查编译器警告再查越界访问。').title).toBe('未确定行为的排查顺序');
 });
 
+// M578 (thirteen-questions-zh 2026-10-27): "自由光保养归零周期査询?replace" — (a) the filer's op word "replace" glued straight after the title's
+// question mark, in neither her words nor the statement; (b) the 査 variant glyph for 查 on a Chinese title. Both go; a glued word that the
+// statement carries stays, and 査 on a title whose statement has kana is Japanese and stays.
+test('a Latin token glued after a Han title\'s ? goes unless the statement carries it; 査 becomes 查 off a Japanese context', () => {
+  expect(run('自由光保养归零周期査询?replace', '吉普自由光保养归零的公里数取决于具体车型和车辆年份；一般为1.6万公里或两年一次。').title).toBe('自由光保养归零周期查询?');
+  expect(run('字符串替换?replace', '在 JavaScript 中用 replace 方法替换字符串。').title).toBe('字符串替换?replace');
+  expect(run('調査結果の確認', '調査結果はこちらで確認できます。').title).toBe('調査結果の確認');
+});
+
 // M573 (android-debug-zh 2026-10-26): "C++ 录制停止失败事宜：null" — the filer glued a null field value after a colon onto the name; "null" is in neither
 // her words nor the statement. The same seam with undefined/None/nil/NaN; a null that the statement talks about stays.
 test('a colon + null/undefined tail that the statement does not carry goes; a statement about null keeps it', () => {
